@@ -1,0 +1,10 @@
+ipython
+
+ConfigArgParse
+
+bs4
+MechanicalSoup
+
+
+
+
