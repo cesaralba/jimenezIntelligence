@@ -24,18 +24,25 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    print(args)
-
     files=[]
 
     for x in args.files:
-        print(x)
         files.append(ReadMercadoFile(x))
+
+    orig=None
 
 
     for Mfile in files:
         mf=MercadoPageContent(Mfile)
-        print(mf.source,mf.PositionsCounter)
+
+        if orig is None:
+            orig = mf
+            next
+
+        orig.Compare(mf)
+        #print(mf.source,mf.PositionsCounter)
+
+        orig = mf
 
 
 

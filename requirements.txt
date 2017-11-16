@@ -1,9 +1,12 @@
 ipython
 
+
 ConfigArgParse
+cpickle
 
 bs4
 MechanicalSoup
+babel
 
 
 
