@@ -34,13 +34,17 @@ if __name__ == '__main__':
 
     for Mfile in files:
         mf=MercadoPageContent(Mfile)
+        mf.SetTimestampFromStr(mf.source)
 
         if orig is None:
             orig = mf
-            next
+            continue
 
-        orig.Compare(mf)
-        #print(mf.source,mf.PositionsCounter)
+        diffs = orig.Diff(mf)
+
+        if orig != mf:
+
+            print (Mfile['source'], "There were changes:\n",diffs) #,mf
 
         orig = mf
 
