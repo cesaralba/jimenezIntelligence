@@ -45,6 +45,11 @@ if __name__ == '__main__':
         if orig != mf:
 
             print (Mfile['source'], "There were changes:\n",diffs) #,mf
+            pass
+
+        else:
+            #print(Mfile['source'], "Nodiffs") #,mf)
+            pass
 
         orig = mf
 

@@ -21,3 +21,8 @@ class ClasifData(object):
             entry['value'] = parse_decimal(cells[3].get_text(), locale="de")
             result[entry['team']] = entry
         return result
+
+    def __repr__(self):
+        return "{ "+", ".join([" '{}' ({}): {}".format(self.data[k]['team'],
+                                              self.data[k]['socio'],
+                                              self.data[k]['value']) for k in sorted(self.data, key=self.data.get('value'), reverse=True)])+"} "

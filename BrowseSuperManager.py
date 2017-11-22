@@ -25,15 +25,13 @@ if __name__ == '__main__':
 
     #sm = SuperManagerACB(config=args)
     sm.Connect()
-    print(sm)
 
     sm.getSMstatus()
 
-    if 'outfile' in args and args.outfile:
+    if sm.changed and ('outfile' in args) and args.outfile:
+        print("There were changes!")
         sm.saveData(args.outfile)
 
-    print(sm.asistencias,sm.broker,sm.general,sm.jornadas,sm.puntos,sm.rebotes,sm.triples)
-    # sm.getIntoPrivateLeague()
 
-    # print(sm.browser.get_current_page())
+
 

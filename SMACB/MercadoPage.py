@@ -1,6 +1,5 @@
 from bs4 import BeautifulSoup
-from time import gmtime,strftime, strptime,strptime
-
+from time import gmtime,strftime, strptime
 from collections import defaultdict
 
 import re
@@ -147,7 +146,6 @@ class MercadoPageCompare():
                                                                strftime("%Y-%m-%d %H:%M",self.timestamps['new']),
                                                                changesMSG)
 
-
         if len(self.newRivals) == self.teamsJornada:
             result += "Cambio de jornada!\n\n"
 
@@ -220,7 +218,6 @@ class MercadoPageContent():
         self.PositionsCounter = defaultdict(int)
         self.PlayerData = {}
         self.PlayerByPos = defaultdict(list)
-        self.CuposByPos = defaultdict(lambda: defaultdict(set))
         self.Team2Player = defaultdict(set)
 
         if (type(textPage['data']) is str):
@@ -307,9 +304,8 @@ class MercadoPageContent():
                     self.PlayerData[result['codJugador']] = result
                     self.PlayerByPos[position].append(result['codJugador'])
                     self.Team2Player[result['equipo']].add(result['codJugador'])
-                    self.CuposByPos[position][result['cupo']].add(result['codJugador'])
 
-    def __repr__(self):
+    def __reprX__(self):
         return str({'timestamp':self.timestamp,
                     'source':self.source,
                     'NoFoto2Nombre':self.NoFoto2Nombre,

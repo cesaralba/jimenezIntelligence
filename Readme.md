@@ -10,3 +10,13 @@ python ReadMercadoFiles.py /home/calba/devel/SuperManager/SuperManager-201711030
 
 
 ReadMercadoFile f1 ...
+
+
+#TODO
+
+* Descarga de estadísticas de partidos
+* Carga de mercados pasados (desde ficheros) asociados a jornadas
+* Validación que el mercado ha cambiado e incorporarlo al Supermanager estandar
+* Evolucion de jugadores e informe previo a la jornada
+* TeamGuesser
+

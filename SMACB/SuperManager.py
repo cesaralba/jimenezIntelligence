@@ -31,6 +31,7 @@ class SuperManagerACB(object):
 
     def __init__(self, config={}, url=URL_SUPERMANAGER):
         self.timestamp = gmtime()
+        self.changed = False
         self.url = url
         self.config = config
         self.browser = StatefulBrowser(soup_config={ 'features' : "html.parser"},
@@ -67,8 +68,6 @@ class SuperManagerACB(object):
             exit(1)
 
         self.getIntoPrivateLeague(idLeague=self.config.league)
-
-
 
     def loginSM(self):
         self.browser.open(self.url)
@@ -175,10 +174,10 @@ class SuperManagerACB(object):
         ultJornada = max(jornadas)
         jornadasAdescargar = [ j for j in jornadas if not j in self.jornadas ]
         if jornadasAdescargar:
+            self.changed = True
             for jornada in jornadasAdescargar:
                 self.getJornada(jornada)
             if ultJornada in jornadasAdescargar:
-                self.getClasif("")
                 self.general[ultJornada] = self.getClasif("general")
                 self.broker[ultJornada] = self.getClasif("broker")
                 self.puntos[ultJornada] = self.getClasif("puntos")
@@ -192,7 +191,8 @@ class SuperManagerACB(object):
         aux = copy(self)
 
         #Clean stuff that shouldn't be saved
-        aux.browser = None
+        aux.__delattr__('browser')
+        aux.__delattr__('changed')
         auxdict = self.config.__dict__
         auxkeys = list(auxdict.keys())
         for key in auxkeys:
