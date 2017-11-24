@@ -1,10 +1,15 @@
 
 from mechanicalsoup import StatefulBrowser
-from time import gmtime
+from time import gmtime,strptime
 from urllib.parse import urlparse,unquote, parse_qs
 from collections import defaultdict
+import re
 
 URL_BASE =  "http://www.acb.com"
+
+reJornada=re.compile(".*J\s*(\d)\s*")
+rePublico=re.compile(".*ico:(\d+)")
+reArbitro=re.compile(".*rb:\s*(.*)\s*$")
 
 class CalendarioACB(object):
 
@@ -50,13 +55,11 @@ class CalendarioACB(object):
                 if not liurl in urlsToDownload:
                     urlsToDownload[liurl] = li
                     self.BajaPartido(dest=li,home=curURL)
-                    #break
+                    break
 
 
     def BajaPartido(self,dest=None,home=None):
         partido = Partido(home=home,dest=dest,browser=self.browser )
-
-
 
 
 class Partido(object):
@@ -67,7 +70,15 @@ class Partido(object):
         self.comp = datosURL['cod_competicion']
         self.temp = datosURL['cod_edicion']
         self.game = datosURL['partido']
-        self.prorrogas = 0
+        self.Jornada = None
+        self.FechaHora = None
+        self.Pabellon = None
+        self.Asistencia = None
+        self.Arbitros = []
+        self.ResultadosParciales = []
+        self.Local = None
+        self.Visitante = None
+        self.Prorrogas = 0
 
         if browser is None:
             browser=StatefulBrowser(soup_config={ 'features' : "html.parser"},
@@ -83,22 +94,45 @@ class Partido(object):
         self.url = browser.get_url()
         self.ParsePartido(browser.get_current_page())
 
+        print(self.__dict__)
+
     def ParsePartido(self,content):
 
         #Datos muy sucios
         #partHeader=pagePartido.find("div",{"class":'titulopartidonew'})
 
         tablasPartido=content.find_all("table",{"class":"estadisticasnew"})
-        tabDatosGenerales=tablasPartido[0]
+
+        #Encabezado de Tabla
+        tabDatosGenerales=tablasPartido.pop(0)
         filas=tabDatosGenerales.find_all("tr")
-        celdas=filas[0].find_all("td")
 
+        #Primera fila
+        celdas=filas.pop(0).find_all("td")
         espTiempo = celdas.pop(0).get_text().split("|")
-        print(espTiempo)
+        aux = espTiempo.pop(0).strip()
+        Jaux = reJornada.match(aux)
+        self.Jornada=int(Jaux.group(1))
+        self.FechaHora = strptime(espTiempo[0] + espTiempo[1]," %d/%m/%Y  %H:%M ")
+        self.Pabellon = espTiempo[2].strip()
+        Paux = rePublico.match(espTiempo[3])
+        self.Asistencia = int(Paux.group(1))
+        celdas.pop(0) # Spacer
+        self.prorrogas = len(celdas)-4
 
-        celdas.pop(0)
+        #Segunda fila
+        celdas=[ x.get_text().strip() for x in filas.pop(0).find_all("td")]
+        Aaux=reArbitro.match(celdas.pop(0))
+        self.Arbitros = [ x.strip() for x in Aaux.group(1).split(",")]
+        celdas.pop(0) # Spacer
+        aux = map(lambda x: x.split("|"),celdas)
+        self.ResultadosParciales = [ (int(x[0]),int(x[1])) for x in aux ]
 
-        for fila in celdas:
+        #Datos Partido
+        tabDatosGenerales=tablasPartido.pop(0)
+        filas=tabDatosGenerales.find_all("tr")
+#        print(tabDatosGenerales)
+        for fila in filas:
             print("--",fila)
         print("\n")
 
