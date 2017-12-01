@@ -216,5 +216,3 @@ class SuperManagerACB(object):
             if key in ['timestamp', 'config', 'browser']:
                 continue
             self.__setattr__(key, aux.__getattribute__(key))
-
-

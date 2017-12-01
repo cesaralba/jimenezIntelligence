@@ -1,10 +1,13 @@
 from bs4 import BeautifulSoup
 from time import gmtime,strftime, strptime
 from collections import defaultdict
-
+from SMACB.SMconstants import MAXIMOextranjeros,MINIMOnacionales,CUPOS,POSICIONES
 import re
+from copy import deepcopy
+from babel.numbers import parse_decimal,decimal
 
-from babel.numbers import parse_decimal
+
+INCLUDEPLAYERDATA = False
 
 class MercadoPageCompare():
 
@@ -332,3 +335,95 @@ class MercadoPageContent():
     def __ne__(self, other):
         diff = self.Diff(other)
         return diff.changes
+
+    def GetPlayersByPosAndCupo(self):
+        result = {'data':{},'cont':{}}
+
+        for pos in ['posicion1','posicion3', 'posicion5']:
+            result['data'][pos] = defaultdict(list)
+            result['cont'][pos] = defaultdict(int)
+
+        for cod in self.PlayerData:
+            (result['data'][self.PlayerData[cod]['pos']][self.PlayerData[cod]['cupo']]).append(cod)
+            result['cont'][self.PlayerData[cod]['pos']][self.PlayerData[cod]['cupo']]+=1
+
+        return result
+
+    def CuentaCupos(self,lista):
+        result=defaultdict(int)
+
+        for p in lista:
+            result[self.PlayerData[p]['cupo']] += 1
+
+        return result
+
+class NoSuchPlayerException(Exception):
+    def __init__(self, codigo, source, timestamp):
+        Exception.__init__(self,)
+
+class BadSetException(Exception):
+    def __init__(self, msg):
+        Exception.__init__(self,msg)
+
+
+
+class GroupPlayer(object):
+#TODO: Incluir merge con estadisticas y coste (precio de la jornada anterior)
+    def __init__(self,lista=[],mercado=None):
+
+        self.source = None
+        self.timestamp = None
+        self.players=set()
+        self.valoracion = decimal.Decimal(0.0)
+        self.precio = decimal.Decimal(0.0)
+        self.cupos = defaultdict(int)
+        self.posiciones = defaultdict(int)
+        self.estads = {}
+        self.playerData={}
+
+        if mercado is None and len(lista):
+            raise BadSetException("List of player provided but no mercado")
+
+        if mercado:
+            self.source = mercado.source
+            self.timestamp = mercado.timestamp
+        else:
+            return
+
+        for p in lista:
+            if p in self.players:
+                continue
+            if p in mercado.PlayerData:
+                self.IncludePlayer(mercado.PlayerData[p])
+            else:
+                raise NoSuchPlayerException( "Unable find player [{}] in mercado from {}@{}".format(p,mercado.source,mercado.timestamp))
+
+    def IncludePlayer(self,playerInfo):
+        cod=playerInfo['codJugador']
+
+        if cod in self.players:
+            return
+        self.cupos[playerInfo['cupo']] += 1
+        self.posiciones[playerInfo['pos']] += 1
+        self.valoracion += playerInfo['valJornada']
+        self.precio += playerInfo['precio']
+        self.players.add(cod)
+        self.playerData[cod]=playerInfo
+
+    def Merge(self,*args):
+
+        totalLength = 0
+        for other in args:
+            if not other is GroupPlayer:
+                raise BaseException("Can't add a {} to a GroupPlayer".format(type(other)))
+            if (self.mercado != other.mercado) or (self.timestamp != other.timestamp):
+                raise BaseException("Can't merge players from different mercado data {}@{} and {}@{}".format(self.source,self.timestamp,other.source,other.timestamp))
+            totalLength += len(other.players)
+
+        result=GroupPlayer()
+
+        for gr in [self] + args:
+            for p in gr.players:
+                result.IncludePlayer(gr.playerData[p])
+
+        return result
