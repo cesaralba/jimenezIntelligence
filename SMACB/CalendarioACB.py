@@ -16,13 +16,12 @@ template_URLFICHA = "http://www.acb.com/fichas/%s%i%03i.php"
 class CalendarioACB(object):
 
     def __init__(self, competition="LACB", edition=None, urlbase=calendario_URLBASE):
-        self.timestamp = gmtime
+        self.timestamp = gmtime()
         self.competicion = competition
         self.nombresCompeticion = defaultdict(int)
         self.edicion = edition
         self.Partidos = {}
-        self.Jornadas = defaultdict(list)
-        self.Equipos = defaultdict(int)
+        self.Jornadas = {}
         self.equipo2codigo = {}
         self.codigo2equipo = defaultdict(set)
         self.url = urlbase
@@ -45,6 +44,7 @@ class CalendarioACB(object):
 
         # Tomamos toda la informacion posible de la pagina del calendario.
         currJornada = None
+        tablaPlayoffs = False
         for item in colFechas:
             if type(item) is bs4.element.NavigableString:  # Retornos de carro y cosas así
                 continue
@@ -56,20 +56,33 @@ class CalendarioACB(object):
                 elif 'titulomenuclubs' in divClasses:
                     tituloDiv = item.string
                     tituloFields = tituloDiv.split(" - ")
-                    if len(tituloFields) == 1:
+                    if len(tituloFields) == 1:  # Encabezado Selector de Jornadas a mostrar
                         continue
                     else:
                         self.nombresCompeticion[tituloFields[0]] += 1
-                    print("DIV: {}".format(item.string))
+
                     jornadaMatch = re.match("JORNADA\s+(\d+)", tituloFields[1])
                     if jornadaMatch:  # Liga Endesa 2017-18 - JORNADA 34
                         currJornada = int(jornadaMatch.groups()[0])
+                        self.Jornadas[currJornada] = dict()
+                        self.Jornadas[currJornada]['nombre'] = tituloFields[1]
+                        self.Jornadas[currJornada]['partidos'] = []
+                        self.Jornadas[currJornada]['esPlayoff'] = False
                         continue
                     else:  # Liga Endesa 2017-18 - Calendario jornadas - Liga Regular
                         currJornada = None
-                        # TODO: Sacar nombres de partidos de playoff
+                        if 'playoff' in tituloFields[2].lower():
+                            tablaPlayoffs = True
+                        else:
+                            tablaPlayoffs = False
+
                 elif ('cuerponaranja' in divClasses):  # Selector para calendario de clubes
                     self.ProcesaSelectorClubes(item)
+                elif ('tablajornadas' in divClasses):  # Selector para calendario de clubes
+                    if tablaPlayoffs:
+                        self.ProcesaTablaCalendarioJornadas(item)
+                    else:
+                        continue
                 else:
                     print("DIV Unprocessed: ", item.attrs)
             elif item.name == 'table':
@@ -80,14 +93,13 @@ class CalendarioACB(object):
                 print("Unexpected: ", item, item.__dict__.keys())
 
         return
+        # TODO: Detección de cambio de nombre de equipos
 
     def ProcesaTablaJornada(self, tagTabla, currJornada):
         for row in tagTabla.find_all("tr"):
             cols = row.find_all("td", recursive=False)
 
             equipos = [x.strip() for x in cols[1].string.split(" - ")]
-            for team in equipos:
-                self.Equipos[team] += 1
 
             # si el partido ha sucedido, hay un enlace a las estadisticas en la col 0 (tambien en la del resultado)
             linksCol0 = cols[0].find_all("a")
@@ -102,7 +114,7 @@ class CalendarioACB(object):
 
             self.Partidos[linkOk] = {'params': paramsURL, 'partido': partido, 'resultado': resultado,
                                      'jornada': currJornada, 'equipos': equipos, }
-            self.Jornadas[currJornada].append(linkOk)
+            (self.Jornadas[currJornada]['partidos']).append(linkOk)
 
     def ProcesaSelectorClubes(self, tagForm):
         optionList = tagForm.find_all("option")
@@ -113,6 +125,19 @@ class CalendarioACB(object):
                 continue
             self.equipo2codigo[equipoNombre] = equipoCodigo
             self.codigo2equipo[equipoCodigo].add(equipoNombre)
+
+    def ProcesaTablaCalendarioJornadas(self, tagTabla):
+        for table in tagTabla.find_all("table", attrs={'class': 'jornadas'}):
+            for row in table.find_all("tr"):
+                cols = row.find_all("td", recursive=False)
+                if len(cols) == 2:  # Encabezamiento tabla
+                    continue
+                currJornada = int(cols[1].string)
+                tituloFields = cols[2].string.split(":")
+                self.Jornadas[currJornada] = dict()
+                self.Jornadas[currJornada]['nombre'] = tituloFields[0].strip()
+                self.Jornadas[currJornada]['partidos'] = []
+                self.Jornadas[currJornada]['esPlayoff'] = True
 
 
 def BuscaCalendario(url=URL_BASE, home=None, browser=None, config={}):
