@@ -1,7 +1,11 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 from configargparse import ArgumentParser
-from SMACB.EstadisticasACB import CalendarioACB
+from mechanicalsoup import StatefulBrowser
+
+from SMACB.CalendarioACB import BuscaCalendario, CalendarioACB
+from Utils.Web import ExtraeGetParams
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -13,6 +17,18 @@ if __name__ == '__main__':
     # parser.add_argument('-i', '--input', type=str, required=False, dest='infile')
 
     args = parser.parse_args()
+
+    browser = StatefulBrowser(soup_config={'features': "html.parser"}, raise_on_404=True, user_agent="SMparser",)
+
+    sourceURL = BuscaCalendario(browser=browser, config=args)
+    paramsURL = ExtraeGetParams(sourceURL)
+
+    calendario = CalendarioACB(edition=paramsURL['cod_edicion'], urlbase=sourceURL)
+#    calendario = CalendarioACB(edition=30, urlbase=sourceURL)
+    calendario.BajaCalendario(browser=browser, config=args)
+
+    print(calendario.__dict__)
+    exit(1)
 
     cal = CalendarioACB(config=args)
     cal.BajaCalendario()
@@ -28,5 +44,3 @@ if __name__ == '__main__':
 #     if sm.changed and ('outfile' in args and args.outfile):
 #         print("There were changes!")
 #         sm.saveData(args.outfile)
-
-

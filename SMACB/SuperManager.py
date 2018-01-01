@@ -1,28 +1,31 @@
-from time import gmtime
-from mechanicalsoup import StatefulBrowser, LinkNotFoundError
-from bs4 import BeautifulSoup
 from copy import copy
+from pickle import dump, load
+from time import gmtime
+
 import mechanicalsoup
+from bs4 import BeautifulSoup
+from mechanicalsoup import LinkNotFoundError, StatefulBrowser
 
 from SMACB.ClasifData import ClasifData
 from SMACB.MercadoPage import MercadoPageContent
-from pickle import dump,load
-
-
 
 URL_SUPERMANAGER = "http://supermanager.acb.com/index/identificar"
 
+
 class BadLoginError(Exception):
+
     def __init__(self, url, user):
         Exception.__init__(self, "Unable to log in into '{}' as '{}'".format(url, user))
 
 
 class ClosedSystemError(Exception):
+
     def __init__(self, url):
         Exception.__init__(self, "System '{}' is closed.".format(url))
 
 
 class NoPrivateLeaguesError(Exception):
+
     def __init__(self, user):
         Exception.__init__(self, "User '{}' is no member of any private league.".format(user))
 
@@ -34,10 +37,9 @@ class SuperManagerACB(object):
         self.changed = False
         self.url = url
         self.config = config
-        self.browser = StatefulBrowser(soup_config={ 'features' : "html.parser"},
-                           raise_on_404=True,
-                           user_agent="SMparser",
-                           )
+        self.browser = StatefulBrowser(soup_config={'features': "html.parser"},
+                                       raise_on_404=True,
+                                       user_agent="SMparser",)
         if 'verbose' in config:
             self.browser.set_verbose(self.config.verbose)
 
@@ -53,10 +55,10 @@ class SuperManagerACB(object):
         self.asistencias = {}
         self.mercado = {}
 
-    def Connect(self,url=None):
+    def Connect(self, url=None):
 
         if url:
-            self.url=url
+            self.url = url
 
         try:
             self.loginSM()
@@ -96,10 +98,10 @@ class SuperManagerACB(object):
 
         leagues = self.extractPrivateLeagues(self.browser.get_current_page())
 
-        if idLeague == None and len(leagues) == 1:
+        if idLeague is None and len(leagues) == 1:
             targLeague = list(leagues.values())[0]
             self.config.league = targLeague['id']
-        elif idLeague == None and len(leagues) > 1:
+        elif idLeague is None and len(leagues) > 1:
             raise NoPrivateLeaguesError(self.config.user)
         else:
             targLeague = leagues[idLeague]
@@ -107,15 +109,15 @@ class SuperManagerACB(object):
         self.browser.follow_link(targLeague['Ampliar'])
 
     def extractPrivateLeagues(self, content):
-        forms = content.find_all("form", {"name":"listaprivadas"})
+        forms = content.find_all("form", {"name": "listaprivadas"})
         result = {}
         for formleague in forms:
             for privleague in formleague.find_all("tr"):
                 leaguedata = {}
-                inpleague = privleague.find("input", {'type':'radio'})
+                inpleague = privleague.find("input", {'type': 'radio'})
                 idleague = inpleague['value']
                 leaguedata['id'] = idleague
-                leaguedata['nombre'] = privleague.find("td", {'class':'nombre'}).get_text()
+                leaguedata['nombre'] = privleague.find("td", {'class': 'nombre'}).get_text()
                 for lealink in privleague.find_all("a"):
                     leaguedata[lealink.get_text()] = lealink['href']
                 result[str(idleague)] = leaguedata
@@ -124,7 +126,7 @@ class SuperManagerACB(object):
 
     def getJornadasJugadas(self, content):
         result = []
-        formClass = content.find("form", {"name":"FormClasificacion"})
+        formClass = content.find("form", {"name": "FormClasificacion"})
         for jorInput in formClass.find_all("option"):
             jorNum = jorInput['value']
             if jorNum != "":
@@ -132,7 +134,7 @@ class SuperManagerACB(object):
         return result
 
     def getJornada(self, idJornada):
-        pageForm = self.browser.get_current_page().find("form", {"id":'FormClasificacion'})
+        pageForm = self.browser.get_current_page().find("form", {"id": 'FormClasificacion'})
         pageForm['action'] = "/privadas/ver/id/{}/tipo/jornada/jornada/{}".format(self.config.league, idJornada)
 
         jorForm = mechanicalsoup.Form(pageForm)
@@ -148,9 +150,9 @@ class SuperManagerACB(object):
         return jorResults
 
     def getClasif(self, categ):
-        pageForm = self.browser.get_current_page().find("form", {"id":'FormClasificacion'})
+        pageForm = self.browser.get_current_page().find("form", {"id": 'FormClasificacion'})
         pageForm['action'] = "/privadas/ver/id/{}/tipo/{}".format(self.config.league, categ)
-        curJornada = pageForm.find("option",{'selected':'selected'})['value']
+        curJornada = pageForm.find("option", {'selected': 'selected'})['value']
 
         jorForm = mechanicalsoup.Form(pageForm)
         jorForm['jornada'] = str(curJornada)
@@ -165,14 +167,13 @@ class SuperManagerACB(object):
 
     def getMercado(self):
         self.browser.follow_link("mercado")
-        mercadoData=MercadoPageContent({ 'source': self.browser.get_url(),
-                                        'data': self.browser.get_current_page()})
+        mercadoData = MercadoPageContent({'source': self.browser.get_url(), 'data': self.browser.get_current_page()})
         return mercadoData
 
     def getSMstatus(self):
         jornadas = self.getJornadasJugadas(self.browser.get_current_page())
         ultJornada = max(jornadas)
-        jornadasAdescargar = [ j for j in jornadas if not j in self.jornadas ]
+        jornadasAdescargar = [j for j in jornadas if j not in self.jornadas]
         if jornadasAdescargar:
             self.changed = True
             for jornada in jornadasAdescargar:
@@ -190,7 +191,7 @@ class SuperManagerACB(object):
     def saveData(self, filename):
         aux = copy(self)
 
-        #Clean stuff that shouldn't be saved
+        # Clean stuff that shouldn't be saved
         aux.__delattr__('browser')
         aux.__delattr__('changed')
         auxdict = self.config.__dict__
@@ -199,18 +200,17 @@ class SuperManagerACB(object):
             if key in ['league']:
                 continue
             auxdict.pop(key)
-        aux.config=auxdict
+        aux.config = auxdict
 
-        #TODO: Protect this
-        dump( aux, open( filename, "wb" ) )
-
+        # TODO: Protect this
+        dump(aux, open(filename, "wb"))
 
     def loadData(self, filename):
-        #TODO: Protect this
-        aux = load( open( filename, "rb" ) )
+        # TODO: Protect this
+        aux = load(open(filename, "rb"))
 
         for key in aux.config.keys():
-            self.config.__setattr__(key,aux.config[key])
+            self.config.__setattr__(key, aux.config[key])
 
         for key in aux.__dict__.keys():
             if key in ['timestamp', 'config', 'browser']:

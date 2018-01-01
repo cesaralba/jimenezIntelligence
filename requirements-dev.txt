@@ -1,0 +1,9 @@
+-r requirements.txt
+
+pytest
+flake8
+ipython
+ipdb
+watchdog
+isort
+flake8-isort

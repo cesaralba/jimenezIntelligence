@@ -1,9 +1,10 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 from configargparse import ArgumentParser
+
 from SMACB.SuperManager import SuperManagerACB
 
-# from SMACB.MercadoPage import MercadoPageContent
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add('-u', dest='user', type=str, env_var='SM_USER', required=True)
@@ -23,7 +24,7 @@ if __name__ == '__main__':
     if 'infile' in args and args.infile:
         sm.loadData(args.infile)
 
-    #sm = SuperManagerACB(config=args)
+    # sm = SuperManagerACB(config=args)
     sm.Connect()
 
     sm.getSMstatus()
@@ -31,7 +32,3 @@ if __name__ == '__main__':
     if sm.changed and ('outfile' in args) and args.outfile:
         print("There were changes!")
         sm.saveData(args.outfile)
-
-
-
-

@@ -1,39 +1,28 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 
 import argparse
+
 from SMACB.MercadoPage import MercadoPageContent
-
-#from re import sub
-#from sys import exit
-#from time import strptime,strftime
-
-def ReadMercadoFile(filename):
-    with open(filename,"r") as handin:
-        read_data= handin.read()
-    return { 'source': filename, 'data': ''.join(read_data)}
-
-
-
-
+from Utils.Misc import ReadFile
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument(dest='files', type=str,nargs='+')
-    #parser.add_argument('-i', '--input', type=str, required=False, dest='infile')
+    parser.add_argument(dest='files', type=str, nargs='+')
+    # parser.add_argument('-i', '--input', type=str, required=False, dest='infile')
 
     args = parser.parse_args()
 
-    files=[]
+    files = []
 
     for x in args.files:
-        files.append(ReadMercadoFile(x))
+        files.append(ReadFile(x))
 
-    orig=None
-
+    orig = None
 
     for Mfile in files:
-        mf=MercadoPageContent(Mfile)
+        mf = MercadoPageContent(Mfile)
         mf.SetTimestampFromStr(mf.source)
 
         if orig is None:
@@ -44,16 +33,11 @@ if __name__ == '__main__':
 
         if orig != mf:
 
-            print (Mfile['source'], "There were changes:\n",diffs) #,mf
+            print(Mfile['source'], "There were changes:\n", diffs)  # ,mf
             pass
 
         else:
-            #print(Mfile['source'], "Nodiffs") #,mf)
+            # print(Mfile['source'], "Nodiffs") #,mf)
             pass
 
         orig = mf
-
-
-
-
-

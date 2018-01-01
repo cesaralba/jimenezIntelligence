@@ -1,13 +1,14 @@
-from bs4 import BeautifulSoup
-from time import gmtime,strftime, strptime
-from collections import defaultdict
-from SMACB.SMconstants import MAXIMOextranjeros,MINIMOnacionales,CUPOS,POSICIONES
 import re
-from copy import deepcopy
-from babel.numbers import parse_decimal,decimal
+from collections import defaultdict
+from time import gmtime, strftime, strptime
 
+from babel.numbers import decimal, parse_decimal
+from bs4 import BeautifulSoup
+
+from SMACB.SMconstants import CUPOS, POSICIONES
 
 INCLUDEPLAYERDATA = False
+
 
 class MercadoPageCompare():
 
@@ -21,7 +22,6 @@ class MercadoPageCompare():
                 errorStr += "Type for new data '%s' is not supported. " % type(new)
 
             raise TypeError(errorStr)
-
 
         # Am I a metadata freak?
         self.timestamps = {}
@@ -75,18 +75,19 @@ class MercadoPageCompare():
         altasID = newPlayersID - oldPlayersID
         siguenID = oldPlayersID & newPlayersID
 
-
         if bajasID:
             self.changes = True
-            self.bajas = [ old.PlayerData[x] for x in bajasID ]
+            self.bajas = [old.PlayerData[x] for x in bajasID]
             for key in bajasID:
-                self.playerChanges[key]['baja'] += "{} ({}) es baja en '{}'. ".format(old.PlayerData[key]['nombre'], key, old.PlayerData[key]['equipo'])
+                self.playerChanges[key]['baja'] += "{} ({}) es baja en '{}'. ".format(
+                    old.PlayerData[key]['nombre'], key, old.PlayerData[key]['equipo'])
 
         if altasID:
             self.changes = True
-            self.altas = [ new.PlayerData[x] for x in altasID ]
+            self.altas = [new.PlayerData[x] for x in altasID]
             for key in altasID:
-                self.playerChanges[key]['alta'] += "{} ({}) es alta en '{}'. ".format(new.PlayerData[key]['nombre'], key, new.PlayerData[key]['equipo'])
+                self.playerChanges[key]['alta'] += "{} ({}) es alta en '{}'. ".format(
+                    new.PlayerData[key]['nombre'], key, new.PlayerData[key]['equipo'])
 
         for key in siguenID:
             oldPlInfo = old.PlayerData[key]
@@ -99,32 +100,29 @@ class MercadoPageCompare():
                 self.contCambEquipo += 1
                 origTeam[oldTeam] += 1
                 destTeam[newTeam] += 1
-                self.playerChanges[key]['cambio'] += "{} ({}) pasa de '{}' a '{}'. ".format(new.PlayerData[key]['nombre'],
-                                                                                            key,
-                                                                                            oldTeam,
-                                                                                            newTeam)
+                self.playerChanges[key]['cambio'] += "{} ({}) pasa de '{}' a '{}'. ".format(
+                    new.PlayerData[key]['nombre'], key, oldTeam, newTeam)
 
-                cambEquipo[key] = "{} pasa de {} a {}".format(key,
-                                                             oldPlInfo['equipo'],
-                                                             newPlInfo['equipo'])
+                cambEquipo[key] = "{} pasa de {} a {}".format(key, oldPlInfo['equipo'], newPlInfo['equipo'])
 
             if oldPlInfo['rival'] != newPlInfo['rival']:
                 self.changes = True
-                oldRival = oldPlInfo['rival']
+                # oldRival = oldPlInfo['rival']
                 newRival = newPlInfo['rival']
 
                 self.newRivals[newRival] += 1
                 self.cambRival += 1
 
-
             if oldPlInfo['lesion'] != newPlInfo['lesion']:
                 self.changes = True
                 if newPlInfo['lesion']:
-                    self.playerChanges[key]['lesion'] += "{} ({},{}) se ha lesionado. ".format(newPlInfo['nombre'], key, newPlInfo['equipo'])
+                    self.playerChanges[key]['lesion'] += "{} ({},{}) se ha lesionado. ".format(
+                        newPlInfo['nombre'], key, newPlInfo['equipo'])
                     self.changes = True
                     self.lesionado.append(key)
                 else:
-                    self.playerChanges[key]['salud'] += "{} ({},{}) se ha recuperado. ".format(new.PlayerData[key]['nombre'], key, oldPlInfo['equipo'])
+                    self.playerChanges[key]['salud'] += "{} ({},{}) se ha recuperado. ".format(
+                        new.PlayerData[key]['nombre'], key, oldPlInfo['equipo'])
                     self.changes = True
                     self.curado.append(key)
 
@@ -133,21 +131,26 @@ class MercadoPageCompare():
                     if 'info' in newPlInfo:
                         if oldPlInfo['info'] != newPlInfo['info']:
                             self.changes = True
-                            self.playerChanges[key]['info'] += "{} ({}) info pasa de '{}' a '{}'. ".format(new.PlayerData[key]['nombre'], key, oldPlInfo['info'], newPlInfo['info'])
+                            self.playerChanges[key]['info'] += "{} ({}) info pasa de '{}' a '{}'. ".format(
+                                new.PlayerData[key]['nombre'], key, oldPlInfo['info'], newPlInfo['info'])
                     else:
                         self.changes = True
-                        self.playerChanges[key]['info'] += "{} ({}) info eliminada '{}'. ".format(new.PlayerData[key]['nombre'], key, oldPlInfo['info'])
+                        self.playerChanges[key]['info'] += "{} ({}) info eliminada '{}'. ".format(
+                            new.PlayerData[key]['nombre'], key, oldPlInfo['info'])
                 else:
                     self.changes = True
-                    self.playerChanges[key]['info'] += "{} ({}) info nueva '{}'. ".format(new.PlayerData[key]['nombre'], key, newPlInfo['info'])
+                    self.playerChanges[key]['info'] += "{} ({}) info nueva '{}'. ".format(
+                        new.PlayerData[key]['nombre'], key, newPlInfo['info'])
 
     def __repr__(self):
         changesMSG = "hubo cambios." if self.changes else "sin cambios."
-        result ="Comparación entre {} ({}) y {} ({}): {}\n\n".format(self.sources['old'],
-                                                               strftime("%Y-%m-%d %H:%M",self.timestamps['old']),
-                                                               self.sources['new'],
-                                                               strftime("%Y-%m-%d %H:%M",self.timestamps['new']),
-                                                               changesMSG)
+        result = "Comparación entre {} ({}) y {} ({}): {}\n\n".format(self.sources['old'],
+                                                                      strftime("%Y-%m-%d %H:%M",
+                                                                               self.timestamps['old']),
+                                                                      self.sources['new'],
+                                                                      strftime("%Y-%m-%d %H:%M",
+                                                                               self.timestamps['new']),
+                                                                      changesMSG)
 
         if len(self.newRivals) == self.teamsJornada:
             result += "Cambio de jornada!\n\n"
@@ -157,11 +160,11 @@ class MercadoPageCompare():
         if self.teamRenamed:
             result += "Equipos renombrados: {}\n".format(len(self.teamTranslationsNew2Old))
             for team in self.teamTranslationsOld2New.keys():
-                result += "  '{}' pasa a ser '{}'\n".format(team,self.teamTranslationsOld2New[team])
+                result += "  '{}' pasa a ser '{}'\n".format(team, self.teamTranslationsOld2New[team])
         if self.newTeams:
-            result += "Nuevos equipos ({}): {}\n".format(len(self.newTeams),self.newTeams.sort())
+            result += "Nuevos equipos ({}): {}\n".format(len(self.newTeams), self.newTeams.sort())
         if self.delTeams:
-            result += "Equipos no juegan ({}): {}\n".format(len(self.delTeams),self.delTeams.sort())
+            result += "Equipos no juegan ({}): {}\n".format(len(self.delTeams), self.delTeams.sort())
 
         if self.teamRenamed or self.newTeams or self.delTeams:
             result += "\n"
@@ -185,7 +188,7 @@ class MercadoPageCompare():
             result += "\n"
 
         for key in self.playerChanges:
-            playerChangesInfo= self.playerChanges[key]
+            playerChangesInfo = self.playerChanges[key]
 
             for item in playerChangesInfo.keys():
                 result += playerChangesInfo[item]
@@ -198,15 +201,14 @@ class MercadoPageCompare():
 
         return result
 
-
-        return str({'timestamp':self.timestamp,
-                    'source':self.source,
-                    'NoFoto2Nombre':self.NoFoto2Nombre,
-                    'Nombre2NoFoto':self.Nombre2NoFoto,
-                    'PositionsCounter':self.PositionsCounter,
-                    'PlayerData':self.PlayerData,
-                    'PlayerByPos':self.PlayerByPos,
-                    'Team2Player':self.Team2Player
+        return str({'timestamp': self.timestamp,
+                    'source': self.source,
+                    'NoFoto2Nombre': self.NoFoto2Nombre,
+                    'Nombre2NoFoto': self.Nombre2NoFoto,
+                    'PositionsCounter': self.PositionsCounter,
+                    'PlayerData': self.PlayerData,
+                    'PlayerByPos': self.PlayerByPos,
+                    'Team2Player': self.Team2Player
                     })
 
 
@@ -230,7 +232,7 @@ class MercadoPageContent():
         else:
             raise NotImplementedError("MercadoPageContent: type of content '%s' not supported" % type(textPage['data']))
 
-        positions = soup.find_all("table", {"class":"listajugadores"})
+        positions = soup.find_all("table", {"class": "listajugadores"})
 
         for pos in positions:
             position = pos['id']
@@ -239,20 +241,12 @@ class MercadoPageContent():
                 player_data = player.find_all("td")
                 player_data or next
 
-                fieldTrads = { 'foto' : ['foto'],
-                               'jugador' : ['jugador'],
-                               'equipo' : ['equipo'],
-                               'promedio' : ['promVal', 'valJornada', 'seMantiene'],
-                               'precio' : ['precio', 'enEquipos%'],
-                               'val' : ['prom3Jornadas'],
-                               'balance' : ['sube15%'],
-                               'baja' : ['baja15%'],
-                               'rival' : ['rival'],
-                               'iconos' : ['iconos']
-                               }
+                fieldTrads = {'foto': ['foto'], 'jugador': ['jugador'], 'equipo': ['equipo'],
+                              'promedio': ['promVal', 'valJornada', 'seMantiene'],
+                              'precio': ['precio', 'enEquipos%'], 'val': ['prom3Jornadas'],
+                              'balance': ['sube15%'], 'baja': ['baja15%'], 'rival': ['rival'], 'iconos': ['iconos']}
 
-                result = { 'proxFuera': False , 'lesion': False,
-                          'cupo': 'normal'  }
+                result = {'proxFuera': False, 'lesion': False, 'cupo': 'normal'}
                 result['pos'] = position
                 self.PositionsCounter[position] += 1
                 for data in player_data:
@@ -309,25 +303,24 @@ class MercadoPageContent():
                     self.Team2Player[result['equipo']].add(result['codJugador'])
 
     def __reprX__(self):
-        return str({'timestamp':self.timestamp,
-                    'source':self.source,
-                    'NoFoto2Nombre':self.NoFoto2Nombre,
-                    'Nombre2NoFoto':self.Nombre2NoFoto,
-                    'PositionsCounter':self.PositionsCounter,
-                    'PlayerData':self.PlayerData,
-                    'PlayerByPos':self.PlayerByPos,
-                    'Team2Player':self.Team2Player
+        return str({'timestamp': self.timestamp,
+                    'source': self.source,
+                    'NoFoto2Nombre': self.NoFoto2Nombre,
+                    'Nombre2NoFoto': self.Nombre2NoFoto,
+                    'PositionsCounter': self.PositionsCounter,
+                    'PlayerData': self.PlayerData,
+                    'PlayerByPos': self.PlayerByPos,
+                    'Team2Player': self.Team2Player
                     })
 
-
-    def SetTimestampFromStr(self,timeData):
-        ERDATE=re.compile(".*-(\d{4}\d{2}\d{2}(\d{4})?)\..*")
-        ermatch=ERDATE.match(timeData)
+    def SetTimestampFromStr(self, timeData):
+        ERDATE = re.compile(".*-(\d{4}\d{2}\d{2}(\d{4})?)\..*")
+        ermatch = ERDATE.match(timeData)
         if ermatch:
             if ermatch.group(2):
-                self.timestamp=strptime(ermatch.group(1),"%Y%m%d%H%M")
+                self.timestamp = strptime(ermatch.group(1), "%Y%m%d%H%M")
             else:
-                self.timestamp=strptime(ermatch.group(1),"%Y%m%d")
+                self.timestamp = strptime(ermatch.group(1), "%Y%m%d")
 
     def Diff(self, otherData):
         return MercadoPageCompare(self, otherData)
@@ -337,49 +330,61 @@ class MercadoPageContent():
         return diff.changes
 
     def GetPlayersByPosAndCupo(self):
-        result = {'data':{},'cont':{}}
+        result = {'data': [[]] * len(POSICIONES) * len(CUPOS),
+                  'cont': [0] * len(POSICIONES) * len(CUPOS)}
+        indexResult = {}
 
-        for pos in ['posicion1','posicion3', 'posicion5']:
-            result['data'][pos] = defaultdict(list)
-            result['cont'][pos] = defaultdict(int)
+        aux = 0
+        for pos in POSICIONES:
+            indexResult[pos] = {}
+            for cupo in CUPOS:
+                indexResult[pos][cupo] = aux
+                aux += 1
 
         for cod in self.PlayerData:
-            (result['data'][self.PlayerData[cod]['pos']][self.PlayerData[cod]['cupo']]).append(cod)
-            result['cont'][self.PlayerData[cod]['pos']][self.PlayerData[cod]['cupo']]+=1
+            i = indexResult[self.PlayerData[cod]['pos']][self.PlayerData[cod]['cupo']]
+            (result['data'][i]).append((cod, int(self.PlayerData[cod]['valJornada'] * 100)))
+            result['cont'][i] += 1
+
+        result['indexes'] = indexResult
 
         return result
 
-    def CuentaCupos(self,lista):
-        result=defaultdict(int)
+    def CuentaCupos(self, lista):
+        result = defaultdict(int)
 
         for p in lista:
             result[self.PlayerData[p]['cupo']] += 1
 
         return result
 
+
 class NoSuchPlayerException(Exception):
+
     def __init__(self, codigo, source, timestamp):
         Exception.__init__(self,)
 
-class BadSetException(Exception):
-    def __init__(self, msg):
-        Exception.__init__(self,msg)
 
+class BadSetException(Exception):
+
+    def __init__(self, msg):
+        Exception.__init__(self, msg)
 
 
 class GroupPlayer(object):
-#TODO: Incluir merge con estadisticas y coste (precio de la jornada anterior)
-    def __init__(self,lista=[],mercado=None):
+
+    # TODO: Incluir merge con estadisticas y coste (precio de la jornada anterior)
+    def __init__(self, lista=[], mercado=None):
 
         self.source = None
         self.timestamp = None
-        self.players=set()
+        self.players = set()
         self.valoracion = decimal.Decimal(0.0)
         self.precio = decimal.Decimal(0.0)
         self.cupos = defaultdict(int)
         self.posiciones = defaultdict(int)
         self.estads = {}
-        self.playerData={}
+        self.playerData = {}
 
         if mercado is None and len(lista):
             raise BadSetException("List of player provided but no mercado")
@@ -396,10 +401,11 @@ class GroupPlayer(object):
             if p in mercado.PlayerData:
                 self.IncludePlayer(mercado.PlayerData[p])
             else:
-                raise NoSuchPlayerException( "Unable find player [{}] in mercado from {}@{}".format(p,mercado.source,mercado.timestamp))
+                raise NoSuchPlayerException("Unable find player [{}] in mercado from {}@{}".format(
+                    p, mercado.source, mercado.timestamp))
 
-    def IncludePlayer(self,playerInfo):
-        cod=playerInfo['codJugador']
+    def IncludePlayer(self, playerInfo):
+        cod = playerInfo['codJugador']
 
         if cod in self.players:
             return
@@ -408,19 +414,20 @@ class GroupPlayer(object):
         self.valoracion += playerInfo['valJornada']
         self.precio += playerInfo['precio']
         self.players.add(cod)
-        self.playerData[cod]=playerInfo
+        self.playerData[cod] = playerInfo
 
-    def Merge(self,*args):
+    def Merge(self, *args):
 
         totalLength = 0
         for other in args:
-            if not other is GroupPlayer:
+            if other is not GroupPlayer:
                 raise BaseException("Can't add a {} to a GroupPlayer".format(type(other)))
             if (self.mercado != other.mercado) or (self.timestamp != other.timestamp):
-                raise BaseException("Can't merge players from different mercado data {}@{} and {}@{}".format(self.source,self.timestamp,other.source,other.timestamp))
+                raise BaseException("Can't merge players from different mercado data {}@{} and {}@{}".format(
+                    self.source, self.timestamp, other.source, other.timestamp))
             totalLength += len(other.players)
 
-        result=GroupPlayer()
+        result = GroupPlayer()
 
         for gr in [self] + args:
             for p in gr.players:
