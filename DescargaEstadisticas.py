@@ -27,7 +27,7 @@ if __name__ == '__main__':
 #    calendario = CalendarioACB(edition=30, urlbase=sourceURL)
     calendario.BajaCalendario(browser=browser, config=args)
 
-    print(calendario.__dict__)
+    # print(calendario.__dict__)
     exit(1)
 
     cal = CalendarioACB(config=args)

@@ -10,6 +10,9 @@ jugPorPos = [3, 4, 4]
 
 
 def GeneraCombinaciones():
+    """ Genera las combinaciones posibles para un equipo de SuperManager teniendo en cuenta las posiciones y las
+        nacionalidades
+        """
     listaPos = [None] * 9
     result = []
 

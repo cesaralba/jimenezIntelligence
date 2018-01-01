@@ -23,18 +23,9 @@ class CalendarioACB(object):
         self.Partidos = {}
         self.Jornadas = defaultdict(list)
         self.Equipos = defaultdict(int)
-        self.equipo2prefijo = {}
-        self.prefijo2equipo = {}
+        self.equipo2codigo = {}
+        self.codigo2equipo = defaultdict(set)
         self.url = urlbase
-
-    def ComposeGameURL(self, parts):
-        compo = parts.get('cod_competicion', None)
-        edition = parts.get('cod_edicion', None)
-        game = parts.get('partido', None)
-
-        result = template_URLFICHA % (compo, edition, game)
-
-        return result
 
     def BajaCalendario(self, home=None, browser=None, config={}):
         urlCalendario = ComposeURL(self.url, {'cod_competicion': self.competicion,
@@ -51,16 +42,17 @@ class CalendarioACB(object):
 
         tablaCols = tablaCuerpo.find_all("td", recursive=False)
         colFechas = tablaCols[2]
-        print(colFechas.__dict__.keys())
 
+        # Tomamos toda la informacion posible de la pagina del calendario.
         currJornada = None
         for item in colFechas:
-            if type(item) is bs4.element.NavigableString:
+            if type(item) is bs4.element.NavigableString:  # Retornos de carro y cosas así
                 continue
             elif item.name == 'div':
                 divClasses = item.attrs.get('class', [])
-                if ('menuseparacion' in divClasses) or ('piemenuclubs' in divClasses) or ('cuerpobusca' in divClasses):
-                    continue
+                if (('menuseparacion' in divClasses) or ('piemenuclubs' in divClasses) or
+                   ('cuerpobusca' in divClasses) or ('titulomenuclubsl' in divClasses)):
+                    continue  # DIV estéticos o que no aportan información interesante
                 elif 'titulomenuclubs' in divClasses:
                     tituloDiv = item.string
                     tituloFields = tituloDiv.split(" - ")
@@ -76,11 +68,13 @@ class CalendarioACB(object):
                     else:  # Liga Endesa 2017-18 - Calendario jornadas - Liga Regular
                         currJornada = None
                         # TODO: Sacar nombres de partidos de playoff
+                elif ('cuerponaranja' in divClasses):  # Selector para calendario de clubes
+                    self.ProcesaSelectorClubes(item)
                 else:
                     print("DIV Unprocessed: ", item.attrs)
             elif item.name == 'table':
                 self.ProcesaTablaJornada(item, currJornada)
-            elif item.name in ('br'):
+            elif item.name in ('br'):  # Otras cosas que no interesan
                 continue
             else:
                 print("Unexpected: ", item, item.__dict__.keys())
@@ -110,18 +104,15 @@ class CalendarioACB(object):
                                      'jornada': currJornada, 'equipos': equipos, }
             self.Jornadas[currJornada].append(linkOk)
 
-#     def BajaPartido(self, dest=None, home=None):
-#         print("Calendario.BajaPartido: DEST ", dest, " HOME ", home)
-#         partido = Partido()
-#         gameData = DescargaPagina(dest, home, self.browser)
-#         partido.SOURCE = gameData['source']
-#         datosURL = ExtraeGetParams(dest['href'])
-#         partido.comp = datosURL['cod_competicion']
-#         partido.temp = datosURL['cod_edicion']
-#         partido.game = datosURL['partido']
-#
-#         partido.ParsePartido(gameData['data'])
-#         # print(partido.__dict__)
+    def ProcesaSelectorClubes(self, tagForm):
+        optionList = tagForm.find_all("option")
+        for optionTeam in optionList:
+            equipoCodigo = optionTeam['value']
+            equipoNombre = optionTeam.string
+            if equipoCodigo == "0":
+                continue
+            self.equipo2codigo[equipoNombre] = equipoCodigo
+            self.codigo2equipo[equipoCodigo].add(equipoNombre)
 
 
 def BuscaCalendario(url=URL_BASE, home=None, browser=None, config={}):
