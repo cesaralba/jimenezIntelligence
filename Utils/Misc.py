@@ -24,3 +24,10 @@ def ReadFile(filename):
     with open(filename, "r") as handin:
         read_data = handin.read()
     return {'source': filename, 'data': ''.join(read_data)}
+
+
+def CompareBagsOfWords(x, y):
+    bogx = set(x.lower().split())
+    bogy = set(y.lower().split())
+
+    return len(bogx.intersection(bogy))
