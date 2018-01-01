@@ -24,10 +24,12 @@ if __name__ == '__main__':
     paramsURL = ExtraeGetParams(sourceURL)
 
     calendario = CalendarioACB(edition=paramsURL['cod_edicion'], urlbase=sourceURL)
-#    calendario = CalendarioACB(edition=30, urlbase=sourceURL)
+    # calendario = CalendarioACB(edition=56, urlbase=sourceURL)
     calendario.BajaCalendario(browser=browser, config=args)
-
-    # print(calendario.__dict__)
+    if 0:
+        print(calendario.codigo2equipo)
+        print(calendario.equipo2codigo)
+        print(calendario.__dict__)
     exit(1)
 
     cal = CalendarioACB(config=args)

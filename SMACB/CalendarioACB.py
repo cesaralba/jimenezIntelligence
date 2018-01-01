@@ -1,10 +1,12 @@
 import re
 from collections import defaultdict
+from copy import copy
 from time import gmtime
 
 import bs4
 
 from SMACB.PartidoACB import GeneraURLpartido
+from Utils.Misc import CompareBagsOfWords
 from Utils.Web import ComposeURL, DescargaPagina, ExtraeGetParams, MergeURL
 
 URL_BASE = "http://www.acb.com"
@@ -67,6 +69,7 @@ class CalendarioACB(object):
                         self.Jornadas[currJornada] = dict()
                         self.Jornadas[currJornada]['nombre'] = tituloFields[1]
                         self.Jornadas[currJornada]['partidos'] = []
+                        self.Jornadas[currJornada]['equipos'] = set()
                         self.Jornadas[currJornada]['esPlayoff'] = False
                         continue
                     else:  # Liga Endesa 2017-18 - Calendario jornadas - Liga Regular
@@ -92,29 +95,39 @@ class CalendarioACB(object):
             else:
                 print("Unexpected: ", item, item.__dict__.keys())
 
-        return
-        # TODO: Detección de cambio de nombre de equipos
+        for jornada in self.Jornadas:
+            if not self.Jornadas[jornada]['partidos']:
+                continue
+
+            for partido in self.Jornadas[jornada]['partidos']:
+                self.Partidos[partido]['esPlayoff'] = self.Jornadas[jornada]['esPlayoff']
+
+        # Detecta los cambios de nombre de equipo
+        self.GestionaNombresDeEquipo()
 
     def ProcesaTablaJornada(self, tagTabla, currJornada):
         for row in tagTabla.find_all("tr"):
             cols = row.find_all("td", recursive=False)
 
             equipos = [x.strip() for x in cols[1].string.split(" - ")]
+            for equipo in equipos:
+                (self.Jornadas[currJornada]['equipos']).add(equipo)
 
             # si el partido ha sucedido, hay un enlace a las estadisticas en la col 0 (tambien en la del resultado)
             linksCol0 = cols[0].find_all("a")
+
             if linksCol0:
                 linkGame = linksCol0[0]
                 linkOk = GeneraURLpartido(linkGame)
+                partido = cols[1].string
+                resultado = cols[2].string.strip()
+
                 paramsURL = ExtraeGetParams(linkGame['href'])
+                self.Partidos[linkOk] = {'params': paramsURL, 'partido': partido, 'resultado': resultado,
+                                         'jornada': currJornada, 'equipos': equipos, }
+                (self.Jornadas[currJornada]['partidos']).append(linkOk)
             else:  # No ha habido partido
                 continue
-            partido = cols[1].string
-            resultado = cols[2].string.strip()
-
-            self.Partidos[linkOk] = {'params': paramsURL, 'partido': partido, 'resultado': resultado,
-                                     'jornada': currJornada, 'equipos': equipos, }
-            (self.Jornadas[currJornada]['partidos']).append(linkOk)
 
     def ProcesaSelectorClubes(self, tagForm):
         optionList = tagForm.find_all("option")
@@ -133,11 +146,123 @@ class CalendarioACB(object):
                 if len(cols) == 2:  # Encabezamiento tabla
                     continue
                 currJornada = int(cols[1].string)
+                if currJornada not in self.Jornadas:
+                    self.Jornadas[currJornada] = dict()
+                    self.Jornadas[currJornada]['partidos'] = []
+                    self.Jornadas[currJornada]['equipos'] = set()
+
                 tituloFields = cols[2].string.split(":")
-                self.Jornadas[currJornada] = dict()
                 self.Jornadas[currJornada]['nombre'] = tituloFields[0].strip()
-                self.Jornadas[currJornada]['partidos'] = []
                 self.Jornadas[currJornada]['esPlayoff'] = True
+
+    def GestionaNombresDeEquipo(self):
+        """ Intenta tener en cuenta los nombres de equipos que cambian a lo largo de la temporada (patrocinios)
+        """
+
+        codigosTemporada = set(self.codigo2equipo.keys())
+        combinacionesNoUsadas = dict()
+
+        for jornada in sorted(self.Jornadas.keys(), reverse=True):
+            if self.Jornadas[jornada]['esPlayoff']:
+                continue
+
+            if not self.Jornadas[jornada]['equipos']:
+                continue
+
+            codigosUsados = set()
+            equiposNoAsignados = set()
+            for equipo in self.Jornadas[jornada]['equipos']:
+                if equipo in self.equipo2codigo:
+                    codigosUsados.add(self.equipo2codigo[equipo])
+                else:
+                    equiposNoAsignados.add(equipo)
+            codigosNoUsados = codigosTemporada - codigosUsados
+
+            if not equiposNoAsignados:  # Se asignado todo!
+                continue
+
+            # TODO: Habra que hacer algo para cuando haya equipos impares
+
+            # busca similitures entre el nombre que aparece en el formulario (recortado) y el de las jornadas
+            auxEquiposNoAsignados = copy(equiposNoAsignados)
+            for equipo in auxEquiposNoAsignados:
+                auxCodigosNoUsados = copy(codigosNoUsados)
+                for codigo in auxCodigosNoUsados:
+                    nombresRef = list(self.codigo2equipo[codigo])
+                    compCadenas = dict(zip(nombresRef, [CompareBagsOfWords(equipo, x) for x in nombresRef]))
+                    if max(compCadenas.values()) > 1:
+                        # sortedComps = sorted(compCadenas.items(), key=itemgetter(1),reverse=True)
+                        self.codigo2equipo[codigo].add(equipo)
+                        self.equipo2codigo[equipo] = codigo
+                        equiposNoAsignados.remove(equipo)
+                        codigosNoUsados.remove(codigo)
+
+            # Caso trivial, sólo queda uno por asignar
+            if len(codigosNoUsados) == 1 and len(equiposNoAsignados) == 1:
+                codigo = codigosNoUsados.pop()
+                equipo = equiposNoAsignados.pop()
+                self.equipo2codigo[equipo] = codigo
+                (self.codigo2equipo[codigo]).add(equipo)
+                continue
+
+            if codigosNoUsados:
+                combinacionesNoUsadas["|".join(sorted(list(codigosNoUsados)))] = equiposNoAsignados
+            # nombresConocidos = dict(zip(codigosNoUsados, [self.codigo2equipo[k] for k in codigosNoUsados] ))
+
+        if not combinacionesNoUsadas:
+            return
+        else:
+            print(combinacionesNoUsadas)
+
+    #         return
+    #
+    #         cambios = True
+    #
+    #         while cambios:
+    #             cambios = False
+    #             claves2codigos = dict()
+    #
+    #             cambioClavesConjuntos = False
+    #
+    #             for k in combinacionesNoUsadas:
+    #                 codigos = set(k.split("|"))
+    #                 claves2codigos[k] = codigos
+    #
+    #             for c in combinations(combinacionesNoUsadas,2):
+    #                 cx = claves2codigos[c[0]]
+    #                 cy = claves2codigos[c[1]]
+    #                 ex = combinacionesNoUsadas[c[0]]
+    #                 ey = combinacionesNoUsadas[c[1]]
+    #
+    #                 print(c,cx,cy,ex,ey)
+    #                 continue
+    #
+    #                 diffxy = cx - cy
+    #                 diffyx = cy - cx
+    #
+    #                 if len(diffxy) == 1:
+    #                     codigo = diffxy.pop()
+    #                     equipo = (ex - ey).pop()
+    #                     self.equipo2codigo[equipo] = codigo
+    #                     (self.codigo2equipo[codigo]).add(equipo)
+    #                     cambioClavesConjuntos = True
+    #                     cambios = True
+    #                 elif len(diffxy) == 0:
+    #                     pass  # Nada que hacer
+    #                 else:
+    #                     pass  # TODO: Pensar
+    #
+    #                 if len(diffyx) == 1:
+    #                     codigo = diffyx.pop()
+    #                     equipo = (ey - ex).pop()
+    #                     self.equipo2codigo[equipo] = codigo
+    #                     (self.codigo2equipo[codigo]).add(equipo)
+    #                     cambioClavesConjuntos = True
+    #                     cambios = True
+    #                 elif len(diffyx) == 0:
+    #                     pass  # Nada que hacer
+    #                 else:
+    #                     pass  # TODO: Pensar
 
 
 def BuscaCalendario(url=URL_BASE, home=None, browser=None, config={}):
