@@ -3,12 +3,20 @@ import re
 ####################################################################################################################
 
 
-class BadStringException(Exception):
-    def __init__(self, cadena):
+class BadString(Exception):
+    def __init__(self, cadena=None):
         if cadena:
             Exception.__init__(self, cadena)
         else:
             Exception.__init__(self, "Data doesn't fit expected format")
+
+
+class BadParameters(Exception):
+    def __init__(self, cadena=None):
+        if cadena:
+            Exception.__init__(self, cadena)
+        else:
+            Exception.__init__(self, "Wrong (or missing) parameters")
 
 
 def ExtractREGroups(cadena, regex="."):
