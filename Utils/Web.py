@@ -1,9 +1,8 @@
+from time import gmtime
 from urllib.parse import (parse_qs, unquote, urlencode, urljoin, urlparse,
                           urlunparse)
 
 from mechanicalsoup import StatefulBrowser
-
-#
 
 
 def DescargaPagina(dest, home=None, browser=None, config={}):
@@ -28,7 +27,7 @@ def DescargaPagina(dest, home=None, browser=None, config={}):
     source = browser.get_url()
     content = browser.get_current_page()
 
-    return {'source': source, 'data': content}
+    return {'source': source, 'data': content, 'timestamp': gmtime()}
 
 
 def ExtraeGetParams(url):
