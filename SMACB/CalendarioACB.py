@@ -36,8 +36,14 @@ class CalendarioACB(object):
 
         calendarioPage = DescargaPagina(urlCalendario, home=home, browser=browser, config=config)
 
-        # calendarioURL = calendarioPage['source']
-        calendarioData = calendarioPage['data']
+        self.ProcesaCalendario(calendarioPage)
+
+    def ProcesaCalendario(self, content):
+        if 'timestamp' in content:
+            self.timestamp = content['timestamp']
+        if 'source' in content:
+            self.url = content['source']
+        calendarioData = content['data']
 
         tablaCuerpo = calendarioData.table(recursive=False)[0]
 
@@ -123,8 +129,8 @@ class CalendarioACB(object):
                 resultado = cols[2].string.strip()
 
                 paramsURL = ExtraeGetParams(linkGame['href'])
-                self.Partidos[linkOk] = {'params': paramsURL, 'partido': partido, 'resultado': resultado,
-                                         'jornada': currJornada, 'equipos': equipos, }
+                self.Partidos[linkOk] = {'URLparams': paramsURL, 'partido': partido, 'resultado': resultado,
+                                         'jornada': currJornada, 'equipos': equipos, 'url': linkOk}
                 (self.Jornadas[currJornada]['partidos']).append(linkOk)
             else:  # No ha habido partido
                 continue
