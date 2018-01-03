@@ -1,4 +1,5 @@
 import re
+from time import gmtime
 
 ####################################################################################################################
 
@@ -31,7 +32,7 @@ def ExtractREGroups(cadena, regex="."):
 def ReadFile(filename):
     with open(filename, "r") as handin:
         read_data = handin.read()
-    return {'source': filename, 'data': ''.join(read_data)}
+    return {'source': filename, 'data': ''.join(read_data), 'timestamp': gmtime()}
 
 
 def CompareBagsOfWords(x, y):
