@@ -4,12 +4,13 @@ Created on Dec 31, 2017
 @author: calba
 '''
 
-from time import strptime
+from time import gmtime, strptime
+from traceback import print_exc
 
 from bs4 import Tag
 
-from Utils.Misc import BadStringException, ExtractREGroups
-from Utils.Web import ExtraeGetParams
+from Utils.Misc import BadParameters, BadString, ExtractREGroups
+from Utils.Web import DescargaPagina, ExtraeGetParams
 
 templateURLficha = "http://www.acb.com/fichas/%s%i%03i.php"
 reJornada = ".*J\s*(\d)\s*"
@@ -17,44 +18,67 @@ rePublico = ".*ico:(\d+)"
 reArbitro = ".*rb:\s*(.*)\s*$"
 reResultadoEquipo = "^\s*(.*)\s+(\d+)\s*$"
 
+LocalVisitante = ('Local', 'Visitante')
+
 
 class PartidoACB(object):
 
-    def __init__(self, dest, home=None, browser=None):
-
-        datosURL = ExtraeGetParams(dest['href'])
-        self.comp = datosURL['cod_competicion']
-        self.temp = datosURL['cod_edicion']
-        self.game = datosURL['partido']
+    def __init__(self, **kwargs):
         self.Jornada = None
         self.FechaHora = None
         self.Pabellon = None
         self.Asistencia = None
         self.Arbitros = []
         self.ResultadosParciales = []
+        self.prorrogas = 0
 
         self.Equipos = {}
-        for x in ('Local', 'Visitante'):
+        for x in LocalVisitante:
             self.Equipos[x] = {}
+            self.Equipos[x]['Jugadores'] = []
+            self.Equipos[x]['haGanado'] = False
 
         self.Jugadores = {}
+
+        self.EquiposCalendario = dict(zip(LocalVisitante, kwargs['equipos']))
+        self.ResultadoCalendario = dict(zip(LocalVisitante, kwargs['resultado']))
+        self.CodigosCalendario = dict(zip(LocalVisitante, kwargs['codigos']))
+
         self.VictoriaLocal = None
 
-        self.Prorrogas = 0
+        self.DatosSuministrados = kwargs
 
-        # TODO: Process Game info
+        if 'url' in kwargs:
+            self.url = kwargs['url']
+        else:
+            if 'URLparams' in kwargs:
+                self.url = GeneraURLpartido(kwargs['URLparams'])
 
-        self.url = browser.get_url()
-        self.ParsePartido(browser.get_current_page())
+        if 'URLparams' in kwargs:
+            self.competicion = kwargs['URLparams']['cod_competicion']
+            self.temporada = kwargs['URLparams']['cod_edicion']
+            self.idPartido = kwargs['URLparams']['partido']
 
-        print(self.__dict__)
+    def DescargaPartido(self, home=None, browser=None, config={}):
 
-    def ParsePartido(self, content):
+        if not hasattr(self, 'url'):
+            raise BadParameters("PartidoACB: DescargaPartido: imposible encontrar la URL del partido")
 
-        # Datos muy sucios
-        # partHeader=pagePartido.find("div",{"class":'titulopartidonew'})
+        urlPartido = self.url
 
-        tablasPartido = content.find_all("table", {"class": "estadisticasnew"})
+        partidoPage = DescargaPagina(urlPartido, home=home, browser=browser, config=config)
+
+        self.ProcesaPartido(partidoPage)
+
+    def ProcesaPartido(self, content):
+        if 'timestamp' in content:
+            self.timestamp = content['timestamp']
+        else:
+            self.timestamp = gmtime()
+        if 'source' in content:
+            self.url = content['source']
+
+        tablasPartido = content['data'].find_all("table", {"class": "estadisticasnew"})
 
         # Encabezado de Tabla
         tabDatosGenerales = tablasPartido.pop(0)
@@ -99,17 +123,44 @@ class PartidoACB(object):
             fila = filas.pop(0)
 
             if "estverde" in fila.get('class', ""):
-                print("Cambio equipo!")
                 estado = "Visitante"
                 self.GetResultEquipo(fila.find("td").get_text(), estado)
                 self.VictoriaLocal = self.Equipos['Local']['Puntos'] > self.Equipos['Visitante']['Puntos']
                 filas.pop(0)
                 continue
-            self.ProcesaLineaTablaEstadistica(fila=fila, headers=colHeaders, estado=estado)
-            # print("--",fila)
-            #
+            datos = self.ProcesaLineaTablaEstadistica(fila=fila, headers=colHeaders, estado=estado)
+            if not datos:
+                continue
 
-#         print("\n")
+            if datos['esJugador']:
+                (self.Equipos[estado]['Jugadores']).append(datos['codigo'])
+                self.Jugadores[datos['codigo']] = datos
+
+            elif datos.get('noAsignado', False):
+                self.Equipos[estado]['NoAsignado'] = datos['estads']
+
+            elif datos.get('totalEquipo', False):
+                self.prorrogas = datos['prorrogas']
+                if '+/-' in datos['estads'] and datos['estads']['+/-'] is None:
+                    datos['estads']['+/-'] = (self.ResultadoCalendario[estado] -
+                                              self.ResultadoCalendario[OtherTeam(estado)])
+                self.Equipos[estado]['estads'] = datos['estads']
+
+            elif datos.get('entrenador', False):
+                self.Equipos[estado]['Entrenador'] = datos
+
+            else:
+                BaseException("I am missing something: {}" % datos)
+
+        # Asigna la victoria
+        if self.VictoriaLocal:
+            estadoGanador = 'Local'
+        else:
+            estadoGanador = 'Visitante'
+        self.Equipos[estadoGanador]['haGanado'] = True
+        self.Equipos[estadoGanador]['Entrenador']['haGanado'] = True
+        for jug in self.Equipos[estadoGanador]['Jugadores']:
+            self.Jugadores[jug]['haGanado'] = True
 
     def ExtractPrefijosTabla(self, filacolspans, filaheaders):
         """ Devuelve un array con las cabeceras de cada columna (con matices como los rebotes) y tiros
@@ -132,24 +183,78 @@ class PartidoACB(object):
         return (headers)
 
     def ProcesaLineaTablaEstadistica(self, fila, headers, estado):
+        result = dict()
+        result['esJugador'] = True
+        result['entrenador'] = False
+        result['haJugado'] = True
+        result['esLocal'] = (estado == "Local")
         textos = [x.get_text().strip() for x in fila.find_all("td")]
         celdas = fila.find_all("td")
         if (len(textos) == len(headers) - 1):  # El equipo no tiene dorsal
+            result['isPlayer'] = False
             textos = [''] + textos
             celdas = [''] + celdas
         if (len(textos) == len(headers)):
             mergedTextos = dict(zip(headers[2:], textos[2:]))
             estads = self.ProcesaEstadisticas(mergedTextos)
-            print(mergedTextos)
-            print(estads)
+            if None in estads.values():
+                pass
 
             # mergedCeldas=dict(zip(headers[:2],celdas[:2])) ,mergedCeldas
+            if textos[0]:
+                result['titular'] = ("gristit" in celdas[0].get('class', ""))
+                result['dorsal'] = textos[0]
+                result['nombre'] = textos[1]
+                result['haGanado'] = False
+                linkdata = (celdas[1].find("a"))['href']
+                linkdatapars = ExtraeGetParams(linkdata)
+                result['codigo'] = linkdatapars['id']
+                # (self.Equipos[estado]['Jugadores']).append(result['codigo'])
+                if not estads:
+                    result['haJugado'] = False
 
-            # Estadisticas normales
-            pass
+                result['estads'] = estads
+                # self.Jugadores[result['codigo']]=result
+
+            else:
+                result['esJugador'] = False
+                if textos[1].lower() == "equipo":
+                    result['estads'] = estads
+                    result['noAsignado'] = True
+                    # self.Equipos[estado]['NoAsignado']=estads
+                elif textos[1].lower() == "total":
+                    result['totalEquipo'] = True
+                    result['estads'] = estads
+                    result['prorrogas'] = int(((estads['Segs'] / (5 * 60)) - 40) // 5)
+                    # self.prorrogas = result['prorrogas']
+                    # self.Equipos[estado]['estads']=estads
+                    if estads['P'] != self.Equipos[estado]['Puntos']:
+                        print(estads, self.Equipos[estado])
+                        raise BaseException("ProcesaLineaTablaEstadistica: TOTAL '%s' puntos '%i' "
+                                            "no casan con encabezado '%i' " % (estado, estads['P'],
+                                                                               self.Equipos[estado]['Puntos']))
+                else:
+                    raise BaseException("ProcesaLineaTablaEstadistica: noplayer "
+                                        "string '%s' unknown" % (textos[1].lower()))
         elif (len(textos) == 2):
             # Entrenador o faltas
-            pass
+            result['esJugador'] = False
+            if textos[0].lower() == "e":
+                result['entrenador'] = True
+                result['nombre'] = textos[1]
+                linkdata = (celdas[1].find("a"))['href']
+                linkdatapars = ExtraeGetParams(linkdata)
+                result['codigo'] = linkdatapars['id']
+                result['haGanado'] = False
+                # self.Equipos[estado]['Entrenador']=result
+            elif textos[0].lower() == "5f":
+                return dict()
+                pass
+            else:
+                raise BaseException("ProcesaLineaTablaEstadistica: info string '%s' unknown" % (textos[0].lower()))
+
+        # print(result)
+        return(result)
 
         # print(len(textos),textos)
 
@@ -167,32 +272,29 @@ class PartidoACB(object):
             if auxTemp:
                 return(int(auxTemp[0]) * 60 + int(auxTemp[1]))
             else:
-                raise BadStringException("ProcesaEstadisticas:ProcesaTiempo '%s' no casa RE '%s' " % (cadena,
-                                                                                                      reTiempo))
+                raise BadString("ProcesaEstadisticas:ProcesaTiempo '%s' no casa RE '%s' " % (cadena, reTiempo))
 
         def ProcesaTiros(cadena):
             auxTemp = ExtractREGroups(cadena=cadena, regex=reTiros)
             if auxTemp:
                 return(int(auxTemp[0]), int(auxTemp[1]))
             else:
-                raise BadStringException("ProcesaEstadisticas:ProcesaTiros '%s' no casa RE '%s' " %
-                                         (cadena, reTiros))
+                raise BadString("ProcesaEstadisticas:ProcesaTiros '%s' no casa RE '%s' " % (cadena, reTiros))
 
         def ProcesaRebotes(cadena):
             auxTemp = ExtractREGroups(cadena=cadena, regex=reRebotes)
             if auxTemp:
                 return(int(auxTemp[0]), int(auxTemp[1]))
             else:
-                raise BadStringException("ProcesaEstadisticas:ProcesaRebotes '%s' no casa RE '%s' " %
-                                         (cadena, reRebotes))
+                raise BadString("ProcesaEstadisticas:ProcesaRebotes '%s' no casa RE '%s' " % (cadena, reRebotes))
 
         def ProcesaPorcentajes(cadena):
             auxTemp = ExtractREGroups(cadena=cadena, regex=rePorcentaje)
             if auxTemp:
                 return(int(auxTemp[0]))
             else:
-                raise BadStringException("ProcesaEstadisticas:ProcesaPorcentajes '%s' no casa RE '%s' " %
-                                         (cadena, rePorcentaje))
+                raise BadString("ProcesaEstadisticas:ProcesaPorcentajes '%s' no casa RE '%s' " %
+                                (cadena, rePorcentaje))
 
         for key in contadores.keys():
             val = contadores[key]
@@ -212,7 +314,13 @@ class PartidoACB(object):
                 result["R-D"] = aux[0]
                 result["R-O"] = aux[1]
             else:
-                result[key] = int(val)
+                try:
+                    result[key] = int(val)
+                except ValueError:
+                    result[key] = None
+                    print_exc()
+                    print("ProcesaEstadisticas: Error: '%s'='%s' converting to INT. "
+                          "URL Partido: %s -> %s" % (key, val, self.url, contadores))
 
         return(result)
 
@@ -221,21 +329,46 @@ class PartidoACB(object):
 
         if aux:
             self.Equipos[estado]['Nombre'] = aux[0]
-            self.Equipos[estado]['Puntos'] = aux[1]
+            self.Equipos[estado]['Puntos'] = int(aux[1])
         else:
-            raise BadStringException("GetResult: '%s' no casa RE '%s' " % (cadena, reResultadoEquipo))
+            raise BadString("GetResult: '%s' no casa RE '%s' " % (cadena, reResultadoEquipo))
 
 
 def GeneraURLpartido(link):
-    if type(link) is Tag:
+
+    def CheckParameters(dictParams):
+        requiredParamList = ('cod_competicion', 'cod_edicion', 'partido')
+        errores = False
+        missingParameters = set()
+
+        for par in requiredParamList:
+            if par not in dictParams:
+                errores = True
+                missingParameters.add(par)
+
+        if errores:
+            raise BadParameters("GeneraURLpartido: falta informacion en parámetro: %s." % missingParameters)
+
+    if type(link) is Tag:  # Enlace a sacado con BeautifulSoup
         link2process = link['href']
-    elif type(link) is str:
+    elif type(link) is str:  # Cadena URL
         link2process = link
+    elif type(link) is dict:  # Diccionario con los parametros necesarios s(sacados de la URL, se supone)
+        CheckParameters(link)
+        return templateURLficha % (link['cod_competicion'], int(link['cod_edicion']), int(link['partido']))
     else:
-        raise TypeError("GeneraURLpartido: unable to process %s (%s)" % (link, type(link)))
+        raise TypeError("GeneraURLpartido: incapaz de procesar %s (%s)" % (link, type(link)))
 
     liurlcomps = ExtraeGetParams(link2process)
-    urlcomposed = templateURLficha % (liurlcomps['cod_competicion'],
-                                      int(liurlcomps['cod_edicion']),
-                                      int(liurlcomps['partido']))
-    return urlcomposed
+    CheckParameters(liurlcomps)
+    return templateURLficha % (liurlcomps['cod_competicion'], int(liurlcomps['cod_edicion']),
+                               int(liurlcomps['partido']))
+
+
+def OtherTeam(team):
+    if team == 'Local':
+        return 'Visitante'
+    elif team == 'Visitante':
+        return 'Local'
+    else:
+        raise BadParameters("OtherTeam: '%s' provided. It only accept 'Visitante' or 'Local'" % team)
