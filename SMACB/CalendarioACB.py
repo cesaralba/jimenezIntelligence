@@ -101,15 +101,20 @@ class CalendarioACB(object):
             else:
                 print("Unexpected: ", item, item.__dict__.keys())
 
+        # Detecta los cambios de nombre de equipo
+        self.GestionaNombresDeEquipo()
+
         for jornada in self.Jornadas:
             if not self.Jornadas[jornada]['partidos']:
                 continue
 
             for partido in self.Jornadas[jornada]['partidos']:
                 self.Partidos[partido]['esPlayoff'] = self.Jornadas[jornada]['esPlayoff']
-
-        # Detecta los cambios de nombre de equipo
-        self.GestionaNombresDeEquipo()
+                codigos = [self.equipo2codigo.get(x, None) for x in self.Partidos[partido]['equipos']]
+                if None in codigos:
+                    raise BaseException("Equipo sin codigo en '%s' (%s) " %
+                                        (" - ".join(self.Partidos[partido]['equipos']), partido))
+                self.Partidos[partido]['codigos'] = codigos
 
     def ProcesaTablaJornada(self, tagTabla, currJornada):
         for row in tagTabla.find_all("tr"):
@@ -125,12 +130,11 @@ class CalendarioACB(object):
             if linksCol0:
                 linkGame = linksCol0[0]
                 linkOk = GeneraURLpartido(linkGame)
-                partido = cols[1].string
-                resultado = cols[2].string.strip()
+                puntos = [int(x.strip()) for x in cols[2].string.split(" - ")]
 
                 paramsURL = ExtraeGetParams(linkGame['href'])
-                self.Partidos[linkOk] = {'URLparams': paramsURL, 'partido': partido, 'resultado': resultado,
-                                         'jornada': currJornada, 'equipos': equipos, 'url': linkOk}
+                self.Partidos[linkOk] = {'url': linkOk, 'URLparams': paramsURL, 'jornada': currJornada,
+                                         'equipos': equipos, 'resultado': puntos}
                 (self.Jornadas[currJornada]['partidos']).append(linkOk)
             else:  # No ha habido partido
                 continue
@@ -220,7 +224,7 @@ class CalendarioACB(object):
         else:
             print(combinacionesNoUsadas)
 
-    #         return
+    #         TOTHINK: Logica adicional que habrá que revisar/limpiar
     #
     #         cambios = True
     #
