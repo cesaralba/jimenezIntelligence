@@ -7,3 +7,6 @@ ipdb
 watchdog
 isort
 flake8-isort
+ipykernel
+PyQt5
+spyder
