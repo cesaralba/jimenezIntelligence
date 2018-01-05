@@ -28,7 +28,7 @@ class CalendarioACB(object):
         self.codigo2equipo = defaultdict(set)
         self.url = urlbase
 
-    def BajaCalendario(self, home=None, browser=None, config={}):
+    def bajaCalendario(self, home=None, browser=None, config={}):
         urlCalendario = ComposeURL(self.url, {'cod_competicion': self.competicion,
                                               'cod_edicion': self.edicion,
                                               'vd': "1",
@@ -36,9 +36,9 @@ class CalendarioACB(object):
 
         calendarioPage = DescargaPagina(urlCalendario, home=home, browser=browser, config=config)
 
-        self.ProcesaCalendario(calendarioPage)
+        self.procesaCalendario(calendarioPage)
 
-    def ProcesaCalendario(self, content):
+    def procesaCalendario(self, content):
         if 'timestamp' in content:
             self.timestamp = content['timestamp']
         if 'source' in content:
@@ -86,23 +86,23 @@ class CalendarioACB(object):
                             tablaPlayoffs = False
 
                 elif ('cuerponaranja' in divClasses):  # Selector para calendario de clubes
-                    self.ProcesaSelectorClubes(item)
+                    self.procesaSelectorClubes(item)
                 elif ('tablajornadas' in divClasses):  # Selector para calendario de clubes
                     if tablaPlayoffs:
-                        self.ProcesaTablaCalendarioJornadas(item)
+                        self.procesaTablaCalendarioJornadas(item)
                     else:
                         continue
                 else:
                     print("DIV Unprocessed: ", item.attrs)
             elif item.name == 'table':
-                self.ProcesaTablaJornada(item, currJornada)
+                self.procesaTablaJornada(item, currJornada)
             elif item.name in ('br'):  # Otras cosas que no interesan
                 continue
             else:
                 print("Unexpected: ", item, item.__dict__.keys())
 
         # Detecta los cambios de nombre de equipo
-        self.GestionaNombresDeEquipo()
+        self.gestionaNombresDeEquipo()
 
         for jornada in self.Jornadas:
             if not self.Jornadas[jornada]['partidos']:
@@ -116,7 +116,7 @@ class CalendarioACB(object):
                                         (" - ".join(self.Partidos[partido]['equipos']), partido))
                 self.Partidos[partido]['codigos'] = codigos
 
-    def ProcesaTablaJornada(self, tagTabla, currJornada):
+    def procesaTablaJornada(self, tagTabla, currJornada):
         for row in tagTabla.find_all("tr"):
             cols = row.find_all("td", recursive=False)
 
@@ -139,7 +139,7 @@ class CalendarioACB(object):
             else:  # No ha habido partido
                 continue
 
-    def ProcesaSelectorClubes(self, tagForm):
+    def procesaSelectorClubes(self, tagForm):
         optionList = tagForm.find_all("option")
         for optionTeam in optionList:
             equipoCodigo = optionTeam['value']
@@ -149,7 +149,7 @@ class CalendarioACB(object):
             self.equipo2codigo[equipoNombre] = equipoCodigo
             self.codigo2equipo[equipoCodigo].add(equipoNombre)
 
-    def ProcesaTablaCalendarioJornadas(self, tagTabla):
+    def procesaTablaCalendarioJornadas(self, tagTabla):
         for table in tagTabla.find_all("table", attrs={'class': 'jornadas'}):
             for row in table.find_all("tr"):
                 cols = row.find_all("td", recursive=False)
@@ -165,7 +165,7 @@ class CalendarioACB(object):
                 self.Jornadas[currJornada]['nombre'] = tituloFields[0].strip()
                 self.Jornadas[currJornada]['esPlayoff'] = True
 
-    def GestionaNombresDeEquipo(self):
+    def gestionaNombresDeEquipo(self):
         """ Intenta tener en cuenta los nombres de equipos que cambian a lo largo de la temporada (patrocinios)
         """
 
