@@ -55,6 +55,7 @@ class MercadoPageCompare():
         self.newRivals = defaultdict(int)
         origTeam = defaultdict(int)
         destTeam = defaultdict(int)
+        self.cambioJornada = False
 
         oldPlayersID = set(old.PlayerData.keys())
         newPlayersID = set(new.PlayerData.keys())
@@ -143,6 +144,9 @@ class MercadoPageCompare():
                     self.changes = True
                     self.playerChanges[key]['info'] += "{} ({}) info nueva '{}'. ".format(
                         new.PlayerData[key]['nombre'], key, newPlInfo['info'])
+
+        if len(self.newRivals) == self.teamsJornada:
+            self.cambioJornada = True
 
     def __repr__(self):
         changesMSG = "hubo cambios." if self.changes else "sin cambios."
