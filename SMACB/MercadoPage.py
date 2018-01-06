@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import re
 from collections import defaultdict
 from time import gmtime, strftime, strptime
@@ -201,16 +203,6 @@ class MercadoPageCompare():
 
         return result
 
-        return str({'timestamp': self.timestamp,
-                    'source': self.source,
-                    'NoFoto2Nombre': self.NoFoto2Nombre,
-                    'Nombre2NoFoto': self.Nombre2NoFoto,
-                    'PositionsCounter': self.PositionsCounter,
-                    'PlayerData': self.PlayerData,
-                    'PlayerByPos': self.PlayerByPos,
-                    'Team2Player': self.Team2Player
-                    })
-
 
 class MercadoPageContent():
 
@@ -357,6 +349,9 @@ class MercadoPageContent():
             result[self.PlayerData[p]['cupo']] += 1
 
         return result
+
+    def timestampKey(self):
+        return strftime("%Y%m%d-%H%M%S", self.timestamp)
 
 
 class NoSuchPlayerException(Exception):
