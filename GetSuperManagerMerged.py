@@ -40,7 +40,7 @@ if __name__ == '__main__':
         temporada.cargaTemporada(args.temporada)
 
     # sm = SuperManagerACB(config=args)
-    sm.Connect(browser=browser, config=args)
+    sm.Connect(browser=browser, config=args, datosACB=temporada)
 
     sm.getSMstatus(browser=browser, config=args)
 

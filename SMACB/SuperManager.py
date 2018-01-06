@@ -52,7 +52,7 @@ class SuperManagerACB(object):
         self.mercadoJornada = {}
         self.ultimoMercado = None
 
-    def Connect(self, url=None, browser=None, config={}):
+    def Connect(self, url=None, browser=None, config={}, datosACB=None):
 
         if url:
             self.url = url
@@ -68,7 +68,7 @@ class SuperManagerACB(object):
 
         # Pequeño rodeo para ver si hay mercado nuevo.
         here = browser.get_url()
-        self.getMercados(browser, config)
+        self.getMercados(browser, datosACB)
         # Vuelta al sendero
         browser.open(here)
         self.getIntoPrivateLeague(browser, config)
@@ -126,8 +126,8 @@ class SuperManagerACB(object):
         self.jornadas[idJornada] = jorResults
         return jorResults
 
-    def getMercados(self, browser, config):
-        newMercado = getMercado(browser, config)
+    def getMercados(self, browser, datosACB=None):
+        newMercado = getMercado(browser, datosACB)
         newMercadoID = newMercado.timestampKey()
 
         if hasattr(self, "ultimoMercado"):
@@ -248,7 +248,7 @@ def getClasif(categ, browser, config):
     return jorResults
 
 
-def getMercado(browser, config):
+def getMercado(browser, datosACB=None):
     browser.follow_link("mercado")
-    mercadoData = MercadoPageContent({'source': browser.get_url(), 'data': browser.get_current_page()})
+    mercadoData = MercadoPageContent({'source': browser.get_url(), 'data': browser.get_current_page()}, datosACB)
     return mercadoData

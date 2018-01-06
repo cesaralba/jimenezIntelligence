@@ -206,16 +206,18 @@ class MercadoPageCompare():
 
 class MercadoPageContent():
 
-    def __init__(self, textPage):
+    def __init__(self, textPage, datosACB=None):
         self.timestamp = gmtime()
         self.source = textPage['source']
-        self.contadorNoFoto = 0
-        self.NoFoto2Nombre = {}
-        self.Nombre2NoFoto = {}
         self.PositionsCounter = defaultdict(int)
         self.PlayerData = {}
         self.PlayerByPos = defaultdict(list)
         self.Team2Player = defaultdict(set)
+
+        contadorNoFoto = 0
+        NoFoto2Nombre = {}
+        Nombre2NoFoto = {}
+        NoFotoData = {}
 
         if (type(textPage['data']) is str):
             soup = BeautifulSoup(textPage['data'], "html.parser")
@@ -254,10 +256,10 @@ class MercadoPageContent():
                             result['codJugador'] = auxre.group(1)
                             result['temp'] = auxre.group(2)
                         else:
-                            jugCode = "NOFOTO%03i" % self.contadorNoFoto
-                            self.contadorNoFoto += 1
-                            self.NoFoto2Nombre[jugCode] = result['nombre']
-                            self.Nombre2NoFoto[result['nombre']] = jugCode
+                            jugCode = "NOFOTO%03i" % contadorNoFoto
+                            contadorNoFoto += 1
+                            NoFoto2Nombre[jugCode] = result['nombre']
+                            Nombre2NoFoto[result['nombre']] = jugCode
                             result['codJugador'] = jugCode
                     elif dataid == 'jugador':
                         result['kiaLink'] = data.a['href']
@@ -290,9 +292,43 @@ class MercadoPageContent():
 
                         # print("Not treated %s" % dataid, data,)
                 if result.get('codJugador'):
-                    self.PlayerData[result['codJugador']] = result
-                    self.PlayerByPos[position].append(result['codJugador'])
-                    self.Team2Player[result['equipo']].add(result['codJugador'])
+                    if result.get('codJugador') not in NoFoto2Nombre:
+                        self.PlayerData[result['codJugador']] = result
+                        self.PlayerByPos[position].append(result['codJugador'])
+                        self.Team2Player[result['equipo']].add(result['codJugador'])
+                    else:
+                        NoFotoData[result['codJugador']] = result
+
+        if Nombre2NoFoto and datosACB:
+            codJugador = None
+            jugadores = datosACB.listaJugadores(fechaMax=self.timestamp)
+            cod2jugACB = jugadores['codigo2nombre']
+            jug2codACB = dict()
+
+            # Elimina jugadores asignados
+            for codigo in self.PlayerData:
+                if codigo in cod2jugACB:
+                    cod2jugACB.pop(codigo)
+
+            # Crea diccionario inverso
+            for codigo in cod2jugACB:
+                for nombre in cod2jugACB[codigo]:
+                    jug2codACB[nombre] = codigo
+
+            for codigo in NoFoto2Nombre:
+                nombreNoFoto = NoFoto2Nombre[codigo]
+                if nombreNoFoto in jug2codACB:
+                    codJugador = jug2codACB[nombreNoFoto]
+                else:
+                    print("Incapaz de encontrar codigo para '%s' " % nombreNoFoto)
+                    codJugador = codigo
+
+                result = NoFotoData[codigo]
+                result['codJugador'] = codJugador
+
+                self.PlayerData[result['codJugador']] = result
+                self.PlayerByPos[position].append(result['codJugador'])
+                self.Team2Player[result['equipo']].add(result['codJugador'])
 
     def __reprX__(self):
         return str({'timestamp': self.timestamp,
