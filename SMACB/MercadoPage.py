@@ -145,7 +145,7 @@ class MercadoPageCompare():
                     self.playerChanges[key]['info'] += "{} ({}) info nueva '{}'. ".format(
                         new.PlayerData[key]['nombre'], key, newPlInfo['info'])
 
-        if len(self.newRivals) == self.teamsJornada:
+        if (len(self.newRivals) == self.teamsJornada) or (len(self.newRivals) > 4):
             self.cambioJornada = True
 
     def __repr__(self):
@@ -158,10 +158,11 @@ class MercadoPageCompare():
                                                                                self.timestamps['new']),
                                                                       changesMSG)
 
-        if len(self.newRivals) == self.teamsJornada:
+        if self.cambioJornada:
             result += "Cambio de jornada!\n\n"
 
-        print(self.newRivals)
+        if self.newRivals:
+            result += "NewRivals: {} \n\n".format(self.newRivals)
 
         if self.teamRenamed:
             result += "Equipos renombrados: {}\n".format(len(self.teamTranslationsNew2Old))
@@ -303,36 +304,7 @@ class MercadoPageContent():
                     else:
                         NoFotoData[result['codJugador']] = result
 
-        if Nombre2NoFoto and datosACB:
-            codJugador = None
-            jugadores = datosACB.listaJugadores(fechaMax=self.timestamp)
-            cod2jugACB = jugadores['codigo2nombre']
-            jug2codACB = dict()
-
-            # Elimina jugadores asignados
-            for codigo in self.PlayerData:
-                if codigo in cod2jugACB:
-                    cod2jugACB.pop(codigo)
-
-            # Crea diccionario inverso
-            for codigo in cod2jugACB:
-                for nombre in cod2jugACB[codigo]:
-                    jug2codACB[nombre] = codigo
-
-            for codigo in NoFoto2Nombre:
-                nombreNoFoto = NoFoto2Nombre[codigo]
-                if nombreNoFoto in jug2codACB:
-                    codJugador = jug2codACB[nombreNoFoto]
-                else:
-                    print("Incapaz de encontrar codigo para '%s' " % nombreNoFoto)
-                    codJugador = codigo
-
-                result = NoFotoData[codigo]
-                result['codJugador'] = codJugador
-
-                self.PlayerData[result['codJugador']] = result
-                self.PlayerByPos[position].append(result['codJugador'])
-                self.Team2Player[result['equipo']].add(result['codJugador'])
+        self.arreglaNoFotos(datosACB, NoFoto2Nombre, Nombre2NoFoto, NoFotoData)
 
     def __reprX__(self):
         return str({'timestamp': self.timestamp,
@@ -392,6 +364,42 @@ class MercadoPageContent():
 
     def timestampKey(self):
         return strftime("%Y%m%d-%H%M%S", self.timestamp)
+
+    def arreglaNoFotos(self, datosACB=None, NoFoto2Nombre=None, Nombre2NoFoto=None, NoFotoData=None):
+        if Nombre2NoFoto and datosACB:
+            codJugador = None
+            jugadores = datosACB.listaJugadores(fechaMax=self.timestamp)
+            cod2jugACB = jugadores['codigo2nombre']
+            jug2codACB = dict()
+
+            # Elimina jugadores asignados
+            for codigo in self.PlayerData:
+                if codigo in cod2jugACB:
+                    cod2jugACB.pop(codigo)
+
+            # Crea diccionario inverso
+            for codigo in cod2jugACB:
+                for nombre in cod2jugACB[codigo]:
+                    jug2codACB[nombre] = codigo
+
+            for codigo in NoFoto2Nombre:
+                nombreNoFoto = NoFoto2Nombre[codigo]
+                if nombreNoFoto in jug2codACB:
+                    codJugador = jug2codACB[nombreNoFoto]
+                else:
+                    print("Incapaz de encontrar codigo para '%s' " % nombreNoFoto)
+                    codJugador = codigo
+
+                result = NoFotoData[codigo]
+                result['codJugador'] = codJugador
+
+                self.PlayerData[result['codJugador']] = result
+                self.PlayerByPos[result['pos']].append(result['codJugador'])
+                self.Team2Player[result['equipo']].add(result['codJugador'])
+                # print("+ ",codigo,"\n- ",self.PlayerData[result['codJugador']],"\n- ", self.PlayerData[codigo])
+
+                if codigo in self.PlayerData:
+                    self.PlayerData.pop(codigo)
 
 
 class NoSuchPlayerException(Exception):

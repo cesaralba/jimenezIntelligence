@@ -162,6 +162,19 @@ class SuperManagerACB(object):
             self.mercado[newMercadoID] = newMercado
             self.ultimoMercado = newMercadoID
 
+    def addMercado(self, mercado):
+        mercadoID = mercado.timestampKey()
+
+        if (mercadoID in self.mercado) and not (mercado != self.mercado[mercadoID]):
+            return
+
+        self.mercado[mercadoID] = mercado
+
+        if not self.ultimoMercado or (mercado.timestamp > self.mercado[self.ultimoMercado].timestamp):
+            self.ultimoMercado = mercadoID
+
+        self.changed = True
+
     def getSMstatus(self, browser, config):
         jornadas = getJornadasJugadas(browser.get_current_page())
         ultJornada = max(jornadas)
@@ -203,6 +216,10 @@ class SuperManagerACB(object):
                 continue
             self.__setattr__(key, aux.__getattribute__(key))
 
+
+######################################################
+# Funciones extraidas de la clase SuperManagerACB
+######################################################
 
 def extractPrivateLeagues(content):
     forms = content.find_all("form", {"name": "listaprivadas"})
