@@ -14,6 +14,7 @@ if __name__ == '__main__':
     parser.add('-i', dest='infile', type=str, env_var='SM_INFILE', required=False)
     parser.add('-o', dest='outfile', type=str, env_var='SM_OUTFILE', required=False)
     parser.add('-t', dest='temporada', type=str, env_var='SM_TEMPORADA', required=False)
+    parser.add('-j', dest='jornada', action='append', required=False)
     parser.add_argument(dest='files', type=str, nargs='*')
 
     args = parser.parse_args()
@@ -154,6 +155,34 @@ if __name__ == '__main__':
             print(" ", merc)
 
         orig = mf
+
+    idJornadas = [str(x) for x in sm.jornadas]
+    for clave in args.jornada:
+        pair = clave.split(":", 2)
+        if len(pair) != 2:
+            print("Clave suministrada '%s' no valida. Formato: J:ClaveMercado" % clave)
+            continue
+
+        idJor = pair[0]
+        idMercado = pair[1]
+
+        ok = True
+        if idJor not in idJornadas:
+            print("Clave suministrada '%s' no valida. Jornada '%s' desconocida." % (clave, idJor))
+            ok = False
+
+        if idMercado not in sm.mercado:
+            print("Clave suministrada '%s' no valida. Mercado '%s' desconocido." % (clave, idMercado))
+            ok = False
+
+        if not ok:
+            print("Clave suministrada '%s' con problemas. Ignorando." % clave)
+            continue
+
+        sm.mercadoJornada[int(idJor)] = idMercado
+        sm.changed = True
+
+    print(sm.mercadoJornada)
 
     if sm.changed and ('outfile' in args) and args.outfile:
         print("There were changes!")

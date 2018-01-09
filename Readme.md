@@ -8,6 +8,7 @@ Archivos en /home/calba/devel/SuperManager
 python ReadMercadoFiles.py /home/calba/devel/SuperManager/SuperManager-201711030825.html
 
 
+time python AddMercadoFiles.py -t /home/calba/devel/SuperManager/temporada/ACB2017.latest.p -i /home/calba/devel/SuperManager/datos/SM2017.latest.p -o /tmp/kk1.p -j 8:20171113-061400 -j 7:20171106-083900 -j 6:20171030-071800 -j 5:20171023-082100 -j 4:20171021-000000 -j 3:20171010-000000 -j 2:20171007-000000 -j 1:20171002-000000 /home/calba/devel/SuperManager/mercado/SuperManager-201*ml
 
 ReadMercadoFile f1 ...
 
@@ -19,9 +20,6 @@ ReadMercadoFile f1 ...
 
 #TODO
 
-* Descarga de estadísticas de partidos
-* Carga de mercados pasados (desde ficheros) asociados a jornadas
-* Validación que el mercado ha cambiado e incorporarlo al Supermanager estandar
 * Evolucion de jugadores e informe previo a la jornada
 * TeamGuesser
 
