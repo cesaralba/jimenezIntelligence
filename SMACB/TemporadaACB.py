@@ -4,6 +4,7 @@ Created on Jan 4, 2018
 @author: calba
 '''
 
+from collections import defaultdict
 from pickle import dump, load
 from time import gmtime
 
@@ -59,3 +60,28 @@ class TemporadaACB(object):
 
         for key in aux.__dict__.keys():
             self.__setattr__(key, aux.__getattribute__(key))
+
+    def listaJugadores(self, jornada=0, jornadaMax=0, fechaMax=None):
+
+        def SacaJugadoresPartido(partido):
+            for codigo in partido.Jugadores:
+                (resultado['codigo2nombre'][codigo]).add(partido.Jugadores[codigo]['nombre'])
+                resultado['nombre2codigo'][partido.Jugadores[codigo]['nombre']] = codigo
+
+        resultado = {'codigo2nombre': defaultdict(set), 'nombre2codigo': dict()}
+
+        for partido in self.Partidos:
+            aceptaPartido = False
+            if jornada and self.Partidos[partido].Jornada == jornada:
+                aceptaPartido = True
+            elif jornadaMax and self.Partidos[partido].Jornada >= jornadaMax:
+                aceptaPartido = True
+            elif fechaMax and self.Partidos[partido].FechaHora < fechaMax:
+                aceptaPartido = True
+            else:
+                aceptaPartido = True
+
+            if aceptaPartido:
+                SacaJugadoresPartido(self.Partidos[partido])
+
+        return resultado

@@ -27,16 +27,27 @@ if __name__ == '__main__':
 
         if orig is None:
             orig = mf
+            print(" ", Mfile['source'])  # ,mf
             continue
 
         diffs = orig.Diff(mf)
 
         if orig != mf:
 
-            print(Mfile['source'], "There were changes:\n", diffs)  # ,mf
-            pass
+            # print(Mfile['source'], "There were changes:\n", diffs)
+            if diffs.cambioJornada:
+                print("J", Mfile['source'],
+                      "Cambio de jornada", mf.timestampKey(),
+                      "Len newRivals", len(diffs.newRivals),
+                      "teamsJornada", diffs.teamsJornada)
+            else:
+                print("C", Mfile['source'],
+                      "Len newRivals", len(diffs.newRivals),
+                      "teamsJornada", diffs.teamsJornada)
+            # print(diffs)
 
         else:
+            print(" ", Mfile['source'])  # ,mf
             # print(Mfile['source'], "Nodiffs") #,mf)
             pass
 
