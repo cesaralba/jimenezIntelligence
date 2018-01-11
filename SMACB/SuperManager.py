@@ -53,7 +53,10 @@ class SuperManagerACB(object):
         self.ultimoMercado = None
 
     def Connect(self, url=None, browser=None, config={}, datosACB=None):
-
+        """ Se conecta al SuperManager con las credenciales suministradas,
+            descarga el mercado y se introduce en la liga privada indicada
+            o la única.
+            """
         if url:
             self.url = url
 
@@ -127,6 +130,7 @@ class SuperManagerACB(object):
         return jorResults
 
     def getMercados(self, browser, datosACB=None):
+        """ Descarga la hoja de mercado y la almacena si ha habido cambios """
         newMercado = getMercado(browser, datosACB)
         newMercadoID = newMercado.timestampKey()
 
