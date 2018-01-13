@@ -22,31 +22,33 @@ pip install -r requirements-dev.txt
 * **Ejecución**
 ~~~
 source ALGUNOTROSITIO/SACBenv/bin/activate
+source /etc/sysconfig/SuperManager
 ~~~
 
 * **Desarrollo** (desarrollo incluye ejecución)
 ~~~
 source ALGUNSITIO/SACBenv/bin/activate
+source /etc/sysconfig/SuperManager
 ~~~
 
 
 ## LoadFiles
 
-. /home/calba/Dropbox/devel/SuperManagerPython/SACBenv/bin/activate
-. /etc/sysconfig/SuperManager
+Archivos en */home/calba/devel/SuperManager/**
 
-Archivos en /home/calba/devel/SuperManager/*
-
+~~~
 python ReadMercadoFiles.py /home/calba/devel/SuperManager/SuperManager-201711030825.html
-
+~~~
 Para actualizar los datos
+~~~
 python GetSuperManagerMerged.py -i /home/calba/devel/SuperManager/full/SM2017.latest.p -o /tmp/kk1.p -t /home/calba/devel/SuperManager/temporada/ACB2017.latest.p
 
 python InformeSuperManager.py -i /home/calba/devel/SuperManager/full/SM2017.latest.p -t /home/calba/devel/SuperManager/temporada/ACB2017.latest.p
+~~~
 
-Últimos ficheros:
-* Temporada (estadisticas y calendario): /home/calba/devel/SuperManager/temporada/ACB2017.latest.p
-* SuperManager: /home/calba/devel/SuperManager/full/SM2017.latest.p
+## Últimos ficheros:
+* Temporada (estadisticas y calendario): */home/calba/devel/SuperManager/temporada/ACB2017.latest.p*
+* SuperManager: */home/calba/devel/SuperManager/full/SM2017.latest.p*
 
 ## Competiciones y temporadas
 
