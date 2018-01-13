@@ -3,6 +3,8 @@ from time import gmtime
 
 ####################################################################################################################
 
+FORMATOtimestamp = "%Y-%m-%d %H:%M"
+
 
 class BadString(Exception):
     def __init__(self, cadena=None):

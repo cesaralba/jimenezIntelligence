@@ -8,6 +8,7 @@ from babel.numbers import decimal, parse_decimal
 from bs4 import BeautifulSoup
 
 from SMACB.SMconstants import CUPOS, POSICIONES
+from Utils.Misc import FORMATOtimestamp
 
 INCLUDEPLAYERDATA = False
 
@@ -151,10 +152,10 @@ class MercadoPageCompare():
     def __repr__(self):
         changesMSG = "hubo cambios." if self.changes else "sin cambios."
         result = "Comparación entre {} ({}) y {} ({}): {}\n\n".format(self.sources['old'],
-                                                                      strftime("%Y-%m-%d %H:%M",
+                                                                      strftime(FORMATOtimestamp,
                                                                                self.timestamps['old']),
                                                                       self.sources['new'],
-                                                                      strftime("%Y-%m-%d %H:%M",
+                                                                      strftime(FORMATOtimestamp,
                                                                                self.timestamps['new']),
                                                                       changesMSG)
 
