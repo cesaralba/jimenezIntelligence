@@ -13,6 +13,7 @@ URL_BASE = "http://www.acb.com"
 
 calendario_URLBASE = "http://acb.com/calendario.php"
 template_URLFICHA = "http://www.acb.com/fichas/%s%i%03i.php"
+UMBRALbusquedaDistancia = 1  # La comparación debe ser >
 
 
 class CalendarioACB(object):
@@ -146,8 +147,7 @@ class CalendarioACB(object):
             equipoNombre = optionTeam.string
             if equipoCodigo == "0":
                 continue
-            self.equipo2codigo[equipoNombre] = equipoCodigo
-            self.codigo2equipo[equipoCodigo].add(equipoNombre)
+            self.nuevaTraduccionEquipo2Codigo(equipoNombre, equipoCodigo)
 
     def procesaTablaCalendarioJornadas(self, tagTabla):
         for table in tagTabla.find_all("table", attrs={'class': 'jornadas'}):
@@ -194,85 +194,73 @@ class CalendarioACB(object):
             # TODO: Habra que hacer algo para cuando haya equipos impares
 
             # busca similitures entre el nombre que aparece en el formulario (recortado) y el de las jornadas
-            auxEquiposNoAsignados = copy(equiposNoAsignados)
-            for equipo in auxEquiposNoAsignados:
-                auxCodigosNoUsados = copy(codigosNoUsados)
-                for codigo in auxCodigosNoUsados:
-                    nombresRef = list(self.codigo2equipo[codigo])
-                    compCadenas = dict(zip(nombresRef, [CompareBagsOfWords(equipo, x) for x in nombresRef]))
-                    if max(compCadenas.values()) > 1:
-                        # sortedComps = sorted(compCadenas.items(), key=itemgetter(1),reverse=True)
-                        self.codigo2equipo[codigo].add(equipo)
-                        self.equipo2codigo[equipo] = codigo
+            changes = True
+            while changes:
+                changes = False
+                if not equiposNoAsignados:
+                    continue
+
+                auxEquiposNoAsignados = copy(equiposNoAsignados)
+                for equipo in auxEquiposNoAsignados:
+                    auxCodigosNoUsados = copy(codigosNoUsados)
+                    codigo = self.buscaEquipo2CodigoDistancia(equipo, codigosObjetivo=auxCodigosNoUsados)
+                    if codigo:
+                        self.nuevaTraduccionEquipo2Codigo(equipo, codigo)
                         equiposNoAsignados.remove(equipo)
                         codigosNoUsados.remove(codigo)
+                        changes = True
+                        break
 
-            # Caso trivial, sólo queda uno por asignar
-            if len(codigosNoUsados) == 1 and len(equiposNoAsignados) == 1:
-                codigo = codigosNoUsados.pop()
-                equipo = equiposNoAsignados.pop()
-                self.equipo2codigo[equipo] = codigo
-                (self.codigo2equipo[codigo]).add(equipo)
-                continue
+                # Caso trivial, sólo queda uno por asignar
+                if len(codigosNoUsados) == 1 and len(equiposNoAsignados) == 1:
+                    codigo = codigosNoUsados.pop()
+                    equipo = equiposNoAsignados.pop()
+                    self.nuevaTraduccionEquipo2Codigo(equipo, codigo)
+                    changes = True
+                    continue
 
             if codigosNoUsados:
                 combinacionesNoUsadas["|".join(sorted(list(codigosNoUsados)))] = equiposNoAsignados
-            # nombresConocidos = dict(zip(codigosNoUsados, [self.codigo2equipo[k] for k in codigosNoUsados] ))
 
         if not combinacionesNoUsadas:
             return
         else:
             print(combinacionesNoUsadas)
 
-    #         TOTHINK: Logica adicional que habrá que revisar/limpiar
-    #
-    #         cambios = True
-    #
-    #         while cambios:
-    #             cambios = False
-    #             claves2codigos = dict()
-    #
-    #             cambioClavesConjuntos = False
-    #
-    #             for k in combinacionesNoUsadas:
-    #                 codigos = set(k.split("|"))
-    #                 claves2codigos[k] = codigos
-    #
-    #             for c in combinations(combinacionesNoUsadas,2):
-    #                 cx = claves2codigos[c[0]]
-    #                 cy = claves2codigos[c[1]]
-    #                 ex = combinacionesNoUsadas[c[0]]
-    #                 ey = combinacionesNoUsadas[c[1]]
-    #
-    #                 print(c,cx,cy,ex,ey)
-    #                 continue
-    #
-    #                 diffxy = cx - cy
-    #                 diffyx = cy - cx
-    #
-    #                 if len(diffxy) == 1:
-    #                     codigo = diffxy.pop()
-    #                     equipo = (ex - ey).pop()
-    #                     self.equipo2codigo[equipo] = codigo
-    #                     (self.codigo2equipo[codigo]).add(equipo)
-    #                     cambioClavesConjuntos = True
-    #                     cambios = True
-    #                 elif len(diffxy) == 0:
-    #                     pass  # Nada que hacer
-    #                 else:
-    #                     pass  # TODO: Pensar
-    #
-    #                 if len(diffyx) == 1:
-    #                     codigo = diffyx.pop()
-    #                     equipo = (ey - ex).pop()
-    #                     self.equipo2codigo[equipo] = codigo
-    #                     (self.codigo2equipo[codigo]).add(equipo)
-    #                     cambioClavesConjuntos = True
-    #                     cambios = True
-    #                 elif len(diffyx) == 0:
-    #                     pass  # Nada que hacer
-    #                 else:
-    #                     pass  # TODO: Pensar
+    def buscaEquipo2CodigoDistancia(self, equipoAbuscar, codigosObjetivo=None):
+        if equipoAbuscar in self.equipo2codigo:
+            return self.equipo2codigo[equipoAbuscar]
+
+        if codigosObjetivo:
+            listaCodigos = codigosObjetivo
+        else:
+            listaCodigos = self.codigo2equipo.keys()
+
+        distancias = []
+        for codigo in listaCodigos:
+            for nombreObj in list(self.codigo2equipo[codigo]):
+                tupla = (nombreObj, codigo, CompareBagsOfWords(equipoAbuscar, nombreObj))
+                if tupla[2] > UMBRALbusquedaDistancia:
+                    distancias.append(tupla)
+
+        if distancias:
+            resultados = sorted(distancias, key=lambda x: x[2], reverse=True)
+            codigoResultado = resultados[0][1]
+
+            self.nuevaTraduccionEquipo2Codigo(equipoAbuscar, codigoResultado)
+            return codigoResultado
+        else:
+            print("No se han encontrado códigos posibles: %s" % equipoAbuscar)
+            # TODO: Esto debería ser una excepción
+            return None
+
+    def nuevaTraduccionEquipo2Codigo(self, equipo, codigo):
+        if equipo in self.equipo2codigo:
+            return False
+
+        self.equipo2codigo[equipo] = codigo
+        (self.codigo2equipo[codigo]).add(equipo)
+        return True
 
 
 def BuscaCalendario(url=URL_BASE, home=None, browser=None, config={}):

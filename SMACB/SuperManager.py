@@ -200,10 +200,9 @@ class SuperManagerACB(object):
         aux = copy(self)
 
         # Clean stuff that shouldn't be saved
-        aux.__delattr__('changed')
-
-        if hasattr(aux, "config"):
-            aux.__delattr__("config")
+        for atributo in ('changed', 'config'):
+            if hasattr(aux, atributo):
+                aux.__delattr__(atributo)
 
         # TODO: Protect this
         dump(aux, open(filename, "wb"))

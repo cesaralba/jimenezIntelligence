@@ -59,7 +59,7 @@ class PartidoACB(object):
             self.temporada = kwargs['URLparams']['cod_edicion']
             self.idPartido = kwargs['URLparams']['partido']
 
-    def DescargaPartido(self, home=None, browser=None, config={}):
+    def descargaPartido(self, home=None, browser=None, config={}):
 
         if not hasattr(self, 'url'):
             raise BadParameters("PartidoACB: DescargaPartido: imposible encontrar la URL del partido")
@@ -68,9 +68,9 @@ class PartidoACB(object):
 
         partidoPage = DescargaPagina(urlPartido, home=home, browser=browser, config=config)
 
-        self.ProcesaPartido(partidoPage)
+        self.procesaPartido(partidoPage)
 
-    def ProcesaPartido(self, content):
+    def procesaPartido(self, content):
         if 'timestamp' in content:
             self.timestamp = content['timestamp']
         else:
@@ -113,22 +113,22 @@ class PartidoACB(object):
         fila0 = filas.pop(0)
         fila1 = filas.pop(0)
 
-        colHeaders = self.ExtractPrefijosTabla(fila0, fila1)
+        colHeaders = self.extractPrefijosTabla(fila0, fila1)
 
         estado = "Local"
 
-        self.GetResultEquipo(fila0.find("td").get_text(), estado)
+        self.getResultEquipo(fila0.find("td").get_text(), estado)
 
         while filas:
             fila = filas.pop(0)
 
             if "estverde" in fila.get('class', ""):
                 estado = "Visitante"
-                self.GetResultEquipo(fila.find("td").get_text(), estado)
+                self.getResultEquipo(fila.find("td").get_text(), estado)
                 self.VictoriaLocal = self.Equipos['Local']['Puntos'] > self.Equipos['Visitante']['Puntos']
                 filas.pop(0)
                 continue
-            datos = self.ProcesaLineaTablaEstadistica(fila=fila, headers=colHeaders, estado=estado)
+            datos = self.procesaLineaTablaEstadistica(fila=fila, headers=colHeaders, estado=estado)
             if not datos:
                 continue
 
@@ -162,7 +162,7 @@ class PartidoACB(object):
         for jug in self.Equipos[estadoGanador]['Jugadores']:
             self.Jugadores[jug]['haGanado'] = True
 
-    def ExtractPrefijosTabla(self, filacolspans, filaheaders):
+    def extractPrefijosTabla(self, filacolspans, filaheaders):
         """ Devuelve un array con las cabeceras de cada columna (con matices como los rebotes) y tiros
             Podría ser genérica pero Una de las celdas contiene información y no prefijo
         """
@@ -182,7 +182,7 @@ class PartidoACB(object):
 
         return (headers)
 
-    def ProcesaLineaTablaEstadistica(self, fila, headers, estado):
+    def procesaLineaTablaEstadistica(self, fila, headers, estado):
         result = dict()
         result['esJugador'] = True
         result['entrenador'] = False
@@ -196,7 +196,7 @@ class PartidoACB(object):
             celdas = [''] + celdas
         if (len(textos) == len(headers)):
             mergedTextos = dict(zip(headers[2:], textos[2:]))
-            estads = self.ProcesaEstadisticas(mergedTextos)
+            estads = self.procesaEstadisticas(mergedTextos)
             if None in estads.values():
                 pass
 
@@ -258,7 +258,7 @@ class PartidoACB(object):
 
         # print(len(textos),textos)
 
-    def ProcesaEstadisticas(self, contadores):
+    def procesaEstadisticas(self, contadores):
 
         result = {}
 
@@ -324,7 +324,7 @@ class PartidoACB(object):
 
         return(result)
 
-    def GetResultEquipo(self, cadena, estado):
+    def getResultEquipo(self, cadena, estado):
         aux = ExtractREGroups(regex=reResultadoEquipo, cadena=cadena)
 
         if aux:

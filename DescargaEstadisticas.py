@@ -49,7 +49,7 @@ if __name__ == '__main__':
             continue
 
         nuevoPartido = PartidoACB(**(calendario.Partidos[partido]))
-        nuevoPartido.DescargaPartido(home=None, browser=browser, config=args)
+        nuevoPartido.descargaPartido(home=None, browser=browser, config=args)
 
         Partidos['descargados'].add(partido)
         Partidos['informacion'][partido] = nuevoPartido

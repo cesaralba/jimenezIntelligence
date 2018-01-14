@@ -219,6 +219,8 @@ class MercadoPageContent():
         self.PlayerData = {}
         self.PlayerByPos = defaultdict(list)
         self.Team2Player = defaultdict(set)
+        if datosACB:
+            self.equipo2codigo = dict()
 
         contadorNoFoto = 0
         NoFoto2Nombre = {}
@@ -306,19 +308,11 @@ class MercadoPageContent():
                         NoFotoData[result['codJugador']] = result
 
         self.arreglaNoFotos(datosACB, NoFoto2Nombre, Nombre2NoFoto, NoFotoData)
+        self.asignaCodigosEquipos(datosACB=datosACB)
 
-    def __reprX__(self):
-        return str({'timestamp': self.timestamp,
-                    'source': self.source,
-                    'NoFoto2Nombre': self.NoFoto2Nombre,
-                    'Nombre2NoFoto': self.Nombre2NoFoto,
-                    'PositionsCounter': self.PositionsCounter,
-                    'PlayerData': self.PlayerData,
-                    'PlayerByPos': self.PlayerByPos,
-                    'Team2Player': self.Team2Player
-                    })
+        print(self.equipo2codigo)
 
-    def SetTimestampFromStr(self, timeData):
+    def setTimestampFromStr(self, timeData):
         ERDATE = re.compile(".*-(\d{4}\d{2}\d{2}(\d{4})?)\..*")
         ermatch = ERDATE.match(timeData)
         if ermatch:
@@ -327,14 +321,14 @@ class MercadoPageContent():
             else:
                 self.timestamp = strptime(ermatch.group(1), "%Y%m%d")
 
-    def Diff(self, otherData):
+    def diff(self, otherData):
         return MercadoPageCompare(self, otherData)
 
     def __ne__(self, other):
-        diff = self.Diff(other)
+        diff = self.diff(other)
         return diff.changes
 
-    def GetPlayersByPosAndCupo(self):
+    def getPlayersByPosAndCupo(self):
         result = {'data': [[]] * len(POSICIONES) * len(CUPOS),
                   'cont': [0] * len(POSICIONES) * len(CUPOS)}
         indexResult = {}
@@ -355,7 +349,7 @@ class MercadoPageContent():
 
         return result
 
-    def CuentaCupos(self, lista):
+    def cuentaCupos(self, lista):
         result = defaultdict(int)
 
         for p in lista:
@@ -401,6 +395,36 @@ class MercadoPageContent():
 
                 if codigo in self.PlayerData:
                     self.PlayerData.pop(codigo)
+
+    def asignaCodigosEquipos(self, datosACB=None):
+        if not datosACB:
+            return
+
+        if not hasattr(self, "equipo2codigo"):
+            self.equipo2codigo = dict()
+
+        for jugador in self.PlayerData:
+            equipo = self.PlayerData[jugador]['equipo']
+            rival = self.PlayerData[jugador]['rival']
+            if equipo in self.equipo2codigo:
+                self.PlayerData[jugador]['CODequipo'] = self.equipo2codigo[equipo]
+            else:
+                CODequipo = datosACB.Calendario.buscaEquipo2CodigoDistancia(equipo)
+                if CODequipo:
+                    self.PlayerData[jugador]['CODequipo'] = CODequipo
+                    self.equipo2codigo[equipo] = CODequipo
+                else:
+                    print("asignaCodigos: incapaz de encontrar código para '%s'." % equipo)
+
+            if rival in self.equipo2codigo:
+                self.PlayerData[jugador]['CODrival'] = self.equipo2codigo[rival]
+            else:
+                CODrival = datosACB.Calendario.buscaEquipo2CodigoDistancia(rival)
+                if CODrival:
+                    self.PlayerData[jugador]['CODrival'] = CODrival
+                    self.equipo2codigo[rival] = CODrival
+                else:
+                    print("asignaCodigos: incapaz de encontrar código para '%s'." % rival)
 
 
 class NoSuchPlayerException(Exception):
