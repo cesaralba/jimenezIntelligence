@@ -7,6 +7,7 @@ Created on Jan 4, 2018
 from collections import defaultdict
 from copy import copy
 from pickle import dump, load
+from sys import setrecursionlimit
 from time import gmtime, strftime
 
 from SMACB.CalendarioACB import CalendarioACB, calendario_URLBASE
@@ -68,8 +69,8 @@ class TemporadaACB(object):
             if hasattr(aux, atributo):
                 aux.__delattr__(atributo)
 
+        setrecursionlimit(50000)
         # TODO: Protect this
-        # TODO: Ver por qué graba bs4 y cosas así
         dump(aux, open(filename, "wb"))
 
     def cargaTemporada(self, filename):

@@ -81,4 +81,4 @@ if __name__ == '__main__':
 
     if temporada.changed and ('tempout' in args) and args.tempout:
         print("Temporada: There were changes!")
-        sm.saveData(args.tempout)
+        temporada.grabaTemporada(args.tempout)
