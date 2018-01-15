@@ -113,9 +113,9 @@ class SuperManagerACB(object):
 
         browser.follow_link(targLeague['Ampliar'])
 
-    def getJornada(self, idJornada, browser, config):
+    def getJornada(self, idJornada, browser):
         pageForm = browser.get_current_page().find("form", {"id": 'FormClasificacion'})
-        pageForm['action'] = "/privadas/ver/id/{}/tipo/jornada/jornada/{}".format(config.league, idJornada)
+        pageForm['action'] = "/privadas/ver/id/{}/tipo/jornada/jornada/{}".format(self.ligaID, idJornada)
 
         jorForm = mechanicalsoup.Form(pageForm)
         jorForm['jornada'] = str(idJornada)
@@ -179,21 +179,22 @@ class SuperManagerACB(object):
 
         self.changed = True
 
-    def getSMstatus(self, browser, config):
+    def getSMstatus(self, browser):
         jornadas = getJornadasJugadas(browser.get_current_page())
+
         ultJornada = max(jornadas)
         jornadasAdescargar = [j for j in jornadas if j not in self.jornadas]
         if jornadasAdescargar:
             self.changed = True
             for jornada in jornadasAdescargar:
-                self.getJornada(jornada, browser, config)
+                self.getJornada(jornada, browser)
             if ultJornada in jornadasAdescargar:
-                self.general[ultJornada] = getClasif("general", browser, config)
-                self.broker[ultJornada] = getClasif("broker", browser, config)
-                self.puntos[ultJornada] = getClasif("puntos", browser, config)
-                self.rebotes[ultJornada] = getClasif("rebotes", browser, config)
-                self.triples[ultJornada] = getClasif("triples", browser, config)
-                self.asistencias[ultJornada] = getClasif("asistencias", browser, config)
+                self.general[ultJornada] = getClasif("general", browser, self.ligaID)
+                self.broker[ultJornada] = getClasif("broker", browser, self.ligaID)
+                self.puntos[ultJornada] = getClasif("puntos", browser, self.ligaID)
+                self.rebotes[ultJornada] = getClasif("rebotes", browser, self.ligaID)
+                self.triples[ultJornada] = getClasif("triples", browser, self.ligaID)
+                self.asistencias[ultJornada] = getClasif("asistencias", browser, self.ligaID)
                 self.mercadoJornada[ultJornada] = self.ultimoMercado
 
     def saveData(self, filename):
@@ -251,9 +252,9 @@ def getJornadasJugadas(content):
     return result
 
 
-def getClasif(categ, browser, config):
+def getClasif(categ, browser, liga):
     pageForm = browser.get_current_page().find("form", {"id": 'FormClasificacion'})
-    pageForm['action'] = "/privadas/ver/id/{}/tipo/{}".format(config.league, categ)
+    pageForm['action'] = "/privadas/ver/id/{}/tipo/{}".format(liga, categ)
     curJornada = pageForm.find("option", {'selected': 'selected'})['value']
 
     jorForm = mechanicalsoup.Form(pageForm)

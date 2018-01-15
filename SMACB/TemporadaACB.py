@@ -5,7 +5,7 @@ Created on Jan 4, 2018
 '''
 
 from collections import defaultdict
-from copy import deepcopy
+from copy import copy
 from pickle import dump, load
 from time import gmtime
 
@@ -60,8 +60,7 @@ class TemporadaACB(object):
                 self.changed = True
 
     def grabaTemporada(self, filename):
-
-        aux = deepcopy(self)
+        aux = copy(self)
 
         # Clean stuff that shouldn't be saved
         for atributo in ('changed'):

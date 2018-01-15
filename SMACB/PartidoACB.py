@@ -184,10 +184,15 @@ class PartidoACB(object):
 
     def procesaLineaTablaEstadistica(self, fila, headers, estado):
         result = dict()
+        result['equipo'] = self.EquiposCalendario[estado]
+        result['CODequipo'] = self.CodigosCalendario[estado]
+        result['rival'] = self.EquiposCalendario[OtherTeam(estado)]
+        result['CODrival'] = self.CodigosCalendario[OtherTeam(estado)]
+        result['esLocal'] = (estado == "Local")
+
         result['esJugador'] = True
         result['entrenador'] = False
         result['haJugado'] = True
-        result['esLocal'] = (estado == "Local")
         textos = [x.get_text().strip() for x in fila.find_all("td")]
         celdas = fila.find_all("td")
         if (len(textos) == len(headers) - 1):  # El equipo no tiene dorsal
