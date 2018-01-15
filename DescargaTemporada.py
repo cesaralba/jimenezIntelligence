@@ -52,4 +52,5 @@ if nuevosPartidos:
 
     print("Nuevos partidos incorporados:\n%s" % ("\n".join(resumenPartidos)))
     sys.setrecursionlimit(50000)
-    temporada.grabaTemporada(args.outfile)
+    if 'outfile' in args and args.outfile:
+        temporada.grabaTemporada(args.outfile)

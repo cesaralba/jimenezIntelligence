@@ -310,8 +310,6 @@ class MercadoPageContent():
         self.arreglaNoFotos(datosACB, NoFoto2Nombre, Nombre2NoFoto, NoFotoData)
         self.asignaCodigosEquipos(datosACB=datosACB)
 
-        print(self.equipo2codigo)
-
     def setTimestampFromStr(self, timeData):
         ERDATE = re.compile(".*-(\d{4}\d{2}\d{2}(\d{4})?)\..*")
         ermatch = ERDATE.match(timeData)

@@ -6,6 +6,7 @@ from time import strftime
 
 from configargparse import ArgumentParser
 
+from SMACB.SMconstants import POSICIONES
 from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.Misc import FORMATOtimestamp
@@ -74,7 +75,11 @@ def extraeJugadoresSuperManager(datosSM, temporada=None):
                             resultado["COD" + key][codJugador][i] = temporada.Calendario.equipo2codigo[dato]
                             resultado["I-" + "COD" + key][codJugador] = temporada.Calendario.equipo2codigo[dato]
                         else:
-                            print("Equipo desconocido (%s): %s" % (key, dato))
+                            codigo = temporada.Calendario.buscaEquipo2CodigoDistancia(dato)
+                            if codigo:
+                                temporada.Calendario.nuevaTraduccionEquipo2Codigo(dato, codigo)
+                            else:
+                                print("Equipo desconocido (%s): %s" % (key, dato))
 
     for jugSM in resultado['lesion']:
         resultado['Iactivo'][jugSM] = (jugSM in ultMercado.PlayerData)
@@ -83,13 +88,13 @@ def extraeJugadoresSuperManager(datosSM, temporada=None):
     print(len(resultado['Icupo']))
     print(sum([1 for x in resultado['Iactivo'] if resultado['Iactivo'][x]]))
 
-    for jugSM in resultado["CODrival"]:
-        print(resultado["Inombre"][jugSM])
-        print(resultado["I-CODequipo"][jugSM])
-        print(resultado["Ipos"][jugSM])
-        print(resultado["lesion"][jugSM])
-
     return(resultado)
+
+    for jugSM in resultado["CODrival"]:
+        print(resultado["Inombre"][jugSM],
+              resultado["I-CODequipo"][jugSM],
+              POSICIONES[resultado["Ipos"][jugSM]],
+              resultado["lesion"][jugSM])
 
 
 if __name__ == '__main__':
@@ -116,5 +121,7 @@ if __name__ == '__main__':
         temporada = TemporadaACB()
         temporada.cargaTemporada(args.temporada)
         print("Cargada información de temporada de %s" % strftime(FORMATOtimestamp, temporada.timestamp))
+        print(temporada.Calendario.equipo2codigo)
+        print(temporada.Calendario.codigo2equipo)
 
     jugSM = extraeJugadoresSuperManager(sm, temporada)

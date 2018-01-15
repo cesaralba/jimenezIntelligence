@@ -42,7 +42,7 @@ if __name__ == '__main__':
     # sm = SuperManagerACB(config=args)
     sm.Connect(browser=browser, config=args, datosACB=temporada)
 
-    sm.getSMstatus(browser=browser, config=args)
+    sm.getSMstatus(browser=browser)
 
     if sm.changed and ('outfile' in args) and args.outfile:
         print("There were changes!")

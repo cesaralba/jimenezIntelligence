@@ -31,25 +31,15 @@ if __name__ == '__main__':
         temporada.cargaTemporada(args.tempin)
         print(temporada.Calendario.equipo2codigo)
 
-    # Añade códigos de equipo
-    mercadoKeys = list(sm.mercado.keys())
-    for clave in mercadoKeys:
-        mercadoClave = sm.mercado[clave]
-        if hasattr(mercadoClave, 'equipo2codigo'):
-            print("Skipping %s" % clave)
-            continue
-        mercadoClave.asignaCodigosEquipos(datosACB=temporada)
-        sm.mercado[clave] = mercadoClave
-        sm.changed = True
-
-        print(clave, mercadoClave, temporada.changed)
-    for partidoID in temporada.Partidos:
-        partido = temporada.Partidos[partidoID]
-        print(partidoID, partido.DatosSuministrados)
-        print(partido.Jugadores)
-
-    print(temporada.Calendario.equipo2codigo)
-
-    if sm.changed and ('smoutfile' in args) and args.smoutfile:
-        print("There were changes!")
-        sm.saveData(args.smoutfile)
+    print(sm.__dict__.keys())
+    print("LigaID: ", sm.ligaID)
+    print("Jornadas: ", sm.jornadas.keys())
+    print("General: ", sm.general.keys())
+    print("Broker: ", sm.broker.keys())
+    print("Puntos: ", sm.puntos.keys())
+    print("Rebotes: ", sm.rebotes.keys())
+    print("Triples: ", sm.triples.keys())
+    print("Asistencias: ", sm.asistencias.keys())
+    print("Mercado: ", sm.mercado.keys())
+    print("MercadoJornada: ", sm.mercadoJornada.keys())
+    print("UltimoMercado: ", sm.ultimoMercado)
