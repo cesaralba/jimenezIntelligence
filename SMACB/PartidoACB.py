@@ -188,6 +188,7 @@ class PartidoACB(object):
         result['CODequipo'] = self.CodigosCalendario[estado]
         result['rival'] = self.EquiposCalendario[OtherTeam(estado)]
         result['CODrival'] = self.CodigosCalendario[OtherTeam(estado)]
+        result['estado'] = estado
         result['esLocal'] = (estado == "Local")
 
         result['esJugador'] = True

@@ -3,6 +3,7 @@
 
 from configargparse import ArgumentParser
 
+from SMACB.PartidoACB import OtherTeam
 # from SMACB.MercadoPage import MercadoPageContent
 from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
@@ -43,13 +44,41 @@ if __name__ == '__main__':
         sm.changed = True
 
         print(clave, mercadoClave, temporada.changed)
-    for partidoID in temporada.Partidos:
-        partido = temporada.Partidos[partidoID]
-        print(partidoID, partido.DatosSuministrados)
-        print(partido.Jugadores)
 
-    print(temporada.Calendario.equipo2codigo)
+    ultimoPartido = None
+    for partidoID in temporada.Partidos:
+        changes = False
+        partido = temporada.Partidos[partidoID]
+        ultimoPartido = partidoID
+        for estado in partido.Equipos:
+            nuevosDatos = {'equipo': partido.EquiposCalendario[estado],
+                           'CODequipo': partido.CodigosCalendario[estado],
+                           'rival': partido.EquiposCalendario[OtherTeam(estado)],
+                           'CODrival': partido.CodigosCalendario[OtherTeam(estado)],
+                           'estado': estado, 'esLocal': (estado == "Local")}
+
+            for jugador in partido.Equipos[estado]['Jugadores']:
+                for clave in nuevosDatos:
+                    if clave in partido.Jugadores[jugador]:
+                        continue
+                    partido.Jugadores[jugador][clave] = nuevosDatos[clave]
+                    changes = True
+        if changes:
+            temporada.Partidos[partidoID] = partido
+            temporada.changed = True
+            resumenPartido = " * %s: %s (%s) %i - %i %s (%s) " % (partidoID, partido.EquiposCalendario['Local'],
+                                                                  partido.CodigosCalendario['Local'],
+                                                                  partido.ResultadoCalendario['Local'],
+                                                                  partido.ResultadoCalendario['Visitante'],
+                                                                  partido.EquiposCalendario['Visitante'],
+                                                                  partido.CodigosCalendario['Visitante'])
+
+            print(resumenPartido)
 
     if sm.changed and ('smoutfile' in args) and args.smoutfile:
-        print("There were changes!")
+        print("Supermanager: there were changes!")
         sm.saveData(args.smoutfile)
+
+    if temporada.changed and ('tempout' in args) and args.tempout:
+        print("Temporada: There were changes!")
+        sm.saveData(args.tempout)
