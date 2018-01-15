@@ -7,10 +7,12 @@ Created on Jan 4, 2018
 from collections import defaultdict
 from copy import copy
 from pickle import dump, load
-from time import gmtime
+from sys import setrecursionlimit
+from time import gmtime, strftime
 
 from SMACB.CalendarioACB import CalendarioACB, calendario_URLBASE
 from SMACB.PartidoACB import PartidoACB
+from Utils.Misc import FORMATOtimestamp
 
 
 class TemporadaACB(object):
@@ -67,8 +69,8 @@ class TemporadaACB(object):
             if hasattr(aux, atributo):
                 aux.__delattr__(atributo)
 
+        setrecursionlimit(50000)
         # TODO: Protect this
-        # TODO: Ver por qué graba bs4 y cosas así
         dump(aux, open(filename, "wb"))
 
     def cargaTemporada(self, filename):
@@ -104,3 +106,20 @@ class TemporadaACB(object):
                 SacaJugadoresPartido(self.Partidos[partido])
 
         return resultado
+
+    def resumen(self):
+        print(self.__dict__.keys())
+        print("Temporada. Timestamp %s" % strftime(FORMATOtimestamp, self.timestamp))
+        print("Temporada. Cambios %s" % self.changed)
+        print(self.Calendario.__dict__.keys())
+        print("Temporada. Partidos cargados: %i,%i" % (len(self.Partidos), len(self.PartidosDescargados)))
+        for partidoID in self.Partidos:
+            partido = self.Partidos[partidoID]
+            resumenPartido = " * %s: %s (%s) %i - %i %s (%s) " % (partidoID, partido.EquiposCalendario['Local'],
+                                                                  partido.CodigosCalendario['Local'],
+                                                                  partido.ResultadoCalendario['Local'],
+                                                                  partido.ResultadoCalendario['Visitante'],
+                                                                  partido.EquiposCalendario['Visitante'],
+                                                                  partido.CodigosCalendario['Visitante'])
+
+            print(resumenPartido)
