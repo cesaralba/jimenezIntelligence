@@ -14,7 +14,7 @@ from Utils.Misc import ReadFile
 
 mf = ReadFile("/home/calba/devel/SuperManager/mercado/SuperManager-201711070723.html")
 co = MercadoPageContent(mf)
-posYcupos = co.GetPlayersByPosAndCupo()
+posYcupos = co.getPlayersByPosAndCupo()
 
 combTeams = GeneraCombinaciones()
 

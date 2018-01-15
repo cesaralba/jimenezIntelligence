@@ -23,14 +23,14 @@ if __name__ == '__main__':
 
     for Mfile in files:
         mf = MercadoPageContent(Mfile)
-        mf.SetTimestampFromStr(mf.source)
+        mf.setTimestampFromStr(mf.source)
 
         if orig is None:
             orig = mf
             print(" ", Mfile['source'])  # ,mf
             continue
 
-        diffs = orig.Diff(mf)
+        diffs = orig.diff(mf)
 
         if orig != mf:
 

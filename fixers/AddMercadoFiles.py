@@ -81,7 +81,7 @@ if __name__ == '__main__':
 
         Mfile = ReadFile(mercadoFile)
         mf = MercadoPageContent(Mfile, datosACB=temporada)
-        mf.SetTimestampFromStr(mf.source)
+        mf.setTimestampFromStr(mf.source)
 
         if orig is None:
             orig = mf
@@ -140,7 +140,7 @@ if __name__ == '__main__':
 
         jornada = time2jornada.get(merc, "-")
         if orig != mf:
-            diffs = orig.Diff(mf)
+            diffs = orig.diff(mf)
 
             # print(Mfile['source'], "There were changes:\n", diffs)
             if diffs.cambioJornada:

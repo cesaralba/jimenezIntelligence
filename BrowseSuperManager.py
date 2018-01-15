@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+""" NO FUNCIONA: Usar GetSuperManagerMerged """
+
 from configargparse import ArgumentParser
 
 from SMACB.SuperManager import SuperManagerACB

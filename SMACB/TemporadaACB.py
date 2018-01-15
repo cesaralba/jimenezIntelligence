@@ -5,6 +5,7 @@ Created on Jan 4, 2018
 '''
 
 from collections import defaultdict
+from copy import deepcopy
 from pickle import dump, load
 from time import gmtime
 
@@ -23,6 +24,7 @@ class TemporadaACB(object):
         self.Calendario = CalendarioACB(competition=competition, edition=edition, urlbase=urlbase)
         self.PartidosDescargados = set()
         self.Partidos = dict()
+        self.changed = False
 
     def actualizaTemporada(self, home=None, browser=None, config={}):
         self.Calendario.bajaCalendario(browser=browser, config=config)
@@ -34,32 +36,50 @@ class TemporadaACB(object):
                 continue
 
             nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
-            nuevoPartido.DescargaPartido(home=None, browser=browser, config=config)
+            nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
 
             self.PartidosDescargados.add(partido)
             self.Partidos[partido] = nuevoPartido
+            self.actualizaNombresEquipo(nuevoPartido)
             partidosBajados.add(partido)
 
             if config.justone:  # Just downloads a game (for testing/dev purposes)
                 break
 
         if partidosBajados:
+            self.changed = True
             self.timestamp = gmtime()
 
         return partidosBajados
 
+    def actualizaNombresEquipo(self, partido):
+        for loc in partido.Equipos:
+            nombrePartido = partido.Equipos[loc]['Nombre']
+            codigoParam = partido.CodigosCalendario[loc]
+            if self.Calendario.nuevaTraduccionEquipo2Codigo(nombrePartido, codigoParam):
+                self.changed = True
+
     def grabaTemporada(self, filename):
+
+        aux = deepcopy(self)
+
+        # Clean stuff that shouldn't be saved
+        for atributo in ('changed'):
+            if hasattr(aux, atributo):
+                aux.__delattr__(atributo)
 
         # TODO: Protect this
         # TODO: Ver por qué graba bs4 y cosas así
-        dump(self, open(filename, "wb"))
+        dump(aux, open(filename, "wb"))
 
     def cargaTemporada(self, filename):
         # TODO: Protect this
         aux = load(open(filename, "rb"))
 
-        for key in aux.__dict__.keys():
-            self.__setattr__(key, aux.__getattribute__(key))
+        for atributo in aux.__dict__.keys():
+            if atributo in ('changed'):
+                continue
+            self.__setattr__(atributo, aux.__getattribute__(atributo))
 
     def listaJugadores(self, jornada=0, jornadaMax=0, fechaMax=None):
 
