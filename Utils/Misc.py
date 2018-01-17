@@ -1,6 +1,8 @@
 import re
 from time import gmtime
 
+from _collections import defaultdict
+
 ####################################################################################################################
 
 FORMATOtimestamp = "%Y-%m-%d %H:%M"
@@ -42,3 +44,22 @@ def CompareBagsOfWords(x, y):
     bogy = set(y.lower().split())
 
     return len(bogx.intersection(bogy))
+
+
+def CuentaClaves(x):
+    if type(x) is not dict:
+        raise ValueError("CuentaClaves: necesita un diccionario")
+
+    resultado = defaultdict(int)
+
+    for clave in x:
+        valor = x[clave]
+
+        if type(valor) is not dict:
+            print("CuentaClaves: objeto de clave '%s' no es un diccionario" % clave)
+            continue
+
+        for subclave in valor:
+            resultado[subclave] += 1
+
+    return resultado
