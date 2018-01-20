@@ -13,7 +13,7 @@ from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams
 
 templateURLficha = "http://www.acb.com/fichas/%s%i%03i.php"
-reJornada = ".*J\s*(\d)\s*"
+reJornada = ".*J\s*(\d+)\s*"
 rePublico = ".*ico:(\d+)"
 reArbitro = ".*rb:\s*(.*)\s*$"
 reResultadoEquipo = "^\s*(.*)\s+(\d+)\s*$"
@@ -87,12 +87,11 @@ class PartidoACB(object):
         # Primera fila
         celdas = filas.pop(0).find_all("td")
         espTiempo = celdas.pop(0).get_text().split("|")
+
         # Jaux = ExtractREGroups(cadena=espTiempo.pop(0).strip(), regex=reJornada)
         self.Jornada = int(ExtractREGroups(cadena=espTiempo.pop(0).strip(), regex=reJornada)[0])
         self.FechaHora = strptime(espTiempo[0] + espTiempo[1], " %d/%m/%Y  %H:%M ")
         self.Pabellon = espTiempo[2].strip()
-        # Paux = rePublico.match(espTiempo[3])
-        # self.Asistencia = int(Paux.group(1))
         self.Asistencia = int(ExtractREGroups(cadena=espTiempo[3], regex=rePublico)[0])
         celdas.pop(0)  # Spacer
         self.prorrogas = len(celdas) - 4
@@ -184,6 +183,9 @@ class PartidoACB(object):
 
     def procesaLineaTablaEstadistica(self, fila, headers, estado):
         result = dict()
+        result['competicion'] = self.competicion
+        result['temporada'] = self.temporada
+        result['jornada'] = self.Jornada
         result['equipo'] = self.EquiposCalendario[estado]
         result['CODequipo'] = self.CodigosCalendario[estado]
         result['rival'] = self.EquiposCalendario[OtherTeam(estado)]
@@ -338,6 +340,14 @@ class PartidoACB(object):
             self.Equipos[estado]['Puntos'] = int(aux[1])
         else:
             raise BadString("GetResult: '%s' no casa RE '%s' " % (cadena, reResultadoEquipo))
+
+    def resumenPartido(self):
+        return " * J %i: %s (%s) %i - %i %s (%s) " % (self.Jornada, self.EquiposCalendario['Local'],
+                                                      self.CodigosCalendario['Local'],
+                                                      self.ResultadoCalendario['Local'],
+                                                      self.ResultadoCalendario['Visitante'],
+                                                      self.EquiposCalendario['Visitante'],
+                                                      self.CodigosCalendario['Visitante'])
 
 
 def GeneraURLpartido(link):

@@ -1,4 +1,5 @@
 import re
+from collections import defaultdict
 from time import gmtime
 
 ####################################################################################################################
@@ -42,3 +43,35 @@ def CompareBagsOfWords(x, y):
     bogy = set(y.lower().split())
 
     return len(bogx.intersection(bogy))
+
+
+def CuentaClaves(x):
+    if (type(x) is not dict) and (type(x) is not defaultdict):
+        raise ValueError("CuentaClaves: necesita un diccionario")
+
+    resultado = defaultdict(int)
+
+    for clave in x:
+        valor = x[clave]
+
+        if (type(valor) is not dict) and (type(valor) is not defaultdict):
+            print("CuentaClaves: objeto de clave '%s' no es un diccionario" % clave)
+            continue
+
+        for subclave in valor:
+            resultado[subclave] += 1
+
+    return resultado
+
+
+def Valores2Claves(x):
+    if (type(x) is not dict) and (type(x) is not defaultdict):
+        raise ValueError("CuentaClaves: necesita un diccionario")
+
+    resultado = defaultdict(set)
+
+    for clave in x:
+        valor = x[clave]
+        (resultado[valor]).add(clave)
+
+    return resultado

@@ -66,8 +66,6 @@ python InformeSuperManager.py -i /home/calba/devel/SuperManager/full/SM2017.late
 
 # TODO
 
-* Codigo de equipo en mercado
-    * Murcia, qué hermosa eres
 * Informe evolucion de jugadores (SM)
 * Validacion de resultados de WWW
 * Captura de fechas de partidos futuros

@@ -6,20 +6,13 @@ from time import strftime
 
 from configargparse import ArgumentParser
 
-from SMACB.SMconstants import POSICIONES
+from SMACB.PartidoACB import PartidoACB
 from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.Misc import FORMATOtimestamp
 
 
-def extraeJugadoresSuperManager(datosSM, temporada=None):
-
-    print("SM:", datosSM.__dict__.keys())
-    if temporada:
-        print("TE: ", temporada.__dict__.keys())
-        print("TE-CA: ", temporada.Calendario.__dict__.keys())
-        print("TE-E2C: ", temporada.Calendario.equipo2codigo)
-        print("TE-C2E: ", temporada.Calendario.codigo2equipo)
+def extraeJugadoresSuperManager(datosSM):
 
     resultado = dict()
     maxJornada = max(datosSM.jornadas.keys())
@@ -27,27 +20,40 @@ def extraeJugadoresSuperManager(datosSM, temporada=None):
     def listaDatos():
         return [None] * maxJornada
 
-    mercadosAMirar = [None] * (maxJornada)
+    def findSubKeys(data):
+        resultado = defaultdict(int)
 
-    keysJugDatos = ['lesion', 'promVal', 'precio', 'valJornada', 'prom3Jornadas']
+        if type(data) is not dict:
+            print("Parametro pasado no es un diccionario")
+            return resultado
+
+        for clave in data:
+            valor = data[clave]
+            if type(valor) is not dict:
+                print("Valor para '%s' no es un diccionario")
+                continue
+            for subclave in valor.keys():
+                resultado[subclave] += 1
+
+        return resultado
+
+    mercadosAMirar = [None] * (maxJornada)
+    # ['proxFuera', 'lesion', 'cupo', 'pos', 'foto', 'nombre', 'codJugador', 'temp', 'kiaLink', 'equipo', 'promVal',
+    # 'precio', 'enEquipos%', 'valJornada', 'prom3Jornadas', 'sube15%', 'seMantiene', 'baja15%', 'rival', 'CODequipo',
+    # 'CODrival', 'info']
+    keysJugDatos = ['lesion', 'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'CODequipo', 'CODrival']
     keysJugInfo = ['nombre', 'codJugador', 'cupo', 'pos', 'equipo', 'proxFuera', 'rival', 'activo', 'lesion',
-                   'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'sube15%', 'seMantiene', 'baja15%']
+                   'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'sube15%', 'seMantiene', 'baja15%', 'rival',
+                   'CODequipo', 'CODrival']
 
     for key in keysJugDatos:
         resultado[key] = defaultdict(listaDatos)
-    for key in keysJugInfo:
-        resultado['I' + key] = dict()
-    if temporada:
-        resultado["CODrival"] = defaultdict(listaDatos)
-        resultado["CODequipo"] = defaultdict(listaDatos)
-        resultado["I-CODrival"] = dict()
-        resultado["I-CODequipo"] = dict()
+    for key in keysJugInfo + ['activo']:
+        resultado['I-' + key] = dict()
 
     for jornada in datosSM.mercadoJornada:
         mercadosAMirar[jornada - 1] = datosSM.mercadoJornada[jornada]
     ultMercado = datosSM.mercado[datosSM.ultimoMercado]
-
-    print(mercadosAMirar)
 
     for i in range(len(mercadosAMirar)):
         mercadoID = mercadosAMirar[i]
@@ -55,7 +61,6 @@ def extraeJugadoresSuperManager(datosSM, temporada=None):
             continue
 
         mercado = datosSM.mercado[mercadoID]
-        print("Merc: ", mercado.__dict__.keys())
 
         for jugSM in mercado.PlayerData:
             jugadorData = mercado.PlayerData[jugSM]
@@ -67,34 +72,75 @@ def extraeJugadoresSuperManager(datosSM, temporada=None):
                 if key in keysJugDatos:
                     resultado[key][codJugador][i] = jugadorData[key]
                 if key in keysJugInfo:
-                    resultado['I' + key][codJugador] = jugadorData[key]
-                if temporada:
-                    dato = jugadorData[key]
-                    if key in ("rival", "equipo"):
-                        if dato in temporada.Calendario.equipo2codigo:
-                            resultado["COD" + key][codJugador][i] = temporada.Calendario.equipo2codigo[dato]
-                            resultado["I-" + "COD" + key][codJugador] = temporada.Calendario.equipo2codigo[dato]
-                        else:
-                            codigo = temporada.Calendario.buscaEquipo2CodigoDistancia(dato)
-                            if codigo:
-                                temporada.Calendario.nuevaTraduccionEquipo2Codigo(dato, codigo)
-                            else:
-                                print("Equipo desconocido (%s): %s" % (key, dato))
+                    resultado['I-' + key][codJugador] = jugadorData[key]
 
     for jugSM in resultado['lesion']:
-        resultado['Iactivo'][jugSM] = (jugSM in ultMercado.PlayerData)
-
-    print(resultado.keys())
-    print(len(resultado['Icupo']))
-    print(sum([1 for x in resultado['Iactivo'] if resultado['Iactivo'][x]]))
+        resultado['I-activo'][jugSM] = (jugSM in ultMercado.PlayerData)
 
     return(resultado)
 
-    for jugSM in resultado["CODrival"]:
-        print(resultado["Inombre"][jugSM],
-              resultado["I-CODequipo"][jugSM],
-              POSICIONES[resultado["Ipos"][jugSM]],
-              resultado["lesion"][jugSM])
+
+def extraeJugadoresTemporada(temporada):
+    resultado = dict()
+
+    def MaxJornada(temporada):
+        acums = defaultdict(int)
+        for claveP in temporada.Partidos:
+            partido = temporada.Partidos[claveP]
+            acums[partido.Jornada] += 1
+
+        return max(acums.keys())
+
+    maxJ = MaxJornada(temporada)
+
+    def listaDatos():
+        return [None] * maxJ
+
+    clavePartido = ['FechaHora']
+    claveJugador = ['esLocal', 'titular', 'nombre', 'haGanado', 'haJugado', 'equipo', 'CODequipo', 'rival', 'CODrival']
+    claveEstad = ['Segs', 'P', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'T1-C', 'T1-I', 'T1%', 'REB-T', 'R-D',
+                  'R-O', 'A', 'BR', 'BP', 'C', 'TAP-F', 'TAP-C', 'M', 'FP-F', 'FP-C', '+/-', 'V']
+
+    for clave in clavePartido + claveJugador + claveEstad:
+        resultado[clave] = defaultdict(listaDatos)
+
+    for claveP in temporada.Partidos:
+        partido = temporada.Partidos[claveP]
+        jornada = partido.Jornada - 1
+        fechahora = partido.FechaHora
+
+        for claveJ in partido.Jugadores:
+            jugador = partido.Jugadores[claveJ]
+
+            resultado['FechaHora'][claveJ][jornada] = fechahora
+
+            for subClave in claveJugador:
+                resultado[subClave][claveJ][jornada] = jugador[subClave]
+
+            for subClave in claveEstad:
+                if subClave in jugador['estads']:
+                    resultado[subClave][claveJ][jornada] = jugador['estads'][subClave]
+
+    return resultado
+
+
+def CuentaClavesPartido(x):
+    if type(x) is not dict:
+        raise ValueError("CuentaClaves: necesita un diccionario")
+
+    resultado = defaultdict(int)
+
+    for clave in x:
+        valor = x[clave]
+
+        if type(valor) is not PartidoACB:
+            print("CuentaClaves: objeto de clave '%s' no es un PartidoACB, %s" % (clave, type(valor)))
+            continue
+
+        for subclave in valor.__dict__.keys():
+            resultado[subclave] += 1
+
+    return resultado
 
 
 if __name__ == '__main__':
@@ -124,4 +170,5 @@ if __name__ == '__main__':
         print(temporada.Calendario.equipo2codigo)
         print(temporada.Calendario.codigo2equipo)
 
-    jugSM = extraeJugadoresSuperManager(sm, temporada)
+    jugSM = extraeJugadoresSuperManager(sm)
+    jugTM = extraeJugadoresTemporada(temporada)
