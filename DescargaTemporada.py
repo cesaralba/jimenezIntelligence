@@ -42,14 +42,7 @@ if 'infile' in args and args.infile:
 nuevosPartidos = temporada.actualizaTemporada(browser=browser, config=args)
 
 if nuevosPartidos:
-    resumenPartidos = [" * %s: %s (%s) %i - %i %s (%s) " %
-                       (temporada.Calendario.Jornadas[temporada.Partidos[x].Jornada]['nombre'],
-                        temporada.Partidos[x].EquiposCalendario['Local'],
-                        temporada.Partidos[x].CodigosCalendario['Local'],
-                        temporada.Partidos[x].ResultadoCalendario['Local'],
-                        temporada.Partidos[x].ResultadoCalendario['Visitante'],
-                        temporada.Partidos[x].EquiposCalendario['Visitante'],
-                        temporada.Partidos[x].CodigosCalendario['Visitante']) for x in sorted(list(nuevosPartidos))]
+    resumenPartidos = [temporada.Partidos[x].resumenPartido() for x in sorted(list(nuevosPartidos))]
 
     print("Nuevos partidos incorporados:\n%s" % ("\n".join(resumenPartidos)))
     sys.setrecursionlimit(50000)

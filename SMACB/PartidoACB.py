@@ -341,6 +341,14 @@ class PartidoACB(object):
         else:
             raise BadString("GetResult: '%s' no casa RE '%s' " % (cadena, reResultadoEquipo))
 
+    def resumenPartido(self):
+        return " * J %i: %s (%s) %i - %i %s (%s) " % (self.Jornada, self.EquiposCalendario['Local'],
+                                                      self.CodigosCalendario['Local'],
+                                                      self.ResultadoCalendario['Local'],
+                                                      self.ResultadoCalendario['Visitante'],
+                                                      self.EquiposCalendario['Visitante'],
+                                                      self.CodigosCalendario['Visitante'])
+
 
 def GeneraURLpartido(link):
 
