@@ -262,6 +262,12 @@ class CalendarioACB(object):
         (self.codigo2equipo[codigo]).add(equipo)
         return True
 
+    def nombresJornada(self):
+        result = [self.Jornadas[x]['nombre'].replace('JORNADA ', 'J ').replace(" P.", "").replace(",", "")
+                  for x in self.Jornadas]
+
+        return result
+
 
 def BuscaCalendario(url=URL_BASE, home=None, browser=None, config={}):
 
