@@ -4,8 +4,19 @@
 
 import argparse
 
+from _collections import defaultdict
 from SMACB.MercadoPage import MercadoPageContent
 from Utils.Misc import ReadFile
+
+
+def cuentaFuera(mercado):
+    resultado = defaultdict(int)
+
+    for jug in mercado.PlayerData:
+        resultado[mercado.PlayerData[jug]['proxFuera']] += 1
+
+    return resultado
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -24,6 +35,7 @@ if __name__ == '__main__':
     for Mfile in files:
         mf = MercadoPageContent(Mfile)
         mf.setTimestampFromStr(mf.source)
+        print(cuentaFuera(mf))
 
         if orig is None:
             orig = mf

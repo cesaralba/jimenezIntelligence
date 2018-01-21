@@ -123,3 +123,47 @@ class TemporadaACB(object):
                                                                   partido.CodigosCalendario['Visitante'])
 
             print(resumenPartido)
+
+    def maxJornada(self):
+        acums = defaultdict(int)
+        for claveP in self.Partidos:
+            partido = self.Partidos[claveP]
+            acums[partido.Jornada] += 1
+
+        return max(acums.keys())
+
+    def extraeDatosJugadores(self):
+        resultado = dict()
+
+        maxJ = self.maxJornada()
+
+        def listaDatos():
+            return [None] * maxJ
+
+        clavePartido = ['FechaHora']
+        claveJugador = ['esLocal', 'titular', 'nombre', 'haGanado', 'haJugado', 'equipo', 'CODequipo', 'rival',
+                        'CODrival']
+        claveEstad = ['Segs', 'P', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'T1-C', 'T1-I', 'T1%', 'REB-T',
+                      'R-D', 'R-O', 'A', 'BR', 'BP', 'C', 'TAP-F', 'TAP-C', 'M', 'FP-F', 'FP-C', '+/-', 'V']
+
+        for clave in clavePartido + claveJugador + claveEstad:
+            resultado[clave] = defaultdict(listaDatos)
+
+        for claveP in self.Partidos:
+            partido = self.Partidos[claveP]
+            jornada = partido.Jornada - 1
+            fechahora = partido.FechaHora
+
+            for claveJ in partido.Jugadores:
+                jugador = partido.Jugadores[claveJ]
+
+                resultado['FechaHora'][claveJ][jornada] = fechahora
+
+                for subClave in claveJugador:
+                    resultado[subClave][claveJ][jornada] = jugador[subClave]
+
+                for subClave in claveEstad:
+                    if subClave in jugador['estads']:
+                        resultado[subClave][claveJ][jornada] = jugador['estads'][subClave]
+
+        return resultado

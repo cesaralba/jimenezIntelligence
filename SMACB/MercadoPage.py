@@ -288,7 +288,7 @@ class MercadoPageContent():
                         result['equipo'] = data.img['title']
                     elif dataid == 'rival':
                         for icon in data.find_all('img'):
-                            if icon['title'] == "Partido fuera":
+                            if icon['title'].lower() == "partido fuera":
                                 result['proxFuera'] = True
                             else:
                                 result['rival'] = icon['title']
