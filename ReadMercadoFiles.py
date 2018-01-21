@@ -32,6 +32,7 @@ if __name__ == '__main__':
 
     orig = None
 
+    currJornada = 0
     for Mfile in files:
         mf = MercadoPageContent(Mfile)
         mf.setTimestampFromStr(mf.source)
@@ -39,7 +40,9 @@ if __name__ == '__main__':
 
         if orig is None:
             orig = mf
-            print(" ", Mfile['source'])  # ,mf
+            print("J ", currJornada, Mfile['source'])  # ,mf
+            print("-j %i:%s" % (currJornada, mf.timestampKey()))
+            currJornada += 1
             continue
 
         diffs = orig.diff(mf)
@@ -48,10 +51,11 @@ if __name__ == '__main__':
 
             # print(Mfile['source'], "There were changes:\n", diffs)
             if diffs.cambioJornada:
-                print("J", Mfile['source'],
-                      "Cambio de jornada", mf.timestampKey(),
-                      "Len newRivals", len(diffs.newRivals),
-                      "teamsJornada", diffs.teamsJornada)
+                print("J", currJornada, Mfile['source'],
+                      "Cambio de jornada", mf.timestampKey())
+                print("-j %i:%s" % (currJornada, mf.timestampKey()))
+                currJornada += 1
+
             else:
                 print("C", Mfile['source'],
                       "Len newRivals", len(diffs.newRivals),

@@ -175,7 +175,9 @@ class SuperManagerACB(object):
 
         self.mercado[mercadoID] = mercado
 
-        if not self.ultimoMercado or (mercado.timestamp > self.mercado[self.ultimoMercado].timestamp):
+        if not self.ultimoMercado:
+            self.ultimoMercado = mercadoID
+        elif (mercado.timestamp > self.mercado[self.ultimoMercado].timestamp):
             self.ultimoMercado = mercadoID
 
         self.changed = True
