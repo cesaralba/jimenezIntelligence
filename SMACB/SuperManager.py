@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from collections import defaultdict
 from copy import copy
 from pickle import dump, load
 from time import gmtime
@@ -174,7 +175,9 @@ class SuperManagerACB(object):
 
         self.mercado[mercadoID] = mercado
 
-        if not self.ultimoMercado or (mercado.timestamp > self.mercado[self.ultimoMercado].timestamp):
+        if not self.ultimoMercado:
+            self.ultimoMercado = mercadoID
+        elif (mercado.timestamp > self.mercado[self.ultimoMercado].timestamp):
             self.ultimoMercado = mercadoID
 
         self.changed = True
@@ -220,10 +223,77 @@ class SuperManagerACB(object):
                 continue
             self.__setattr__(key, aux.__getattribute__(key))
 
+    def extraeDatosJugadores(self):
 
-######################################################
-# Funciones extraidas de la clase SuperManagerACB
-######################################################
+        resultado = dict()
+        maxJornada = max(self.jornadas.keys())
+
+        def listaDatos():
+            return [None] * maxJornada
+
+        def findSubKeys(data):
+            resultado = defaultdict(int)
+
+            if type(data) is not dict:
+                print("Parametro pasado no es un diccionario")
+                return resultado
+
+            for clave in data:
+                valor = data[clave]
+                if type(valor) is not dict:
+                    print("Valor para '%s' no es un diccionario")
+                    continue
+                for subclave in valor.keys():
+                    resultado[subclave] += 1
+
+            return resultado
+
+        mercadosAMirar = [None] * (maxJornada)
+        # ['proxFuera', 'lesion', 'cupo', 'pos', 'foto', 'nombre', 'codJugador', 'temp', 'kiaLink', 'equipo',
+        # 'promVal', 'precio', 'enEquipos%', 'valJornada', 'prom3Jornadas', 'sube15%', 'seMantiene', 'baja15%',
+        # 'rival', 'CODequipo', 'CODrival', 'info']
+        keysJugDatos = ['lesion', 'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'CODequipo']
+        keysJugInfo = ['nombre', 'codJugador', 'cupo', 'pos', 'equipo', 'proxFuera', 'rival', 'activo', 'lesion',
+                       'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'sube15%', 'seMantiene', 'baja15%', 'rival',
+                       'CODequipo', 'CODrival']
+
+        for key in keysJugDatos:
+            resultado[key] = defaultdict(listaDatos)
+        for key in (keysJugInfo + ['activo']):
+            resultado['I-' + key] = dict()
+
+        for jornada in self.mercadoJornada:
+            mercadosAMirar[jornada - 1] = self.mercadoJornada[jornada]
+        ultMercado = self.mercado[self.ultimoMercado]
+
+        for i in range(len(mercadosAMirar)):
+            mercadoID = mercadosAMirar[i]
+            if not mercadoID:
+                continue
+
+            mercado = self.mercado[mercadoID]
+
+            for jugSM in mercado.PlayerData:
+                jugadorData = mercado.PlayerData[jugSM]
+                codJugador = jugadorData['codJugador']
+
+                # print("J: ",jugadorData.keys())
+
+                for key in jugadorData:
+                    if key in keysJugDatos:
+                        resultado[key][codJugador][i] = jugadorData[key]
+                    if key in keysJugInfo:
+                        resultado['I-' + key][codJugador] = jugadorData[key]
+
+        for jugSM in resultado['lesion']:
+            resultado['I-activo'][jugSM] = (jugSM in ultMercado.PlayerData)
+
+        return(resultado)
+
+    ######################################################
+    # Funciones extraidas de la clase SuperManagerACB
+    ######################################################
+
 
 def extractPrivateLeagues(content):
     forms = content.find_all("form", {"name": "listaprivadas"})

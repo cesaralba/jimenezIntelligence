@@ -4,8 +4,19 @@
 
 import argparse
 
+from _collections import defaultdict
 from SMACB.MercadoPage import MercadoPageContent
 from Utils.Misc import ReadFile
+
+
+def cuentaFuera(mercado):
+    resultado = defaultdict(int)
+
+    for jug in mercado.PlayerData:
+        resultado[mercado.PlayerData[jug]['proxFuera']] += 1
+
+    return resultado
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -21,13 +32,17 @@ if __name__ == '__main__':
 
     orig = None
 
+    currJornada = 0
     for Mfile in files:
         mf = MercadoPageContent(Mfile)
         mf.setTimestampFromStr(mf.source)
+        print(cuentaFuera(mf))
 
         if orig is None:
             orig = mf
-            print(" ", Mfile['source'])  # ,mf
+            print("J ", currJornada, Mfile['source'])  # ,mf
+            print("-j %i:%s" % (currJornada, mf.timestampKey()))
+            currJornada += 1
             continue
 
         diffs = orig.diff(mf)
@@ -36,10 +51,11 @@ if __name__ == '__main__':
 
             # print(Mfile['source'], "There were changes:\n", diffs)
             if diffs.cambioJornada:
-                print("J", Mfile['source'],
-                      "Cambio de jornada", mf.timestampKey(),
-                      "Len newRivals", len(diffs.newRivals),
-                      "teamsJornada", diffs.teamsJornada)
+                print("J", currJornada, Mfile['source'],
+                      "Cambio de jornada", mf.timestampKey())
+                print("-j %i:%s" % (currJornada, mf.timestampKey()))
+                currJornada += 1
+
             else:
                 print("C", Mfile['source'],
                       "Len newRivals", len(diffs.newRivals),
