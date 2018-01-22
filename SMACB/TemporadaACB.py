@@ -4,6 +4,7 @@ Created on Jan 4, 2018
 @author: calba
 '''
 
+from calendar import timegm
 from collections import defaultdict
 from copy import copy
 from pickle import dump, load
@@ -140,24 +141,32 @@ class TemporadaACB(object):
         def listaDatos():
             return [None] * maxJ
 
-        clavePartido = ['FechaHora']
+        clavePartido = ['FechaHora', 'URL', 'Partido', 'ResumenPartido']
         claveJugador = ['esLocal', 'titular', 'nombre', 'haGanado', 'haJugado', 'equipo', 'CODequipo', 'rival',
                         'CODrival']
         claveEstad = ['Segs', 'P', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'T1-C', 'T1-I', 'T1%', 'REB-T',
                       'R-D', 'R-O', 'A', 'BR', 'BP', 'C', 'TAP-F', 'TAP-C', 'M', 'FP-F', 'FP-C', '+/-', 'V']
+        claveDict = ['OrdenPartidos']
+        claveDictInt = ['I-convocado', 'I-jugado']
 
         for clave in clavePartido + claveJugador + claveEstad:
             resultado[clave] = defaultdict(listaDatos)
+        for clave in claveDict:
+            resultado[clave] = dict()
+        for clave in claveDictInt:
+            resultado[clave] = defaultdict(int)
 
         for claveP in self.Partidos:
             partido = self.Partidos[claveP]
-            jornada = partido.Jornada - 1
+            jornada = partido.Jornada - 1  # Indice en el hash
             fechahora = partido.FechaHora
 
             for claveJ in partido.Jugadores:
                 jugador = partido.Jugadores[claveJ]
 
                 resultado['FechaHora'][claveJ][jornada] = fechahora
+                resultado['URL'][claveJ][jornada] = claveP
+                resultado['Partido'][claveJ][jornada] = ("" if jugador['esLocal'] else "@") + jugador['rival']
 
                 for subClave in claveJugador:
                     resultado[subClave][claveJ][jornada] = jugador[subClave]
@@ -165,5 +174,18 @@ class TemporadaACB(object):
                 for subClave in claveEstad:
                     if subClave in jugador['estads']:
                         resultado[subClave][claveJ][jornada] = jugador['estads'][subClave]
+
+        # Calcula el orden de las jornadas para mostrar los partidos jugados en orden cronológico
+        for claveJ in resultado['FechaHora']:
+            auxFH = [((timegm(resultado['FechaHora'][claveJ][x]) if resultado['FechaHora'][claveJ][x] else 0), x)
+                     for x in range(len(resultado['FechaHora'][claveJ]))]
+            auxFHsorted = [x[1] for x in sorted(auxFH, key=lambda x:x[0])]
+            resultado['OrdenPartidos'][claveJ] = auxFHsorted
+
+        for claveJ in resultado['haJugado']:
+            convocados = [x for x in resultado['haJugado'][claveJ] if x is not None]
+            jugados = sum([1 for x in convocados if x])
+            resultado['I-convocado'][claveJ] = len(convocados)
+            resultado['I-jugado'][claveJ] = jugados
 
         return resultado
