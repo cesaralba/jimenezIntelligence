@@ -75,3 +75,17 @@ def Valores2Claves(x):
         (resultado[valor]).add(clave)
 
     return resultado
+
+
+def DumpDict(x, claves=None):
+    if (type(x) is not dict) and (type(x) is not defaultdict):
+        raise ValueError("CuentaClaves: necesita un diccionario")
+
+    if claves:
+        clavesOk = [clave for clave in claves if clave in x]
+    else:
+        clavesOk = x.keys()
+
+    result = ["%s -> %s" % (clave, x[clave]) for clave in clavesOk]
+
+    return "\n".join(result)
