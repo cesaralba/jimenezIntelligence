@@ -89,3 +89,7 @@ def DumpDict(x, claves=None):
     result = ["%s -> %s" % (clave, x[clave]) for clave in clavesOk]
 
     return "\n".join(result)
+
+
+def Seg2Tiempo(x):
+    return "%i:%02i" % (x // 60, x % 60)

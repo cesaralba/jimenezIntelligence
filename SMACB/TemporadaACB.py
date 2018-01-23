@@ -13,7 +13,7 @@ from time import gmtime, strftime
 
 from SMACB.CalendarioACB import CalendarioACB, calendario_URLBASE
 from SMACB.PartidoACB import PartidoACB
-from Utils.Misc import FORMATOtimestamp
+from Utils.Misc import FORMATOtimestamp, Seg2Tiempo
 
 
 class TemporadaACB(object):
@@ -160,13 +160,21 @@ class TemporadaACB(object):
             partido = self.Partidos[claveP]
             jornada = partido.Jornada - 1  # Indice en el hash
             fechahora = partido.FechaHora
+            segsPartido = partido.Equipos['Local']['estads']['Segs']
+
+            resultadoPartido = "%i-%i" % (partido.DatosSuministrados['resultado'][0],
+                                          partido.DatosSuministrados['resultado'][1])
+
+            if partido.prorrogas:
+                resultadoPartido += " %iPr" % partido.prorrogas
 
             for claveJ in partido.Jugadores:
                 jugador = partido.Jugadores[claveJ]
 
                 resultado['FechaHora'][claveJ][jornada] = fechahora
                 resultado['URL'][claveJ][jornada] = claveP
-                resultado['Partido'][claveJ][jornada] = ("" if jugador['esLocal'] else "@") + jugador['rival']
+                nomPartido = ("" if jugador['esLocal'] else "@") + jugador['rival']
+                resultado['Partido'][claveJ][jornada] = nomPartido
 
                 for subClave in claveJugador:
                     resultado[subClave][claveJ][jornada] = jugador[subClave]
@@ -174,6 +182,50 @@ class TemporadaACB(object):
                 for subClave in claveEstad:
                     if subClave in jugador['estads']:
                         resultado[subClave][claveJ][jornada] = jugador['estads'][subClave]
+
+                textoResumen = "%s %s\n%s\n\n" % (nomPartido,
+                                                  ("(V)" if jugador['haGanado'] else "(D)"),
+                                                  resultadoPartido)
+
+                if jugador['haJugado']:
+                    estads = jugador['estads']
+
+                    textoResumen += "Min: %s (%.2f%%)\n" % (Seg2Tiempo(estads['Segs']),
+                                                            100.0 * estads['Segs'] / segsPartido)
+                    textoResumen += "Val: %i\n" % estads['V']
+                    textoResumen += "P: %i\n" % estads['P']
+                    t2c = estads['T2-C']
+                    t2i = estads['T2-I']
+                    if t2i:
+                        textoResumen += "T2: %i/%i (%.2f%%)\n" % (t2c, t2i, estads['T2%'])
+                    else:
+                        textoResumen += "T2: 0/0 (0.00%)\n"
+                    t3c = estads['T3-C']
+                    t3i = estads['T3-I']
+                    if t3i:
+                        textoResumen += "T3: %i/%i (%.2f%%)\n" % (t3c, t3i, estads['T3%'])
+                    else:
+                        textoResumen += "T3: 0/0 (0.00%)\n"
+
+                    if t2i + t3i:
+                        textoResumen += "TC: %i/%i (%.2f%%)\n" % (t2c + t3c, t2i + t3i,
+                                                                  100 * (t2c + t3c) / (t2i + t3i))
+                    else:
+                        textoResumen += "TC: 0/0 (0.00%)\n"
+
+                    textoResumen += "TL: %i/%i (%.2f%%)\n" % (estads['T1-C'], estads['T1-I'], estads['T1%'])
+                    textoResumen += "R: %i+%i %i\n" % (estads['R-D'], estads['R-O'], estads['REB-T'])
+                    textoResumen += "A: %i\n" % estads['A']
+                    textoResumen += "BR: %i\n" % estads['BR']
+                    textoResumen += "BP: %i\n" % estads['BP']
+                    textoResumen += "Tap: %i\n" % estads['TAP-F']
+                    textoResumen += "Tap Rec: %i\n" % estads['TAP-C']
+                    textoResumen += "Fal: %i\n" % estads['FP-C']
+                    textoResumen += "Fal Rec: %i\n" % estads['FP-F']
+                else:
+                    textoResumen += "No ha jugado"
+
+                resultado['ResumenPartido'][claveJ][jornada] = textoResumen
 
         # Calcula el orden de las jornadas para mostrar los partidos jugados en orden cronológico
         for claveJ in resultado['FechaHora']:
