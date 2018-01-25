@@ -5,6 +5,5 @@ bs4
 MechanicalSoup
 babel
 
-
-
+XlsxWriter==1.0.2
 

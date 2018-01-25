@@ -2,124 +2,29 @@
 # -*- coding: utf-8 -*-
 
 from collections import defaultdict
-from time import strftime
+from time import gmtime, strftime
 
 from configargparse import ArgumentParser
+from xlsxwriter import Workbook
 
 from SMACB.PartidoACB import PartidoACB
+from SMACB.SMconstants import POSICIONES
 from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
-from Utils.Misc import FORMATOtimestamp
+from Utils.Misc import CuentaClaves, FORMATOtimestamp
 
 
-def extraeJugadoresSuperManager(datosSM):
+def jugadoresMezclaStatus(datos):
+    resultado = defaultdict(set)
 
-    resultado = dict()
-    maxJornada = max(datosSM.jornadas.keys())
-
-    def listaDatos():
-        return [None] * maxJornada
-
-    def findSubKeys(data):
-        resultado = defaultdict(int)
-
-        if type(data) is not dict:
-            print("Parametro pasado no es un diccionario")
-            return resultado
-
-        for clave in data:
-            valor = data[clave]
-            if type(valor) is not dict:
-                print("Valor para '%s' no es un diccionario")
-                continue
-            for subclave in valor.keys():
-                resultado[subclave] += 1
-
-        return resultado
-
-    mercadosAMirar = [None] * (maxJornada)
-    # ['proxFuera', 'lesion', 'cupo', 'pos', 'foto', 'nombre', 'codJugador', 'temp', 'kiaLink', 'equipo', 'promVal',
-    # 'precio', 'enEquipos%', 'valJornada', 'prom3Jornadas', 'sube15%', 'seMantiene', 'baja15%', 'rival', 'CODequipo',
-    # 'CODrival', 'info']
-    keysJugDatos = ['lesion', 'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'CODequipo', 'CODrival']
-    keysJugInfo = ['nombre', 'codJugador', 'cupo', 'pos', 'equipo', 'proxFuera', 'rival', 'activo', 'lesion',
-                   'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'sube15%', 'seMantiene', 'baja15%', 'rival',
-                   'CODequipo', 'CODrival']
-
-    for key in keysJugDatos:
-        resultado[key] = defaultdict(listaDatos)
-    for key in keysJugInfo + ['activo']:
-        resultado['I-' + key] = dict()
-
-    for jornada in datosSM.mercadoJornada:
-        mercadosAMirar[jornada - 1] = datosSM.mercadoJornada[jornada]
-    ultMercado = datosSM.mercado[datosSM.ultimoMercado]
-
-    for i in range(len(mercadosAMirar)):
-        mercadoID = mercadosAMirar[i]
-        if not mercadoID:
+    for jug in datos:
+        datosJug = datos[jug]
+        if 'I-activo' not in datosJug:
+            (resultado[None]).add(jug)
             continue
 
-        mercado = datosSM.mercado[mercadoID]
-
-        for jugSM in mercado.PlayerData:
-            jugadorData = mercado.PlayerData[jugSM]
-            codJugador = jugadorData['codJugador']
-
-            # print("J: ",jugadorData.keys())
-
-            for key in jugadorData:
-                if key in keysJugDatos:
-                    resultado[key][codJugador][i] = jugadorData[key]
-                if key in keysJugInfo:
-                    resultado['I-' + key][codJugador] = jugadorData[key]
-
-    for jugSM in resultado['lesion']:
-        resultado['I-activo'][jugSM] = (jugSM in ultMercado.PlayerData)
-
-    return(resultado)
-
-
-def extraeJugadoresTemporada(temporada):
-    resultado = dict()
-
-    def MaxJornada(temporada):
-        acums = defaultdict(int)
-        for claveP in temporada.Partidos:
-            partido = temporada.Partidos[claveP]
-            acums[partido.Jornada] += 1
-
-        return max(acums.keys())
-
-    maxJ = MaxJornada(temporada)
-
-    def listaDatos():
-        return [None] * maxJ
-
-    clavePartido = ['FechaHora']
-    claveJugador = ['esLocal', 'titular', 'nombre', 'haGanado', 'haJugado', 'equipo', 'CODequipo', 'rival', 'CODrival']
-    claveEstad = ['Segs', 'P', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'T1-C', 'T1-I', 'T1%', 'REB-T', 'R-D',
-                  'R-O', 'A', 'BR', 'BP', 'C', 'TAP-F', 'TAP-C', 'M', 'FP-F', 'FP-C', '+/-', 'V']
-
-    for clave in clavePartido + claveJugador + claveEstad:
-        resultado[clave] = defaultdict(listaDatos)
-
-    for claveP in temporada.Partidos:
-        partido = temporada.Partidos[claveP]
-        jornada = partido.Jornada - 1
-        fechahora = partido.FechaHora
-
-        for claveJ in partido.Jugadores:
-            jugador = partido.Jugadores[claveJ]
-
-            resultado['FechaHora'][claveJ][jornada] = fechahora
-
-            for subClave in claveJugador:
-                resultado[subClave][claveJ][jornada] = jugador[subClave]
-
-            for subClave in claveEstad:
-                if subClave in jugador['estads']:
-                    resultado[subClave][claveJ][jornada] = jugador['estads'][subClave]
+        statusJug = datosJug['I-activo']
+        (resultado[statusJug]).add(jug)
 
     return resultado
 
@@ -141,6 +46,216 @@ def CuentaClavesPartido(x):
             resultado[subclave] += 1
 
     return resultado
+
+
+def mezclaJugadores(jugTemporada, jugSuperManager):
+    resultado = defaultdict(dict)
+
+    for claveSM in jugSuperManager:
+        for jug in jugSuperManager[claveSM]:
+            resultado[jug][claveSM] = jugSuperManager[claveSM][jug]
+
+    for claveTM in jugTemporada:
+        for jug in jugTemporada[claveTM]:
+            resultado[jug][claveTM] = jugTemporada[claveTM][jug]
+
+    return resultado
+
+
+def preparaDatosComunes(datosMezclados):
+    resultado = dict()
+    datosCabecera = dict()
+
+    titularCabecera = ['Pos', 'Cupo', 'Lesion', 'Nombre', 'Equipo', 'Promedio Val', 'Precio',
+                       'Proximo Rival', 'Precio punto']
+
+    jugadoresActivos = jugadoresMezclaStatus(datosMezclados)[True]
+    # jugadoresInactivos = jugPorStatus[False]
+    jugDataActivos = {x: datosMezclados[x] for x in jugadoresActivos}
+
+    for jug in jugDataActivos:
+        cabecJug = list()
+        datosJug = jugDataActivos[jug]
+
+        for campo in ['I-pos', 'I-cupo', 'I-lesion', 'I-nombre', 'I-equipo', 'I-promVal', 'I-precio']:
+            if campo in datosJug:
+                if campo == 'I-pos':
+                    cabecJug.append(POSICIONES[datosJug[campo]])
+                    continue
+                elif campo == 'I-lesion':
+                    salud = "Lesionado" if datosJug[campo] else ""
+                    cabecJug.append(salud)
+                    continue
+
+                cabecJug.append(datosJug[campo])
+            else:
+                print("Falla clave:", campo, datosJug)
+                exit(1)
+
+        proxPartido = ("@" if datosJug['I-proxFuera'] else "") + datosJug['I-rival']
+        cabecJug.append(proxPartido)
+        costePunto = (datosJug['I-precio'] / datosJug['I-promVal']) if (datosJug['I-promVal']) > 0 else "-"
+        cabecJug.append(costePunto)
+        datosCabecera[jug] = cabecJug
+
+    claves = list(map(lambda x: x[0], sorted(list(map(lambda x: (x, jugDataActivos[x]['I-precio']), jugDataActivos)),
+                                             reverse=True,
+                                             key=lambda x: x[1])))
+
+    resultado['claves'] = claves
+    resultado['cabeceraLinea'] = datosCabecera
+    resultado['titularCabecera'] = titularCabecera
+
+    return resultado
+
+
+def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
+
+    jugSM = supermanager.extraeDatosJugadores()
+    jugTM = temporada.extraeDatosJugadores()
+    jugData = mezclaJugadores(jugTM, jugSM)
+    numJornadas = temporada.maxJornada()
+    nombreJornadas = {False: temporada.Calendario.nombresJornada()[:numJornadas],
+                      True: ['J 0'] + temporada.Calendario.nombresJornada()[:numJornadas]}
+
+    def preparaFormatos(workbook):
+        resultado = dict()
+
+        resultado['cabecera'] = workbook.add_format({'bold': True, 'align': 'center'})
+        resultado['nulo'] = workbook.add_format()
+
+        resultado['VL'] = workbook.add_format({'bold': True, 'bg_color': 'green'})
+        resultado['DL'] = workbook.add_format({'bg_color': 'green'})
+        resultado['VF'] = workbook.add_format({'bold': True, 'bg_color': 'blue'})
+        resultado['DF'] = workbook.add_format({'bg_color': 'blue'})
+
+        resultado['VLd'] = workbook.add_format({'bold': True, 'bg_color': 'green', 'num_format': '#,##0_;[Red]-#,##0'})
+        resultado['DLd'] = workbook.add_format({'bg_color': 'green', 'num_format': '#,##0_;[Red]-#,##0'})
+        resultado['VFd'] = workbook.add_format({'bold': True, 'bg_color': 'blue', 'num_format': '#,##0_;[Red]-#,##0'})
+        resultado['DFd'] = workbook.add_format({'bg_color': 'blue', 'num_format': '#,##0_;[Red]-#,##0'})
+
+        return resultado
+
+    def calculaFormato(victoria, local, vdecimal):
+        resultado = ""
+        resultado += "V" if victoria else "D"
+        resultado += "L" if local else "F"
+        if vdecimal:
+            resultado += "d"
+
+        return resultado
+
+    def creaHoja(workbook, nombre, clave, datosJugadores, datosComunes, formatos,
+                 nombreJornadas, valorDecimal=False, claveSM=True):
+        clavesExistentes = CuentaClaves(datosJugadores)
+        # print(clavesExistentes)
+
+        if clave not in clavesExistentes:
+            return
+
+        seqDatos = list(range(numJornadas + (1 if claveSM else 0)))
+        cabJornadas = nombreJornadas[claveSM]
+        ot = -1 if claveSM else 0
+
+        print(ot, seqDatos, cabJornadas)
+
+        ws = workbook.add_worksheet(nombre)
+
+        fila, columna = 0, 0
+
+        ws.write_row(fila, columna, datosComunes['titularCabecera'], formatos['cabecera'])
+        columna += len(datosComunes['titularCabecera']) + 1
+        ws.write_row(fila, columna, cabJornadas, formatos['cabecera'])
+        fila += 1
+        columna = 0
+
+        for jug in datosComunes['claves']:
+            ws.write_row(fila, columna, datosComunes['cabeceraLinea'][jug])
+            columna += len(datosComunes['titularCabecera']) + 1
+            datosJugador = datosJugadores[jug]
+
+            if clave in datosJugador:
+                datosAmostrar = datosJugador[clave]
+                print(datosComunes['cabeceraLinea'][jug], datosAmostrar)
+                comentarios = datosJugador['ResumenPartido']
+                haJugado = datosJugador['haJugado']
+                esLocal = datosJugador['esLocal']
+                victoria = datosJugador['haGanado']
+
+                ordenDatos = seqDatos if claveSM else datosJugador['OrdenPartidos']
+                print(ordenDatos)
+
+                for i in ordenDatos:
+                    if datosAmostrar[i] is not None:
+                        if i + ot >= 0:
+                            f = calculaFormato(victoria[i + ot], esLocal[i + ot], valorDecimal)
+                            valor = datosAmostrar[i] if haJugado[i + ot] else ""
+                            if comentarios[i + ot]:
+                                print(comentarios[i + ot], valor)
+                            #    ws.write_comment(fila, columna, comentarios[i + ot])
+
+                        else:
+                            valor = datosAmostrar[i]
+                            f = "nulo"
+                        print(fila, columna, valor, f)
+                        ws.write(fila, columna, valor, formatos[f])
+
+                    columna += 1
+
+            fila += 1
+            columna = 0
+
+    def addMetadata(workbook, datos):
+        ws = workbook.add_worksheet("Metadata")
+        fila = 0
+        columna = 0
+        for l in datos:
+            ws.write(fila, columna, l)
+            fila += 1
+
+    metadata = ["Cargados datos SuperManager de %s" % strftime(FORMATOtimestamp, supermanager.timestamp),
+                "Cargada información de temporada de %s" % strftime(FORMATOtimestamp, temporada.timestamp),
+                "Ejecutado en %s" % strftime(FORMATOtimestamp, gmtime())]
+
+    datosComunes = preparaDatosComunes(jugData)
+
+    # print(jugData)
+
+    # print(datosComunes)
+
+    # print(DumpDict(datosComunes['cabeceraLinea'], datosComunes['claves']))
+
+    wb = Workbook(filename=nomFichero)
+    formatos = preparaFormatos(wb)
+
+    creaHoja(wb, "ValoracionSM", "valJornada", jugData, datosComunes, formatos,
+             nombreJornadas, valorDecimal=True, claveSM=True)
+    creaHoja(wb, "Valoracion", "V", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=False, claveSM=False)
+
+
+#     ws = wb.add_worksheet(name="Valoracion")
+#
+#     fila = 0
+#     columna = 0
+#
+#     ws.write_row(fila, columna, datosComunes['titularCabecera'])
+#     fila += 1
+#
+#     for jug in datosComunes['claves']:
+#         ws.write_row(fila, columna, datosComunes['cabeceraLinea'][jug])
+#         fila += 1
+#
+#     ws.autofilter(0, 0, fila, len(datosComunes['titularCabecera']))
+
+    addMetadata(wb, metadata)
+
+    wb.close()
+
+    # jugOrdenados = [clave[0] for clave in
+    # list(map(lambda x:(x,jugData['I-precio']), jugData)).sort(reverse=True,itemgetter=lambda y:y[1])]
+    # print(jugOrdenados)
+    # print(DumpDict(datosCabecera))
+    # print(metadata)
 
 
 if __name__ == '__main__':
@@ -167,8 +282,5 @@ if __name__ == '__main__':
         temporada = TemporadaACB()
         temporada.cargaTemporada(args.temporada)
         print("Cargada información de temporada de %s" % strftime(FORMATOtimestamp, temporada.timestamp))
-        print(temporada.Calendario.equipo2codigo)
-        print(temporada.Calendario.codigo2equipo)
 
-    jugSM = extraeJugadoresSuperManager(sm)
-    jugTM = extraeJugadoresTemporada(temporada)
+    preparaExcel(sm, temporada)
