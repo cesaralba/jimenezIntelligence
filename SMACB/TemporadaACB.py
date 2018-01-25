@@ -13,7 +13,7 @@ from time import gmtime, strftime
 
 from SMACB.CalendarioACB import CalendarioACB, calendario_URLBASE
 from SMACB.PartidoACB import PartidoACB
-from Utils.Misc import FORMATOtimestamp, Seg2Tiempo
+from Utils.Misc import FORMATOfecha, FORMATOtimestamp, Seg2Tiempo
 
 
 class TemporadaACB(object):
@@ -183,9 +183,11 @@ class TemporadaACB(object):
                     if subClave in jugador['estads']:
                         resultado[subClave][claveJ][jornada] = jugador['estads'][subClave]
 
-                textoResumen = "%s %s\n%s\n\n" % (nomPartido,
-                                                  ("(V)" if jugador['haGanado'] else "(D)"),
-                                                  resultadoPartido)
+                textoResumen = "%s %s\n%s: %s\n%s\n\n" % (nomPartido,
+                                                          ("(V)" if jugador['haGanado'] else "(D)"),
+                                                          self.Calendario.nombresJornada()[jornada],
+                                                          strftime(FORMATOfecha, fechahora),
+                                                          resultadoPartido)
 
                 if jugador['haJugado']:
                     estads = jugador['estads']

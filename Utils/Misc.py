@@ -5,6 +5,7 @@ from time import gmtime
 ####################################################################################################################
 
 FORMATOtimestamp = "%Y-%m-%d %H:%M"
+FORMATOfecha = "%Y-%m-%d"
 
 
 class BadString(Exception):
