@@ -1,12 +1,12 @@
 import re
 from collections import defaultdict
 from copy import copy
-from time import gmtime
+from time import gmtime, strptime
 
 import bs4
 
 from SMACB.PartidoACB import GeneraURLpartido
-from Utils.Misc import CompareBagsOfWords
+from Utils.Misc import CompareBagsOfWords, PARSERfechaC
 from Utils.Web import ComposeURL, DescargaPagina, ExtraeGetParams, MergeURL
 
 URL_BASE = "http://www.acb.com"
@@ -76,8 +76,10 @@ class CalendarioACB(object):
                         self.Jornadas[currJornada] = dict()
                         self.Jornadas[currJornada]['nombre'] = tituloFields[1]
                         self.Jornadas[currJornada]['partidos'] = []
+                        self.Jornadas[currJornada]['pendientes'] = []
                         self.Jornadas[currJornada]['equipos'] = set()
                         self.Jornadas[currJornada]['esPlayoff'] = False
+
                         continue
                     else:  # Liga Endesa 2017-18 - Calendario jornadas - Liga Regular
                         currJornada = None
@@ -138,7 +140,17 @@ class CalendarioACB(object):
                                          'equipos': equipos, 'resultado': puntos}
                 (self.Jornadas[currJornada]['partidos']).append(linkOk)
             else:  # No ha habido partido
-                continue
+                partidoPendiente = dict()
+                partidoPendiente['jornada'] = currJornada
+                partidoPendiente['equipos'] = equipos
+                textoFecha = cols[2].string
+                try:
+                    fechaPart = strptime(textoFecha, PARSERfechaC)
+                    partidoPendiente['fecha'] = fechaPart
+                except ValueError:
+                    partidoPendiente['fecha'] = None
+
+                self.Jornadas[currJornada]['pendientes'].append(partidoPendiente)
 
     def procesaSelectorClubes(self, tagForm):
         optionList = tagForm.find_all("option")

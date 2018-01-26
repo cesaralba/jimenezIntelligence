@@ -11,7 +11,7 @@ from SMACB.PartidoACB import PartidoACB
 from SMACB.SMconstants import POSICIONES
 from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
-from Utils.Misc import CuentaClaves, FORMATOtimestamp
+from Utils.Misc import CuentaClaves, FORMATOfecha, FORMATOtimestamp
 
 
 def jugadoresMezclaStatus(datos):
@@ -148,7 +148,7 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
     def creaHoja(workbook, nombre, clave, datosJugadores, datosComunes, formatos,
                  nombreJornadas, valorDecimal=False, claveSM=True):
         clavesExistentes = CuentaClaves(datosJugadores)
-        # print(clavesExistentes)
+        print(clavesExistentes)
 
         if clave not in clavesExistentes:
             return
@@ -157,7 +157,7 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
         cabJornadas = nombreJornadas[claveSM]
         ot = -1 if claveSM else 0
 
-        print(ot, seqDatos, cabJornadas)
+        # print(ot, seqDatos, cabJornadas)
 
         ws = workbook.add_worksheet(nombre)
 
@@ -181,7 +181,10 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
                 haJugado = datosJugador['haJugado']
                 esLocal = datosJugador['esLocal']
                 victoria = datosJugador['haGanado']
+                jornada = datosJugador['Jornada']
 
+                cv = zip(haJugado, esLocal, victoria, jornada)
+                print("\n".join(cv))
                 ordenDatos = seqDatos if claveSM else datosJugador['OrdenPartidos']
                 print(ordenDatos)
 
@@ -190,16 +193,19 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
                         if i + ot >= 0:
                             f = calculaFormato(victoria[i + ot], esLocal[i + ot], valorDecimal)
                             valor = datosAmostrar[i] if haJugado[i + ot] else ""
+                            fechaAux = strftime(FORMATOfecha, datosJugador['FechaHora'][i + ot]) \
+                                            if datosJugador['FechaHora'][i + ot] else "-"
+                            print(fila, columna, fechaAux, valor, f)
                             if comentarios[i + ot]:
-                                print(comentarios[i + ot], valor)
+                                pass
+                            #    print(comentarios[i + ot], valor)
                             #    ws.write_comment(fila, columna, comentarios[i + ot])
 
                         else:
                             valor = datosAmostrar[i]
                             f = "nulo"
-                        print(fila, columna, valor, f)
+                            print(fila, columna, "-", valor, f)
                         ws.write(fila, columna, valor, formatos[f])
-
                     columna += 1
 
             fila += 1
@@ -231,21 +237,7 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
     creaHoja(wb, "ValoracionSM", "valJornada", jugData, datosComunes, formatos,
              nombreJornadas, valorDecimal=True, claveSM=True)
     creaHoja(wb, "Valoracion", "V", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=False, claveSM=False)
-
-
-#     ws = wb.add_worksheet(name="Valoracion")
-#
-#     fila = 0
-#     columna = 0
-#
-#     ws.write_row(fila, columna, datosComunes['titularCabecera'])
-#     fila += 1
-#
-#     for jug in datosComunes['claves']:
-#         ws.write_row(fila, columna, datosComunes['cabeceraLinea'][jug])
-#         fila += 1
-#
-#     ws.autofilter(0, 0, fila, len(datosComunes['titularCabecera']))
+    creaHoja(wb, "PrecioSM", "precio", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=True, claveSM=True)
 
     addMetadata(wb, metadata)
 

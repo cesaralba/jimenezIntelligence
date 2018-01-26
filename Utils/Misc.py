@@ -6,6 +6,7 @@ from time import gmtime
 
 FORMATOtimestamp = "%Y-%m-%d %H:%M"
 FORMATOfecha = "%Y-%m-%d"
+PARSERfechaC = "%d/%m/%Y"
 
 
 class BadString(Exception):

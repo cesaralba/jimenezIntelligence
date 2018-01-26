@@ -141,7 +141,7 @@ class TemporadaACB(object):
         def listaDatos():
             return [None] * maxJ
 
-        clavePartido = ['FechaHora', 'URL', 'Partido', 'ResumenPartido']
+        clavePartido = ['FechaHora', 'URL', 'Partido', 'ResumenPartido', 'Jornada']
         claveJugador = ['esLocal', 'titular', 'nombre', 'haGanado', 'haJugado', 'equipo', 'CODequipo', 'rival',
                         'CODrival']
         claveEstad = ['Segs', 'P', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'T1-C', 'T1-I', 'T1%', 'REB-T',
@@ -172,6 +172,7 @@ class TemporadaACB(object):
                 jugador = partido.Jugadores[claveJ]
 
                 resultado['FechaHora'][claveJ][jornada] = fechahora
+                resultado['Jornada'][claveJ][jornada] = partido.Jornada
                 resultado['URL'][claveJ][jornada] = claveP
                 nomPartido = ("" if jugador['esLocal'] else "@") + jugador['rival']
                 resultado['Partido'][claveJ][jornada] = nomPartido
