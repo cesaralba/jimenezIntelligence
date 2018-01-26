@@ -229,7 +229,7 @@ class SuperManagerACB(object):
         maxJornada = max(self.jornadas.keys())
 
         def listaDatos():
-            return [None] * maxJornada
+            return [None] * (maxJornada + 1)
 
         def findSubKeys(data):
             resultado = defaultdict(int)
@@ -248,7 +248,7 @@ class SuperManagerACB(object):
 
             return resultado
 
-        mercadosAMirar = [None] * (maxJornada)
+        mercadosAMirar = [None] * (maxJornada + 1)
         # ['proxFuera', 'lesion', 'cupo', 'pos', 'foto', 'nombre', 'codJugador', 'temp', 'kiaLink', 'equipo',
         # 'promVal', 'precio', 'enEquipos%', 'valJornada', 'prom3Jornadas', 'sube15%', 'seMantiene', 'baja15%',
         # 'rival', 'CODequipo', 'CODrival', 'info']
@@ -263,7 +263,7 @@ class SuperManagerACB(object):
             resultado['I-' + key] = dict()
 
         for jornada in self.mercadoJornada:
-            mercadosAMirar[jornada - 1] = self.mercadoJornada[jornada]
+            mercadosAMirar[jornada] = self.mercadoJornada[jornada]
         ultMercado = self.mercado[self.ultimoMercado]
 
         for i in range(len(mercadosAMirar)):
