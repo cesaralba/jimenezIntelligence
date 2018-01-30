@@ -84,6 +84,41 @@ def buscaCombinacionesSumas(datos, combinacion, valoresobj):
     return resultados
 
 
+def buscaCombinacionesSumasConVal(datos, combinacion, valoresobj):
+    resultados = defaultdict(list)
+    valoresdest = set(valoresobj.keys())
+
+    def pruebaCombs(acum, i, datos, combinacion, solucion, valores):
+        if i < 0:
+            if acum in valores:
+                for d in compruebaEquiposSingle(solucion, combinacion, datos, valoresobj[acum], acum):
+                    resultados[acum].append(d)
+                # print("Solucion! [%s] %s -> %s" % (combinacion,acum, solucion))
+            return
+
+        if not combinacion[i]:
+            pruebaCombs(acum, i - 1, datos, combinacion, solucion, valores)
+            return
+
+        if not len(datos[i][combinacion[i]]):
+            pruebaCombs(acum, i - 1, datos, combinacion, solucion, valores)
+            return
+
+        for res in datos[i][combinacion[i]]:
+            newSol = solucion.copy()
+            newSol[i] = res
+            pruebaCombs(acum + res, i - 1, datos, combinacion, newSol, valores)
+        return
+
+    solBase = [None] * len(combinacion)
+
+    pruebaCombs(0, len(combinacion) - 1, datos, combinacion, solBase, valoresdest)
+    print(asctime(), combinacion, " -> ", ["%s -> %d" % (x, len(resultados[x])) for x in sorted(resultados)],
+          sum([len(resultados[x]) for x in resultados]))
+
+    return resultados
+
+
 def combinacionesParallel(comb, datos, valores):
     agrporValores = [(len(datos[c][m]) if m else 1) for (c, m) in zip(range(len(comb)), comb)]
     totV = prod(agrporValores)
@@ -91,6 +126,17 @@ def combinacionesParallel(comb, datos, valores):
     print("%s: %s %18d (%.5f)" % (asctime(), comb, totV, log10(totV)))
 
     res = buscaCombinacionesSumas(datos, comb, valores)
+
+    return res
+
+
+def combinacionesParallelConV(comb, datos, valores):
+    agrporValores = [(len(datos[c][m]) if m else 1) for (c, m) in zip(range(len(comb)), comb)]
+    totV = prod(agrporValores)
+    # print("%18d -> %35s" % (tot, numcombs))
+    print("%s: %s %18d (%.5f)" % (asctime(), comb, totV, log10(totV)))
+
+    res = buscaCombinacionesSumasConVal(datos, comb, valores)
 
     return res
 
@@ -135,6 +181,49 @@ def compruebaEquipos(datos):
         datosAcomb = comb[1]
         acumOtros = [""] + [0] * (len(valores[0]) - 1)
         pruebaCombs(acumOtros, len(datosAcomb) - 1, datosAcomb, valores, sumaObj)
+
+    return resultados
+
+
+def compruebaEquiposSingle(solucion, combinacion, datos, valores, suma):
+    # print(solucion, combinacion, valores, suma )
+    resultados = list()
+
+    def comparaDatos(x, y):
+        eq1 = [0 if xi == yi else 1 for (xi, yi) in zip(x[1:], y[1:])]
+        return sum(eq1) == 0
+
+    def mergeDatos(x, y):
+        res = [a + d for (a, d) in zip(x, y)]
+        res[0] = x[0] + ("-" if x[0] else "") + y[0]
+        return res
+
+    def pruebaCombs(acum, i, datos, valores, suma):
+        if i < 0:
+            for v in valores:
+                if comparaDatos(acum, v):
+                    # print("Solucion: ", acum, v)
+                    resultados.append((acum, v))
+                # print("Solucion! [%s] %s -> %s" % (combinacion,acum, solucion))
+            return
+
+        if datos[i] is None:
+            pruebaCombs(acum, i - 1, datos, valores, suma)
+            return
+
+        if not len(datos[i]):
+            pruebaCombs(acum, i - 1, datos, valores, suma)
+            return
+
+        for res in datos[i]:
+            acumSum = mergeDatos(acum, res)
+            pruebaCombs(acumSum, i - 1, datos, valores, suma)
+        return
+
+    listaCupos = [datos[n][m][p] if m else None for (n, m, p) in zip(range(len(combinacion)),
+                                                                     combinacion, solucion)]
+    acumOtros = [""] + [0] * (len(valores[0]) - 1)
+    pruebaCombs(acumOtros, len(listaCupos) - 1, listaCupos, valores, suma)
 
     return resultados
 
@@ -192,11 +281,10 @@ def CalcCombinaciones(mercado, valores, jornada=0, resTemporada=None):
             preCalcListas[i][n] = generaCombinacion(posYcupos['data'][i], n)
 
     if 1:
-        datosRecort = [combTeams[x] for x in range(8)]
-        results = Parallel(n_jobs=ncpu)(delayed(combinacionesParallel)(comb,
-                                                                       preCalcListas, valores) for comb in datosRecort)
-        equiposfilt = Parallel(n_jobs=ncpu)(delayed(validaEquiposParallel)(x, preCalcListas, valores) for x in results)
-        print(equiposfilt)
+        datosRecort = [combTeams[x] for x in range(1)]
+        resultado = Parallel(n_jobs=ncpu - 1)(delayed(combinacionesParallelConV)(comb,
+                                                                                 preCalcListas,
+                                                                                 valores) for comb in datosRecort)
     else:
         for comb in combTeams:
             res = combinacionesParallel(comb, preCalcListas, valores)
@@ -253,6 +341,6 @@ if __name__ == '__main__':
         puntosSM = resJornada.valoresSM()
 
         merc = sm.mercado[sm.mercadoJornada[j]]
-        print(sm.jornadas[j].values())
+
         combs = CalcCombinaciones(merc, puntosSM, j, resultadoTemporada)
         print(combs)
