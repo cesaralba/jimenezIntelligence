@@ -326,8 +326,8 @@ class MercadoPageContent():
         diff = self.diff(other)
         return diff.changes
 
-    def getPlayersByPosAndCupo(self):
-        result = {'data': [[]] * len(POSICIONES) * len(CUPOS),
+    def getPlayersByPosAndCupo(self, jornada=0, temporadaExtr=None):
+        result = {'data': defaultdict(list),
                   'cont': [0] * len(POSICIONES) * len(CUPOS)}
         indexResult = {}
 
@@ -337,13 +337,21 @@ class MercadoPageContent():
             for cupo in CUPOS:
                 indexResult[pos][cupo] = aux
                 aux += 1
+        result['indexes'] = indexResult
 
         for cod in self.PlayerData:
-            i = indexResult[self.PlayerData[cod]['pos']][self.PlayerData[cod]['cupo']]
-            (result['data'][i]).append((cod, int(self.PlayerData[cod]['valJornada'] * 100)))
-            result['cont'][i] += 1
+            datos = self.PlayerData[cod]
+            i = indexResult[datos['pos']][datos['cupo']]
+            datoAux = [cod, int(datos['valJornada'] * 100)]
+            if temporadaExtr:  # ['puntos', 'rebotes', 'triples', 'asistencias']
+                for cat in ['P', 'REB-T', 'T3-C', 'A']:
+                    if temporadaExtr[cat][cod][jornada - 1]:
+                        datoAux.append(temporadaExtr[cat][cod][jornada - 1])
+                    else:
+                        datoAux.append(0)
 
-        result['indexes'] = indexResult
+            (result['data'][i]).append(datoAux)
+            result['cont'][i] += 1
 
         return result
 

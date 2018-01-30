@@ -194,7 +194,7 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
                             f = calculaFormato(victoria[i + ot], esLocal[i + ot], valorDecimal)
                             valor = datosAmostrar[i] if haJugado[i + ot] else ""
                             fechaAux = strftime(FORMATOfecha, datosJugador['FechaHora'][i + ot]) \
-                                            if datosJugador['FechaHora'][i + ot] else "-"
+                                if datosJugador['FechaHora'][i + ot] else "-"
                             print(fila, columna, fechaAux, valor, f)
                             if comentarios[i + ot]:
                                 pass
