@@ -2,7 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from collections import defaultdict
-from time import gmtime, strftime
+from statistics import mean, median, stdev
+from time import gmtime, mktime, strftime, time
 
 from configargparse import ArgumentParser
 from xlsxwriter import Workbook
@@ -11,7 +12,7 @@ from SMACB.PartidoACB import PartidoACB
 from SMACB.SMconstants import POSICIONES
 from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
-from Utils.Misc import CuentaClaves, FORMATOfecha, FORMATOtimestamp
+from Utils.Misc import CuentaClaves, FORMATOtimestamp, SubSet
 
 
 def jugadoresMezclaStatus(datos):
@@ -121,36 +122,54 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
     def preparaFormatos(workbook):
         resultado = dict()
 
+        for r in 'VD':
+            for v in 'LF':
+                newKey = r + v
+                resultado[newKey] = workbook.add_format({'bg_color': 'green' if v == 'L' else 'blue'})
+                resultado[newKey + 'd'] = workbook.add_format({'bg_color': 'green' if v == 'L' else 'blue'})
+                resultado[newKey + 'n'] = workbook.add_format({'bg_color': 'green' if v == 'L' else 'blue'})
+                resultado[newKey + 'dn'] = workbook.add_format({'bg_color': 'green' if v == 'L' else 'blue'})
+                resultado[newKey + 'n'].set_italic()
+                resultado[newKey + 'dn'].set_italic()
+
+                if r == 'V':
+                    resultado[newKey].set_bold()
+                    resultado[newKey + 'd'].set_bold()
+                    resultado[newKey + 'n'].set_bold()
+                    resultado[newKey + 'dn'].set_bold()
+
+        resultado['datosComunes'] = workbook.add_format({'num_format': '0.00;[Red]-0.00'})
         resultado['cabecera'] = workbook.add_format({'bold': True, 'align': 'center'})
         resultado['nulo'] = workbook.add_format()
 
-        resultado['VL'] = workbook.add_format({'bold': True, 'bg_color': 'green'})
-        resultado['DL'] = workbook.add_format({'bg_color': 'green'})
-        resultado['VF'] = workbook.add_format({'bold': True, 'bg_color': 'blue'})
-        resultado['DF'] = workbook.add_format({'bg_color': 'blue'})
-
-        resultado['VLd'] = workbook.add_format({'bold': True, 'bg_color': 'green', 'num_format': '#,##0_;[Red]-#,##0'})
-        resultado['DLd'] = workbook.add_format({'bg_color': 'green', 'num_format': '#,##0_;[Red]-#,##0'})
-        resultado['VFd'] = workbook.add_format({'bold': True, 'bg_color': 'blue', 'num_format': '#,##0_;[Red]-#,##0'})
-        resultado['DFd'] = workbook.add_format({'bg_color': 'blue', 'num_format': '#,##0_;[Red]-#,##0'})
+        resultado['smBaja'] = workbook.add_format({'bg_color': 'grey'})
 
         return resultado
 
-    def calculaFormato(victoria, local, vdecimal):
+    def calculaFormato(victoria, local, hajugado, vdecimal):
+        if victoria is None:
+            return "nulo"
         resultado = ""
         resultado += "V" if victoria else "D"
         resultado += "L" if local else "F"
         if vdecimal:
             resultado += "d"
+        if hajugado is not None and hajugado:
+            pass
+        else:
+            resultado += "n"
 
         return resultado
 
     def creaHoja(workbook, nombre, clave, datosJugadores, datosComunes, formatos,
                  nombreJornadas, valorDecimal=False, claveSM=True):
         clavesExistentes = CuentaClaves(datosJugadores)
-        print(clavesExistentes)
 
         if clave not in clavesExistentes:
+            print("Clave '%s' no existente.\nClaves disponibles: %s" % (clave,
+                                                                        ", ".join(map(
+                                                                            lambda x: "'" + x + "'",
+                                                                            sorted(clavesExistentes.keys())))))
             return
 
         seqDatos = list(range(numJornadas + (1 if claveSM else 0)))
@@ -164,53 +183,62 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
         fila, columna = 0, 0
 
         ws.write_row(fila, columna, datosComunes['titularCabecera'], formatos['cabecera'])
-        columna += len(datosComunes['titularCabecera']) + 1
+        columna += len(datosComunes['titularCabecera'])
         ws.write_row(fila, columna, cabJornadas, formatos['cabecera'])
         fila += 1
         columna = 0
 
-        print(clave)
         for jug in datosComunes['claves']:
-            ws.write_row(fila, columna, datosComunes['cabeceraLinea'][jug])
-            columna += len(datosComunes['titularCabecera']) + 1
+            ws.write_row(fila, columna, datosComunes['cabeceraLinea'][jug], formatos['datosComunes'])
+            columna += len(datosComunes['titularCabecera'])
             datosJugador = datosJugadores[jug]
 
+            infoJugador(datosJugador, numdias=0)
+            infoJugador(datosJugador, numdias=60)
+
+            continue
+
             if clave in datosJugador:
+                ordenDatos = seqDatos if claveSM else datosJugador['OrdenPartidos']
+                ordenDatos = seqDatos
+
                 datosAmostrar = datosJugador[clave]
-                print(datosComunes['cabeceraLinea'][jug], datosAmostrar)
-                comentarios = datosJugador['ResumenPartido']
+
+                print(datosComunes['cabeceraLinea'][jug])
+                # comentarios = datosJugador['ResumenPartido']
                 haJugado = datosJugador['haJugado']
                 esLocal = datosJugador['esLocal']
                 victoria = datosJugador['haGanado']
-                jornada = datosJugador['Jornada']
-
-                cv = zip(haJugado, esLocal, victoria, jornada, ([] if claveSM else ["-"]) + datosAmostrar)
-                print("\n".join(map(str, cv)))
-                ordenDatos = seqDatos if claveSM else datosJugador['OrdenPartidos']
-                print(ordenDatos)
+                # jornada = datosJugador['Jornada']
+                # ordenParts = datosJugador['OrdenPartidos']
+                # fechaSTR = [strftime(FORMATOfecha,x) if x else "-" for x in datosJugador['FechaHora']]
+                # form = [ calculaFormato(v, l, j, valorDecimal) for (v,l,j) in zip(victoria, esLocal, haJugado)]
+                # cv = zip(seqDatos, esLocal, victoria, jornada, haJugado, ordenParts, fechaSTR, datosAmostrar, form)
+                # print('##', 'esLocal', 'victoria', 'jornada', 'haJugado', 'ordenParts', 'fecha',
+                # 'datosAmostrar','form')
+                # print("\n".join(map(lambda x:"%2i %7s %8s %7s %8s %10s %10s %s %s" % x,cv)))
+                print(list(zip(cabJornadas, datosAmostrar)), "\n\n")
+                # print(ordenDatos)
 
                 for i in ordenDatos:
-                    if datosAmostrar[i] is not None:
-                        if i + ot >= 0:
-                            f = calculaFormato(victoria[i + ot], esLocal[i + ot], valorDecimal)
-                            valor = datosAmostrar[i] if haJugado[i + ot] else ""
-                            fechaAux = strftime(FORMATOfecha, datosJugador['FechaHora'][i + ot]) \
-                                if datosJugador['FechaHora'][i + ot] else "-"
-                            print(fila, columna, fechaAux, valor, f)
-                            if comentarios[i + ot]:
-                                pass
-                            #    print(comentarios[i + ot], valor)
-                            #    ws.write_comment(fila, columna, comentarios[i + ot])
+                    f = "nulo"
+                    valor = ""
+                    if claveSM and datosAmostrar[i] is None:
+                        pass
+                    elif claveSM and (i + ot < 0):  # Es la J0 de mercado
+                        f = "nulo"
+                        valor = datosAmostrar[i]
+                    else:
+                        # haJugado[i + ot] is not None:
+                        f = calculaFormato(victoria[i + ot], esLocal[i + ot], haJugado[i + ot], valorDecimal)
+                        valor = datosAmostrar[i]   # if haJugado[i + ot] else ""
 
-                        else:
-                            valor = datosAmostrar[i]
-                            f = "nulo"
-                            print(fila, columna, "-", valor, f)
-                        ws.write(fila, columna, valor, formatos[f])
+                    ws.write(fila, columna, valor, formatos[f])
                     columna += 1
 
             fila += 1
             columna = 0
+            # break
 
     def addMetadata(workbook, datos):
         ws = workbook.add_worksheet("Metadata")
@@ -234,13 +262,28 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
 
     wb = Workbook(filename=nomFichero)
     formatos = preparaFormatos(wb)
-
-    # creaHoja(wb, "ValoracionSM", "valJornada", jugData, datosComunes, formatos, nombreJornadas,
-    # valorDecimal=True, claveSM=True)
+    # '+/-', 'A', 'BP', 'BR', 'C', 'CODequipo', 'CODrival', 'FP-C', 'FP-F', 'FechaHora',
+    # 'Jornada', 'M', 'OrdenPartidos', 'P', 'Partido', 'R-D', 'R-O', 'REB-T', 'ResumenPartido', 'Segs',
+    # 'T1%', 'T1-C', 'T1-I', 'T2%', 'T2-C', 'T2-I', 'T3%', 'T3-C', 'T3-I', 'TAP-C', 'TAP-F', 'URL', 'V',
+    # 'equipo', 'esLocal', 'haGanado', 'haJugado', 'lesion', 'nombre', 'precio', 'prom3Jornadas', 'promVal',
+    # 'rival', 'titular', 'valJornada'
+    creaHoja(wb, "ValoracionSM", "valJornada", jugData, datosComunes, formatos, nombreJornadas,
+             valorDecimal=True, claveSM=True)
     creaHoja(wb, "Valoracion", "V", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=False,
              claveSM=False)
-    # creaHoja(wb, "PrecioSM", "precio", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=True,
-    #  claveSM=True)
+    creaHoja(wb, "PrecioSM", "precio", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=True,
+             claveSM=True)
+    creaHoja(wb, "PromValSM", "promVal", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=True,
+             claveSM=True)
+    creaHoja(wb, "prom3J", "prom3Jornadas", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=True,
+             claveSM=True)
+    creaHoja(wb, "Puntos", "P", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=False, claveSM=False)
+    creaHoja(wb, "Rebotes", "REB-T", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=False,
+             claveSM=False)
+    creaHoja(wb, "Asistencias", "A", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=False,
+             claveSM=False)
+    creaHoja(wb, "Triples", "T3-C", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=False,
+             claveSM=False)
 
     addMetadata(wb, metadata)
 
@@ -253,6 +296,56 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
     # print(metadata)
 
 
+def infoJugador(datosJugador, numdias=0):
+    resultados = dict()
+    Parts = dict()
+
+    def auxDict():
+        return defaultdict(int)
+
+    Rjug = defaultdict(auxDict)
+    Rvict = defaultdict(auxDict)
+
+    haJugado = datosJugador['haJugado']
+    esLocal = datosJugador['esLocal']
+    victoria = datosJugador['haGanado']
+
+    if numdias:
+        fecha = [x for x in datosJugador['FechaHora']]
+        partIDX = [i for i in range(len(haJugado)) if haJugado[i] is not None and
+                   mktime(fecha[i]) > time() - (numdias * 24 * 3600)]
+    else:
+        partIDX = [i for i in range(len(haJugado)) if haJugado[i] is not None]
+
+    Parts['total'] = [i for i in partIDX if esLocal[i] is not None]
+    Parts['local'] = [i for i in Parts['total'] if esLocal[i]]
+    Parts['fuera'] = [i for i in Parts['total'] if not esLocal[i]]
+
+    for k in Parts:
+        for i in Parts[k]:
+            Rjug[k][haJugado[i]] += 1
+            Rvict[k][victoria[i]] += 1
+
+    for clave in ['V', 'P', 'A', 'T3-C', 'REB-T', 'Segs']:
+        if clave not in datosJugador:
+            continue
+        resultados[clave] = defaultdict(dict)
+        for k in Parts:
+            auxVals = SubSet(datosJugador[clave], Parts[k])
+            lv = len(auxVals)
+
+            resultados[clave][k]['min'] = min(auxVals) if lv else "-"
+            resultados[clave][k]['max'] = max(auxVals) if lv else "-"
+            resultados[clave][k]['median'] = median(auxVals) if lv else "-"
+            resultados[clave][k]['mean'] = mean(auxVals) if lv else "-"
+            resultados[clave][k]['stdev'] = stdev(auxVals) if lv > 1 else "-"
+
+    resultados['jug'] = Rjug
+    resultados['vict'] = Rvict
+
+    return resultados
+
+
 if __name__ == '__main__':
     parser = ArgumentParser()
 
@@ -263,6 +356,7 @@ if __name__ == '__main__':
     parser.add('-t', dest='temporada', type=str, env_var='SM_TEMPORADA', required=True)
 
     parser.add('-o', dest='outfile', type=str, env_var='SM_OUTFILE', required=False)
+    parser.add('-f', dest='filter', type=int, env_var='SM_DAYS', required=False, default=0)
 
     args = parser.parse_args()
 
