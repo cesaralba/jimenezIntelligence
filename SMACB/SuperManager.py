@@ -295,6 +295,41 @@ class SuperManagerACB(object):
     ######################################################
 
 
+class ResultadosJornadas(object):
+
+    def __init__(self, jornada, supermanager, excludelist=set()):
+        self.resultados = defaultdict(dict)
+        self.valor2team = defaultdict(set)
+
+        for team in supermanager.jornadas[jornada].data:
+            if team in excludelist:
+                continue
+            self.resultados[team]['sm'] = supermanager.jornadas[jornada].data[team]['value']
+
+            for comp in ['puntos', 'rebotes', 'triples', 'asistencias']:
+                if jornada in supermanager.__getattribute__(comp):
+                    if jornada == 1 or jornada - 1 in supermanager.__getattribute__(comp):
+                        self.resultados[team][comp] = supermanager.__getattribute__(comp)[jornada].data[team]['value']
+                        if jornada != 1:
+                            self.resultados[team][comp] -= \
+                                supermanager.__getattribute__(comp)[jornada - 1].data[team]['value']
+
+    def puntosSM(self):
+        return set([self.resultados[x]['sm'] for x in self.resultados])
+
+    def valoresSM(self):
+        result = defaultdict(list)
+
+        for equipo in self.resultados:
+            total = list()
+            for clave in ['sm', 'puntos', 'rebotes', 'triples', 'asistencias']:
+                if clave in self.resultados[equipo]:
+                    total.append(self.resultados[equipo].get(clave))
+            result[int(total[0] * 100)].append(total)
+
+        return result
+
+
 def extractPrivateLeagues(content):
     forms = content.find_all("form", {"name": "listaprivadas"})
     result = {}

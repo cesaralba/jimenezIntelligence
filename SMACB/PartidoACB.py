@@ -216,7 +216,14 @@ class PartidoACB(object):
                 result['haGanado'] = False
                 linkdata = (celdas[1].find("a"))['href']
                 linkdatapars = ExtraeGetParams(linkdata)
-                result['codigo'] = linkdatapars['id']
+                try:
+                    result['codigo'] = linkdatapars['id']
+                except KeyError:
+                    print("Exception: procesaLineaTablaEstadistica %s: unable to find id in %s '%s'" % (self.url,
+                                                                                                        linkdata,
+                                                                                                        textos[0]))
+                    return None
+
                 # (self.Equipos[estado]['Jugadores']).append(result['codigo'])
                 if not estads:
                     result['haJugado'] = False

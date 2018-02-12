@@ -95,3 +95,10 @@ def DumpDict(x, claves=None):
 
 def Seg2Tiempo(x):
     return "%i:%02i" % (x // 60, x % 60)
+
+
+def SubSet(lista, idx):
+    if not idx:
+        return []
+
+    return [lista[x] for x in idx if x < len(lista) and lista[x] is not None]

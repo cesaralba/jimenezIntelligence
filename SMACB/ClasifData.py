@@ -28,3 +28,7 @@ class ClasifData(object):
                                                          self.data[k]['socio'],
                                                          self.data[k]['value']) for k in
                                  sorted(self.data, key=self.data.get('value'), reverse=True)]) + "} "
+
+    def values(self, excludeList=set()):
+        print(self.data.keys())
+        return [self.data[x]['value'] for x in self.data if x not in excludeList]
