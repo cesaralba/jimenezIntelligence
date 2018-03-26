@@ -144,10 +144,13 @@ class CalendarioACB(object):
                 partidoPendiente['jornada'] = currJornada
                 partidoPendiente['equipos'] = equipos
                 textoFecha = cols[2].string
-                try:
-                    fechaPart = strptime(textoFecha, PARSERfechaC)
-                    partidoPendiente['fecha'] = fechaPart
-                except ValueError:
+                if textoFecha:
+                    try:
+                        fechaPart = strptime(textoFecha, PARSERfechaC)
+                        partidoPendiente['fecha'] = fechaPart
+                    except ValueError:
+                        partidoPendiente['fecha'] = None
+                else:
                     partidoPendiente['fecha'] = None
 
                 self.Jornadas[currJornada]['pendientes'].append(partidoPendiente)
