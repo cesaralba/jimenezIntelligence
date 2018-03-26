@@ -271,7 +271,8 @@ class MercadoPageContent():
                             Nombre2NoFoto[result['nombre']] = jugCode
                             result['codJugador'] = jugCode
                     elif dataid == 'jugador':
-                        result['kiaLink'] = data.a['href']
+                        if data.a:
+                          result['kiaLink'] = data.a['href']
                     elif dataid == 'iconos':
                         for icon in data.find_all("img"):
                             if icon['title'] == "Extracomunitario":
