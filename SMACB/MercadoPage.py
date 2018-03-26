@@ -4,6 +4,7 @@ import re
 from collections import defaultdict
 from time import gmtime, strftime, strptime
 
+import pandas as pd
 from babel.numbers import decimal, parse_decimal
 from bs4 import BeautifulSoup
 
@@ -431,6 +432,26 @@ class MercadoPageContent():
                     self.equipo2codigo[rival] = CODrival
                 else:
                     print("asignaCodigos: incapaz de encontrar código para '%s'." % rival)
+
+    def mercado2dataFrame(self):
+        renombraCampos = {'codJugador': 'codigo'}
+
+        def jugador2dataframe(jugador):
+            dictJugador = dict()
+
+            for dato in jugador:
+                if dato in ['enEquipos%', 'sube15%', 'seMantiene', 'baja15%', 'foto', 'kiaLink', ]:
+                    continue
+                dictJugador[dato] = jugador[dato]
+
+            dfresult = pd.DataFrame.from_dict(dictJugador, orient='index').transpose().rename(renombraCampos,
+                                                                                              axis='columns')
+            return(dfresult)
+
+        dfJugs = [jugador2dataframe(jugador) for jugador in self.PlayerData.values()]
+        dfResult = pd.concat(dfJugs, axis=0, ignore_index=True)
+
+        return(dfResult)
 
 
 class NoSuchPlayerException(Exception):

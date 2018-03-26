@@ -6,6 +6,7 @@ ConfigArgParse
 bs4
 MechanicalSoup
 babel
+pandas
 
 XlsxWriter==1.0.2
 
@@ -21,3 +22,4 @@ flake8-isort
 ipykernel
 PyQt5
 spyder
+matplotlib
