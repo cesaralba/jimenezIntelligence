@@ -4,11 +4,13 @@ Created on Dec 31, 2017
 @author: calba
 '''
 
-from time import gmtime, strptime
+from time import gmtime, mktime, strptime
 from traceback import print_exc
 
+import pandas as pd
 from bs4 import Tag
 
+from SMACB.SMconstants import BONUSVICTORIA
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams
 
@@ -355,6 +357,32 @@ class PartidoACB(object):
                                                       self.ResultadoCalendario['Visitante'],
                                                       self.EquiposCalendario['Visitante'],
                                                       self.CodigosCalendario['Visitante'])
+
+    def jugadoresAdataframe(self):
+
+        def jugador2dataframe(jugador):
+            dictJugador = dict()
+
+            for dato in jugador:
+                if dato in ['esJugador', 'entrenador', 'estads', 'estado']:
+                    continue
+                dictJugador[dato] = jugador[dato]
+            if jugador['haJugado']:
+                for dato in jugador['estads']:
+                    dictJugador[dato] = jugador['estads'][dato]
+                    dictJugador['Vsm'] = jugador['estads']['V'] * (BONUSVICTORIA if (jugador['haGanado'] and
+                                                                                     (jugador['estads']['V'] > 0))
+                                                                   else 1.0)
+
+            dfresult = pd.DataFrame.from_dict(dictJugador, orient='index').transpose()
+            dfresult['Fecha'] = pd.to_datetime(mktime(self.FechaHora), unit='s')
+
+            return(dfresult)
+
+        dfJugs = [jugador2dataframe(self.Jugadores[x]) for x in self.Jugadores]
+        dfResult = pd.concat(dfJugs, axis=0, ignore_index=True)
+
+        return(dfResult)
 
 
 def GeneraURLpartido(link):
