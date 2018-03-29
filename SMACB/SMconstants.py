@@ -9,3 +9,5 @@ POSICIONES = {'posicion1': 'Base', 'posicion3': 'Alero', 'posicion5': 'Pivot'}
 CUPOS = ['Extracomunitario', 'Español', 'normal']
 
 LISTACOMPOS = {'puntos': 'P', 'rebotes': 'REB-T', 'triples': 'T3-C', 'asistencias': 'A'}
+
+BONUSVICTORIA = 1.2
