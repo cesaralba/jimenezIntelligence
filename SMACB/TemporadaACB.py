@@ -406,3 +406,22 @@ def calculaSigma(datos, clave, filtroFechas=None):
     dfResult['aboveAvg-' + clave] = (dfResult['sigma-' + clave] >= 0.0)[~dfResult[clave].isna()]
 
     return dfResult.astype(finalTypes)
+
+
+def calculaVars(temporada, clave, filtroFechas=None):
+    combs = {'R': ['CODrival'], 'RL': ['CODrival', 'esLocal']}
+    if 'pos' in temporada.columns:
+        combs['RP'] = ['CODrival', 'pos']
+        combs['RPL'] = ['CODrival', 'esLocal', 'pos']
+
+    datos = calculaSigma(temporada, clave, filtroFechas)
+    result = dict()
+
+    for comb in combs:
+        combfloat = combs[comb] + [('sigma-' + clave)]
+        resfloat = datos[combfloat].groupby(combs[comb]).agg(['mean', 'std', 'count', 'min', 'median', 'max', 'skew'])
+        combbool = combs[comb] + [('half-' + clave), ('aboveAvg-' + clave)]
+        resbool = datos[combbool].groupby(combs[comb]).agg(['mean'])
+        result[comb] = pd.concat([resbool, resfloat], axis=1)
+
+    return result

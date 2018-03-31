@@ -436,6 +436,10 @@ class MercadoPageContent():
 
     def mercado2dataFrame(self):
         renombraCampos = {'codJugador': 'codigo'}
+        colTypes = {'CODequipo': 'category', 'CODrival': 'category', 'codigo': 'category', 'cupo': 'category',
+                    'equipo': 'category', 'lesion': 'bool', 'pos': 'category', 'precio': 'int64',
+                    'prom3Jornadas': 'float64', 'promVal': 'float64', 'proxFuera': 'bool', 'rival': 'category',
+                    'esLocal': 'bool'}
 
         def jugador2dataframe(jugador):
             dictJugador = dict()
@@ -451,8 +455,9 @@ class MercadoPageContent():
 
         dfJugs = [jugador2dataframe(jugador) for jugador in self.PlayerData.values()]
         dfResult = pd.concat(dfJugs, axis=0, ignore_index=True)
+        dfResult['esLocal'] = ~(dfResult['proxFuera'].astype('bool'))
 
-        return(dfResult)
+        return(dfResult.astype(colTypes))
 
 
 class NoSuchPlayerException(Exception):
