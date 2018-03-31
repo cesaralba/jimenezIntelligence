@@ -384,7 +384,14 @@ def calculateTempStats(datos, clave, filtroFechas=None):
 
 
 def calculaSigma(datos, clave, filtroFechas=None):
-    finalKeys = ['codigo', 'competicion', 'temporada', 'jornada', 'CODrival', 'esLocal', clave]
+    # Keys of the resulting DF
+    finalKeys = ['codigo', 'competicion', 'temporada', 'jornada', 'CODequipo', 'CODrival', 'esLocal', 'Fecha', clave]
+    finalTypes = {'CODrival': 'category', 'esLocal': 'bool', 'CODequipo': 'category',
+                  ('half-' + clave): 'bool', ('aboveAvg-' + clave): 'bool', ('sigma-' + clave): 'float64'}
+    # We already merged SuperManager?
+    if 'pos' in datos.columns:
+        finalKeys.append('pos')
+        finalTypes['pos'] = 'category'
 
     if filtroFechas:
         datosWrk = datos  # TODO: filtro de fechas
@@ -394,9 +401,8 @@ def calculaSigma(datos, clave, filtroFechas=None):
     agg1 = calculateTempStats(datos, clave, filtroFechas)
 
     dfResult = datosWrk[finalKeys].merge(agg1)
-    dfResult['sigma-' + clave] = (dfResult[clave] - dfResult[clave + "-mean"]) * \
-        (1 / dfResult[clave + "-std"]).astype('float64')
+    dfResult['sigma-' + clave] = (dfResult[clave] - dfResult[clave + "-mean"]) * (1 / dfResult[clave + "-std"])
     dfResult['half-' + clave] = ((dfResult[clave] - dfResult[clave + "-median"]) > 0.0)[~dfResult[clave].isna()]
     dfResult['aboveAvg-' + clave] = (dfResult['sigma-' + clave] >= 0.0)[~dfResult[clave].isna()]
 
-    return dfResult
+    return dfResult.astype(finalTypes)
