@@ -368,7 +368,7 @@ class TemporadaACB(object):
         return resultado
 
 
-def calculateTempStats(datos, clave, filtroFechas=None):
+def calculaTempStats(datos, clave, filtroFechas=None):
     if clave not in datos:
         raise(KeyError, "Clave '%s' no está en datos." % clave)
 
@@ -383,11 +383,11 @@ def calculateTempStats(datos, clave, filtroFechas=None):
     return agg1
 
 
-def calculaSigma(datos, clave, filtroFechas=None):
+def calculaZ(datos, clave, filtroFechas=None):
     # Keys of the resulting DF
     finalKeys = ['codigo', 'competicion', 'temporada', 'jornada', 'CODequipo', 'CODrival', 'esLocal', 'Fecha', clave]
     finalTypes = {'CODrival': 'category', 'esLocal': 'bool', 'CODequipo': 'category',
-                  ('half-' + clave): 'bool', ('aboveAvg-' + clave): 'bool', ('sigma-' + clave): 'float64'}
+                  ('half-' + clave): 'bool', ('aboveAvg-' + clave): 'bool', ('Z-' + clave): 'float64'}
     # We already merged SuperManager?
     if 'pos' in datos.columns:
         finalKeys.append('pos')
@@ -398,12 +398,12 @@ def calculaSigma(datos, clave, filtroFechas=None):
     else:
         datosWrk = datos
 
-    agg1 = calculateTempStats(datos, clave, filtroFechas)
+    agg1 = calculaTempStats(datos, clave, filtroFechas)
 
     dfResult = datosWrk[finalKeys].merge(agg1)
-    dfResult['sigma-' + clave] = (dfResult[clave] - dfResult[clave + "-mean"]) * (1 / dfResult[clave + "-std"])
+    dfResult['Z-' + clave] = (dfResult[clave] - dfResult[clave + "-mean"]) * (1 / dfResult[clave + "-std"])
     dfResult['half-' + clave] = ((dfResult[clave] - dfResult[clave + "-median"]) > 0.0)[~dfResult[clave].isna()]
-    dfResult['aboveAvg-' + clave] = (dfResult['sigma-' + clave] >= 0.0)[~dfResult[clave].isna()]
+    dfResult['aboveAvg-' + clave] = (dfResult['Z-' + clave] >= 0.0)[~dfResult[clave].isna()]
 
     return dfResult.astype(finalTypes)
 
@@ -414,14 +414,14 @@ def calculaVars(temporada, clave, filtroFechas=None):
         combs['RP'] = ['CODrival', 'pos']
         combs['RPL'] = ['CODrival', 'esLocal', 'pos']
 
-    datos = calculaSigma(temporada, clave, filtroFechas)
+    datos = calculaZ(temporada, clave, filtroFechas)
     result = dict()
 
     for comb in combs:
-        combfloat = combs[comb] + [('sigma-' + clave)]
+        combfloat = combs[comb] + [('Z-' + clave)]
         resfloat = datos[combfloat].groupby(combs[comb]).agg(['mean', 'std', 'count', 'min', 'median', 'max', 'skew'])
         combbool = combs[comb] + [('half-' + clave), ('aboveAvg-' + clave)]
         resbool = datos[combbool].groupby(combs[comb]).agg(['mean'])
-        result[comb] = pd.concat([resbool, resfloat], axis=1)
+        result[comb] = pd.concat([resbool, resfloat], axis=1).reset_index()
 
     return result
