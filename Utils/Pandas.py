@@ -7,6 +7,5 @@ Created on Mar 31, 2018
 
 def combinaPDindexes(indexData, sep="-"):
 
-    result = [sep.join([y for y in x if y != ""]) for x in list(indexData)]
-
-    return result
+    newNames = [sep.join(x).rstrip(sep) for x in indexData.values]
+    return newNames

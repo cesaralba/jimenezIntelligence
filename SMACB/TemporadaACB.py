@@ -16,6 +16,7 @@ import pandas as pd
 from SMACB.CalendarioACB import CalendarioACB, calendario_URLBASE
 from SMACB.PartidoACB import PartidoACB
 from Utils.Misc import FORMATOfecha, FORMATOtimestamp, Seg2Tiempo
+from Utils.Pandas import combinaPDindexes
 
 
 class TemporadaACB(object):
@@ -402,18 +403,20 @@ def calculaZ(datos, clave, filtroFechas=None):
 
     dfResult = datosWrk[finalKeys].merge(agg1)
     dfResult['Z-' + clave] = (dfResult[clave] - dfResult[clave + "-mean"]) * (1 / dfResult[clave + "-std"])
-    dfResult['half-' + clave] = ((dfResult[clave] - dfResult[clave + "-median"]) > 0.0)[~dfResult[clave].isna()]
-    dfResult['aboveAvg-' + clave] = (dfResult['Z-' + clave] >= 0.0)[~dfResult[clave].isna()]
+    dfResult['half-' + clave] = (((dfResult[clave] - dfResult[clave + "-median"]) > 0.0)[~dfResult[clave].isna()]) * 100
+    dfResult['aboveAvg-' + clave] = ((dfResult['Z-' + clave] >= 0.0)[~dfResult[clave].isna()]) * 100
 
     return dfResult.astype(finalTypes)
 
 
 def calculaVars(temporada, clave, filtroFechas=None):
-    combs = {'R': ['CODrival'], 'RL': ['CODrival', 'esLocal']}
+    combs = {'R': ['CODrival'], 'RL': ['CODrival', 'esLocal'], 'L': ['esLocal']}
     if 'pos' in temporada.columns:
         combs['RP'] = ['CODrival', 'pos']
         combs['RPL'] = ['CODrival', 'esLocal', 'pos']
 
+    colAdpt = {('half-' + clave + '-mean'): (clave + '-mejorMitad'),
+               ('aboveAvg-' + clave + '-mean'): (clave + '-sobreMedia')}
     datos = calculaZ(temporada, clave, filtroFechas)
     result = dict()
 
@@ -423,5 +426,12 @@ def calculaVars(temporada, clave, filtroFechas=None):
         combbool = combs[comb] + [('half-' + clave), ('aboveAvg-' + clave)]
         resbool = datos[combbool].groupby(combs[comb]).agg(['mean'])
         result[comb] = pd.concat([resbool, resfloat], axis=1).reset_index()
+        newColNames = [((comb + "-" + colAdpt.get(x, x)) if clave in x else x)
+                       for x in combinaPDindexes(result[comb].columns)]
+        result[comb].columns = newColNames
+        result[comb][comb + "-" + clave + "-zMin"] = result[comb][comb + '-Z-' + clave + '-mean'] - \
+            result[comb][comb + '-Z-' + clave + '-std']
+        result[comb][comb + "-" + clave + "-zMax"] = result[comb][comb + '-Z-' + clave + '-mean'] + \
+            result[comb][comb + '-Z-' + clave + '-std']
 
     return result

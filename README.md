@@ -76,3 +76,5 @@ python InformeSuperManager.py -i /home/calba/devel/SuperManager/full/SM2017.late
 * TeamGuesser
 * Estadisticas historicas (descargarlo todo, vamos)
 * Cuenta atras
+
+* Outliers frecuencia de outliers
