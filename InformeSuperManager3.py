@@ -6,12 +6,15 @@ from statistics import mean, median, stdev
 from time import gmtime, mktime, strftime, time
 
 from configargparse import ArgumentParser
+from pandas import ExcelWriter
 from xlsxwriter import Workbook
 
+from SMACB.ManageSMDataframes import (calculaDFcategACB, calculaDFconVars,
+                                      calculaDFprecedentes)
 from SMACB.PartidoACB import PartidoACB
 from SMACB.SMconstants import POSICIONES
 from SMACB.SuperManager import SuperManagerACB
-from SMACB.TemporadaACB import TemporadaACB
+from SMACB.TemporadaACB import TemporadaACB, calculaVars, calculaZ
 from Utils.Misc import CuentaClaves, FORMATOtimestamp, SubSet
 
 
@@ -375,3 +378,75 @@ if __name__ == '__main__':
     dfSuperManager = sm.superManager2dataframe()  # Needed to get player position from all players
     dfTemporada = temporada.extraeDataframeJugadores().merge(dfSuperManager[['codigo', 'pos']])  # All data fall playrs
     dfUltMerc = sm.mercado[sm.ultimoMercado].mercado2dataFrame()
+    dfVZ = calculaZ(dfTemporada, 'V', useStd=True)
+    dfVsmZ = calculaZ(dfTemporada, 'Vsm', useStd=True)
+    dfVD = calculaZ(dfTemporada, 'V', useStd=False)
+    dfVsmD = calculaZ(dfTemporada, 'Vsm', useStd=False)
+
+    varsVZ = calculaVars(dfTemporada, 'V')
+    varsVsmZ = calculaVars(dfTemporada, 'Vsm')
+    varsVD = calculaVars(dfTemporada, 'V', useStd=False)
+    varsVsmD = calculaVars(dfTemporada, 'Vsm', useStd=False)
+
+    dfPredsV = calculaDFconVars(dfTemp=dfTemporada, dfMerc=dfUltMerc, clave="V", filtroFechas=None)
+    dfPredsVsm = calculaDFconVars(dfTemp=dfTemporada, dfMerc=dfUltMerc, clave="Vsm", filtroFechas=None)
+
+    if 'outfile' in args and args.outfile:
+        with ExcelWriter(args.outfile) as writer:
+            dfUltMerc.to_excel(writer, sheet_name='Mercado')
+            calculaDFcategACB(dfTemporada, dfUltMerc, 'V').to_excel(writer, sheet_name='V')
+            calculaDFcategACB(dfTemporada, dfUltMerc, 'Vsm').to_excel(writer, sheet_name='Vsm')
+            calculaDFprecedentes(dfTemporada, dfUltMerc, 'V').to_excel(writer, sheet_name='Antec-V')
+            calculaDFprecedentes(dfTemporada, dfUltMerc, 'Vsm').to_excel(writer, sheet_name='Antec-Vsm')
+            calculaDFcategACB(dfTemporada, dfUltMerc, 'P').to_excel(writer, sheet_name='Puntos')
+            calculaDFcategACB(dfTemporada, dfUltMerc, 'A').to_excel(writer, sheet_name='Asist')
+            calculaDFcategACB(dfTemporada, dfUltMerc, 'REB-T').to_excel(writer, sheet_name='Rebotes')
+            calculaDFcategACB(dfTemporada, dfUltMerc, 'T3-C').to_excel(writer, sheet_name='Triples')
+
+            dfPredsV.to_excel(writer, sheet_name='PredicsV-Z')
+            dfPredsVsm.to_excel(writer, sheet_name='PredicsVsm-Z')
+
+            dfTemporada.to_excel(writer, sheet_name='TEMPORADA')
+            for comb in varsVZ:
+                nombreHoja = "V-Z-" + comb
+                indexCols = []
+                if 'R' in comb:
+                    indexCols.append('CODrival')
+                if 'P' in comb:
+                    indexCols.append('pos')
+                if 'L' in comb:
+                    indexCols.append('esLocal')
+                varsVZ[comb].set_index(indexCols).to_excel(writer, sheet_name=nombreHoja)
+
+            for comb in varsVsmZ:
+                nombreHoja = "Vsm-Z-" + comb
+                indexCols = []
+                if 'R' in comb:
+                    indexCols.append('CODrival')
+                if 'P' in comb:
+                    indexCols.append('pos')
+                if 'L' in comb:
+                    indexCols.append('esLocal')
+                varsVsmZ[comb].set_index(indexCols).to_excel(writer, sheet_name=nombreHoja)
+
+            for comb in varsVD:
+                nombreHoja = "V-D-" + comb
+                indexCols = []
+                if 'R' in comb:
+                    indexCols.append('CODrival')
+                if 'P' in comb:
+                    indexCols.append('pos')
+                if 'L' in comb:
+                    indexCols.append('esLocal')
+                varsVD[comb].set_index(indexCols).to_excel(writer, sheet_name=nombreHoja)
+
+            for comb in varsVsmD:
+                nombreHoja = "Vsm-D-" + comb
+                indexCols = []
+                if 'R' in comb:
+                    indexCols.append('CODrival')
+                if 'P' in comb:
+                    indexCols.append('pos')
+                if 'L' in comb:
+                    indexCols.append('esLocal')
+                varsVsmD[comb].set_index(indexCols).to_excel(writer, sheet_name=nombreHoja)
