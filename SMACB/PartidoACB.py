@@ -359,20 +359,28 @@ class PartidoACB(object):
                                                       self.CodigosCalendario['Visitante'])
 
     def jugadoresAdataframe(self):
+        typesDF = {'competicion': 'object', 'temporada': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
+                   'haJugado': 'bool', 'titular': 'bool', 'haGanado': 'bool', 'enActa': 'bool', 'Vsm': 'float64'}
+# 'equipo': 'object', 'CODequipo': 'object', 'rival': 'object', 'CODrival': 'object', 'dorsal': 'object'
+# 'nombre': 'object', 'codigo': 'object'
 
         def jugador2dataframe(jugador):
             dictJugador = dict()
+            dictJugador['enActa'] = True
+            print("----")
 
             for dato in jugador:
                 if dato in ['esJugador', 'entrenador', 'estads', 'estado']:
                     continue
                 dictJugador[dato] = jugador[dato]
+
             if jugador['haJugado']:
                 for dato in jugador['estads']:
                     dictJugador[dato] = jugador['estads'][dato]
-                    dictJugador['Vsm'] = jugador['estads']['V'] * (BONUSVICTORIA if (jugador['haGanado'] and
-                                                                                     (jugador['estads']['V'] > 0))
-                                                                   else 1.0)
+                    typesDF[dato] = 'float64'
+                dictJugador['Vsm'] = (
+                    jugador['estads']['V'] *
+                    (BONUSVICTORIA if (jugador['haGanado'] and (jugador['estads']['V'] > 0)) else 1.0))
 
             dfresult = pd.DataFrame.from_dict(dictJugador, orient='index').transpose()
             dfresult['Fecha'] = pd.to_datetime(mktime(self.FechaHora), unit='s')
@@ -380,7 +388,7 @@ class PartidoACB(object):
             return(dfresult)
 
         dfJugs = [jugador2dataframe(self.Jugadores[x]) for x in self.Jugadores]
-        dfResult = pd.concat(dfJugs, axis=0, ignore_index=True)
+        dfResult = pd.concat(dfJugs, axis=0, ignore_index=True).astype(typesDF)
 
         return(dfResult)
 
