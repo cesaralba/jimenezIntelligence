@@ -384,11 +384,14 @@ def calculaTempStats(datos, clave, filtroFechas=None):
     return agg1
 
 
-def calculaZ(datos, clave, filtroFechas=None):
-    # Keys of the resulting DF
-    finalKeys = ['codigo', 'competicion', 'temporada', 'jornada', 'CODequipo', 'CODrival', 'esLocal', 'Fecha', clave]
+def calculaZ(datos, clave, useStd=True, filtroFechas=None):
+
+    clZ = 'Z' if useStd else 'D'
+
+    finalKeys = ['codigo', 'competicion', 'temporada', 'jornada', 'CODequipo', 'CODrival', 'esLocal',
+                 'haJugado', 'Fecha', clave]
     finalTypes = {'CODrival': 'category', 'esLocal': 'bool', 'CODequipo': 'category',
-                  ('half-' + clave): 'bool', ('aboveAvg-' + clave): 'bool', ('Z-' + clave): 'float64'}
+                  ('half-' + clave): 'bool', ('aboveAvg-' + clave): 'bool', (clZ + '-' + clave): 'float64'}
     # We already merged SuperManager?
     if 'pos' in datos.columns:
         finalKeys.append('pos')
@@ -402,14 +405,19 @@ def calculaZ(datos, clave, filtroFechas=None):
     agg1 = calculaTempStats(datos, clave, filtroFechas)
 
     dfResult = datosWrk[finalKeys].merge(agg1)
-    dfResult['Z-' + clave] = (dfResult[clave] - dfResult[clave + "-mean"]) * (1 / dfResult[clave + "-std"])
-    dfResult['half-' + clave] = (((dfResult[clave] - dfResult[clave + "-median"]) > 0.0)[~dfResult[clave].isna()]) * 100
-    dfResult['aboveAvg-' + clave] = ((dfResult['Z-' + clave] >= 0.0)[~dfResult[clave].isna()]) * 100
+    stdMult = (1 / dfResult[clave + "-std"]) if useStd else 1
+    dfResult[clZ + '-' + clave] = (dfResult[clave] - dfResult[clave + "-mean"]) * stdMult
+    dfResult['half-' + clave] = (
+        ((dfResult[clave] - dfResult[clave + "-median"]) > 0.0)[~dfResult[clave].isna()]) * 100
+    dfResult['aboveAvg-' + clave] = ((dfResult[clZ + '-' + clave] >= 0.0)[~dfResult[clave].isna()]) * 100
 
     return dfResult.astype(finalTypes)
 
 
-def calculaVars(temporada, clave, filtroFechas=None):
+def calculaVars(temporada, clave, useStd=True, filtroFechas=None):
+
+    clZ = 'Z' if useStd else 'D'
+
     combs = {'R': ['CODrival'], 'RL': ['CODrival', 'esLocal'], 'L': ['esLocal']}
     if 'pos' in temporada.columns:
         combs['RP'] = ['CODrival', 'pos']
@@ -417,11 +425,11 @@ def calculaVars(temporada, clave, filtroFechas=None):
 
     colAdpt = {('half-' + clave + '-mean'): (clave + '-mejorMitad'),
                ('aboveAvg-' + clave + '-mean'): (clave + '-sobreMedia')}
-    datos = calculaZ(temporada, clave, filtroFechas)
+    datos = calculaZ(temporada, clave, useStd=useStd, filtroFechas=filtroFechas)
     result = dict()
 
     for comb in combs:
-        combfloat = combs[comb] + [('Z-' + clave)]
+        combfloat = combs[comb] + [(clZ + '-' + clave)]
         resfloat = datos[combfloat].groupby(combs[comb]).agg(['mean', 'std', 'count', 'min', 'median', 'max', 'skew'])
         combbool = combs[comb] + [('half-' + clave), ('aboveAvg-' + clave)]
         resbool = datos[combbool].groupby(combs[comb]).agg(['mean'])
@@ -429,9 +437,9 @@ def calculaVars(temporada, clave, filtroFechas=None):
         newColNames = [((comb + "-" + colAdpt.get(x, x)) if clave in x else x)
                        for x in combinaPDindexes(result[comb].columns)]
         result[comb].columns = newColNames
-        result[comb][comb + "-" + clave + "-zMin"] = result[comb][comb + '-Z-' + clave + '-mean'] - \
-            result[comb][comb + '-Z-' + clave + '-std']
-        result[comb][comb + "-" + clave + "-zMax"] = result[comb][comb + '-Z-' + clave + '-mean'] + \
-            result[comb][comb + '-Z-' + clave + '-std']
+        result[comb]["-".join([comb, clave, (clZ.lower() + "Min")])] = (
+            result[comb]["-".join([comb, clZ, clave, 'mean'])] - result[comb]["-".join([comb, clZ, clave, 'std'])])
+        result[comb]["-".join([comb, clave, (clZ.lower() + "Max")])] = (
+            result[comb]["-".join([comb, clZ, clave, 'mean'])] + result[comb]["-".join([comb, clZ, clave, 'std'])])
 
     return result
