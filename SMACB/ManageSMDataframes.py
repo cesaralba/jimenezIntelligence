@@ -4,6 +4,7 @@ Created on Apr 1, 2018
 @author: calba
 '''
 
+from SMACB.SMconstants import POSICIONES
 from SMACB.TemporadaACB import calculaTempStats, calculaVars
 
 
@@ -70,8 +71,55 @@ def calculaDFprecedentes(dfTemp, dfMerc, clave, filtroFechas=None):
     else:
         datosWrk = dfTemp
 
-    listaCats = ['CODrival', 'rival', 'haGanado', 'jornada', 'Fecha', 'codigo', 'haJugado', 'nombre', 'esLocal', clave]
-    #
-    dfResult = dfMerc[['codigo', 'CODrival']].merge(datosWrk[listaCats]).merge(calculaTempStats(datosWrk, clave))
+    datosMrc = dfMerc.copy()
+    datosMrc['esLocal'] = datosMrc['proxFuera']
 
-    return dfResult
+    listaCats = ['CODrival', 'CODequipo', 'equipo', 'rival', 'haGanado', 'jornada', 'Fecha', 'codigo',
+                 'haJugado', 'enActa', 'nombre', 'esLocal', clave]
+
+    dfResult = (datosMrc[['codigo', 'CODequipo', 'CODrival', 'esLocal']]
+                .merge(datosWrk[listaCats]).merge(calculaTempStats(datosWrk, clave)))
+
+    dfResult['Precedente'] = dfResult.apply(datosPartidoPasadoTemp, axis=1)
+    dfResult.loc[dfResult['enActa'] & ~dfResult['haJugado'], clave] = 0
+    dfResult['D-' + clave + '-prec'] = dfResult[clave] - dfResult[clave + '-mean']
+    dfResult['Z-' + clave + '-prec'] = ((dfResult[clave] - dfResult[clave + '-mean']) *
+                                        (1.0 / dfResult[clave + '-std']))
+
+    return (dfResult[['codigo', 'Precedente', clave, 'D-' + clave + '-prec', 'Z-' + clave + '-prec']]
+            .rename(columns={clave: clave + '-prec'}))
+
+
+def datosProxPartidoMerc(dfrow):
+    result = ("@" if dfrow['proxFuera'] else "vs ") + dfrow['rival']
+    return result
+
+
+def datosPartidoPasadoTemp(dfrow):
+    if dfrow['enActa']:
+        rival = ("vs " if dfrow['esLocal'] else "@") + dfrow['rival']
+        resultPartido = "(V)" if dfrow['haGanado'] else "(D)"
+        if str(dfrow['Fecha']) != "NaT":
+            jornada = dfrow['jornada']
+            fecha = dfrow['Fecha']
+            resultPartido = "(V)" if dfrow['haGanado'] else "(D)"
+            jugo = "" if dfrow['haJugado'] else ": No jugo"
+            result = "%s %s (%i:%s)%s" % (rival, resultPartido, jornada, fecha, jugo)
+        else:
+            result = "-"
+
+    else:
+        result = "-"
+
+    return result
+
+
+def datosPosMerc(dfrow):
+    return POSICIONES[dfrow['pos']]
+
+
+def datosLesionMerc(dfrow):
+    resL = "Si" if dfrow['lesion'] else "No"
+    resInfo = (": %s" % dfrow['info']) if dfrow['info'] else ""
+
+    return "%s%s" % (resL, resInfo)

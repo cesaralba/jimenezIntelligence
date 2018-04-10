@@ -8,6 +8,8 @@ import pandas as pd
 from babel.numbers import decimal, parse_decimal
 from bs4 import BeautifulSoup
 
+from SMACB.ManageSMDataframes import (datosLesionMerc, datosPosMerc,
+                                      datosProxPartidoMerc)
 from SMACB.SMconstants import CUPOS, POSICIONES
 from Utils.Misc import FORMATOtimestamp
 
@@ -456,6 +458,10 @@ class MercadoPageContent():
         dfJugs = [jugador2dataframe(jugador) for jugador in self.PlayerData.values()]
         dfResult = pd.concat(dfJugs, axis=0, ignore_index=True)
         dfResult['esLocal'] = ~(dfResult['proxFuera'].astype('bool'))
+        dfResult['ProxPartido'] = dfResult.apply(datosProxPartidoMerc, axis=1)
+        dfResult['pos'] = dfResult.apply(datosPosMerc, axis=1)
+        dfResult.loc[dfResult['info'].isna(), 'info'] = ""
+        dfResult['infoLesion'] = dfResult.apply(datosLesionMerc, axis=1)
 
         return(dfResult.astype(colTypes))
 

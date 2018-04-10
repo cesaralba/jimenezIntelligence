@@ -367,7 +367,6 @@ class PartidoACB(object):
         def jugador2dataframe(jugador):
             dictJugador = dict()
             dictJugador['enActa'] = True
-            print("----")
 
             for dato in jugador:
                 if dato in ['esJugador', 'entrenador', 'estads', 'estado']:
@@ -381,6 +380,10 @@ class PartidoACB(object):
                 dictJugador['Vsm'] = (
                     jugador['estads']['V'] *
                     (BONUSVICTORIA if (jugador['haGanado'] and (jugador['estads']['V'] > 0)) else 1.0))
+            else:
+                dictJugador['V'] = 0.0
+                dictJugador['Vsm'] = 0.0
+                typesDF['V'] = 'float64'
 
             dfresult = pd.DataFrame.from_dict(dictJugador, orient='index').transpose()
             dfresult['Fecha'] = pd.to_datetime(mktime(self.FechaHora), unit='s')

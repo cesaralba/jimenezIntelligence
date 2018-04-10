@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 from mechanicalsoup import LinkNotFoundError
 
 from SMACB.ClasifData import ClasifData
+from SMACB.ManageSMDataframes import datosPosMerc
 from SMACB.MercadoPage import MercadoPageContent
 
 URL_SUPERMANAGER = "http://supermanager.acb.com/index/identificar"
@@ -308,6 +309,7 @@ class SuperManagerACB(object):
         dfResult = pd.DataFrame(datos, columns=targKeys)
 
         dfResult = dfResult.astype(DFtypes).reset_index().rename(DFcolNewNames, axis='columns')
+        dfResult['pos'] = dfResult.apply(datosPosMerc, axis=1)
 
         return dfResult
 

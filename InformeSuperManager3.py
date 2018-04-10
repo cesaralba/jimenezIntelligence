@@ -391,13 +391,18 @@ if __name__ == '__main__':
     dfPredsV = calculaDFconVars(dfTemp=dfTemporada, dfMerc=dfUltMerc, clave="V", filtroFechas=None)
     dfPredsVsm = calculaDFconVars(dfTemp=dfTemporada, dfMerc=dfUltMerc, clave="Vsm", filtroFechas=None)
 
+    antecColumns = ['nombre', 'equipo', 'pos', 'cupo', 'infoLesion', 'precio', 'prom3Jornadas', 'promVal',
+                    'ProxPartido', 'valJornada', 'Precedente', 'V-prec', 'D-V-prec', 'Z-V-prec',
+                    'Vsm-prec', 'D-Vsm-prec', 'Z-Vsm-prec']
     if 'outfile' in args and args.outfile:
         with ExcelWriter(args.outfile) as writer:
-            dfUltMerc.to_excel(writer, sheet_name='Mercado')
+            (dfUltMerc.merge(calculaDFprecedentes(dfTemporada, dfUltMerc, 'V'), how='left')
+             .merge(calculaDFprecedentes(dfTemporada, dfUltMerc, 'Vsm'), how='left')[antecColumns]
+             .to_excel(writer, sheet_name='Mercado'))
             calculaDFcategACB(dfTemporada, dfUltMerc, 'V').to_excel(writer, sheet_name='V')
             calculaDFcategACB(dfTemporada, dfUltMerc, 'Vsm').to_excel(writer, sheet_name='Vsm')
-            calculaDFprecedentes(dfTemporada, dfUltMerc, 'V').to_excel(writer, sheet_name='Antec-V')
-            calculaDFprecedentes(dfTemporada, dfUltMerc, 'Vsm').to_excel(writer, sheet_name='Antec-Vsm')
+            # calculaDFprecedentes(dfTemporada, dfUltMerc, 'V').to_excel(writer, sheet_name='Antec-V')
+            # calculaDFprecedentes(dfTemporada, dfUltMerc, 'Vsm').to_excel(writer, sheet_name='Antec-Vsm')
             calculaDFcategACB(dfTemporada, dfUltMerc, 'P').to_excel(writer, sheet_name='Puntos')
             calculaDFcategACB(dfTemporada, dfUltMerc, 'A').to_excel(writer, sheet_name='Asist')
             calculaDFcategACB(dfTemporada, dfUltMerc, 'REB-T').to_excel(writer, sheet_name='Rebotes')
