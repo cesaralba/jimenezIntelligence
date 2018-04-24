@@ -31,7 +31,7 @@ class TemporadaACB(object):
         self.PartidosDescargados = set()
         self.Partidos = dict()
         self.changed = False
-        self.translations = dict()
+        self.translations = defaultdict(set)
 
     def actualizaTemporada(self, home=None, browser=None, config={}):
         self.Calendario.bajaCalendario(browser=browser, config=config)
@@ -87,6 +87,12 @@ class TemporadaACB(object):
                 continue
             self.__setattr__(atributo, aux.__getattribute__(atributo))
 
+    def nuevaTraduccionJugador(self, codigo, nombre):
+        if (codigo not in self.translations) or (nombre not in self.translations[codigo]):
+            self.changed = True
+
+        (self.translations[codigo]).add(nombre)
+
     def listaJugadores(self, jornada=0, jornadaMax=0, fechaMax=None):
 
         def SacaJugadoresPartido(partido):
@@ -111,8 +117,9 @@ class TemporadaACB(object):
                 SacaJugadoresPartido(self.Partidos[partido])
 
         for codigo in self.translations:
-            (resultado['codigo2nombre'][codigo]).add(self.translations[codigo])
-            resultado['nombre2codigo'][self.translations[codigo]] = codigo
+            for trad in self.translations[codigo]:
+                (resultado['codigo2nombre'][codigo]).add(trad)
+                resultado['nombre2codigo'][trad] = codigo
 
         return resultado
 
