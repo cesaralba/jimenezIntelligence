@@ -31,6 +31,7 @@ class TemporadaACB(object):
         self.PartidosDescargados = set()
         self.Partidos = dict()
         self.changed = False
+        self.translations = dict()
 
     def actualizaTemporada(self, home=None, browser=None, config={}):
         self.Calendario.bajaCalendario(browser=browser, config=config)
@@ -108,6 +109,10 @@ class TemporadaACB(object):
 
             if aceptaPartido:
                 SacaJugadoresPartido(self.Partidos[partido])
+
+        for codigo in self.translations:
+            (resultado['codigo2nombre'][codigo]).add(self.translations[codigo])
+            resultado['nombre2codigo'][self.translations[codigo]] = codigo
 
         return resultado
 
@@ -378,8 +383,9 @@ def calculaTempStats(datos, clave, filtroFechas=None):
     else:
         datosWrk = datos
 
-    agg = datosWrk.set_index('codigo')[clave].astype('float64').groupby('codigo').agg(['mean', 'std', 'count', 'min',
-                                                                                       'median', 'max', 'skew'])
+    agg = datosWrk.set_index('codigo')[clave].astype('float64').groupby('codigo').agg(['mean', 'std', 'count',
+                                                                                       'median', 'min', 'max',
+                                                                                       'skew'])
     agg1 = agg.rename(columns=dict([(x, clave + "-" + x) for x in agg.columns])).reset_index()
     return agg1
 
