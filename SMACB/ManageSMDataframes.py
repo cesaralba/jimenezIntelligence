@@ -7,12 +7,16 @@ Created on Apr 1, 2018
 from SMACB.SMconstants import POSICIONES
 from SMACB.TemporadaACB import calculaTempStats, calculaVars
 
+CATMERCADOFINAL = ['nombre', 'equipo', 'pos', 'cupo', 'activo', 'infoLesion', 'precio', 'prom3Jornadas', 'promVal',
+                   'ProxPartido', 'valJornada', 'codigo']
+VARSCOLS = ['CODrival', 'esLocal']
+
 
 def calculaDFconVars(dfTemp, dfMerc, clave, useStd=True, filtroFechas=None):
     dfVars = calculaVars(dfTemp, clave=clave, useStd=useStd, filtroFechas=filtroFechas)
     dfTempEstats = calculaTempStats(dfTemp, clave=clave, filtroFechas=filtroFechas)
 
-    dfResult = dfMerc.copy().merge(dfTempEstats)
+    dfResult = dfMerc[CATMERCADOFINAL + VARSCOLS].copy().merge(dfTempEstats)
 
     for comb in dfVars:
         claveZmin = "-".join([comb, clave, "zMin"])
@@ -37,7 +41,7 @@ def calculaDFconVars(dfTemp, dfMerc, clave, useStd=True, filtroFechas=None):
         dfR[clavePrmax] = dfR[claveVmean] + (dfR[claveZmax] * dfR[claveVstd])
         dfResult = dfResult.merge(dfR[listaClaves])
 
-    return dfResult
+    return dfResult.drop(columns=VARSCOLS).set_index('codigo')
 
 
 def calculaDFcategACB(dfTemp, dfMerc, clave, filtroFechas=None):
@@ -54,11 +58,14 @@ def calculaDFcategACB(dfTemp, dfMerc, clave, filtroFechas=None):
     listaCats = ['competicion', 'temporada', 'jornada', 'codigo', clave]
     dfTempEstats = calculaTempStats(datosWrk, clave=clave, filtroFechas=filtroFechas)
 
-    dfResult = dfMerc.copy().merge(
-        dfTempEstats).merge(datosWrk[listaCats].set_index(['competicion', 'temporada']).pivot(
-            index='codigo', columns='jornada', values=clave).reset_index())
+    dfResult = (dfMerc[CATMERCADOFINAL].copy().merge(dfTempEstats)
+                .merge(datosWrk[listaCats].set_index(['competicion', 'temporada'])
+                       .pivot(index='codigo', columns='jornada', values=clave).reset_index()).set_index('codigo'))
 
     return dfResult
+
+
+COLSPREC = ['Precedente', 'V-prec', 'D-V-prec', 'Z-V-prec', 'Vsm-prec', 'D-Vsm-prec', 'Z-Vsm-prec']
 
 
 def calculaDFprecedentes(dfTemp, dfMerc, clave, filtroFechas=None):
@@ -115,7 +122,7 @@ def datosPartidoPasadoTemp(dfrow):
 
 
 def datosPosMerc(dfrow):
-    return POSICIONES[dfrow['pos']]
+    return POSICIONES.get(dfrow['pos'], dfrow['pos'])
 
 
 def datosLesionMerc(dfrow):

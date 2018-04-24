@@ -9,7 +9,8 @@ from configargparse import ArgumentParser
 from pandas import ExcelWriter
 from xlsxwriter import Workbook
 
-from SMACB.ManageSMDataframes import (calculaDFcategACB, calculaDFconVars,
+from SMACB.ManageSMDataframes import (CATMERCADOFINAL, COLSPREC,
+                                      calculaDFcategACB, calculaDFconVars,
                                       calculaDFprecedentes)
 from SMACB.PartidoACB import PartidoACB
 from SMACB.SMconstants import POSICIONES
@@ -376,8 +377,10 @@ if __name__ == '__main__':
         print("Cargada información de temporada de %s" % strftime(FORMATOtimestamp, temporada.timestamp))
 
     dfSuperManager = sm.superManager2dataframe()  # Needed to get player position from all players
-    dfTemporada = temporada.extraeDataframeJugadores().merge(dfSuperManager[['codigo', 'pos']])  # All data fall playrs
+    dfTemporada = temporada.extraeDataframeJugadores().merge(dfSuperManager[['codigo', 'pos']], how='left')
+    # All data fall playrs
     dfUltMerc = sm.mercado[sm.ultimoMercado].mercado2dataFrame()
+    dfUltMerc['activo'] = True
     dfVZ = calculaZ(dfTemporada, 'V', useStd=True)
     dfVsmZ = calculaZ(dfTemporada, 'Vsm', useStd=True)
     dfVD = calculaZ(dfTemporada, 'V', useStd=False)
@@ -391,27 +394,48 @@ if __name__ == '__main__':
     dfPredsV = calculaDFconVars(dfTemp=dfTemporada, dfMerc=dfUltMerc, clave="V", filtroFechas=None)
     dfPredsVsm = calculaDFconVars(dfTemp=dfTemporada, dfMerc=dfUltMerc, clave="Vsm", filtroFechas=None)
 
-    antecColumns = ['nombre', 'equipo', 'pos', 'cupo', 'infoLesion', 'precio', 'prom3Jornadas', 'promVal',
-                    'ProxPartido', 'valJornada', 'Precedente', 'V-prec', 'D-V-prec', 'Z-V-prec',
-                    'Vsm-prec', 'D-Vsm-prec', 'Z-Vsm-prec']
+    antecColumns = CATMERCADOFINAL + COLSPREC
+
     if 'outfile' in args and args.outfile:
         with ExcelWriter(args.outfile) as writer:
             (dfUltMerc.merge(calculaDFprecedentes(dfTemporada, dfUltMerc, 'V'), how='left')
-             .merge(calculaDFprecedentes(dfTemporada, dfUltMerc, 'Vsm'), how='left')[antecColumns]
-             .to_excel(writer, sheet_name='Mercado'))
-            calculaDFcategACB(dfTemporada, dfUltMerc, 'V').to_excel(writer, sheet_name='V')
-            calculaDFcategACB(dfTemporada, dfUltMerc, 'Vsm').to_excel(writer, sheet_name='Vsm')
-            # calculaDFprecedentes(dfTemporada, dfUltMerc, 'V').to_excel(writer, sheet_name='Antec-V')
-            # calculaDFprecedentes(dfTemporada, dfUltMerc, 'Vsm').to_excel(writer, sheet_name='Antec-Vsm')
-            calculaDFcategACB(dfTemporada, dfUltMerc, 'P').to_excel(writer, sheet_name='Puntos')
-            calculaDFcategACB(dfTemporada, dfUltMerc, 'A').to_excel(writer, sheet_name='Asist')
-            calculaDFcategACB(dfTemporada, dfUltMerc, 'REB-T').to_excel(writer, sheet_name='Rebotes')
-            calculaDFcategACB(dfTemporada, dfUltMerc, 'T3-C').to_excel(writer, sheet_name='Triples')
+             .merge(calculaDFprecedentes(dfTemporada, dfUltMerc, 'Vsm'), how='left')[antecColumns].set_index('codigo')
+             .to_excel(writer, sheet_name='Mercado', freeze_panes=(1, len(CATMERCADOFINAL) - 1), index=False))
+            sht = writer.book.sheetnames['Mercado']
+            sht.autofilter(sht.dim_rowmin, sht.dim_colmin, sht.dim_rowmax, sht.dim_colmax)
 
-            dfPredsV.to_excel(writer, sheet_name='PredicsV-Z')
-            dfPredsVsm.to_excel(writer, sheet_name='PredicsVsm-Z')
+            calculaDFcategACB(dfTemporada, dfSuperManager, 'V').to_excel(writer, sheet_name='V',
+                                                                         freeze_panes=(1,
+                                                                                       len(CATMERCADOFINAL) + 3),
+                                                                         index=False)
+            calculaDFcategACB(dfTemporada, dfSuperManager, 'Vsm').to_excel(writer, sheet_name='Vsm',
+                                                                           freeze_panes=(1, len(CATMERCADOFINAL) + 3),
+                                                                           index=False)
 
-            dfTemporada.to_excel(writer, sheet_name='TEMPORADA')
+            calculaDFcategACB(dfVZ, dfSuperManager, 'Z-V').to_excel(writer, sheet_name='Z-V',
+                                                                    freeze_panes=(1, len(CATMERCADOFINAL) + 3),
+                                                                    index=False)
+
+            calculaDFcategACB(dfTemporada, dfSuperManager, 'P').to_excel(writer, sheet_name='Puntos',
+                                                                         freeze_panes=(1, len(CATMERCADOFINAL) + 3),
+                                                                         index=False)
+            calculaDFcategACB(dfTemporada, dfSuperManager, 'A').to_excel(writer, sheet_name='Asist',
+                                                                         freeze_panes=(1, len(CATMERCADOFINAL) + 3),
+                                                                         index=False)
+            calculaDFcategACB(dfTemporada, dfSuperManager, 'REB-T').to_excel(writer, sheet_name='Rebotes',
+                                                                             freeze_panes=(1,
+                                                                                           len(CATMERCADOFINAL) + 3),
+                                                                             index=False)
+            calculaDFcategACB(dfTemporada, dfSuperManager, 'T3-C').to_excel(writer, sheet_name='Triples',
+                                                                            freeze_panes=(1, len(CATMERCADOFINAL) + 3),
+                                                                            index=False)
+
+            dfPredsV.to_excel(writer, sheet_name='PredicsV-Z', freeze_panes=(1, len(CATMERCADOFINAL) + 3),
+                              index=False)
+            dfPredsVsm.to_excel(writer, sheet_name='PredicsVsm-Z', freeze_panes=(1, len(CATMERCADOFINAL) + 3),
+                                index=False)
+
+            dfTemporada.to_excel(writer, sheet_name='TEMPORADA', index=False)
             for comb in varsVZ:
                 nombreHoja = "V-Z-" + comb
                 indexCols = []

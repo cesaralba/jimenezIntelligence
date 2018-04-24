@@ -11,7 +11,8 @@ from bs4 import BeautifulSoup
 from mechanicalsoup import LinkNotFoundError
 
 from SMACB.ClasifData import ClasifData
-from SMACB.ManageSMDataframes import datosPosMerc
+from SMACB.ManageSMDataframes import (datosLesionMerc, datosPosMerc,
+                                      datosProxPartidoMerc)
 from SMACB.MercadoPage import MercadoPageContent
 
 URL_SUPERMANAGER = "http://supermanager.acb.com/index/identificar"
@@ -262,7 +263,7 @@ class SuperManagerACB(object):
         keysJugDatos = ['lesion', 'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'CODequipo']
         keysJugInfo = ['nombre', 'codJugador', 'cupo', 'pos', 'equipo', 'proxFuera', 'rival', 'activo', 'lesion',
                        'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'sube15%', 'seMantiene', 'baja15%', 'rival',
-                       'CODequipo', 'CODrival']
+                       'CODequipo', 'CODrival', 'info']
 
         for key in keysJugDatos:
             resultado[key] = defaultdict(listaDatos)
@@ -304,12 +305,27 @@ class SuperManagerACB(object):
 
         keys2remove = ['I-codJugador']
         datos = self.extraeDatosJugadoresMercado()
+
         targKeys = [x for x in datos.keys() if 'I-' in x]
         map(lambda x: targKeys.remove(x), keys2remove)
         dfResult = pd.DataFrame(datos, columns=targKeys)
 
         dfResult = dfResult.astype(DFtypes).reset_index().rename(DFcolNewNames, axis='columns')
         dfResult['pos'] = dfResult.apply(datosPosMerc, axis=1)
+
+        tradMercado = dict()
+
+        for claveM in dfResult.columns:
+            if 'I-' in claveM:
+                tradMercado[claveM] = claveM.replace("I-", "")
+
+        dfResult = dfResult.rename(columns=tradMercado)
+        dfResult['esLocal'] = ~(dfResult['proxFuera'].astype('bool'))
+        dfResult['ProxPartido'] = dfResult.apply(datosProxPartidoMerc, axis=1)
+        dfResult.loc[dfResult['info'].isna(), 'info'] = ""
+        dfResult['infoLesion'] = dfResult.apply(datosLesionMerc, axis=1)
+        dfResult.loc[~dfResult['activo'], 'ProxPartido'] = ""
+        dfResult.loc[~dfResult['activo'], 'infoLesion'] = ""
 
         return dfResult
 
