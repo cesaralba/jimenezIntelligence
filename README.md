@@ -6,7 +6,7 @@
 cd ALGUNOTROSITIO
 python3 -mvenv SACBenv
 source ALGUNOTROSITIO/SACBenv/bin/activate
-pip install -r requirements-dev.txt
+pip install -r requirements.txt
 ~~~
 
 * **Desarrollo** (desarrollo incluye ejecución)
@@ -76,3 +76,5 @@ python InformeSuperManager.py -i /home/calba/devel/SuperManager/full/SM2017.late
 * TeamGuesser
 * Estadisticas historicas (descargarlo todo, vamos)
 * Cuenta atras
+
+* Outliers frecuencia de outliers
