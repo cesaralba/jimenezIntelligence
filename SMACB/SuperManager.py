@@ -6,13 +6,21 @@ from pickle import dump, load
 from time import gmtime
 
 import mechanicalsoup
+import pandas as pd
 from bs4 import BeautifulSoup
 from mechanicalsoup import LinkNotFoundError
 
 from SMACB.ClasifData import ClasifData
+from SMACB.ManageSMDataframes import (datosLesionMerc, datosPosMerc,
+                                      datosProxPartidoMerc)
 from SMACB.MercadoPage import MercadoPageContent
 
 URL_SUPERMANAGER = "http://supermanager.acb.com/index/identificar"
+
+DFtypes = {'I-proxFuera': 'bool', 'I-activo': 'bool', 'I-lesion': 'bool', 'I-promVal': 'float64',
+           'I-precio': 'int64', 'I-valJornada': 'float64', 'I-prom3Jornadas': 'float64',
+           'I-sube15%': 'float64', 'I-seMantiene': 'float64', 'I-baja15%': 'float64'
+           }
 
 
 class BadLoginError(Exception):
@@ -223,7 +231,7 @@ class SuperManagerACB(object):
                 continue
             self.__setattr__(key, aux.__getattribute__(key))
 
-    def extraeDatosJugadores(self):
+    def extraeDatosJugadoresMercado(self):
 
         resultado = dict()
         maxJornada = max(self.jornadas.keys())
@@ -255,7 +263,7 @@ class SuperManagerACB(object):
         keysJugDatos = ['lesion', 'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'CODequipo']
         keysJugInfo = ['nombre', 'codJugador', 'cupo', 'pos', 'equipo', 'proxFuera', 'rival', 'activo', 'lesion',
                        'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'sube15%', 'seMantiene', 'baja15%', 'rival',
-                       'CODequipo', 'CODrival']
+                       'CODequipo', 'CODrival', 'info']
 
         for key in keysJugDatos:
             resultado[key] = defaultdict(listaDatos)
@@ -290,9 +298,36 @@ class SuperManagerACB(object):
 
         return(resultado)
 
-    ######################################################
-    # Funciones extraidas de la clase SuperManagerACB
-    ######################################################
+    def superManager2dataframe(self):
+        """ Extrae un dataframe con los últimos datos de todos los jugadores que han jugado en la temporada.
+        """
+        DFcolNewNames = {'I-codJugador': 'codigo', 'I-cupo': 'cupo', 'I-pos': 'pos', 'I-CODrival': 'CODrival'}
+
+        keys2remove = ['I-codJugador']
+        datos = self.extraeDatosJugadoresMercado()
+
+        targKeys = [x for x in datos.keys() if 'I-' in x]
+        map(lambda x: targKeys.remove(x), keys2remove)
+        dfResult = pd.DataFrame(datos, columns=targKeys)
+
+        dfResult = dfResult.astype(DFtypes).reset_index().rename(DFcolNewNames, axis='columns')
+        dfResult['pos'] = dfResult.apply(datosPosMerc, axis=1)
+
+        tradMercado = dict()
+
+        for claveM in dfResult.columns:
+            if 'I-' in claveM:
+                tradMercado[claveM] = claveM.replace("I-", "")
+
+        dfResult = dfResult.rename(columns=tradMercado)
+        dfResult['esLocal'] = ~(dfResult['proxFuera'].astype('bool'))
+        dfResult['ProxPartido'] = dfResult.apply(datosProxPartidoMerc, axis=1)
+        dfResult.loc[dfResult['info'].isna(), 'info'] = ""
+        dfResult['infoLesion'] = dfResult.apply(datosLesionMerc, axis=1)
+        dfResult.loc[~dfResult['activo'], 'ProxPartido'] = ""
+        dfResult.loc[~dfResult['activo'], 'infoLesion'] = ""
+
+        return dfResult
 
 
 class ResultadosJornadas(object):
