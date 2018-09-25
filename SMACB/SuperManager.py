@@ -140,6 +140,7 @@ class SuperManagerACB(object):
 
     def getMercados(self, browser, datosACB=None):
         """ Descarga la hoja de mercado y la almacena si ha habido cambios """
+        lastMercado = None
         newMercado = getMercado(browser, datosACB)
         newMercadoID = newMercado.timestampKey()
 
@@ -169,7 +170,7 @@ class SuperManagerACB(object):
             lastMercado = self.mercado[lastMercadoID]
             self.ultimoMercado = lastMercadoID
 
-        if newMercado != lastMercado:
+        if (lastMercado is None) or (newMercado != lastMercado):
             newMercadoID = newMercado.timestampKey()
             self.changed = True
             self.mercado[newMercadoID] = newMercado
@@ -193,7 +194,7 @@ class SuperManagerACB(object):
     def getSMstatus(self, browser):
         jornadas = getJornadasJugadas(browser.get_current_page())
 
-        ultJornada = max(jornadas)
+        ultJornada = max(jornadas) if jornadas else 0
         jornadasAdescargar = [j for j in jornadas if j not in self.jornadas]
         if jornadasAdescargar:
             self.changed = True

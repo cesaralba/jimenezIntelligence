@@ -18,11 +18,11 @@ UMBRALbusquedaDistancia = 1  # La comparación debe ser >
 
 class CalendarioACB(object):
 
-    def __init__(self, competition="LACB", edition=None, urlbase=calendario_URLBASE):
+    def __init__(self, urlbase=calendario_URLBASE, **kwargs):
         self.timestamp = gmtime()
-        self.competicion = competition
+        self.competicion = kwargs.get('competicion', "LACB")
         self.nombresCompeticion = defaultdict(int)
-        self.edicion = edition
+        self.edicion = kwargs.get('edicion')
         self.Partidos = {}
         self.Jornadas = {}
         self.equipo2codigo = {}
@@ -30,13 +30,10 @@ class CalendarioACB(object):
         self.url = urlbase
 
     def bajaCalendario(self, home=None, browser=None, config={}):
-        urlCalendario = ComposeURL(self.url, {'cod_competicion': self.competicion,
-                                              'cod_edicion': self.edicion,
-                                              'vd': "1",
-                                              'vh': "60"})
-
+        urlCalendario = ComposeURL(self.url,
+                                   {'cod_competicion': self.competicion, 'cod_edicion': self.edicion, 'vd': "1",
+                                    'vh': "60"})
         calendarioPage = DescargaPagina(urlCalendario, home=home, browser=browser, config=config)
-
         self.procesaCalendario(calendarioPage)
 
     def procesaCalendario(self, content):
@@ -60,7 +57,7 @@ class CalendarioACB(object):
             elif item.name == 'div':
                 divClasses = item.attrs.get('class', [])
                 if (('menuseparacion' in divClasses) or ('piemenuclubs' in divClasses) or
-                   ('cuerpobusca' in divClasses) or ('titulomenuclubsl' in divClasses)):
+                        ('cuerpobusca' in divClasses) or ('titulomenuclubsl' in divClasses)):
                     continue  # DIV estéticos o que no aportan información interesante
                 elif 'titulomenuclubs' in divClasses:
                     tituloDiv = item.string
@@ -285,7 +282,6 @@ class CalendarioACB(object):
 
 
 def BuscaCalendario(url=URL_BASE, home=None, browser=None, config={}):
-
     link = None
     indexPage = DescargaPagina(url, home, browser, config)
 

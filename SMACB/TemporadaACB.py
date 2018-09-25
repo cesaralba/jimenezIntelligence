@@ -25,9 +25,9 @@ class TemporadaACB(object):
     Aglutina calendario y lista de partidos
     '''
 
-    def __init__(self, competition="LACB", edition=None, urlbase=calendario_URLBASE):
+    def __init__(self, competicion="LACB", edicion=None, urlbase=calendario_URLBASE):
         self.timestamp = gmtime()
-        self.Calendario = CalendarioACB(competition=competition, edition=edition, urlbase=urlbase)
+        self.Calendario = CalendarioACB(competicion=competicion, edicion=edicion, urlbase=urlbase)
         self.PartidosDescargados = set()
         self.Partidos = dict()
         self.changed = False
