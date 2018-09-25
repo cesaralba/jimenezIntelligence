@@ -15,7 +15,7 @@ if __name__ == '__main__':
     parser.add('-j', dest='justone', action="store_true", env_var='SM_JUSTONE', required=False, default=False)
 
     parser.add('-e', dest='edicion', action="store", env_var='SM_EDICION', required=False, default=None)
-    # parser.add('-c', dest='competicion', action="store", env_var='SM_COMPETICION', required=False, default=None)
+    parser.add('-c', dest='competicion', action="store", env_var='SM_COMPETICION', required=False, default=None)
 
     # parser.add('-i', dest='infile', type=str, env_var='SM_INFILE', required=False)
     # parser.add('-o', dest='outfile', type=str, env_var='SM_OUTFILE', required=False)
@@ -27,13 +27,18 @@ if __name__ == '__main__':
     sourceURL = BuscaCalendario(browser=browser, config=args)
 
     if args.edicion is not None:
-        calendario = CalendarioACB(edition=args.edicion, urlbase=sourceURL)
+        restoParams = dict()
+        if 'competicion' in args:
+            restoParams['competicion'] = args.competicion
+        restoParams['edicion'] = args.edicion
+
+        calendario = CalendarioACB(urlbase=sourceURL, **restoParams)
     else:
         paramsURL = ExtraeGetParams(sourceURL)
         calendario = CalendarioACB(edition=paramsURL['cod_edicion'], urlbase=sourceURL)
 
     # calendario = CalendarioACB(edition=56, urlbase=sourceURL)
-    calendario.BajaCalendario(browser=browser, config=args)
+    calendario.bajaCalendario(browser=browser, config=args)
 
     if 0:
         print(calendario.codigo2equipo)
@@ -54,6 +59,6 @@ if __name__ == '__main__':
         Partidos['descargados'].add(partido)
         Partidos['informacion'][partido] = nuevoPartido
         partidosBajados.add(partido)
-        print("PARTIDO:  ", nuevoPartido.__dict__)
+
         if args.justone:
             exit(1)

@@ -2,12 +2,8 @@
 ## Preparar el entorno
 
 * **Ejecución**
-~~~
-cd ALGUNOTROSITIO
-python3 -mvenv SACBenv
-source ALGUNOTROSITIO/SACBenv/bin/activate
-pip install -r requirements.txt
-~~~
+
+Esto se ha movido a https://github.com/cesaralba/jimenezIntelligence-scripts
 
 * **Desarrollo** (desarrollo incluye ejecución)
 ~~~
