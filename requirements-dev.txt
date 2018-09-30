@@ -9,8 +9,6 @@ pandas
 
 joblib
 
-XlsxWriter==1.0.2
-
 # Librerias para dev
 pytest
 flake8
