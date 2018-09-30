@@ -173,9 +173,13 @@ class MercadoPageCompare():
             for team in self.teamTranslationsOld2New.keys():
                 result += "  '{}' pasa a ser '{}'\n".format(team, self.teamTranslationsOld2New[team])
         if self.newTeams:
-            result += "Nuevos equipos ({}): {}\n".format(len(self.newTeams), self.newTeams.sort())
+            listaTeams = self.newTeams
+            listaTeams.sort()
+            result += "Nuevos equipos ({}): {}\n".format(len(self.newTeams), listaTeams)
         if self.delTeams:
-            result += "Equipos no juegan ({}): {}\n".format(len(self.delTeams), self.delTeams.sort())
+            listaTeams = self.delTeams
+            listaTeams.sort()
+            result += "Equipos no juegan ({}): {}\n".format(len(self.delTeams), listaTeams)
 
         if self.teamRenamed or self.newTeams or self.delTeams:
             result += "\n"
