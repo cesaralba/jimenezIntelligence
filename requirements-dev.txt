@@ -8,7 +8,7 @@ babel
 pandas
 
 XlsxWriter
-
+joblib
 
 # Librerias para dev
 pytest

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from copy import copy
 from pickle import dump, load
 from time import gmtime
@@ -297,7 +297,7 @@ class SuperManagerACB(object):
         for jugSM in resultado['lesion']:
             resultado['I-activo'][jugSM] = (jugSM in ultMercado.PlayerData)
 
-        return(resultado)
+        return (resultado)
 
     def superManager2dataframe(self):
         """ Extrae un dataframe con los últimos datos de todos los jugadores que han jugado en la temporada.
@@ -329,6 +329,43 @@ class SuperManagerACB(object):
         dfResult.loc[~dfResult['activo'], 'infoLesion'] = ""
 
         return dfResult
+
+    def diffJornadas(self, jornada, excludeList=set()):
+        result = defaultdict(dict)
+        for c in ['general', 'broker', 'puntos', 'rebotes', 'asistencias', 'triples']:
+            aux = self.__getattribute__(c)
+            if (jornada in aux) and (jornada - 1 in aux):
+                for equipo in aux[jornada].asdict():
+                    result[c][equipo] = aux[jornada].data[equipo]['value'] - aux[jornada - 1].data[equipo]['value']
+
+        if (jornada in self.jornadas):
+            result['jornada'] = self.jornadas[jornada].asdict()
+
+        return result
+
+    def diffMercJugadores(self, jornada):
+        result = dict()
+
+        diffDatosSM = namedtuple('diffDatosSM', ['pos', 'cupo', 'valJ', 'difPrecio', 'lesion'])
+        if jornada in self.mercadoJornada:
+            listaMercs = list(self.mercado.keys())
+            listaMercs.sort()
+            jornadaIDX = listaMercs.index(self.mercadoJornada[jornada])
+            mercJor = (self.mercado[listaMercs[jornadaIDX]]).PlayerData
+            if jornadaIDX > 0:
+                mercAnt = (self.mercado[listaMercs[jornadaIDX - 1]]).PlayerData
+
+            for j in mercJor:
+                curPrecio = mercJor[j]['precio']
+                if jornadaIDX > 0:
+                    antPrecio = mercAnt[j]['precio'] if j in mercAnt else 0
+                else:
+                    antPrecio = 0
+
+                result[j] = diffDatosSM(pos=mercJor[j]['pos'], cupo=mercJor[j]['cupo'], valJ=mercJor[j]['valJornada'],
+                                        difPrecio=curPrecio - antPrecio, lesion=mercJor[j]['lesion'])
+
+        return result
 
 
 class ResultadosJornadas(object):

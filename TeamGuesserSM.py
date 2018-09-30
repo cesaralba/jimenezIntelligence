@@ -10,8 +10,8 @@ from os.path import join
 from time import asctime, strftime
 
 from configargparse import ArgumentParser
-
 from joblib import Parallel, delayed
+
 from SMACB.SMconstants import CUPOS, POSICIONES
 from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB

@@ -30,5 +30,7 @@ class ClasifData(object):
                                  sorted(self.data, key=self.data.get('value'), reverse=True)]) + "} "
 
     def values(self, excludeList=set()):
-        print(self.data.keys())
         return [self.data[x]['value'] for x in self.data if x not in excludeList]
+
+    def asdict(self, excludeList=set()):
+        return {x: self.data[x]['value'] for x in self.data if x not in excludeList}
