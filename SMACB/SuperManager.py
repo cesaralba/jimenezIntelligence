@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from copy import copy
 from pickle import dump, load
 from time import gmtime
@@ -346,7 +346,6 @@ class SuperManagerACB(object):
     def diffMercJugadores(self, jornada):
         result = dict()
 
-        diffDatosSM = namedtuple('diffDatosSM', ['pos', 'cupo', 'valJ', 'difPrecio', 'lesion'])
         if jornada in self.mercadoJornada:
             listaMercs = list(self.mercado.keys())
             listaMercs.sort()
@@ -356,14 +355,19 @@ class SuperManagerACB(object):
                 mercAnt = (self.mercado[listaMercs[jornadaIDX - 1]]).PlayerData
 
             for j in mercAnt:
+                aux = dict()
                 curPrecio = mercJor[j]['precio']
                 if jornadaIDX > 0:
                     antPrecio = mercAnt[j]['precio'] if j in mercAnt else 0
                 else:
                     antPrecio = 0
 
-                result[j] = diffDatosSM(pos=mercAnt[j]['pos'], cupo=mercAnt[j]['cupo'], valJ=mercJor[j]['valJornada'],
-                                        difPrecio=curPrecio - antPrecio, lesion=mercAnt[j]['lesion'])
+                for k in ['pos', 'cupo', 'lesion']:
+                    aux[k] = mercAnt[j][k]
+                aux['valJornada'] = mercJor[j]['valJornada']
+                aux['difPrecio'] = curPrecio - antPrecio
+
+                result[j] = aux
 
         return result
 
@@ -379,7 +383,7 @@ class ResultadosJornadas(object):
                 continue
             self.resultados[team]['sm'] = supermanager.jornadas[jornada].data[team]['value']
 
-            for comp in ['puntos', 'rebotes', 'triples', 'asistencias']:
+            for comp in ['puntos', 'rebotes', 'triples', 'asistencias', 'broker']:
                 if jornada in supermanager.__getattribute__(comp):
                     if jornada == 1 or jornada - 1 in supermanager.__getattribute__(comp):
                         self.resultados[team][comp] = supermanager.__getattribute__(comp)[jornada].data[team]['value']

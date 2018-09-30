@@ -5,7 +5,7 @@ Created on Jan 4, 2018
 '''
 
 from calendar import timegm
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from copy import copy
 from pickle import dump, load
 from sys import setrecursionlimit
@@ -16,7 +16,7 @@ from babel.numbers import decimal
 
 from SMACB.CalendarioACB import CalendarioACB, calendario_URLBASE
 from SMACB.PartidoACB import PartidoACB
-from SMACB.SMconstants import calculaValSuperManager
+from SMACB.SMconstants import LISTACOMPOS, calculaValSuperManager
 from Utils.Misc import FORMATOfecha, FORMATOtimestamp, Seg2Tiempo
 from Utils.Pandas import combinaPDindexes
 
@@ -382,8 +382,6 @@ class TemporadaACB(object):
         return resultado
 
     def extraeDatosJornadaSM(self, jornada):
-        datosJugJornada = namedtuple('datosJugJornada', field_names=['val', 'valSM', 'puntos', 'rebotes', 'triples',
-                                                                     'asistencias'])
         result = dict()
 
         if jornada in self.Calendario.Jornadas:
@@ -394,16 +392,16 @@ class TemporadaACB(object):
                     if not jugData['esJugador']:
                         continue
 
-                    puntos = jugData['estads'].get('P', decimal.Decimal(0))
-                    rebotes = jugData['estads'].get('REB-T', decimal.Decimal(0))
-                    triples = jugData['estads'].get('T3-C', decimal.Decimal(0))
-                    asistencias = jugData['estads'].get('A', decimal.Decimal(0))
+                    aux = dict()
+
+                    for c in LISTACOMPOS:
+                        aux[c] = jugData['estads'].get(LISTACOMPOS[c], decimal.Decimal(0))
+
                     valP = jugData['estads'].get('V', decimal.Decimal(0))
                     # * (BONUSVICTORIA if (jugData['haGanado'] and (valP > 0)) else 1.0))
-                    valSM = calculaValSuperManager(valP, jugData['haGanado'])
+                    aux['valFromP'] = calculaValSuperManager(valP, jugData['haGanado'])
 
-                    result[jug] = datosJugJornada(val=valP, valSM=valSM, puntos=puntos, rebotes=rebotes,
-                                                  triples=triples, asistencias=asistencias)
+                    result[jug] = aux
 
         return result
 
