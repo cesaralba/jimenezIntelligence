@@ -355,7 +355,7 @@ class SuperManagerACB(object):
             if jornadaIDX > 0:
                 mercAnt = (self.mercado[listaMercs[jornadaIDX - 1]]).PlayerData
 
-            for j in mercJor:
+            for j in mercAnt:
                 curPrecio = mercJor[j]['precio']
                 if jornadaIDX > 0:
                     antPrecio = mercAnt[j]['precio'] if j in mercAnt else 0
