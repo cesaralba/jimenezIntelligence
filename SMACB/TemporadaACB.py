@@ -5,22 +5,23 @@ Created on Jan 4, 2018
 '''
 
 from calendar import timegm
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from copy import copy
 from pickle import dump, load
 from sys import setrecursionlimit
 from time import gmtime, strftime
 
 import pandas as pd
+from babel.numbers import decimal
 
 from SMACB.CalendarioACB import CalendarioACB, calendario_URLBASE
 from SMACB.PartidoACB import PartidoACB
+from SMACB.SMconstants import calculaValSuperManager
 from Utils.Misc import FORMATOfecha, FORMATOtimestamp, Seg2Tiempo
 from Utils.Pandas import combinaPDindexes
 
 
 class TemporadaACB(object):
-
     '''
     Aglutina calendario y lista de partidos
     '''
@@ -249,7 +250,7 @@ class TemporadaACB(object):
         for claveJ in resultado['FechaHora']:
             auxFH = [((timegm(resultado['FechaHora'][claveJ][x]) if resultado['FechaHora'][claveJ][x] else 0), x)
                      for x in range(len(resultado['FechaHora'][claveJ]))]
-            auxFHsorted = [x[1] for x in sorted(auxFH, key=lambda x:x[0])]
+            auxFHsorted = [x[1] for x in sorted(auxFH, key=lambda x: x[0])]
             resultado['OrdenPartidos'][claveJ] = auxFHsorted
 
         for claveJ in resultado['haJugado']:
@@ -264,9 +265,9 @@ class TemporadaACB(object):
 
         dfPartidos = [partido.jugadoresAdataframe() for partido in self.Partidos.values()]
         dfResult = pd.concat(dfPartidos, axis=0, ignore_index=True)
-#        return(dfResult)
+        #        return(dfResult)
 
-        return(dfResult)
+        return (dfResult)
 
     def extraeDataframePartidos(self):
         resultado = dict()
@@ -369,7 +370,7 @@ class TemporadaACB(object):
         for claveJ in resultado['FechaHora']:
             auxFH = [((timegm(resultado['FechaHora'][claveJ][x]) if resultado['FechaHora'][claveJ][x] else 0), x)
                      for x in range(len(resultado['FechaHora'][claveJ]))]
-            auxFHsorted = [x[1] for x in sorted(auxFH, key=lambda x:x[0])]
+            auxFHsorted = [x[1] for x in sorted(auxFH, key=lambda x: x[0])]
             resultado['OrdenPartidos'][claveJ] = auxFHsorted
 
         for claveJ in resultado['haJugado']:
@@ -380,10 +381,36 @@ class TemporadaACB(object):
 
         return resultado
 
+    def extraeDatosJornadaSM(self, jornada):
+        datosJugJornada = namedtuple('datosJugJornada', field_names=['val', 'valSM', 'puntos', 'rebotes', 'triples',
+                                                                     'asistencias'])
+        result = dict()
+
+        if jornada in self.Calendario.Jornadas:
+            for linkPartido in self.Calendario.Jornadas[jornada]['partidos']:
+                partido = self.Partidos[linkPartido]
+                for jug in partido.Jugadores:
+                    jugData = partido.Jugadores[jug]
+                    if not jugData['esJugador']:
+                        continue
+
+                    puntos = jugData['estads'].get('P', decimal.Decimal(0))
+                    rebotes = jugData['estads'].get('REB-T', decimal.Decimal(0))
+                    triples = jugData['estads'].get('T3-C', decimal.Decimal(0))
+                    asistencias = jugData['estads'].get('A', decimal.Decimal(0))
+                    valP = jugData['estads'].get('V', decimal.Decimal(0))
+                    # * (BONUSVICTORIA if (jugData['haGanado'] and (valP > 0)) else 1.0))
+                    valSM = calculaValSuperManager(valP, jugData['haGanado'])
+
+                    result[jug] = datosJugJornada(val=valP, valSM=valSM, puntos=puntos, rebotes=rebotes,
+                                                  triples=triples, asistencias=asistencias)
+
+        return result
+
 
 def calculaTempStats(datos, clave, filtroFechas=None):
     if clave not in datos:
-        raise(KeyError, "Clave '%s' no está en datos." % clave)
+        raise (KeyError, "Clave '%s' no está en datos." % clave)
 
     if filtroFechas:
         datosWrk = datos
@@ -398,7 +425,6 @@ def calculaTempStats(datos, clave, filtroFechas=None):
 
 
 def calculaZ(datos, clave, useStd=True, filtroFechas=None):
-
     clZ = 'Z' if useStd else 'D'
 
     finalKeys = ['codigo', 'competicion', 'temporada', 'jornada', 'CODequipo', 'CODrival', 'esLocal',
@@ -420,15 +446,13 @@ def calculaZ(datos, clave, useStd=True, filtroFechas=None):
     dfResult = datosWrk[finalKeys].merge(agg1)
     stdMult = (1 / dfResult[clave + "-std"]) if useStd else 1
     dfResult[clZ + '-' + clave] = (dfResult[clave] - dfResult[clave + "-mean"]) * stdMult
-    dfResult['half-' + clave] = (
-        ((dfResult[clave] - dfResult[clave + "-median"]) > 0.0)[~dfResult[clave].isna()]) * 100
+    dfResult['half-' + clave] = (((dfResult[clave] - dfResult[clave + "-median"]) > 0.0)[~dfResult[clave].isna()]) * 100
     dfResult['aboveAvg-' + clave] = ((dfResult[clZ + '-' + clave] >= 0.0)[~dfResult[clave].isna()]) * 100
 
     return dfResult.astype(finalTypes)
 
 
 def calculaVars(temporada, clave, useStd=True, filtroFechas=None):
-
     clZ = 'Z' if useStd else 'D'
 
     combs = {'R': ['CODrival'], 'RL': ['CODrival', 'esLocal'], 'L': ['esLocal']}
