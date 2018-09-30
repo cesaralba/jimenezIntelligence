@@ -362,8 +362,8 @@ class SuperManagerACB(object):
                 else:
                     antPrecio = 0
 
-                result[j] = diffDatosSM(pos=mercJor[j]['pos'], cupo=mercJor[j]['cupo'], valJ=mercJor[j]['valJornada'],
-                                        difPrecio=curPrecio - antPrecio, lesion=mercJor[j]['lesion'])
+                result[j] = diffDatosSM(pos=mercAnt[j]['pos'], cupo=mercAnt[j]['cupo'], valJ=mercJor[j]['valJornada'],
+                                        difPrecio=curPrecio - antPrecio, lesion=mercAnt[j]['lesion'])
 
         return result
 
