@@ -10,10 +10,10 @@ from os.path import join
 from time import asctime, strftime
 
 from configargparse import ArgumentParser
-
 from joblib import Parallel, delayed
+
 from SMACB.SMconstants import CUPOS, POSICIONES
-from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
+from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.CombinacionesConCupos import GeneraCombinaciones
 from Utils.combinatorics import prod
@@ -252,6 +252,78 @@ def validaEquiposParallel(comb, datos, valores):
     return res
 
 
+def getPlayersByPosAndCupo(listaJugs):
+    result = {'data': defaultdict(list),
+              'cont': [0] * len(POSICIONES) * len(CUPOS)}
+    indexResult = {}
+
+    aux = 0
+    for pos in POSICIONES:
+        indexResult[pos] = {}
+        for cupo in CUPOS:
+            indexResult[pos][cupo] = aux
+            aux += 1
+    result['indexes'] = indexResult
+
+    for cod in listaJugs:
+        datos = listaJugs[cod]
+        datos['cod'] = cod
+        i = indexResult[datos['pos']][datos['cupo']]
+
+        (result['data'][i]).append(datos)
+        result['cont'][i] += 1
+
+    return result
+
+
+def precalculaCombsPosYCupo(posYcupos, combTeams):
+    nonePlayer = {'cod': None}
+    result = [dict()] * 9
+
+    posValues = defaultdict(set)
+
+    for comb in combTeams:
+        for idx in range(len(comb)):
+            posValues[idx].add(comb[idx])
+
+    for idx in posValues:
+        print(idx)
+
+        for n in posValues[idx]:
+            print(idx, n)
+
+            aux = defaultdict(list)
+
+            jugsToMatch = posYcupos['data'][idx]
+            # Añade tantos None (vacios) como jugs posibles
+            for i in range(n):
+                jugsToMatch.append(nonePlayer)
+
+            for c in combinations(jugsToMatch, n):
+                rt = agregaJugadores(c)
+                aux[rt['valJornada']].append(rt)
+
+            result[idx][n] = aux
+            return result
+
+    return result
+
+
+def agregaJugadores(listaJugs):
+    result = {'jugs': list(), 'valJornada': 0, 'broker': 0, 'puntos': 0, 'rebotes': 0, 'triples': 0, 'asistencias': 0,
+              'Nones': 0}
+
+    for j in listaJugs:
+        if j['cod'] is None:
+            result['Nones'] += 1
+            continue
+        result['jugs'].append(j['cod'])
+        for k in ['valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias']:
+            result[k] += j.get(k, 0)
+
+    return result
+
+
 def CalcCombinaciones(mercado, valores, jornada=0, resTemporada=None):
     resultado = defaultdict(list)
     posYcupos = mercado.getPlayersByPosAndCupo(jornada, resTemporada)
@@ -337,7 +409,25 @@ if __name__ == '__main__':
     ncpu = cpu_count()
 
     for j in jornadaList:
-        resJornada = ResultadosJornadas(j, sm, excludelist=badTeams)
+        # resJornada = ResultadosJornadas(j, sm, excludelist=badTeams)
+        resJornada = sm.diffJornadas(j, excludeList=badTeams)
+        jugSMjornada = sm.diffMercJugadores(j)
+        jugTMjornada = temporada.extraeDatosJornadaSM(j)
+        listaJugs = dict()
+
+        for j in jugSMjornada:
+            listaJugs[j] = jugSMjornada[j]
+            if j in jugTMjornada:
+                listaJugs[j].update(jugTMjornada[j])
+
+        posYcupos = getPlayersByPosAndCupo(listaJugs)
+        combTeams = GeneraCombinaciones()
+
+        d1 = precalculaCombsPosYCupo(posYcupos, combTeams)
+        print(d1)
+
+        continue
+
         puntosSM = resJornada.valoresSM()
 
         merc = sm.mercado[sm.mercadoJornada[j]]
