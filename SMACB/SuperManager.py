@@ -191,15 +191,24 @@ class SuperManagerACB(object):
 
         self.changed = True
 
-    def getSMstatus(self, browser):
-        jornadas = getJornadasJugadas(browser.get_current_page())
+    def getSMstatus(self, browser, config=None):
 
-        ultJornada = max(jornadas) if jornadas else 0
-        jornadasAdescargar = [j for j in jornadas if j not in self.jornadas]
+        jornadas = getJornadasJugadas(browser.get_current_page())
+        if config is not None and 'jornada' in config:
+            ultJornada = int(config.jornada)
+            jornadasAdescargar = [ultJornada]
+        elif jornadas:
+            ultJornada = max(jornadas) if jornadas else 0
+            jornadasAdescargar = [j for j in jornadas if j not in self.jornadas]
+        else:
+            return
+
         if jornadasAdescargar:
             self.changed = True
-            for jornada in jornadasAdescargar:
-                self.getJornada(jornada, browser)
+            # No bajes jornadas si la has puesto a mano
+            if config is None or 'jornada' not in config:
+                for jornada in jornadasAdescargar:
+                    self.getJornada(jornada, browser)
             if ultJornada in jornadasAdescargar:
                 self.general[ultJornada] = getClasif("general", browser, self.ligaID)
                 self.broker[ultJornada] = getClasif("broker", browser, self.ligaID)
@@ -208,6 +217,9 @@ class SuperManagerACB(object):
                 self.triples[ultJornada] = getClasif("triples", browser, self.ligaID)
                 self.asistencias[ultJornada] = getClasif("asistencias", browser, self.ligaID)
                 self.mercadoJornada[ultJornada] = self.ultimoMercado
+
+            if config is not None and 'jornada' in config:
+                self.jornadas[ultJornada] = self.general[ultJornada]
 
     def saveData(self, filename):
         aux = copy(self)
@@ -330,6 +342,46 @@ class SuperManagerACB(object):
 
         return dfResult
 
+    def diffJornadas(self, jornada, excludeList=set()):
+        result = defaultdict(dict)
+        for c in ['general', 'broker', 'puntos', 'rebotes', 'asistencias', 'triples']:
+            aux = self.__getattribute__(c)
+            if (jornada in aux) and (jornada - 1 in aux):
+                for equipo in aux[jornada].asdict():
+                    result[c][equipo] = aux[jornada].data[equipo]['value'] - aux[jornada - 1].data[equipo]['value']
+
+        if (jornada in self.jornadas):
+            result['jornada'] = self.jornadas[jornada].asdict()
+
+        return result
+
+    def diffMercJugadores(self, jornada):
+        result = dict()
+
+        if jornada in self.mercadoJornada:
+            listaMercs = list(self.mercado.keys())
+            listaMercs.sort()
+            jornadaIDX = listaMercs.index(self.mercadoJornada[jornada])
+            mercJor = (self.mercado[listaMercs[jornadaIDX]]).PlayerData
+            if jornadaIDX > 0:
+                mercAnt = (self.mercado[listaMercs[jornadaIDX - 1]]).PlayerData
+
+            for j in mercAnt:
+                aux = dict()
+                curPrecio = mercJor[j]['precio']
+                if jornadaIDX > 0:
+                    antPrecio = mercAnt[j]['precio'] if j in mercAnt else 0
+                else:
+                    antPrecio = 0
+
+                for k in ['pos', 'cupo', 'lesion']:
+                    aux[k] = mercAnt[j][k]
+                aux['valJornada'] = mercJor[j]['valJornada']
+                aux['broker'] = curPrecio - antPrecio
+
+                result[j] = aux
+
+        return result
 
 class ResultadosJornadas(object):
 
@@ -396,10 +448,13 @@ def getJornadasJugadas(content):
 def getClasif(categ, browser, liga):
     pageForm = browser.get_current_page().find("form", {"id": 'FormClasificacion'})
     pageForm['action'] = "/privadas/ver/id/{}/tipo/{}".format(liga, categ)
-    curJornada = pageForm.find("option", {'selected': 'selected'})['value']
 
+    selItem = pageForm.find("option", {'selected': 'selected'})
     jorForm = mechanicalsoup.Form(pageForm)
-    jorForm['jornada'] = str(curJornada)
+
+    if selItem:
+        curJornada = selItem['value']
+        jorForm['jornada'] = str(curJornada)
 
     resJornada = browser.submit(jorForm, browser.get_url())
     bs4Jornada = BeautifulSoup(resJornada.content, "lxml")
