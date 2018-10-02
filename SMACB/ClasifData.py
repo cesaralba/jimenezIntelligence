@@ -34,3 +34,14 @@ class ClasifData(object):
 
     def asdict(self, excludeList=set()):
         return {x: self.data[x]['value'] for x in self.data if x not in excludeList}
+
+    def __ne__(self, other):
+        clavesEq = set(self.data.keys()).union(other.data.keys())
+
+        for k in clavesEq:
+            if k not in list(self.data.keys()) or k not in list(other.data.keys()):
+                return True
+            if self.data[k]['value'] != other.data[k]['value']:
+                return True
+
+        return False
