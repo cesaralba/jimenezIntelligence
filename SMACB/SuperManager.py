@@ -60,6 +60,7 @@ class SuperManagerACB(object):
         self.mercado = {}
         self.mercadoJornada = {}
         self.ultimoMercado = None
+        self.jornadasForzadas = set()
 
     def Connect(self, url=None, browser=None, config={}, datosACB=None):
         """ Se conecta al SuperManager con las credenciales suministradas,
@@ -192,34 +193,42 @@ class SuperManagerACB(object):
         self.changed = True
 
     def getSMstatus(self, browser, config=None):
-
+        fuerzaDescarga = False
         jornadas = getJornadasJugadas(browser.get_current_page())
+
         if config is not None and 'jornada' in config:
+            fuerzaDescarga = True
             ultJornada = int(config.jornada)
-            jornadasAdescargar = [ultJornada]
+            jornadasAdescargar = []
         elif jornadas:
             ultJornada = max(jornadas) if jornadas else 0
-            jornadasAdescargar = [j for j in jornadas if j not in self.jornadas]
+            jornadasAdescargar = [j for j in jornadas if ((j in self.jornadasForzadas) or (j not in self.jornadas))]
         else:
             return
 
-        if jornadasAdescargar:
+        if jornadasAdescargar or fuerzaDescarga:
             self.changed = True
-            # No bajes jornadas si la has puesto a mano
-            if config is None or 'jornada' not in config:
-                for jornada in jornadasAdescargar:
-                    self.getJornada(jornada, browser)
-            if ultJornada in jornadasAdescargar:
+
+            for jornada in jornadasAdescargar:
+                self.getJornada(jornada, browser)
+                if jornada in self.jornadasForzadas:
+                    self.jornadasForzadas.discard(jornada)
+
+            if (ultJornada in jornadasAdescargar) or fuerzaDescarga:
                 self.general[ultJornada] = getClasif("general", browser, self.ligaID)
                 self.broker[ultJornada] = getClasif("broker", browser, self.ligaID)
                 self.puntos[ultJornada] = getClasif("puntos", browser, self.ligaID)
                 self.rebotes[ultJornada] = getClasif("rebotes", browser, self.ligaID)
                 self.triples[ultJornada] = getClasif("triples", browser, self.ligaID)
                 self.asistencias[ultJornada] = getClasif("asistencias", browser, self.ligaID)
-                self.mercadoJornada[ultJornada] = self.ultimoMercado
 
-            if config is not None and 'jornada' in config:
+                # Hay otros mecanismos para asociar mercados a jornadas
+                if not fuerzaDescarga:
+                    self.mercadoJornada[ultJornada] = self.ultimoMercado
+
+            if fuerzaDescarga:
                 self.jornadas[ultJornada] = self.general[ultJornada]
+                self.jornadasForzadas.add(ultJornada)
 
     def saveData(self, filename):
         aux = copy(self)
@@ -382,6 +391,7 @@ class SuperManagerACB(object):
                 result[j] = aux
 
         return result
+
 
 class ResultadosJornadas(object):
 
