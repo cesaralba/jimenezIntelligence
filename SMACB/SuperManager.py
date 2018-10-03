@@ -196,7 +196,7 @@ class SuperManagerACB(object):
         fuerzaDescarga = False
         jornadas = getJornadasJugadas(browser.get_current_page())
 
-        if config is not None and 'jornada' in config:
+        if (config is not None) and ('jornada' in config) and config.jornada:
             fuerzaDescarga = True
             ultJornada = int(config.jornada)
             jornadasAdescargar = []
