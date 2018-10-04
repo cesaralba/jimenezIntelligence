@@ -263,7 +263,7 @@ class TemporadaACB(object):
     def extraeDataframeJugadores(self):
 
         dfPartidos = [partido.jugadoresAdataframe() for partido in self.Partidos.values()]
-        dfResult = pd.concat(dfPartidos, axis=0, ignore_index=True)
+        dfResult = pd.concat(dfPartidos, axis=0, ignore_index=True, sort=True)
 #        return(dfResult)
 
         return(dfResult)
@@ -446,7 +446,7 @@ def calculaVars(temporada, clave, useStd=True, filtroFechas=None):
         resfloat = datos[combfloat].groupby(combs[comb]).agg(['mean', 'std', 'count', 'min', 'median', 'max', 'skew'])
         combbool = combs[comb] + [('half-' + clave), ('aboveAvg-' + clave)]
         resbool = datos[combbool].groupby(combs[comb]).agg(['mean'])
-        result[comb] = pd.concat([resbool, resfloat], axis=1).reset_index()
+        result[comb] = pd.concat([resbool, resfloat], axis=1, sort=True).reset_index()
         newColNames = [((comb + "-" + colAdpt.get(x, x)) if clave in x else x)
                        for x in combinaPDindexes(result[comb].columns)]
         result[comb].columns = newColNames
