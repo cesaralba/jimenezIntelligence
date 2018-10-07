@@ -456,7 +456,7 @@ class MercadoPageContent():
             return(dfresult)
 
         dfJugs = [jugador2dataframe(jugador) for jugador in self.PlayerData.values()]
-        dfResult = pd.concat(dfJugs, axis=0, ignore_index=True)
+        dfResult = pd.concat(dfJugs, axis=0, ignore_index=True, sort=True)
         dfResult['esLocal'] = ~(dfResult['proxFuera'].astype('bool'))
         dfResult['ProxPartido'] = dfResult.apply(datosProxPartidoMerc, axis=1)
         dfResult['pos'] = dfResult.apply(datosPosMerc, axis=1)

@@ -391,7 +391,7 @@ class PartidoACB(object):
             return(dfresult)
 
         dfJugs = [jugador2dataframe(self.Jugadores[x]) for x in self.Jugadores]
-        dfResult = pd.concat(dfJugs, axis=0, ignore_index=True).astype(typesDF)
+        dfResult = pd.concat(dfJugs, axis=0, ignore_index=True, sort=True).astype(typesDF)
 
         return(dfResult)
 
