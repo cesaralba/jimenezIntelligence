@@ -114,8 +114,7 @@ def preparaDatosComunes(datosMezclados):
     return resultado
 
 
-def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
-
+def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
     jugSM = supermanager.extraeDatosJugadores()
     jugTM = temporada.extraeDatosJugadores()
     jugData = mezclaJugadores(jugTM, jugSM)
@@ -235,7 +234,7 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
                     else:
                         # haJugado[i + ot] is not None:
                         f = calculaFormato(victoria[i + ot], esLocal[i + ot], haJugado[i + ot], valorDecimal)
-                        valor = datosAmostrar[i]   # if haJugado[i + ot] else ""
+                        valor = datosAmostrar[i]  # if haJugado[i + ot] else ""
 
                     ws.write(fila, columna, valor, formatos[f])
                     columna += 1
@@ -350,6 +349,19 @@ def infoJugador(datosJugador, numdias=0):
     return resultados
 
 
+def addMetadata(excelwriter, sm, tm):
+    metadata = ["Cargados datos SuperManager de %s" % strftime(FORMATOtimestamp, sm.timestamp),
+                "Cargada información de temporada de %s" % strftime(FORMATOtimestamp, tm.timestamp),
+                "Ejecutado en %s" % strftime(FORMATOtimestamp, gmtime())]
+
+    ws = excelwriter.book.add_worksheet("Metadata")
+    fila = 0
+    columna = 0
+    for l in metadata:
+        ws.write(fila, columna, l)
+        fila += 1
+
+
 if __name__ == '__main__':
     parser = ArgumentParser()
 
@@ -398,9 +410,19 @@ if __name__ == '__main__':
 
     if 'outfile' in args and args.outfile:
         with ExcelWriter(args.outfile) as writer:
-            (dfUltMerc.merge(calculaDFprecedentes(dfTemporada, dfUltMerc, 'V'), how='left')
-             .merge(calculaDFprecedentes(dfTemporada, dfUltMerc, 'Vsm'), how='left')[antecColumns].set_index('codigo')
-             .to_excel(writer, sheet_name='Mercado', freeze_panes=(1, len(CATMERCADOFINAL) - 1), index=False))
+            dfPrecV = calculaDFprecedentes(dfTemporada, dfUltMerc, 'V')
+            dfPrecVsm = calculaDFprecedentes(dfTemporada, dfUltMerc, 'Vsm')
+            if dfPrecV.empty:
+                antecColumns = CATMERCADOFINAL
+                (dfUltMerc[antecColumns].set_index('codigo').to_excel(writer, sheet_name='Mercado',
+                                                                      freeze_panes=(1, len(CATMERCADOFINAL) - 1),
+                                                                      index=False))
+            else:
+                antecColumns = CATMERCADOFINAL + COLSPREC
+                (dfUltMerc.merge(dfPrecV, how='left').merge(dfPrecVsm, how='left')[antecColumns].set_index(
+                    'codigo').to_excel(writer, sheet_name='Mercado', freeze_panes=(1, len(CATMERCADOFINAL) - 1),
+                                       index=False))
+
             sht = writer.book.sheetnames['Mercado']
             sht.autofilter(sht.dim_rowmin, sht.dim_colmin, sht.dim_rowmax, sht.dim_colmax)
 
@@ -479,3 +501,5 @@ if __name__ == '__main__':
                 if 'L' in comb:
                     indexCols.append('esLocal')
                 varsVsmD[comb].set_index(indexCols).to_excel(writer, sheet_name=nombreHoja)
+
+            addMetadata(writer, sm, temporada)
