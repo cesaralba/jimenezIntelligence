@@ -13,7 +13,7 @@ from SMACB.ManageSMDataframes import (CATMERCADOFINAL, COLSPREC,
                                       calculaDFcategACB, calculaDFconVars,
                                       calculaDFprecedentes)
 from SMACB.PartidoACB import PartidoACB
-from SMACB.SMconstants import POSICIONES
+from SMACB.SMconstants import POSICIONES, PRECIOpunto
 from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB, calculaVars, calculaZ
 from Utils.Misc import CuentaClaves, FORMATOtimestamp, SubSet
@@ -362,6 +362,35 @@ def addMetadata(excelwriter, sm, tm):
         fila += 1
 
 
+def preparaHojaMercado(excelwriter, supermanager, temporada):
+    dfSuperManager = supermanager.superManager2dataframe()  # Needed to get player position from all players
+    dfTemporada = temporada.extraeDataframeJugadores().merge(dfSuperManager[['codigo', 'pos']], how='left')
+    # All data fall playrs
+    dfUltMerc = supermanager.mercado[supermanager.ultimoMercado].mercado2dataFrame()
+    dfUltMerc['precObj'] = dfUltMerc['promVal'] * PRECIOpunto
+    dfUltMerc['distAObj'] = dfUltMerc['precio'] - dfUltMerc['precObj']
+
+    dfUltMerc['activo'] = True
+
+    COLSDIFPRECIO = ['precObj', 'distAObj']
+
+    dfPrecV = calculaDFprecedentes(dfTemporada, dfUltMerc, 'V')
+    dfPrecVsm = calculaDFprecedentes(dfTemporada, dfUltMerc, 'Vsm')
+    if dfPrecV.empty:
+        antecColumns = CATMERCADOFINAL + COLSDIFPRECIO
+        (dfUltMerc[antecColumns].set_index('codigo').to_excel(excelwriter, sheet_name='Mercado',
+                                                              freeze_panes=(1, len(CATMERCADOFINAL) - 1),
+                                                              index=False))
+    else:
+        antecColumns = CATMERCADOFINAL + COLSDIFPRECIO + COLSPREC
+        (dfUltMerc.merge(dfPrecV, how='left').merge(dfPrecVsm, how='left')[antecColumns].set_index(
+            'codigo').to_excel(excelwriter, sheet_name='Mercado', freeze_panes=(1, len(CATMERCADOFINAL) - 1),
+                               index=False))
+
+    sht = excelwriter.book.sheetnames['Mercado']
+    sht.autofilter(sht.dim_rowmin, sht.dim_colmin, sht.dim_rowmax, sht.dim_colmax)
+
+
 if __name__ == '__main__':
     parser = ArgumentParser()
 
@@ -410,21 +439,8 @@ if __name__ == '__main__':
 
     if 'outfile' in args and args.outfile:
         with ExcelWriter(args.outfile) as writer:
-            dfPrecV = calculaDFprecedentes(dfTemporada, dfUltMerc, 'V')
-            dfPrecVsm = calculaDFprecedentes(dfTemporada, dfUltMerc, 'Vsm')
-            if dfPrecV.empty:
-                antecColumns = CATMERCADOFINAL
-                (dfUltMerc[antecColumns].set_index('codigo').to_excel(writer, sheet_name='Mercado',
-                                                                      freeze_panes=(1, len(CATMERCADOFINAL) - 1),
-                                                                      index=False))
-            else:
-                antecColumns = CATMERCADOFINAL + COLSPREC
-                (dfUltMerc.merge(dfPrecV, how='left').merge(dfPrecVsm, how='left')[antecColumns].set_index(
-                    'codigo').to_excel(writer, sheet_name='Mercado', freeze_panes=(1, len(CATMERCADOFINAL) - 1),
-                                       index=False))
 
-            sht = writer.book.sheetnames['Mercado']
-            sht.autofilter(sht.dim_rowmin, sht.dim_colmin, sht.dim_rowmax, sht.dim_colmax)
+            preparaHojaMercado(writer, sm, temporada)
 
             calculaDFcategACB(dfTemporada, dfSuperManager, 'V').to_excel(writer, sheet_name='V',
                                                                          freeze_panes=(1,
