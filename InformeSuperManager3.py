@@ -182,7 +182,7 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
             df2show = dfUltMerc.merge(dfPrecV, how='left').merge(dfPrecVsm, how='left')[antecColumns].set_index(
                 'codigo')
 
-        creaHoja(writer, 'Mercado', df2show, formatos)
+        creaHoja(writer, 'Mercado', df2show, formatos, colsToFreeze=len(CATMERCADOFINAL) - 1)
 
     def calculaFormato(victoria, local, hajugado, vdecimal):
         if victoria is None:
@@ -199,13 +199,13 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
 
         return resultado
 
-    def creaHoja(excelwriter, nombre, dataframe, formatos):
+    def creaHoja(excelwriter, nombre, dataframe, formatos, rowsToFreeze=1, colsToFreeze=0, useIndex=False):
 
-        dataframe.to_excel(excelwriter, sheet_name=nombre, freeze_panes=(1, len(CATMERCADOFINAL) + 3), index=False)
+        dataframe.to_excel(excelwriter, sheet_name=nombre, freeze_panes=(rowsToFreeze, colsToFreeze), index=useIndex)
 
         sht = excelwriter.book.sheetnames[nombre]
         sht.autofilter(sht.dim_rowmin, sht.dim_colmin, sht.dim_rowmax, sht.dim_colmax)
-        for r in range(sht.dim_rowmin + 1, sht.dim_rowmax):
+        for r in range(sht.dim_rowmin + 1, sht.dim_rowmax + 1):
             sht.set_row(r, cell_format=formatos['datosComunes'])
 
     def addMetadata(excelwriter, sm, tm):
@@ -226,17 +226,24 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
 
         preparaHojaMercado(writer, sm, temporada, formatos)
 
-        creaHoja(writer, 'V', calculaDFcategACB(dfTemporada, dfSuperManager, 'V'), formatos)
-        creaHoja(writer, 'Vsm', calculaDFcategACB(dfTemporada, dfSuperManager, 'Vsm'), formatos)
+        creaHoja(writer, 'V', calculaDFcategACB(dfTemporada, dfSuperManager, 'V'), formatos,
+                 colsToFreeze=len(CATMERCADOFINAL) + 3)
+        creaHoja(writer, 'Vsm', calculaDFcategACB(dfTemporada, dfSuperManager, 'Vsm'), formatos,
+                 colsToFreeze=len(CATMERCADOFINAL) + 3)
 
-        creaHoja(writer, 'Z-V', calculaDFcategACB(dfVZ, dfSuperManager, 'Z-V'), formatos)
-        creaHoja(writer, 'P', calculaDFcategACB(dfTemporada, dfSuperManager, 'P'), formatos)
-        creaHoja(writer, 'A', calculaDFcategACB(dfTemporada, dfSuperManager, 'A'), formatos)
-        creaHoja(writer, 'Rebotes', calculaDFcategACB(dfTemporada, dfSuperManager, 'REB-T'), formatos)
-        creaHoja(writer, 'Triples', calculaDFcategACB(dfTemporada, dfSuperManager, 'T3-C'), formatos)
-        creaHoja(writer, 'PredicsV-Z', dfPredsV, formatos)
-        creaHoja(writer, 'PredicsVsm-Z', dfPredsVsm, formatos)
-        creaHoja(writer, 'TEMPORADA', dfTemporada, formatos)
+        creaHoja(writer, 'Z-V', calculaDFcategACB(dfVZ, dfSuperManager, 'Z-V'), formatos,
+                 colsToFreeze=len(CATMERCADOFINAL) + 3)
+        creaHoja(writer, 'P', calculaDFcategACB(dfTemporada, dfSuperManager, 'P'), formatos,
+                 colsToFreeze=len(CATMERCADOFINAL) + 3)
+        creaHoja(writer, 'A', calculaDFcategACB(dfTemporada, dfSuperManager, 'A'), formatos,
+                 colsToFreeze=len(CATMERCADOFINAL) + 3)
+        creaHoja(writer, 'Rebotes', calculaDFcategACB(dfTemporada, dfSuperManager, 'REB-T'), formatos,
+                 colsToFreeze=len(CATMERCADOFINAL) + 3)
+        creaHoja(writer, 'Triples', calculaDFcategACB(dfTemporada, dfSuperManager, 'T3-C'), formatos,
+                 colsToFreeze=len(CATMERCADOFINAL) + 3)
+        creaHoja(writer, 'PredicsV-Z', dfPredsV, formatos, colsToFreeze=len(CATMERCADOFINAL) + 3)
+        creaHoja(writer, 'PredicsVsm-Z', dfPredsVsm, formatos, colsToFreeze=len(CATMERCADOFINAL) + 3)
+        creaHoja(writer, 'TEMPORADA', dfTemporada, formatos, colsToFreeze=len(CATMERCADOFINAL) + 3)
 
         for comb in varsVZ:
             nombreHoja = "V-Z-" + comb
@@ -248,7 +255,8 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
             if 'L' in comb:
                 indexCols.append('esLocal')
 
-            creaHoja(writer, nombreHoja, varsVZ[comb].set_index(indexCols), formatos)
+            creaHoja(writer, nombreHoja, varsVZ[comb].set_index(indexCols), formatos, colsToFreeze=len(indexCols),
+                     useIndex=True)
 
         for comb in varsVsmZ:
             nombreHoja = "Vsm-Z-" + comb
@@ -260,7 +268,8 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
             if 'L' in comb:
                 indexCols.append('esLocal')
 
-            creaHoja(writer, nombreHoja, varsVsmZ[comb].set_index(indexCols), formatos)
+            creaHoja(writer, nombreHoja, varsVsmZ[comb].set_index(indexCols), formatos, colsToFreeze=len(indexCols),
+                     useIndex=True)
 
         for comb in varsVD:
             nombreHoja = "V-D-" + comb
@@ -272,7 +281,8 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
             if 'L' in comb:
                 indexCols.append('esLocal')
 
-            creaHoja(writer, nombreHoja, varsVD[comb].set_index(indexCols), formatos)
+            creaHoja(writer, nombreHoja, varsVD[comb].set_index(indexCols), formatos, colsToFreeze=len(indexCols),
+                     useIndex=True)
 
         for comb in varsVsmD:
             nombreHoja = "Vsm-D-" + comb
@@ -284,7 +294,8 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
             if 'L' in comb:
                 indexCols.append('esLocal')
 
-            creaHoja(writer, nombreHoja, varsVsmD[comb].set_index(indexCols), formatos)
+            creaHoja(writer, nombreHoja, varsVsmD[comb].set_index(indexCols), formatos, colsToFreeze=len(indexCols),
+                     useIndex=True)
 
         addMetadata(writer, sm, temporada)
 
