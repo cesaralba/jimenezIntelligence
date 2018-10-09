@@ -42,6 +42,7 @@ if __name__ == '__main__':
         temporada.cargaTemporada(args.temporada)
 
     # sm = SuperManagerACB(config=args)
+    ultMercado = sm.ultimoMercado
     sm.Connect(browser=browser, config=args, datosACB=temporada)
 
     sm.getSMstatus(browser=browser, config=args)
@@ -49,3 +50,6 @@ if __name__ == '__main__':
     if sm.changed and ('outfile' in args) and args.outfile:
         print("There were changes!")
         sm.saveData(args.outfile)
+
+    if ultMercado != sm.ultimoMercado:
+        print(sm.mercado[ultMercado].diff(sm.mercado[ultMercado]))
