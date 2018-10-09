@@ -258,7 +258,9 @@ def CalcCombinaciones(mercado, valores, jornada=0, resTemporada=None):
 
     combTeams = GeneraCombinaciones()
 
-    # print(combTeams)
+    print(combTeams)
+
+    return
 
     maxNum = [0] * len(CUPOS) * len(POSICIONES)
 
@@ -302,8 +304,7 @@ def CalcCombinaciones(mercado, valores, jornada=0, resTemporada=None):
     return resultado
 
 
-if __name__ == '__main__':
-
+def procesaArgumentos():
     parser = ArgumentParser()
 
     parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, default=0)
@@ -311,19 +312,22 @@ if __name__ == '__main__':
 
     parser.add('-i', dest='infile', type=str, env_var='SM_INFILE', required=True)
     parser.add('-t', dest='temporada', type=str, env_var='SM_TEMPORADA', required=True)
-    parser.add('-j', dest='jornada', type=int, required=False)
+    parser.add('-j', dest='jornada', type=int, required=True)
 
     args = parser.parse_args()
-    jornadaList = []
+
+    return args
+
+
+if __name__ == '__main__':
+
+    args = procesaArgumentos()
+
+    #Carga datos
     sm = SuperManagerACB()
     if 'infile' in args and args.infile:
         sm.loadData(args.infile)
         print("Cargados datos SuperManager de %s" % strftime(FORMATOtimestamp, sm.timestamp))
-
-    if 'jornada' in args and args.jornada:
-        jornadaList.append(args.jornada)
-    else:
-        jornadaList = list(sm.mercado.keys())
 
     temporada = None
     resultadoTemporada = None
@@ -333,14 +337,18 @@ if __name__ == '__main__':
         resultadoTemporada = temporada.extraeDatosJugadores()
         print("Cargada información de temporada de %s" % strftime(FORMATOtimestamp, temporada.timestamp))
 
-    badTeams = [x for x in (sm.jornadas[1].data.keys()) if 'Pablosky' in x]
-    ncpu = cpu_count()
+    badTeams = []
 
-    for j in jornadaList:
-        resJornada = ResultadosJornadas(j, sm, excludelist=badTeams)
-        puntosSM = resJornada.valoresSM()
+    resJornada = ResultadosJornadas(args.jornada, sm, excludelist=badTeams)
 
-        merc = sm.mercado[sm.mercadoJornada[j]]
+    print(resJornada.__dict__)
+    puntosSM = resJornada.valoresSM()
+    print(puntosSM)
+    exit(1)
 
-        combs = CalcCombinaciones(merc, puntosSM, j, resultadoTemporada)
-        print(combs)
+
+
+    merc = sm.mercado[sm.mercadoJornada[args.jornada]]
+
+    combs = CalcCombinaciones(merc, puntosSM, j, resultadoTemporada)
+    print(combs)
