@@ -395,14 +395,11 @@ class ResultadosJornadas(object):
         return set([self.resultados[x]['sm'] for x in self.resultados])
 
     def valoresSM(self):
-        result = defaultdict(list)
+        result = defaultdict(set)
 
         for equipo in self.resultados:
-            total = list()
-            for clave in ['sm', 'puntos', 'rebotes', 'triples', 'asistencias']:
-                if clave in self.resultados[equipo]:
-                    total.append(self.resultados[equipo].get(clave))
-            result[int(total[0] * 100)].append(total)
+            for comp in self.resultados[equipo]:
+                result[comp].add(self.resultados[equipo][comp])
 
         return result
 

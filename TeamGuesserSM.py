@@ -319,6 +319,13 @@ def procesaArgumentos():
     return args
 
 
+def getPartidosJornada(jornada,temporada):
+    result = []
+    temporada=TemporadaACB()
+    if jornada not in temporada.Calendario.Jornadas:
+        return result
+    
+
 if __name__ == '__main__':
 
     args = procesaArgumentos()
@@ -344,6 +351,8 @@ if __name__ == '__main__':
     print(resJornada.__dict__)
     puntosSM = resJornada.valoresSM()
     print(puntosSM)
+    posYcupos = mercado.getPlayersByPosAndCupo(jornada, resTemporada)
+
     exit(1)
 
 
