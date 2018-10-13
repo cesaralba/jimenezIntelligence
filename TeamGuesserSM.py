@@ -16,8 +16,8 @@ from SMACB.SMconstants import (CUPOS, POSICIONES, buildPosCupoIndex,
 from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.CombinacionesConCupos import GeneraCombinaciones, calculaClaveComb
+from Utils.combinatorics import n_choose_m, prod
 from Utils.Misc import FORMATOtimestamp
-from Utils.combinatorics import prod, n_choose_m
 
 
 def listaPosiciones():
@@ -252,30 +252,6 @@ def validaEquiposParallel(comb, datos, valores):
     return res
 
 
-def getPlayersByPosAndCupo(listaJugs):
-    result = {'data': defaultdict(list),
-              'cont': [0] * len(POSICIONES) * len(CUPOS)}
-    indexResult = {}
-
-    aux = 0
-    for pos in POSICIONES:
-        indexResult[pos] = {}
-        for cupo in CUPOS:
-            indexResult[pos][cupo] = aux
-            aux += 1
-    result['indexes'] = indexResult
-
-    for cod in listaJugs:
-        datos = listaJugs[cod]
-        datos['cod'] = cod
-        i = indexResult[datos['pos']][datos['cupo']]
-
-        (result['data'][i]).append(datos)
-        result['cont'][i] += 1
-
-    return result
-
-
 def precalculaCombsPosYCupo(posYcupos, combTeams):
     nonePlayer = {'cod': None}
     result = [dict()] * 9
@@ -309,17 +285,19 @@ def precalculaCombsPosYCupo(posYcupos, combTeams):
     return result
 
 
-def agregaJugadores(listaJugs):
+def agregaJugadores(listaJugs, datosJugs):
+    tradKEys = {'broker': 'difPrecio', 'puntos': 'P', 'rebotes': 'REB-T', 'triples': 'T3-C', 'asistencias': 'A'}
     result = {'jugs': list(), 'valJornada': 0, 'broker': 0, 'puntos': 0, 'rebotes': 0, 'triples': 0, 'asistencias': 0,
               'Nones': 0}
 
     for j in listaJugs:
-        if j['cod'] is None:
+        if j is None:
             result['Nones'] += 1
             continue
-        result['jugs'].append(j['cod'])
+        result['jugs'].append(j)
         for k in ['valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias']:
-            result[k] += j.get(k, 0)
+            targKey = tradKEys.get(k, k)
+            result[k] += datosJugs[j].get(targKey, 0)
 
     return result
 
@@ -450,13 +428,14 @@ def procesaArgumentos():
     return args
 
 
-def GeneraCombinacionJugs(listaJugs,n):
+def GeneraCombinacionJugs(listaJugs, n):
     result = []
 
-    for i in combinations(listaJugs,n):
+    for i in combinations(listaJugs, n):
         result.append(i)
 
     return result
+
 
 if __name__ == '__main__':
     args = procesaArgumentos()
@@ -507,7 +486,8 @@ if __name__ == '__main__':
             claveComb = calculaClaveComb(grupoComb)
             if claveComb not in cuentaGrupos[p]:
                 numCombs = prod([numCombsPosYCupos[x[0]][x[1]] for x in zip(indexGrupo, grupoComb)])
-                cuentaGrupos[p][claveComb] = {'cont': 0, 'comb': grupoComb, 'numCombs': numCombs, 'indexes': indexGrupo}
+                cuentaGrupos[p][claveComb] = {'cont': 0, 'comb': grupoComb, 'numCombs': numCombs, 'indexes': indexGrupo,
+                                              'pos': p, 'key': claveComb}
             cuentaGrupos[p][claveComb]['cont'] += 1
             newComb.append(claveComb)
         groupedCombs.append(newComb)
@@ -532,31 +512,62 @@ if __name__ == '__main__':
     for p in POSICIONES:
         for comb in cuentaGrupos[p]:
             combList = []
-            print(p,comb,cuentaGrupos[p][comb])
+            print(p, comb, cuentaGrupos[p][comb])
             combGroup = cuentaGrupos[p][comb]['comb']
             index = cuentaGrupos[p][comb]['indexes']
-            for i,n in zip(index,combGroup):
+            for i, n in zip(index, combGroup):
+                # Genera combinaciones y las cachea
                 if combsPosYCupos[i][n] is None:
-                    combsPosYCupos[i][n] = GeneraCombinacionJugs(posYcupos[i],n)
+                    combsPosYCupos[i][n] = GeneraCombinacionJugs(posYcupos[i], n)
                 if n != 0:
                     combList.append(combsPosYCupos[i][n])
-            if len(combList) == 1:
-                cuentaGrupos[p][comb] = combList[0]
-            else:
-                listFin = []
-                for pr in product(*combList):
-                    aux =  []
-                    for gr in pr:
-                        for j in gr:
-                            aux.append(j)
-                    listFin.append(aux)
-                cuentaGrupos[p][comb] = listFin
-#            print(comb,combList)
-            # print(p,comb,cuentaGrupos[p][comb])
 
-        for c in CUPOS:
-            i = indexes[p][c]
+            listFin = []
+            for pr in product(*combList):
+                aux = []
+                for gr in pr:
+                    for j in gr:
+                        aux.append(j)
+                listFin.append(aux)
+            # cuentaGrupos[p][comb]['combJugs'] = listFin
+            # TODO: cuentaGrupos[p][comb]['setVals'] = set()
 
+            colSets = defaultdict(set)
+            for c in listFin:
+                agr = agregaJugadores(c, jugadores)
+                colSets[agr['valJornada']].add("-".join(c))
 
+            cuentaGrupos[p][comb]['contSets'] = (len(colSets), max([len(x) for x in colSets.values()]))
+            print(p, comb, cuentaGrupos[p][comb])
 
-        print(p)
+            cuentaGrupos[p][comb]['valSets'] = colSets
+            cuentaGrupos[p][comb]['combJugs'] = listFin
+
+    acumSets = 0
+    acumOrig = 0
+    combMatchesVal = defaultdict(list)
+    for c in groupedCombs:
+        # print(c)
+        grToTest = {p: cuentaGrupos[p][x] for p, x in zip(POSICIONES, c)}
+        # print(grToTest)
+        prSets = prod([x['contSets'][0] for x in grToTest.values()])
+        acumSets += prSets
+        prOrig = prod([x['numCombs'] for x in grToTest.values()])
+        acumOrig += prOrig
+        if prSets == 0:
+            print(grToTest)
+            exit(1)
+        print(c, prOrig, prSets)
+
+        # ['cont', 'comb', 'numCombs', 'indexes', 'pos', 'key', 'contSets', 'valSets', 'combJugs']
+        combVals = [list(grToTest[x]['valSets'].keys()) for x in POSICIONES]
+        for pr in product(*combVals):
+            sumPR = sum(pr)
+            if sumPR in puntosSM['valJornada']:
+                vComb = [{'valJornada': x, 'pos': grToTest[p]['pos'], 'key': grToTest[p]['key']} for x, p in
+                         zip(pr, POSICIONES)]
+                combVals[sumPR].append(vComb)
+                print("!", sumPR, vComb)
+
+    print(acumOrig, acumSets)
+    print(puntosSM)
