@@ -399,12 +399,14 @@ class ResultadosJornadas(object):
 
     def __init__(self, jornada, supermanager, excludelist=set()):
         self.resultados = defaultdict(dict)
-        self.valor2team = defaultdict(set)
+        aux = defaultdict(lambda: defaultdict(list))
+
 
         for team in supermanager.jornadas[jornada].data:
             if team in excludelist:
                 continue
-            self.resultados[team]['sm'] = supermanager.jornadas[jornada].data[team]['value']
+            self.resultados[team]['valJornada'] = supermanager.jornadas[jornada].data[team]['value']
+            aux['valJornada'][supermanager.jornadas[jornada].data[team]['value']].append(team)
 
             for comp in ['puntos', 'rebotes', 'triples', 'asistencias', 'broker']:
                 if jornada in supermanager.__getattribute__(comp):
@@ -413,9 +415,14 @@ class ResultadosJornadas(object):
                         if jornada != 1:
                             self.resultados[team][comp] -= \
                                 supermanager.__getattribute__(comp)[jornada - 1].data[team]['value']
+                            aux[comp][self.resultados[team][comp]].append(team)
 
-    def puntosSM(self):
-        return set([self.resultados[x]['sm'] for x in self.resultados])
+        self.valor2team = dict()
+        for x in aux:
+            self.valor2team[x] = dict(aux[x])
+
+    def puntos2team(self, comp, valor):
+        return self.valor2team[comp][valor]
 
     def valoresSM(self):
         result = defaultdict(set)
@@ -426,6 +433,13 @@ class ResultadosJornadas(object):
 
         return result
 
+    def comparaAgregado(self, team, agregado):
+        for comp in self.resultados[team]:
+            if comp not in agregado:
+                return False
+            if agregado[comp] != self.resultados[team][comp]:
+                return False
+        return True
 
 def extractPrivateLeagues(content):
     forms = content.find_all("form", {"name": "listaprivadas"})
