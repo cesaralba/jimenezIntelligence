@@ -232,6 +232,8 @@ class SuperManagerACB(object):
 
     def saveData(self, filename):
         aux = copy(self)
+        if self.changed:
+            aux.timestamp = gmtime()
 
         # Clean stuff that shouldn't be saved
         for atributo in ('changed', 'config'):
@@ -246,7 +248,7 @@ class SuperManagerACB(object):
         aux = load(open(filename, "rb"))
 
         for key in aux.__dict__.keys():
-            if key in ['timestamp', 'config', 'browser']:
+            if key in ['config', 'browser']:
                 continue
             if key == "mercadoProg":
                 self.__setattr__("ultimoMercado", aux.__getattribute__(key))
@@ -318,7 +320,7 @@ class SuperManagerACB(object):
         for jugSM in resultado['lesion']:
             resultado['I-activo'][jugSM] = (jugSM in ultMercado.PlayerData)
 
-        return(resultado)
+        return (resultado)
 
     def superManager2dataframe(self):
         """ Extrae un dataframe con los últimos datos de todos los jugadores que han jugado en la temporada.

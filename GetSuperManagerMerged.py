@@ -52,4 +52,4 @@ if __name__ == '__main__':
         sm.saveData(args.outfile)
 
     if ultMercado != sm.ultimoMercado:
-        print(sm.mercado[ultMercado].diff(sm.mercado[ultMercado]))
+        print(sm.mercado[ultMercado].diff(sm.mercado[sm.ultimoMercado]))
