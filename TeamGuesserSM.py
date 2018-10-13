@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-CLAVEPRINC = 'valJornada'
+CLAVEPRINC = 'rebotes'
 CLAVESEC =  'puntos'
+CLAVETERC = 'asistencias'
 
 from collections import defaultdict
 from itertools import combinations, product
@@ -436,14 +437,17 @@ def validateCombs(comb, cuentaGrupos, resultadosSM, jugadores):
 
     valoresPRINC = resultadosSM.valoresSM()[CLAVEPRINC]
     valoresSEC = resultadosSM.valoresSM()[CLAVESEC]
-    teamsRES = defaultdict(lambda: defaultdict(list))
+    valoresTERC = resultadosSM.valoresSM()[CLAVETERC]
+    teamsRES = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
     for t in resultadosSM.resultados:
-        teamsRES[resultadosSM.resultados[t][CLAVEPRINC]][resultadosSM.resultados[t][CLAVESEC]].append(t)
+        teamsRES[resultadosSM.resultados[t][CLAVEPRINC]][resultadosSM.resultados[t][CLAVESEC]][resultadosSM.resultados[t][CLAVETERC]].append(t)
 
     grToTest = {p: cuentaGrupos[p][x] for p, x in zip(POSICIONES, comb)}
     # print(grToTest)
     prSets = prod([x['contSets'][0] for x in grToTest.values()])
     prOrig = prod([x['numCombs'] for x in grToTest.values()])
+    remainers = 0
+
     if prSets == 0:
         print(grToTest)
         exit(1)
@@ -467,8 +471,23 @@ def validateCombs(comb, cuentaGrupos, resultadosSM, jugadores):
                 if not teamsToCheck:
                     continue
 
-                prSets += prod([len(se[x]) for x,se in zip(prSEC,secCombsToTest)])
+                terCombsToTest = [se[x] for x,se in zip(prSEC,secCombsToTest)]
+                prSets += prod([len(x) for x in terCombsToTest])
+
+                for prTERC in product(*terCombsToTest):
+                    sumTERC = sum(prTERC)
+                    if sumTERC not in valoresTERC:
+                        continue
+                    teamsToCheck = teamsRES[sumPRINC][sumSEC][sumTERC]
+
+                    if not teamsToCheck:
+                        continue
+
+                    finCombsToTest = [se[x] for x,se in zip(prTERC,terCombsToTest)]
+                    remainers += prod([len(x) for x in finCombsToTest])
+
                 continue
+
 
                 jugList = subC[0].split("-") + subC[1].split("-") + subC[2].split("-")
                 agr = agregaJugadores(jugList, jugadores)
@@ -478,7 +497,7 @@ def validateCombs(comb, cuentaGrupos, resultadosSM, jugadores):
                         print(sumPR, teamsToCheck, subC, agr)
 
     # print(asctime(), comb, "OUT", prOrig, prSets, len(result), {x:len(result[x]) for x in result})
-    print(asctime(), comb, "OUT", prOrig, prSets, prOrig / prSets, sum(result.values()), len(result), ) # {x:result[x] for x in result}
+    print(asctime(), comb, "OUT", prOrig, prSets, prOrig / prSets, remainers, len(result), ) # {x:result[x] for x in result}
     return result
 
 
@@ -587,8 +606,11 @@ if __name__ == '__main__':
                 agr = agregaJugadores(c, jugadores)
                 claveJugs = "-".join(c)
                 if agr[CLAVEPRINC] not in colSets:
-                    colSets[agr[CLAVEPRINC]] = defaultdict(list)
-                colSets[agr[CLAVEPRINC]][agr[CLAVESEC]].append(claveJugs)
+                    colSets[agr[CLAVEPRINC]] = dict()
+                if agr[CLAVESEC] not in colSets[agr[CLAVEPRINC]]:
+                    colSets[agr[CLAVEPRINC]][agr[CLAVESEC]] = defaultdict(list)
+
+                colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]].append(claveJugs)
 
             cuentaGrupos[p][comb]['contSets'] = (len(colSets), max([len(x) for x in colSets.values()]))
             print(asctime(), p, comb, cuentaGrupos[p][comb])
