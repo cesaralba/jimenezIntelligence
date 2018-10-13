@@ -3,21 +3,21 @@
 
 
 from collections import defaultdict
-from itertools import combinations
+from itertools import combinations, product
 from math import log10
-from multiprocessing import cpu_count
 from os.path import join
 from time import asctime, strftime
 
 from configargparse import ArgumentParser
 from joblib import Parallel, delayed
 
-from SMACB.SMconstants import CUPOS, POSICIONES
+from SMACB.SMconstants import (CUPOS, POSICIONES, buildPosCupoIndex,
+                               calculaValSuperManager)
 from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
-from Utils.CombinacionesConCupos import GeneraCombinaciones
-from Utils.combinatorics import prod
+from Utils.CombinacionesConCupos import GeneraCombinaciones, calculaClaveComb
 from Utils.Misc import FORMATOtimestamp
+from Utils.combinatorics import prod, n_choose_m
 
 
 def listaPosiciones():
@@ -304,6 +304,65 @@ def CalcCombinaciones(mercado, valores, jornada=0, resTemporada=None):
     return resultado
 
 
+def getPartidosJornada(jornada, temporada):
+    result = []
+
+    if jornada not in temporada.Calendario.Jornadas:
+        return result
+
+    return [temporada.Partidos[x] for x in temporada.Calendario.Jornadas[jornada]['partidos']]
+
+
+def getPlayersByPosAndCupo(jornada, supermanager, temporada):
+    result = []
+
+    if jornada not in supermanager.mercadoJornada:
+        return result
+
+    mercadoFin = supermanager.mercado[supermanager.mercadoJornada[jornada]]
+
+    partidos = getPartidosJornada(jornada, temporada)
+
+    minTimestamp = min([x.timestamp for x in partidos])
+    idMercadoIni = max([x for x in supermanager.mercado if supermanager.mercado[x].timestamp < minTimestamp])
+    mercadoIni = supermanager.mercado[idMercadoIni]
+
+    partidosOk = [x for x in partidos if x.timestamp < mercadoFin.timestamp]
+
+    dictJugs = defaultdict(dict)
+
+    for j in mercadoIni.PlayerData:
+        dictJugs[j]['code'] = j
+        dictJugs[j]['cupo'] = mercadoIni.PlayerData[j]['cupo']
+        dictJugs[j]['pos'] = mercadoIni.PlayerData[j]['pos']
+        dictJugs[j]['precioIni'] = mercadoIni.PlayerData[j]['precio']
+        if j not in mercadoFin.PlayerData:
+            raise KeyError("Clave '%s' (%s) inexistente en mercadoFin" % (j, mercadoIni.PlayerData[j]['nombre']))
+
+        dictJugs[j]['precioFin'] = mercadoFin.PlayerData[j]['precio']
+        dictJugs[j]['valJornada'] = mercadoFin.PlayerData[j]['valJornada']
+        dictJugs[j]['difPrecio'] = dictJugs[j]['precioFin'] - dictJugs[j]['precioIni']
+
+    for p in partidosOk:
+        for j in p.Jugadores:
+            if j in dictJugs:
+                for c in ['P', 'A', 'V', 'T3-C', 'REB-T']:
+                    dictJugs[j][c] = p.Jugadores[j]['estads'].get(c, 0)
+                dictJugs[j]['valSM'] = calculaValSuperManager(p.Jugadores[j]['estads'].get('V', 0),
+                                                              p.Jugadores[j]['haGanado'])
+
+    indexPosCupo = buildPosCupoIndex()
+    result = defaultdict(list)
+
+    for j in dictJugs:
+        pos = dictJugs[j]['pos']
+        cupo = dictJugs[j]['cupo']
+        i = indexPosCupo[pos][cupo]
+        result[i].append(j)
+
+    return indexPosCupo, result, dictJugs
+
+
 def procesaArgumentos():
     parser = ArgumentParser()
 
@@ -319,18 +378,18 @@ def procesaArgumentos():
     return args
 
 
-def getPartidosJornada(jornada,temporada):
+def GeneraCombinacionJugs(listaJugs,n):
     result = []
-    temporada=TemporadaACB()
-    if jornada not in temporada.Calendario.Jornadas:
-        return result
-    
+
+    for i in combinations(listaJugs,n):
+        result.append(i)
+
+    return result
 
 if __name__ == '__main__':
-
     args = procesaArgumentos()
 
-    #Carga datos
+    # Carga datos
     sm = SuperManagerACB()
     if 'infile' in args and args.infile:
         sm.loadData(args.infile)
@@ -348,16 +407,85 @@ if __name__ == '__main__':
 
     resJornada = ResultadosJornadas(args.jornada, sm, excludelist=badTeams)
 
-    print(resJornada.__dict__)
     puntosSM = resJornada.valoresSM()
-    print(puntosSM)
-    posYcupos = mercado.getPlayersByPosAndCupo(jornada, resTemporada)
 
-    exit(1)
+    indexes, posYcupos, jugadores = getPlayersByPosAndCupo(args.jornada, sm, temporada)
+
+    validCombs = GeneraCombinaciones()
+    print(len(validCombs))
+    groupedCombs = []
+    cuentaGrupos = defaultdict(dict)
+    lenPosCupos = [0] * 9
+    maxPosCupos = [0] * 9
+    numCombsPosYCupos = [[]] * 9
+
+    for i in posYcupos:
+        lenPosCupos[i] = len(posYcupos[i])
+        maxPosCupos[i] = max([x[i] for x in validCombs])
+        numCombsPosYCupos[i] = [0] * (maxPosCupos[i] + 1)
+
+        for n in range(maxPosCupos[i] + 1):
+            numCombsPosYCupos[i][n] = n_choose_m(lenPosCupos[i], n)
+
+    for c in validCombs:
+        newComb = []
+        for p in POSICIONES:
+            indexGrupo = [indexes[p][x] for x in CUPOS]
+            grupoComb = [c[i] for i in indexGrupo]
+            claveComb = calculaClaveComb(grupoComb)
+            if claveComb not in cuentaGrupos[p]:
+                numCombs = prod([numCombsPosYCupos[x[0]][x[1]] for x in zip(indexGrupo, grupoComb)])
+                cuentaGrupos[p][claveComb] = {'cont': 0, 'comb': grupoComb, 'numCombs': numCombs, 'indexes': indexGrupo}
+            cuentaGrupos[p][claveComb]['cont'] += 1
+            newComb.append(claveComb)
+        groupedCombs.append(newComb)
+
+    print(lenPosCupos)
+    print(maxPosCupos)
+    print(numCombsPosYCupos)
+    print(cuentaGrupos)
+    print(len(groupedCombs))
+
+    for p in cuentaGrupos:
+        print(p, len(cuentaGrupos[p]))
+        for c in cuentaGrupos[p]:
+            print("   ", c, cuentaGrupos[p][c])
+        print(sum([cuentaGrupos[p][x]['numCombs'] for x in cuentaGrupos[p]]))
+
+    print(sum([len(posYcupos[x]) for x in posYcupos]))
+    print(len(jugadores))
+
+    combsPosYCupos = [[None] * (maxPosCupos[x] + 1) for x in range(len(maxPosCupos))]
+
+    for p in POSICIONES:
+        for comb in cuentaGrupos[p]:
+            combList = []
+            print(p,comb,cuentaGrupos[p][comb])
+            combGroup = cuentaGrupos[p][comb]['comb']
+            index = cuentaGrupos[p][comb]['indexes']
+            for i,n in zip(index,combGroup):
+                if combsPosYCupos[i][n] is None:
+                    combsPosYCupos[i][n] = GeneraCombinacionJugs(posYcupos[i],n)
+                if n != 0:
+                    combList.append(combsPosYCupos[i][n])
+            if len(combList) == 1:
+                cuentaGrupos[p][comb] = combList[0]
+            else:
+                listFin = []
+                for pr in product(*combList):
+                    aux =  []
+                    for gr in pr:
+                        for j in gr:
+                            aux.append(j)
+                    listFin.append(aux)
+                cuentaGrupos[p][comb] = listFin
+#            print(comb,combList)
+            # print(p,comb,cuentaGrupos[p][comb])
+
+        for c in CUPOS:
+            i = indexes[p][c]
 
 
 
-    merc = sm.mercado[sm.mercadoJornada[args.jornada]]
+        print(p)
 
-    combs = CalcCombinaciones(merc, puntosSM, j, resultadoTemporada)
-    print(combs)
