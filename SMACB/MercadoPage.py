@@ -20,11 +20,11 @@ class MercadoPageCompare():
 
     def __init__(self, old, new):
 
-        if not ((type(old) is MercadoPageContent) and (type(new) is MercadoPageContent)):
+        if not isinstance(old, MercadoPageContent) and isinstance(new, MercadoPageContent):
             errorStr = ""
-            if not (type(old) is MercadoPageContent):
+            if not isinstance(old, MercadoPageContent):
                 errorStr += "Type for original data '%s' is not supported. " % type(old)
-            if not (type(new) is MercadoPageContent):
+            if not isinstance(new, MercadoPageContent):
                 errorStr += "Type for new data '%s' is not supported. " % type(new)
 
             raise TypeError(errorStr)
@@ -335,6 +335,12 @@ class MercadoPageContent():
         return diff.changes
 
     def getPlayersByPosAndCupo(self, jornada=0, temporadaExtr=None):
+        """
+        Extrae un diccionario con informaciones de los jugadores que han participado en determinada jornada
+        :param jornada:
+        :param temporadaExtr:
+        :return:
+        """
         result = {'data': defaultdict(list),
                   'cont': [0] * len(POSICIONES) * len(CUPOS)}
         indexResult = {}
@@ -460,7 +466,7 @@ class MercadoPageContent():
             return(dfresult)
 
         dfJugs = [jugador2dataframe(jugador) for jugador in self.PlayerData.values()]
-        dfResult = pd.concat(dfJugs, axis=0, ignore_index=True)
+        dfResult = pd.concat(dfJugs, axis=0, ignore_index=True, sort=True)
         dfResult['esLocal'] = ~(dfResult['proxFuera'].astype('bool'))
         dfResult['ProxPartido'] = dfResult.apply(datosProxPartidoMerc, axis=1)
         dfResult['pos'] = dfResult.apply(datosPosMerc, axis=1)

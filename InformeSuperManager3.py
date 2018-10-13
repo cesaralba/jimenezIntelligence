@@ -7,16 +7,15 @@ from time import gmtime, mktime, strftime, time
 
 from configargparse import ArgumentParser
 from pandas import ExcelWriter
-from xlsxwriter import Workbook
 
 from SMACB.ManageSMDataframes import (CATMERCADOFINAL, COLSPREC,
                                       calculaDFcategACB, calculaDFconVars,
                                       calculaDFprecedentes)
 from SMACB.PartidoACB import PartidoACB
-from SMACB.SMconstants import POSICIONES
+from SMACB.SMconstants import POSICIONES, PRECIOpunto
 from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB, calculaVars, calculaZ
-from Utils.Misc import CuentaClaves, FORMATOtimestamp, SubSet
+from Utils.Misc import FORMATOtimestamp, SubSet
 
 
 def jugadoresMezclaStatus(datos):
@@ -114,14 +113,25 @@ def preparaDatosComunes(datosMezclados):
     return resultado
 
 
-def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
+def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
+    dfSuperManager = sm.superManager2dataframe()  # Needed to get player position from all players
+    dfTemporada = temporada.extraeDataframeJugadores().merge(dfSuperManager[['codigo', 'pos']], how='left')
+    # All data fall playrs
+    dfUltMerc = sm.mercado[sm.ultimoMercado].mercado2dataFrame()
+    dfUltMerc['activo'] = True
+    dfVZ = calculaZ(dfTemporada, 'V', useStd=True)
 
-    jugSM = supermanager.extraeDatosJugadores()
-    jugTM = temporada.extraeDatosJugadores()
-    jugData = mezclaJugadores(jugTM, jugSM)
-    numJornadas = temporada.maxJornada()
-    nombreJornadas = {False: temporada.Calendario.nombresJornada()[:numJornadas],
-                      True: ['J 0'] + temporada.Calendario.nombresJornada()[:numJornadas]}
+    varsVZ = calculaVars(dfTemporada, 'V')
+    varsVsmZ = calculaVars(dfTemporada, 'Vsm')
+    varsVD = calculaVars(dfTemporada, 'V', useStd=False)
+    varsVsmD = calculaVars(dfTemporada, 'Vsm', useStd=False)
+
+    dfPredsV = calculaDFconVars(dfTemp=dfTemporada, dfMerc=dfUltMerc, clave="V", filtroFechas=None)
+    dfPredsVsm = calculaDFconVars(dfTemp=dfTemporada, dfMerc=dfUltMerc, clave="Vsm", filtroFechas=None)
+
+    # numJornadas = temporada.maxJornada()
+    # nombreJornadas = {False: temporada.Calendario.nombresJornada()[:numJornadas],
+    #                   True: ['J 0'] + temporada.Calendario.nombresJornada()[:numJornadas]}
 
     def preparaFormatos(workbook):
         resultado = dict()
@@ -150,6 +160,30 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
 
         return resultado
 
+    def preparaHojaMercado(excelwriter, supermanager, temporada, listaformatos):
+        dfSuperManager = supermanager.superManager2dataframe()  # Needed to get player position from all players
+        dfTemporada = temporada.extraeDataframeJugadores().merge(dfSuperManager[['codigo', 'pos']], how='left')
+        # All data fall playrs
+        dfUltMerc = supermanager.mercado[supermanager.ultimoMercado].mercado2dataFrame()
+        dfUltMerc['precObj'] = dfUltMerc['promVal'] * PRECIOpunto
+        dfUltMerc['distAObj'] = dfUltMerc['precio'] - dfUltMerc['precObj']
+
+        dfUltMerc['activo'] = True
+
+        COLSDIFPRECIO = ['precObj', 'distAObj']
+
+        dfPrecV = calculaDFprecedentes(dfTemporada, dfUltMerc, 'V')
+        dfPrecVsm = calculaDFprecedentes(dfTemporada, dfUltMerc, 'Vsm')
+        if dfPrecV.empty:
+            antecColumns = CATMERCADOFINAL + COLSDIFPRECIO
+            df2show = dfUltMerc[antecColumns].set_index('codigo')
+        else:
+            antecColumns = CATMERCADOFINAL + COLSDIFPRECIO + COLSPREC
+            df2show = dfUltMerc.merge(dfPrecV, how='left').merge(dfPrecVsm, how='left')[antecColumns].set_index(
+                'codigo')
+
+        creaHoja(writer, 'Mercado', df2show, formatos, colsToFreeze=len(CATMERCADOFINAL) - 1)
+
     def calculaFormato(victoria, local, hajugado, vdecimal):
         if victoria is None:
             return "nulo"
@@ -165,139 +199,105 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
 
         return resultado
 
-    def creaHoja(workbook, nombre, clave, datosJugadores, datosComunes, formatos,
-                 nombreJornadas, valorDecimal=False, claveSM=True):
-        clavesExistentes = CuentaClaves(datosJugadores)
+    def creaHoja(excelwriter, nombre, dataframe, formatos, rowsToFreeze=1, colsToFreeze=0, useIndex=False):
 
-        if clave not in clavesExistentes:
-            print("Clave '%s' no existente.\nClaves disponibles: %s" % (clave,
-                                                                        ", ".join(map(
-                                                                            lambda x: "'" + x + "'",
-                                                                            sorted(clavesExistentes.keys())))))
-            return
+        dataframe.to_excel(excelwriter, sheet_name=nombre, freeze_panes=(rowsToFreeze, colsToFreeze), index=useIndex)
 
-        seqDatos = list(range(numJornadas + (1 if claveSM else 0)))
-        cabJornadas = nombreJornadas[claveSM]
-        ot = -1 if claveSM else 0
+        sht = excelwriter.book.sheetnames[nombre]
+        sht.autofilter(sht.dim_rowmin, sht.dim_colmin, sht.dim_rowmax, sht.dim_colmax)
+        for r in range(sht.dim_rowmin + 1, sht.dim_rowmax + 1):
+            sht.set_row(r, cell_format=formatos['datosComunes'])
 
-        # print(ot, seqDatos, cabJornadas)
+    def addMetadata(excelwriter, sm, tm):
 
-        ws = workbook.add_worksheet(nombre)
+        metadata = ["Cargados datos SuperManager de %s" % strftime(FORMATOtimestamp, sm.timestamp),
+                    "Cargada información de temporada de %s" % strftime(FORMATOtimestamp, tm.timestamp),
+                    "Ejecutado en %s" % strftime(FORMATOtimestamp, gmtime())]
 
-        fila, columna = 0, 0
-
-        ws.write_row(fila, columna, datosComunes['titularCabecera'], formatos['cabecera'])
-        columna += len(datosComunes['titularCabecera'])
-        ws.write_row(fila, columna, cabJornadas, formatos['cabecera'])
-        fila += 1
-        columna = 0
-
-        for jug in datosComunes['claves']:
-            ws.write_row(fila, columna, datosComunes['cabeceraLinea'][jug], formatos['datosComunes'])
-            columna += len(datosComunes['titularCabecera'])
-            datosJugador = datosJugadores[jug]
-
-            infoJugador(datosJugador, numdias=0)
-            infoJugador(datosJugador, numdias=60)
-
-            continue
-
-            if clave in datosJugador:
-                ordenDatos = seqDatos if claveSM else datosJugador['OrdenPartidos']
-                ordenDatos = seqDatos
-
-                datosAmostrar = datosJugador[clave]
-
-                print(datosComunes['cabeceraLinea'][jug])
-                # comentarios = datosJugador['ResumenPartido']
-                haJugado = datosJugador['haJugado']
-                esLocal = datosJugador['esLocal']
-                victoria = datosJugador['haGanado']
-                # jornada = datosJugador['Jornada']
-                # ordenParts = datosJugador['OrdenPartidos']
-                # fechaSTR = [strftime(FORMATOfecha,x) if x else "-" for x in datosJugador['FechaHora']]
-                # form = [ calculaFormato(v, l, j, valorDecimal) for (v,l,j) in zip(victoria, esLocal, haJugado)]
-                # cv = zip(seqDatos, esLocal, victoria, jornada, haJugado, ordenParts, fechaSTR, datosAmostrar, form)
-                # print('##', 'esLocal', 'victoria', 'jornada', 'haJugado', 'ordenParts', 'fecha',
-                # 'datosAmostrar','form')
-                # print("\n".join(map(lambda x:"%2i %7s %8s %7s %8s %10s %10s %s %s" % x,cv)))
-                print(list(zip(cabJornadas, datosAmostrar)), "\n\n")
-                # print(ordenDatos)
-
-                for i in ordenDatos:
-                    f = "nulo"
-                    valor = ""
-                    if claveSM and datosAmostrar[i] is None:
-                        pass
-                    elif claveSM and (i + ot < 0):  # Es la J0 de mercado
-                        f = "nulo"
-                        valor = datosAmostrar[i]
-                    else:
-                        # haJugado[i + ot] is not None:
-                        f = calculaFormato(victoria[i + ot], esLocal[i + ot], haJugado[i + ot], valorDecimal)
-                        valor = datosAmostrar[i]   # if haJugado[i + ot] else ""
-
-                    ws.write(fila, columna, valor, formatos[f])
-                    columna += 1
-
-            fila += 1
-            columna = 0
-            # break
-
-    def addMetadata(workbook, datos):
-        ws = workbook.add_worksheet("Metadata")
+        ws = excelwriter.book.add_worksheet("Metadata")
         fila = 0
         columna = 0
-        for l in datos:
+        for l in metadata:
             ws.write(fila, columna, l)
             fila += 1
 
-    metadata = ["Cargados datos SuperManager de %s" % strftime(FORMATOtimestamp, supermanager.timestamp),
-                "Cargada información de temporada de %s" % strftime(FORMATOtimestamp, temporada.timestamp),
-                "Ejecutado en %s" % strftime(FORMATOtimestamp, gmtime())]
+    with ExcelWriter(args.outfile) as writer:
+        formatos = preparaFormatos(writer.book)
 
-    datosComunes = preparaDatosComunes(jugData)
+        preparaHojaMercado(writer, sm, temporada, formatos)
 
-    # print(jugData)
+        creaHoja(writer, 'V', calculaDFcategACB(dfTemporada, dfSuperManager, 'V'), formatos,
+                 colsToFreeze=len(CATMERCADOFINAL) + 3)
+        creaHoja(writer, 'Vsm', calculaDFcategACB(dfTemporada, dfSuperManager, 'Vsm'), formatos,
+                 colsToFreeze=len(CATMERCADOFINAL) + 3)
 
-    # print(datosComunes)
+        creaHoja(writer, 'Z-V', calculaDFcategACB(dfVZ, dfSuperManager, 'Z-V'), formatos,
+                 colsToFreeze=len(CATMERCADOFINAL) + 3)
+        creaHoja(writer, 'P', calculaDFcategACB(dfTemporada, dfSuperManager, 'P'), formatos,
+                 colsToFreeze=len(CATMERCADOFINAL) + 3)
+        creaHoja(writer, 'A', calculaDFcategACB(dfTemporada, dfSuperManager, 'A'), formatos,
+                 colsToFreeze=len(CATMERCADOFINAL) + 3)
+        creaHoja(writer, 'Rebotes', calculaDFcategACB(dfTemporada, dfSuperManager, 'REB-T'), formatos,
+                 colsToFreeze=len(CATMERCADOFINAL) + 3)
+        creaHoja(writer, 'Triples', calculaDFcategACB(dfTemporada, dfSuperManager, 'T3-C'), formatos,
+                 colsToFreeze=len(CATMERCADOFINAL) + 3)
+        creaHoja(writer, 'PredicsV-Z', dfPredsV, formatos, colsToFreeze=len(CATMERCADOFINAL) + 3)
+        creaHoja(writer, 'PredicsVsm-Z', dfPredsVsm, formatos, colsToFreeze=len(CATMERCADOFINAL) + 3)
+        creaHoja(writer, 'TEMPORADA', dfTemporada, formatos, colsToFreeze=len(CATMERCADOFINAL) + 3)
 
-    # print(DumpDict(datosComunes['cabeceraLinea'], datosComunes['claves']))
+        for comb in varsVZ:
+            nombreHoja = "V-Z-" + comb
+            indexCols = []
+            if 'R' in comb:
+                indexCols.append('CODrival')
+            if 'P' in comb:
+                indexCols.append('pos')
+            if 'L' in comb:
+                indexCols.append('esLocal')
 
-    wb = Workbook(filename=nomFichero)
-    formatos = preparaFormatos(wb)
-    # '+/-', 'A', 'BP', 'BR', 'C', 'CODequipo', 'CODrival', 'FP-C', 'FP-F', 'FechaHora',
-    # 'Jornada', 'M', 'OrdenPartidos', 'P', 'Partido', 'R-D', 'R-O', 'REB-T', 'ResumenPartido', 'Segs',
-    # 'T1%', 'T1-C', 'T1-I', 'T2%', 'T2-C', 'T2-I', 'T3%', 'T3-C', 'T3-I', 'TAP-C', 'TAP-F', 'URL', 'V',
-    # 'equipo', 'esLocal', 'haGanado', 'haJugado', 'lesion', 'nombre', 'precio', 'prom3Jornadas', 'promVal',
-    # 'rival', 'titular', 'valJornada'
-    creaHoja(wb, "ValoracionSM", "valJornada", jugData, datosComunes, formatos, nombreJornadas,
-             valorDecimal=True, claveSM=True)
-    creaHoja(wb, "Valoracion", "V", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=False,
-             claveSM=False)
-    creaHoja(wb, "PrecioSM", "precio", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=True,
-             claveSM=True)
-    creaHoja(wb, "PromValSM", "promVal", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=True,
-             claveSM=True)
-    creaHoja(wb, "prom3J", "prom3Jornadas", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=True,
-             claveSM=True)
-    creaHoja(wb, "Puntos", "P", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=False, claveSM=False)
-    creaHoja(wb, "Rebotes", "REB-T", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=False,
-             claveSM=False)
-    creaHoja(wb, "Asistencias", "A", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=False,
-             claveSM=False)
-    creaHoja(wb, "Triples", "T3-C", jugData, datosComunes, formatos, nombreJornadas, valorDecimal=False,
-             claveSM=False)
+            creaHoja(writer, nombreHoja, varsVZ[comb].set_index(indexCols), formatos, colsToFreeze=len(indexCols),
+                     useIndex=True)
 
-    addMetadata(wb, metadata)
+        for comb in varsVsmZ:
+            nombreHoja = "Vsm-Z-" + comb
+            indexCols = []
+            if 'R' in comb:
+                indexCols.append('CODrival')
+            if 'P' in comb:
+                indexCols.append('pos')
+            if 'L' in comb:
+                indexCols.append('esLocal')
 
-    wb.close()
+            creaHoja(writer, nombreHoja, varsVsmZ[comb].set_index(indexCols), formatos, colsToFreeze=len(indexCols),
+                     useIndex=True)
 
-    # jugOrdenados = [clave[0] for clave in
-    # list(map(lambda x:(x,jugData['I-precio']), jugData)).sort(reverse=True,itemgetter=lambda y:y[1])]
-    # print(jugOrdenados)
-    # print(DumpDict(datosCabecera))
-    # print(metadata)
+        for comb in varsVD:
+            nombreHoja = "V-D-" + comb
+            indexCols = []
+            if 'R' in comb:
+                indexCols.append('CODrival')
+            if 'P' in comb:
+                indexCols.append('pos')
+            if 'L' in comb:
+                indexCols.append('esLocal')
+
+            creaHoja(writer, nombreHoja, varsVD[comb].set_index(indexCols), formatos, colsToFreeze=len(indexCols),
+                     useIndex=True)
+
+        for comb in varsVsmD:
+            nombreHoja = "Vsm-D-" + comb
+            indexCols = []
+            if 'R' in comb:
+                indexCols.append('CODrival')
+            if 'P' in comb:
+                indexCols.append('pos')
+            if 'L' in comb:
+                indexCols.append('esLocal')
+
+            creaHoja(writer, nombreHoja, varsVsmD[comb].set_index(indexCols), formatos, colsToFreeze=len(indexCols),
+                     useIndex=True)
+
+        addMetadata(writer, sm, temporada)
 
 
 def infoJugador(datosJugador, numdias=0):
@@ -376,106 +376,5 @@ if __name__ == '__main__':
         temporada.cargaTemporada(args.temporada)
         print("Cargada información de temporada de %s" % strftime(FORMATOtimestamp, temporada.timestamp))
 
-    dfSuperManager = sm.superManager2dataframe()  # Needed to get player position from all players
-    dfTemporada = temporada.extraeDataframeJugadores().merge(dfSuperManager[['codigo', 'pos']], how='left')
-    # All data fall playrs
-    dfUltMerc = sm.mercado[sm.ultimoMercado].mercado2dataFrame()
-    dfUltMerc['activo'] = True
-    dfVZ = calculaZ(dfTemporada, 'V', useStd=True)
-    dfVsmZ = calculaZ(dfTemporada, 'Vsm', useStd=True)
-    dfVD = calculaZ(dfTemporada, 'V', useStd=False)
-    dfVsmD = calculaZ(dfTemporada, 'Vsm', useStd=False)
-
-    varsVZ = calculaVars(dfTemporada, 'V')
-    varsVsmZ = calculaVars(dfTemporada, 'Vsm')
-    varsVD = calculaVars(dfTemporada, 'V', useStd=False)
-    varsVsmD = calculaVars(dfTemporada, 'Vsm', useStd=False)
-
-    dfPredsV = calculaDFconVars(dfTemp=dfTemporada, dfMerc=dfUltMerc, clave="V", filtroFechas=None)
-    dfPredsVsm = calculaDFconVars(dfTemp=dfTemporada, dfMerc=dfUltMerc, clave="Vsm", filtroFechas=None)
-
-    antecColumns = CATMERCADOFINAL + COLSPREC
-
     if 'outfile' in args and args.outfile:
-        with ExcelWriter(args.outfile) as writer:
-            (dfUltMerc.merge(calculaDFprecedentes(dfTemporada, dfUltMerc, 'V'), how='left')
-             .merge(calculaDFprecedentes(dfTemporada, dfUltMerc, 'Vsm'), how='left')[antecColumns].set_index('codigo')
-             .to_excel(writer, sheet_name='Mercado', freeze_panes=(1, len(CATMERCADOFINAL) - 1), index=False))
-            sht = writer.book.sheetnames['Mercado']
-            sht.autofilter(sht.dim_rowmin, sht.dim_colmin, sht.dim_rowmax, sht.dim_colmax)
-
-            calculaDFcategACB(dfTemporada, dfSuperManager, 'V').to_excel(writer, sheet_name='V',
-                                                                         freeze_panes=(1,
-                                                                                       len(CATMERCADOFINAL) + 3),
-                                                                         index=False)
-            calculaDFcategACB(dfTemporada, dfSuperManager, 'Vsm').to_excel(writer, sheet_name='Vsm',
-                                                                           freeze_panes=(1, len(CATMERCADOFINAL) + 3),
-                                                                           index=False)
-
-            calculaDFcategACB(dfVZ, dfSuperManager, 'Z-V').to_excel(writer, sheet_name='Z-V',
-                                                                    freeze_panes=(1, len(CATMERCADOFINAL) + 3),
-                                                                    index=False)
-
-            calculaDFcategACB(dfTemporada, dfSuperManager, 'P').to_excel(writer, sheet_name='Puntos',
-                                                                         freeze_panes=(1, len(CATMERCADOFINAL) + 3),
-                                                                         index=False)
-            calculaDFcategACB(dfTemporada, dfSuperManager, 'A').to_excel(writer, sheet_name='Asist',
-                                                                         freeze_panes=(1, len(CATMERCADOFINAL) + 3),
-                                                                         index=False)
-            calculaDFcategACB(dfTemporada, dfSuperManager, 'REB-T').to_excel(writer, sheet_name='Rebotes',
-                                                                             freeze_panes=(1,
-                                                                                           len(CATMERCADOFINAL) + 3),
-                                                                             index=False)
-            calculaDFcategACB(dfTemporada, dfSuperManager, 'T3-C').to_excel(writer, sheet_name='Triples',
-                                                                            freeze_panes=(1, len(CATMERCADOFINAL) + 3),
-                                                                            index=False)
-
-            dfPredsV.to_excel(writer, sheet_name='PredicsV-Z', freeze_panes=(1, len(CATMERCADOFINAL) + 3),
-                              index=False)
-            dfPredsVsm.to_excel(writer, sheet_name='PredicsVsm-Z', freeze_panes=(1, len(CATMERCADOFINAL) + 3),
-                                index=False)
-
-            dfTemporada.to_excel(writer, sheet_name='TEMPORADA', index=False)
-            for comb in varsVZ:
-                nombreHoja = "V-Z-" + comb
-                indexCols = []
-                if 'R' in comb:
-                    indexCols.append('CODrival')
-                if 'P' in comb:
-                    indexCols.append('pos')
-                if 'L' in comb:
-                    indexCols.append('esLocal')
-                varsVZ[comb].set_index(indexCols).to_excel(writer, sheet_name=nombreHoja)
-
-            for comb in varsVsmZ:
-                nombreHoja = "Vsm-Z-" + comb
-                indexCols = []
-                if 'R' in comb:
-                    indexCols.append('CODrival')
-                if 'P' in comb:
-                    indexCols.append('pos')
-                if 'L' in comb:
-                    indexCols.append('esLocal')
-                varsVsmZ[comb].set_index(indexCols).to_excel(writer, sheet_name=nombreHoja)
-
-            for comb in varsVD:
-                nombreHoja = "V-D-" + comb
-                indexCols = []
-                if 'R' in comb:
-                    indexCols.append('CODrival')
-                if 'P' in comb:
-                    indexCols.append('pos')
-                if 'L' in comb:
-                    indexCols.append('esLocal')
-                varsVD[comb].set_index(indexCols).to_excel(writer, sheet_name=nombreHoja)
-
-            for comb in varsVsmD:
-                nombreHoja = "Vsm-D-" + comb
-                indexCols = []
-                if 'R' in comb:
-                    indexCols.append('CODrival')
-                if 'P' in comb:
-                    indexCols.append('pos')
-                if 'L' in comb:
-                    indexCols.append('esLocal')
-                varsVsmD[comb].set_index(indexCols).to_excel(writer, sheet_name=nombreHoja)
+        preparaExcel(sm, temporada, args.outfile)

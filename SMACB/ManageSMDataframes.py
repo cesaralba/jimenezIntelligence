@@ -48,7 +48,7 @@ def calculaDFcategACB(dfTemp, dfMerc, clave, filtroFechas=None):
     """ Devuelve un Dataframe con los datos de una cateogría estadística ACB a lo largo de una temporada
     """
     if clave not in dfTemp:
-        raise(KeyError, "Clave '%s' no está en datos." % clave)
+        raise (KeyError, "Clave '%s' no está en datos." % clave)
 
     if filtroFechas:
         datosWrk = dfTemp
@@ -69,9 +69,8 @@ COLSPREC = ['Precedente', 'V-prec', 'D-V-prec', 'Z-V-prec', 'Vsm-prec', 'D-Vsm-p
 
 
 def calculaDFprecedentes(dfTemp, dfMerc, clave, filtroFechas=None):
-
     if clave not in dfTemp:
-        raise(KeyError, "Clave '%s' no está en datos." % clave)
+        raise (KeyError, "Clave '%s' no está en datos." % clave)
 
     if filtroFechas:
         datosWrk = dfTemp
@@ -84,17 +83,20 @@ def calculaDFprecedentes(dfTemp, dfMerc, clave, filtroFechas=None):
     listaCats = ['CODrival', 'CODequipo', 'equipo', 'rival', 'haGanado', 'jornada', 'Fecha', 'codigo',
                  'haJugado', 'enActa', 'nombre', 'esLocal', clave]
 
-    dfResult = (datosMrc[['codigo', 'CODequipo', 'CODrival', 'esLocal']]
-                .merge(datosWrk[listaCats]).merge(calculaTempStats(datosWrk, clave)))
+    dfResult = (datosMrc[['codigo', 'CODequipo', 'CODrival', 'esLocal']].merge(datosWrk[listaCats]).merge(
+        calculaTempStats(datosWrk, clave)))
+
+    if dfResult.empty:
+        return dfResult
 
     dfResult['Precedente'] = dfResult.apply(datosPartidoPasadoTemp, axis=1)
     dfResult.loc[dfResult['enActa'] & ~dfResult['haJugado'], clave] = 0
     dfResult['D-' + clave + '-prec'] = dfResult[clave] - dfResult[clave + '-mean']
-    dfResult['Z-' + clave + '-prec'] = ((dfResult[clave] - dfResult[clave + '-mean']) *
-                                        (1.0 / dfResult[clave + '-std']))
+    dfResult['Z-' + clave + '-prec'] = (
+        (dfResult[clave] - dfResult[clave + '-mean']) * (1.0 / dfResult[clave + '-std']))
 
-    return (dfResult[['codigo', 'Precedente', clave, 'D-' + clave + '-prec', 'Z-' + clave + '-prec']]
-            .rename(columns={clave: clave + '-prec'}))
+    return (dfResult[['codigo', 'Precedente', clave, 'D-' + clave + '-prec', 'Z-' + clave + '-prec']].rename(
+        columns={clave: clave + '-prec'}))
 
 
 def datosProxPartidoMerc(dfrow):
