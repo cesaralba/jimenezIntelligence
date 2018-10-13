@@ -422,6 +422,8 @@ class ResultadosJornadas(object):
             self.valor2team[x] = dict(aux[x])
 
     def puntos2team(self, comp, valor):
+        if valor not in self.valor2team[comp]:
+            return []
         return self.valor2team[comp][valor]
 
     def valoresSM(self):
