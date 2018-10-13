@@ -430,12 +430,12 @@ def procesaArgumentos():
     return args
 
 
-def validateCombs(comb, cuentaGrupos, puntosSM, resultadosSM, jugadores):
+def validateCombs(comb, cuentaGrupos, resultadosSM, jugadores):
     result = defaultdict(int)
     # result = defaultdict(list )
 
-    # print(comb, len(result), list(puntosSM.keys()),puntosSM['sm'])
-
+    valoresPrinc = resultadosSM.valoresSM()[CLAVEPRINC]
+    valoresSec = resultadosSM.valoresSM()[CLAVESEC]
 
     grToTest = {p: cuentaGrupos[p][x] for p, x in zip(POSICIONES, comb)}
     # print(grToTest)
@@ -450,12 +450,12 @@ def validateCombs(comb, cuentaGrupos, puntosSM, resultadosSM, jugadores):
     combVals = [list(grToTest[x]['valSets'].keys()) for x in POSICIONES]
     for pr in product(*combVals):
         sumPR = sum(pr)
-        if sumPR in puntosSM['valJornada']:
-            teamsToCheck = resultadosSM.puntos2team('valJornada',sumPR)
-
+        if sumPR in valoresPrinc:
             subCombsToTest = [grToTest[p]['valSets'][x] for x, p in zip(pr, POSICIONES)]
             result[sumPR] += prod([len(x) for x in subCombsToTest])
             continue
+
+            teamsToCheck = resultadosSM.puntos2team(CLAVEPRINC,sumPR)
 
             for subC in product(*subCombsToTest):
                 jugList = subC[0].split("-") + subC[1].split("-") + subC[2].split("-")
@@ -573,7 +573,8 @@ if __name__ == '__main__':
             colSets = defaultdict(set)
             for c in listFin:
                 agr = agregaJugadores(c, jugadores)
-                colSets[agr['valJornada']].add("-".join(c))
+                claveJugs = "-".join(c)
+                colSets[agr[CLAVEPRINC]].add(claveJugs)
 
             cuentaGrupos[p][comb]['contSets'] = (len(colSets), max([len(x) for x in colSets.values()]))
             print(asctime(), p, comb, cuentaGrupos[p][comb])
@@ -586,7 +587,7 @@ if __name__ == '__main__':
     combMatchesVal = defaultdict(list)
 
     subSet = groupedCombs[0:4]
-    result = Parallel(n_jobs=4)(delayed(validateCombs)(c, cuentaGrupos, puntosSM, resJornada, jugadores) for c in subSet)
+    result = Parallel(n_jobs=4)(delayed(validateCombs)(c, cuentaGrupos, resJornada, jugadores) for c in subSet)
 
     # for c in groupedCombs:
     #     # print(c)
