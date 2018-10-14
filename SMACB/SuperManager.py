@@ -436,9 +436,7 @@ class ResultadosJornadas(object):
         return result
 
     def comparaAgregado(self, team, agregado):
-        for comp in self.resultados[team]:
-            if comp not in agregado:
-                return False
+        for comp in ['broker', 'valJornada', 'puntos', 'rebotes', 'triples', 'asistencias']:
             if agregado[comp] != self.resultados[team][comp]:
                 return False
         return True
