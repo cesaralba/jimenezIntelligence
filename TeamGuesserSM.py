@@ -1,13 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-CLAVEPRINC = 'asistencias'
-CLAVESEC =  'puntos'
-CLAVETERC = 'rebotes'
-CLAVECUAT = 'triples'
-CLAVEQUIN = 'valJornada'
-CLAVESEX = 'broker'
-
 from collections import defaultdict
 from itertools import combinations, product
 from math import log10
@@ -24,6 +17,13 @@ from SMACB.TemporadaACB import TemporadaACB
 from Utils.CombinacionesConCupos import GeneraCombinaciones, calculaClaveComb
 from Utils.combinatorics import n_choose_m, prod
 from Utils.Misc import FORMATOtimestamp
+
+CLAVEPRINC = 'asistencias'
+CLAVESEC = 'puntos'
+CLAVETERC = 'rebotes'
+CLAVECUAT = 'triples'
+CLAVEQUIN = 'valJornada'
+CLAVESEX = 'broker'
 
 
 def listaPosiciones():
@@ -308,57 +308,57 @@ def agregaJugadores(listaJugs, datosJugs):
     return result
 
 
-def CalcCombinaciones(mercado, valores, jornada=0, resTemporada=None):
-    resultado = defaultdict(list)
-    posYcupos = mercado.getPlayersByPosAndCupo(jornada, resTemporada)
-
-    combTeams = GeneraCombinaciones()
-
-    print(combTeams)
-
-    return
-
-    maxNum = [0] * len(CUPOS) * len(POSICIONES)
-
-    for i in range(len(maxNum)):
-        uso = [x[i] for x in combTeams]
-        usoStat = defaultdict(int)
-        for x in uso:
-            usoStat[x] += 1
-        # print(i, usoStat)
-        maxNum[i] = max(uso)
-
-    preCalcListas = defaultdict(list)
-
-    for i in range(len(maxNum)):
-        uso = [x[i] for x in combTeams]
-        maxNumI = max(uso)
-        preCalcListas[i] = defaultdict(set)
-
-        for n in range(maxNumI + 1):
-            preCalcListas[i][n] = generaCombinacion(posYcupos['data'][i], n)
-
-    if 1:
-        datosRecort = [combTeams[x] for x in range(1)]
-        resultado = Parallel(n_jobs=ncpu - 1)(delayed(combinacionesParallelConV)(comb,
-                                                                                 preCalcListas,
-                                                                                 valores) for comb in datosRecort)
-    else:
-        for comb in combTeams:
-            res = combinacionesParallel(comb, preCalcListas, valores)
-
-            for punt in res:
-                for wincomb in res[punt]:
-                    mergComb = zip(range(len(comb)), wincomb[0], wincomb[1])
-                    valCombs = []
-                    for c in mergComb:
-                        if not c[1]:
-                            continue
-                        valCombs.append(preCalcListas[c[0]][c[1]][c[2]])
-                    resultado[punt].append(valCombs)
-
-    return resultado
-
+# def CalcCombinaciones(mercado, valores, jornada=0, resTemporada=None):
+#     resultado = defaultdict(list)
+#     posYcupos = mercado.getPlayersByPosAndCupo(jornada, resTemporada)
+#
+#     combTeams = GeneraCombinaciones()
+#
+#     print(combTeams)
+#
+#     return
+#
+#     maxNum = [0] * len(CUPOS) * len(POSICIONES)
+#
+#     for i in range(len(maxNum)):
+#         uso = [x[i] for x in combTeams]
+#         usoStat = defaultdict(int)
+#         for x in uso:
+#             usoStat[x] += 1
+#         # print(i, usoStat)
+#         maxNum[i] = max(uso)
+#
+#     preCalcListas = defaultdict(list)
+#
+#     for i in range(len(maxNum)):
+#         uso = [x[i] for x in combTeams]
+#         maxNumI = max(uso)
+#         preCalcListas[i] = defaultdict(set)
+#
+#         for n in range(maxNumI + 1):
+#             preCalcListas[i][n] = generaCombinacion(posYcupos['data'][i], n)
+#
+#     if 1:
+#         datosRecort = [combTeams[x] for x in range(1)]
+#         resultado = Parallel(n_jobs=ncpu - 1)(delayed(combinacionesParallelConV)(comb,
+#                                                                                  preCalcListas,
+#                                                                                  valores) for comb in datosRecort)
+#     else:
+#         for comb in combTeams:
+#             res = combinacionesParallel(comb, preCalcListas, valores)
+#
+#             for punt in res:
+#                 for wincomb in res[punt]:
+#                     mergComb = zip(range(len(comb)), wincomb[0], wincomb[1])
+#                     valCombs = []
+#                     for c in mergComb:
+#                         if not c[1]:
+#                             continue
+#                         valCombs.append(preCalcListas[c[0]][c[1]][c[2]])
+#                     resultado[punt].append(valCombs)
+#
+#     return resultado
+#
 
 def getPartidosJornada(jornada, temporada):
     result = []
@@ -384,28 +384,38 @@ def getPlayersByPosAndCupo(jornada, supermanager, temporada):
     mercadoIni = supermanager.mercado[idMercadoIni]
 
     partidosOk = [x for x in partidos if x.timestamp < mercadoFin.timestamp]
+    jugadoresEnPartidos = {y: x.Jugadores[y] for x in partidosOk for y in x.Jugadores}
 
     dictJugs = defaultdict(dict)
 
     for j in mercadoIni.PlayerData:
-        dictJugs[j]['code'] = j
-        dictJugs[j]['cupo'] = mercadoIni.PlayerData[j]['cupo']
-        dictJugs[j]['pos'] = mercadoIni.PlayerData[j]['pos']
-        dictJugs[j]['precioIni'] = mercadoIni.PlayerData[j]['precio']
+        aux = dict()
+        aux['code'] = j
+        aux['nombre'] = mercadoIni.PlayerData[j]['cupo']
+        aux['cupo'] = mercadoIni.PlayerData[j]['cupo']
+        aux['pos'] = mercadoIni.PlayerData[j]['pos']
+        aux['precioIni'] = mercadoIni.PlayerData[j]['precio']
         if j not in mercadoFin.PlayerData:
-            raise KeyError("Clave '%s' (%s) inexistente en mercadoFin" % (j, mercadoIni.PlayerData[j]['nombre']))
+            if j not in jugadoresEnPartidos:
+                aux['precioFin'] = aux['precioIni']
+                aux['valJornada'] = 0
+            else:
+                raise KeyError("Clave '%s' (%s) inexistente en mercadoFin y jugo partido" % (
+                    j, mercadoIni.PlayerData[j]['nombre']))
+        else:
+            aux['precioFin'] = mercadoFin.PlayerData[j]['precio']
+            aux['valJornada'] = mercadoFin.PlayerData[j]['valJornada']
 
-        dictJugs[j]['precioFin'] = mercadoFin.PlayerData[j]['precio']
-        dictJugs[j]['valJornada'] = mercadoFin.PlayerData[j]['valJornada']
-        dictJugs[j]['difPrecio'] = dictJugs[j]['precioFin'] - dictJugs[j]['precioIni']
+        aux['difPrecio'] = aux['precioFin'] - aux['precioIni']
 
-    for p in partidosOk:
-        for j in p.Jugadores:
-            if j in dictJugs:
-                for c in ['P', 'A', 'V', 'T3-C', 'REB-T']:
-                    dictJugs[j][c] = p.Jugadores[j]['estads'].get(c, 0)
-                dictJugs[j]['valSM'] = calculaValSuperManager(p.Jugadores[j]['estads'].get('V', 0),
-                                                              p.Jugadores[j]['haGanado'])
+        dictJugs[j] = aux
+
+    for j in jugadoresEnPartidos:
+        if j in dictJugs:
+            for c in ['P', 'A', 'V', 'T3-C', 'REB-T']:
+                dictJugs[j][c] = jugadoresEnPartidos[j]['estads'].get(c, 0)
+            dictJugs[j]['valSM'] = calculaValSuperManager(jugadoresEnPartidos[j]['estads'].get('V', 0),
+                                                          jugadoresEnPartidos[j]['haGanado'])
 
     indexPosCupo = buildPosCupoIndex()
     result = defaultdict(list)
@@ -436,7 +446,6 @@ def procesaArgumentos():
 
 def validateCombs(comb, cuentaGrupos, resultadosSM, jugadores):
     result = defaultdict(list)
-    aux = defaultdict(list)
     contStats = defaultdict(lambda: defaultdict(int))
 
     valoresPRINC = resultadosSM.valoresSM()[CLAVEPRINC]
@@ -446,10 +455,13 @@ def validateCombs(comb, cuentaGrupos, resultadosSM, jugadores):
     valoresQUIN = resultadosSM.valoresSM()[CLAVEQUIN]
     valoresSEX = resultadosSM.valoresSM()[CLAVESEX]
 
-    teamsRES = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda : defaultdict(list))))))
+    teamsRES = defaultdict(
+        lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(list))))))
 
     for t in resultadosSM.resultados:
-        teamsRES[resultadosSM.resultados[t][CLAVEPRINC]][resultadosSM.resultados[t][CLAVESEC]][resultadosSM.resultados[t][CLAVETERC]][resultadosSM.resultados[t][CLAVECUAT]][resultadosSM.resultados[t][CLAVEQUIN]][resultadosSM.resultados[t][CLAVESEX]].append(t)
+        teamsRES[resultadosSM.resultados[t][CLAVEPRINC]][resultadosSM.resultados[t][CLAVESEC]][
+            resultadosSM.resultados[t][CLAVETERC]][resultadosSM.resultados[t][CLAVECUAT]][
+            resultadosSM.resultados[t][CLAVEQUIN]][resultadosSM.resultados[t][CLAVESEX]].append(t)
 
     grToTest = {p: cuentaGrupos[p][x] for p, x in zip(POSICIONES, comb)}
     # print(grToTest)
@@ -488,7 +500,7 @@ def validateCombs(comb, cuentaGrupos, resultadosSM, jugadores):
                 contStats['SEC']['Nok'] += 1
                 continue
 
-            terCombsToTest = [se[x] for x,se in zip(prSEC,secCombsToTest)]
+            terCombsToTest = [se[x] for x, se in zip(prSEC, secCombsToTest)]
             prSets += prod([len(x) for x in terCombsToTest])
             contStats['TER']['Ini'] += prod([len(x) for x in terCombsToTest])
 
@@ -503,7 +515,7 @@ def validateCombs(comb, cuentaGrupos, resultadosSM, jugadores):
                     contStats['TER']['Nok'] += 1
                     continue
 
-                cuatCombsToTest = [se[x] for x,se in zip(prTERC,terCombsToTest)]
+                cuatCombsToTest = [se[x] for x, se in zip(prTERC, terCombsToTest)]
                 prSets += prod([len(x) for x in cuatCombsToTest])
                 contStats['CUA']['Ini'] += prod([len(x) for x in cuatCombsToTest])
 
@@ -518,7 +530,7 @@ def validateCombs(comb, cuentaGrupos, resultadosSM, jugadores):
                         contStats['CUA']['Nok'] += 1
                         continue
 
-                    quinCombsToTest = [se[x] for x,se in zip(prCUAT,cuatCombsToTest)]
+                    quinCombsToTest = [se[x] for x, se in zip(prCUAT, cuatCombsToTest)]
                     prSets += prod([len(x) for x in quinCombsToTest])
                     contStats['QUIN']['Ini'] += prod([len(x) for x in quinCombsToTest])
 
@@ -533,7 +545,7 @@ def validateCombs(comb, cuentaGrupos, resultadosSM, jugadores):
                             contStats['QUIN']['Nok'] += 1
                             continue
 
-                        sexCombsToTest = [se[x] for x,se in zip(prQUIN,quinCombsToTest)]
+                        sexCombsToTest = [se[x] for x, se in zip(prQUIN, quinCombsToTest)]
                         prSets += prod([len(x) for x in sexCombsToTest])
                         contStats['SEX']['Ini'] += prod([len(x) for x in sexCombsToTest])
 
@@ -548,9 +560,10 @@ def validateCombs(comb, cuentaGrupos, resultadosSM, jugadores):
                                 contStats['SEX']['Nok'] += 1
                                 continue
 
-                            finCombsToTest = [se[x] for x,se in zip(prSEX,sexCombsToTest)]
+                            finCombsToTest = [se[x] for x, se in zip(prSEX, sexCombsToTest)]
                             remainers += prod([len(x) for x in finCombsToTest])
-                            sol = list(zip(POSICIONES, comb, prPRINC, prSEC, prTERC, prCUAT, prQUIN, prSEX, [len(x) for x in finCombsToTest]))
+                            sol = list(zip(POSICIONES, comb, prPRINC, prSEC, prTERC, prCUAT, prQUIN, prSEX,
+                                           [len(x) for x in finCombsToTest]))
                             # continue
                             # print(asctime(), comb, "MID remainers", [len(x) for x in finCombsToTest])
                             for t in teamsToCheck:
@@ -563,13 +576,13 @@ def validateCombs(comb, cuentaGrupos, resultadosSM, jugadores):
                                 jugList = prFin[0].split("-") + prFin[1].split("-") + prFin[2].split("-")
                                 agr = agregaJugadores(jugList, jugadores)
                                 for t in teamsToCheck:
-                                    if resultadosSM.comparaAgregado(t,agr):
+                                    if resultadosSM.comparaAgregado(t, agr):
                                         print("Si!", comb, jugList)
                                         result[t].append(jugList)
 
-
     # print(asctime(), comb, "OUT", prOrig, prSets, len(result), {x:len(result[x]) for x in result})
-    print(asctime(), comb, "OUT", prOrig, prSets, prOrig / prSets, remainers, contStats, ) # {x:result[x] for x in result}
+    print(asctime(), comb, "OUT", prOrig, prSets, prOrig / prSets, remainers,
+          contStats, )  # {x:result[x] for x in result}
     return result
 
 
@@ -605,12 +618,15 @@ if __name__ == '__main__':
     resJornada = ResultadosJornadas(args.jornada, sm, excludelist=badTeams)
     # print(resJornada.__dict__) ; exit(1)
     # Valores de los resultados de la jornada
-    puntosSM = resJornada.valoresSM()
+    # puntosSM = resJornada.valoresSM()
 
     # Recupera los datos de los jugadores que han participado en la jornada
     indexes, posYcupos, jugadores = getPlayersByPosAndCupo(args.jornada, sm, temporada)
 
     validCombs = GeneraCombinaciones()
+    # Combinaciones con solución en J2
+    # validCombs = [[0, 0, 3, 0, 2, 2, 0, 2, 2], [0, 0, 3, 0, 2, 2, 0, 3, 1], [0, 0, 3, 0, 2, 2, 1, 2, 1],
+    #               [0, 0, 3, 0, 3, 1, 0, 2, 2], [0, 0, 3, 0, 3, 1, 1, 2, 1], [0, 0, 3, 1, 1, 2, 0, 3, 1]]
     groupedCombs = []
     cuentaGrupos = defaultdict(dict)
     lenPosCupos = [0] * 9
@@ -627,7 +643,7 @@ if __name__ == '__main__':
         for n in range(maxPosCupos[i] + 1):
             numCombsPosYCupos[i][n] = n_choose_m(lenPosCupos[i], n)
 
-    # Distribuciones de jugadores válidas por posición y cupo 
+    # Distribuciones de jugadores válidas por posición y cupo
     for c in validCombs:
         newComb = []
         for p in POSICIONES:
@@ -686,9 +702,11 @@ if __name__ == '__main__':
                 if agr[CLAVECUAT] not in colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]]:
                     colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]][agr[CLAVECUAT]] = dict()
                 if agr[CLAVEQUIN] not in colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]][agr[CLAVECUAT]]:
-                    colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]][agr[CLAVECUAT]][agr[CLAVEQUIN]] = defaultdict(list)
+                    colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]][agr[CLAVECUAT]][
+                        agr[CLAVEQUIN]] = defaultdict(list)
 
-                colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]][agr[CLAVECUAT]][agr[CLAVEQUIN]][agr[CLAVESEX]].append(claveJugs)
+                colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]][agr[CLAVECUAT]][agr[CLAVEQUIN]][
+                    agr[CLAVESEX]].append(claveJugs)
 
             cuentaGrupos[p][comb]['contSets'] = (len(colSets), max([len(x) for x in colSets.values()]))
             print(asctime(), p, comb, cuentaGrupos[p][comb])
@@ -734,4 +752,3 @@ if __name__ == '__main__':
 
     print(result)
     print(acumOrig, acumSets)
-    print(puntosSM)

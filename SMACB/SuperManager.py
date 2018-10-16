@@ -401,7 +401,6 @@ class ResultadosJornadas(object):
         self.resultados = defaultdict(dict)
         aux = defaultdict(lambda: defaultdict(list))
 
-
         for team in supermanager.jornadas[jornada].data:
             if team in excludelist:
                 continue
@@ -440,6 +439,7 @@ class ResultadosJornadas(object):
             if agregado[comp] != self.resultados[team][comp]:
                 return False
         return True
+
 
 def extractPrivateLeagues(content):
     forms = content.find_all("form", {"name": "listaprivadas"})
