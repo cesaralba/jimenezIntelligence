@@ -643,7 +643,7 @@ if __name__ == '__main__':
         for n in range(maxPosCupos[i] + 1):
             numCombsPosYCupos[i][n] = n_choose_m(lenPosCupos[i], n)
 
-    # Distribuciones de jugadores válidas por posición y cupo
+    # Distribuciones de jugadores válidas por posición y cupo.
     for c in validCombs:
         newComb = []
         for p in POSICIONES:
@@ -666,6 +666,7 @@ if __name__ == '__main__':
             print("   ", c, cuentaGrupos[p][c])
         print(sum([cuentaGrupos[p][x]['numCombs'] for x in cuentaGrupos[p]]))
 
+
     for p in POSICIONES:
         for comb in cuentaGrupos[p]:
             combList = []
@@ -686,27 +687,8 @@ if __name__ == '__main__':
                     for j in gr:
                         aux.append(j)
                 listFin.append(aux)
-            # cuentaGrupos[p][comb]['combJugs'] = listFin
-            # TODO: cuentaGrupos[p][comb]['setVals'] = set()
-
-            colSets = dict()
-            for c in listFin:
-                agr = agregaJugadores(c, jugadores)
-                claveJugs = "-".join(c)
-                if agr[CLAVEPRINC] not in colSets:
-                    colSets[agr[CLAVEPRINC]] = dict()
-                if agr[CLAVESEC] not in colSets[agr[CLAVEPRINC]]:
-                    colSets[agr[CLAVEPRINC]][agr[CLAVESEC]] = dict()
-                if agr[CLAVETERC] not in colSets[agr[CLAVEPRINC]][agr[CLAVESEC]]:
-                    colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]] = dict()
-                if agr[CLAVECUAT] not in colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]]:
-                    colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]][agr[CLAVECUAT]] = dict()
-                if agr[CLAVEQUIN] not in colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]][agr[CLAVECUAT]]:
-                    colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]][agr[CLAVECUAT]][
-                        agr[CLAVEQUIN]] = defaultdict(list)
-
-                colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]][agr[CLAVECUAT]][agr[CLAVEQUIN]][
-                    agr[CLAVESEX]].append(claveJugs)
+                agr = agregaJugadores(aux, jugadores)
+                claveJugs = "-".join(aux)
 
             cuentaGrupos[p][comb]['contSets'] = (len(colSets), max([len(x) for x in colSets.values()]))
             print(asctime(), p, comb, cuentaGrupos[p][comb])
