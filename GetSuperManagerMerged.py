@@ -15,16 +15,20 @@ if __name__ == '__main__':
     parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, default=0)
     parser.add('-d', dest='debug', action="store_true", env_var='SM_DEBUG', required=False, default=False)
 
-    parser.add('-i', dest='infile', type=str, env_var='SM_INFILE', required=False)
+    parser.add('-i', dest='infile', type=str, env_var='SM_INFILE', required=True)
     parser.add('-o', dest='outfile', type=str, env_var='SM_OUTFILE', required=False)
-    parser.add('-t', dest='temporada', type=str, env_var='SM_TEMPORADA', required=False)
+    parser.add('-t', dest='temporada', type=str, env_var='SM_TEMPORADA', required=True)
     parser.add('-l', dest='league', type=str, env_var='SM_LEAGUE', required=False, default=None)
+
+    parser.add('-m', dest='diffUltJornada', action="store_true", env_var='SM_DIFFJORNADA', required=False,
+               default=False)
+    parser.add('-y', dest='diffAyer', action="store_true", env_var='SM_DIFFAYER', required=False, default=False)
 
     parser.add('-j', dest='jornada', type=str, env_var='SM_JORNADA', required=False, default=None)
 
     args = parser.parse_args()
 
-    browser = StatefulBrowser(soup_config={'features': "html.parser"}, raise_on_404=True, user_agent="SMparser",)
+    browser = StatefulBrowser(soup_config={'features': "html.parser"}, raise_on_404=True, user_agent="SMparser", )
     if 'verbose' in args:
         browser.set_verbose(args.verbose)
 
@@ -41,8 +45,12 @@ if __name__ == '__main__':
         temporada = TemporadaACB()
         temporada.cargaTemporada(args.temporada)
 
-    # sm = SuperManagerACB(config=args)
-    ultMercado = sm.ultimoMercado
+    mercadoRef = None
+    if 'diffUltJornada' in args and args.diffUltJornada and sm.mercadoJornada:
+        mercadoRef = sm.mercadoJornada[max(sm.mercadoJornada)]
+    elif 'diffAyer' in args and args.diffAyer and sm.mercado:
+        mercadoRef = sm.ultimoMercado
+
     sm.Connect(browser=browser, config=args, datosACB=temporada)
 
     sm.getSMstatus(browser=browser, config=args)
@@ -51,5 +59,5 @@ if __name__ == '__main__':
         print("There were changes!")
         sm.saveData(args.outfile)
 
-    if ultMercado != sm.ultimoMercado:
-        print(sm.mercado[ultMercado].diff(sm.mercado[sm.ultimoMercado]))
+    if mercadoRef is not None and mercadoRef != sm.ultimoMercado:
+        print(sm.mercado[mercadoRef].diff(sm.mercado[sm.ultimoMercado]))
