@@ -7,6 +7,7 @@ from time import gmtime
 
 import mechanicalsoup
 import pandas as pd
+from babel.numbers import decimal
 from bs4 import BeautifulSoup
 from mechanicalsoup import LinkNotFoundError
 
@@ -399,21 +400,25 @@ class ResultadosJornadas(object):
 
     def __init__(self, jornada, supermanager, excludelist=set()):
         self.resultados = defaultdict(dict)
+        self.types = {'asistencias': int, 'broker': int, 'key': str, 'puntos': int, 'rebotes': int, 'triples': int,
+                      'valJornada': decimal.Decimal}
         aux = defaultdict(lambda: defaultdict(list))
 
         for team in supermanager.jornadas[jornada].data:
             if team in excludelist:
                 continue
-            self.resultados[team]['valJornada'] = supermanager.jornadas[jornada].data[team]['value']
-            aux['valJornada'][supermanager.jornadas[jornada].data[team]['value']].append(team)
+            self.resultados[team]['valJornada'] = (self.types['valJornada'])(
+                supermanager.jornadas[jornada].data[team]['value'])
+            aux['valJornada'][self.resultados[team]['valJornada']].append(team)
 
             for comp in ['puntos', 'rebotes', 'triples', 'asistencias', 'broker']:
                 if jornada in supermanager.__getattribute__(comp):
                     if jornada == 1 or jornada - 1 in supermanager.__getattribute__(comp):
-                        self.resultados[team][comp] = supermanager.__getattribute__(comp)[jornada].data[team]['value']
+                        self.resultados[team][comp] = (self.types[comp])(
+                            supermanager.__getattribute__(comp)[jornada].data[team]['value'])
                         if jornada != 1:
                             self.resultados[team][comp] -= \
-                                supermanager.__getattribute__(comp)[jornada - 1].data[team]['value']
+                                (self.types[comp])(supermanager.__getattribute__(comp)[jornada - 1].data[team]['value'])
                             aux[comp][self.resultados[team][comp]].append(team)
 
         self.valor2team = dict()
@@ -439,6 +444,27 @@ class ResultadosJornadas(object):
             if agregado[comp] != self.resultados[team][comp]:
                 return False
         return True
+
+    def toDF(self, ctx):
+        from pyspark.sql import Row
+        from pyspark.sql.types import StructField, DecimalType, StringType, StructType, LongType
+
+        aux = dict(self.resultados)
+        for x in aux:
+            aux[x]['key'] = x
+
+        resJschema = StructType([StructField('asistencias', LongType(), True),
+                                 StructField('broker', LongType(), True),
+                                 StructField('key', StringType(), True),
+                                 StructField('puntos', LongType(), True),
+                                 StructField('rebotes', LongType(), True),
+                                 StructField('triples', LongType(), True),
+                                 StructField('valJornada', DecimalType(5, 2), True)
+                                 ])
+
+        auxRDD = ctx.parallelize([Row(**x) for x in aux.values()])
+
+        return auxRDD.toDF(resJschema)
 
 
 def extractPrivateLeagues(content):
