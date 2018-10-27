@@ -6,13 +6,13 @@ from statistics import mean, median, stdev
 from time import gmtime, mktime, strftime, time
 
 from configargparse import ArgumentParser
-from pandas import ExcelWriter
+from pandas import DataFrame, ExcelWriter
 
 from SMACB.ManageSMDataframes import (CATMERCADOFINAL, COLSPREC,
                                       calculaDFcategACB, calculaDFconVars,
                                       calculaDFprecedentes)
 from SMACB.PartidoACB import PartidoACB
-from SMACB.SMconstants import POSICIONES, PRECIOpunto
+from SMACB.SMconstants import MINPRECIO, POSICIONES, PRECIOpunto
 from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB, calculaVars, calculaZ
 from Utils.Misc import FORMATOtimestamp, SubSet
@@ -165,7 +165,8 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
         dfTemporada = temporada.extraeDataframeJugadores().merge(dfSuperManager[['codigo', 'pos']], how='left')
         # All data fall playrs
         dfUltMerc = supermanager.mercado[supermanager.ultimoMercado].mercado2dataFrame()
-        dfUltMerc['precObj'] = dfUltMerc['promVal'] * PRECIOpunto
+        auxPrecioObj = DataFrame({'obj': (dfUltMerc['promVal'] * PRECIOpunto), 'min': MINPRECIO}).max(axis=1)
+        dfUltMerc['precObj'] = auxPrecioObj
         dfUltMerc['distAObj'] = dfUltMerc['precio'] - dfUltMerc['precObj']
 
         dfUltMerc['activo'] = True
