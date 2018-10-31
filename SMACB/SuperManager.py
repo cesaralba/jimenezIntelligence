@@ -421,10 +421,14 @@ class ResultadosJornadas(object):
             self.updateVal2Team()
 
     def updateVal2Team(self):
-        self.valor2team = defaultdict(lambda: defaultdict(set))
+        aux = defaultdict(lambda: defaultdict(set))
         for e in self.resultados:
             for k in self.resultados[e]:
-                self.valor2team[k][self.resultados[e][k]].add(e)
+                aux[k][self.resultados[e][k]].add(e)
+
+        self.valor2team=dict()
+        for k in aux:
+            self.valor2team[k] = dict(aux[k])
 
     def puntos2team(self, comp, valor):
         if valor not in self.valor2team[comp]:
