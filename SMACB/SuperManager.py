@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from collections import defaultdict
-from copy import copy
+from collections import Iterable, defaultdict
+from copy import copy, deepcopy
 from pickle import dump, load
 from time import gmtime
 
@@ -402,14 +402,12 @@ class ResultadosJornadas(object):
         self.resultados = defaultdict(dict)
         self.types = {'asistencias': int, 'broker': int, 'key': str, 'puntos': int, 'rebotes': int, 'triples': int,
                       'valJornada': decimal.Decimal}
-        aux = defaultdict(lambda: defaultdict(list))
 
         for team in supermanager.jornadas[jornada].data:
             if team in excludelist:
                 continue
             self.resultados[team]['valJornada'] = (self.types['valJornada'])(
                 supermanager.jornadas[jornada].data[team]['value'])
-            aux['valJornada'][self.resultados[team]['valJornada']].append(team)
 
             for comp in ['puntos', 'rebotes', 'triples', 'asistencias', 'broker']:
                 if jornada in supermanager.__getattribute__(comp):
@@ -419,11 +417,14 @@ class ResultadosJornadas(object):
                         if jornada != 1:
                             self.resultados[team][comp] -= \
                                 (self.types[comp])(supermanager.__getattribute__(comp)[jornada - 1].data[team]['value'])
-                            aux[comp][self.resultados[team][comp]].append(team)
 
-        self.valor2team = dict()
-        for x in aux:
-            self.valor2team[x] = dict(aux[x])
+            self.updateVal2Team()
+
+    def updateVal2Team(self):
+        self.valor2team = defaultdict(lambda: defaultdict(set))
+        for e in self.resultados:
+            for k in self.resultados[e]:
+                self.valor2team[k][self.resultados[e][k]].add(e)
 
     def puntos2team(self, comp, valor):
         if valor not in self.valor2team[comp]:
@@ -465,6 +466,30 @@ class ResultadosJornadas(object):
         auxRDD = ctx.parallelize([Row(**x) for x in aux.values()])
 
         return auxRDD.toDF(resJschema)
+
+    def listaEquipos(self):
+        return list(self.resultados.keys())
+
+    def reduceLista(self, equipo):
+        if isinstance(equipo, str):
+            teams2add = [equipo]
+        elif isinstance(equipo, Iterable):
+            teams2add = equipo
+        else:
+            raise(TypeError, "reduceLista: tipo incorrecto para 'equipos'")
+
+        equiposFallan = [e for e in teams2add if e not in self.resultados]
+
+        if equiposFallan:
+            raise(ValueError, "%s no están en la liga." % ", ".join(equiposFallan))
+
+        result = deepcopy(self)
+        for e in self.listaEquipos():
+            if e not in teams2add:
+                result.resultados.pop(e)
+        result.updateVal2Team()
+
+        return result
 
 
 def extractPrivateLeagues(content):
