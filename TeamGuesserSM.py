@@ -15,17 +15,11 @@ from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.CombinacionesConCupos import GeneraCombinaciones, calculaClaveComb
 from Utils.combinatorics import n_choose_m, prod
-from Utils.Misc import FORMATOtimestamp
+from Utils.Misc import FORMATOtimestamp, deepDict, deepDictSet
 
-NJOBS = 3
-CLAVEPRINC = 'asistencias'
-CLAVESEC = 'triples'
-CLAVETERC = 'rebotes'
-CLAVECUAT = 'puntos'
-CLAVEQUIN = 'valJornada'
-CLAVESEX = 'broker'
+NJOBS = 2
 
-SEQCLAVES = ['asistencias', 'triples', 'rebotes', 'puntos']
+SEQCLAVES = ['asistencias', 'triples', 'rebotes', 'puntos', 'valJornada', 'broker']
 
 
 def listaPosiciones():
@@ -47,146 +41,173 @@ def procesaArgumentos():
     return args
 
 
-def validateCombs(comb, cuentaGrupos, resultadosSM, jugadores):
-    result = defaultdict(list)
-    contStats = defaultdict(lambda: defaultdict(int))
+def validateCombs(comb, cuentaGrupos, resultadosSM):
+    result = []
 
-    valoresPRINC = resultadosSM.valoresSM()[CLAVEPRINC]
-    valoresSEC = resultadosSM.valoresSM()[CLAVESEC]
-    valoresTERC = resultadosSM.valoresSM()[CLAVETERC]
-    valoresCUAT = resultadosSM.valoresSM()[CLAVECUAT]
-    valoresQUIN = resultadosSM.valoresSM()[CLAVEQUIN]
-    valoresSEX = resultadosSM.valoresSM()[CLAVESEX]
+    print(asctime(), comb, "IN ")
 
-    teamsRES = defaultdict(
-        lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: defaultdict(list))))))
-
-    for t in resultadosSM.resultados:
-        teamsRES[resultadosSM.resultados[t][CLAVEPRINC]][resultadosSM.resultados[t][CLAVESEC]][
-            resultadosSM.resultados[t][CLAVETERC]][resultadosSM.resultados[t][CLAVECUAT]][
-            resultadosSM.resultados[t][CLAVEQUIN]][resultadosSM.resultados[t][CLAVESEX]].append(t)
+    teamsRES = resultadosSM.resultados
 
     grToTest = {p: cuentaGrupos[p][x] for p, x in zip(POSICIONES, comb)}
-    # print(grToTest)
-    prSets = prod([x['contSets'][0] for x in grToTest.values()])
-    prOrig = prod([x['numCombs'] for x in grToTest.values()])
-    remainers = 0
 
-    if prSets == 0:
-        print(grToTest)
-        exit(1)
-    print(asctime(), comb, "IN ", prOrig, prSets)
+    teamsOk = list(teamsRES.keys())
+    claves = SEQCLAVES.copy()
 
-    # ['cont', 'comb', 'numCombs', 'indexes', 'pos', 'key', 'contSets', 'valSets', 'combJugs']
-    combVals = [grToTest[x]['valSets'] for x in POSICIONES]
-    contStats['PRI']['Ini'] += prod([len(x) for x in combVals])
+    combVals = [grToTest[p]['valSets'] for p in POSICIONES]
 
-    for prPRINC in product(*combVals):
-        sumPRINC = sum(prPRINC)
+    def ValidaCombinacion(arbolSols, claves, listaSupervivientes, resEquipos, curSol):
+        if len(claves) == 0:
+            return
 
-        if sumPRINC not in valoresPRINC:
-            contStats['PRI']['Nok'] += 1
-            continue
+        claveAct = claves[0]
 
-        secCombsToTest = [grToTest[p]['valSets'][x] for x, p in zip(prPRINC, POSICIONES)]
-        prSets += prod([len(x) for x in secCombsToTest])
-        contStats['SEC']['Ini'] += prod([len(x) for x in secCombsToTest])
+        valoresOK = {resEquipos[e][claveAct] for e in listaSupervivientes}
 
-        for prSEC in product(*secCombsToTest):
-            sumSEC = sum(prSEC)
-            if sumSEC not in valoresSEC:
-                contStats['SEC']['Nok'] += 1
-                continue
-            teamsToCheck = teamsRES[sumPRINC][sumSEC]
+        for prodKey in product(*arbolSols):
+            sumKey = sum(prodKey)
 
-            if not teamsToCheck:
-                contStats['SEC']['Nok'] += 1
+            if sumKey not in valoresOK:
+                # print("NO ",claveAct, prodKey,sumKey, valoresOK, curSol)
                 continue
 
-            terCombsToTest = [se[x] for x, se in zip(prSEC, secCombsToTest)]
-            prSets += prod([len(x) for x in terCombsToTest])
-            contStats['TER']['Ini'] += prod([len(x) for x in terCombsToTest])
+            # print("SI ",claveAct, prodKey,sumKey, valoresOK, curSol)
+            nuevosSuperv = [t for t in resEquipos if resEquipos[t][claveAct] == sumKey]
+            nuevosCombVals = [c[v] for c, v in zip(arbolSols, prodKey)]
 
-            for prTERC in product(*terCombsToTest):
-                sumTERC = sum(prTERC)
-                if sumTERC not in valoresTERC:
-                    contStats['TER']['Nok'] += 1
+            # print("SI ",claveAct, prodKey,sumKey, valoresOK, curSol)
+
+            if len(claves) == 1:
+                nuevaSol = curSol + [prodKey]
+                valsSol = zip(*nuevaSol)
+                dictSol = dict(zip(comb, valsSol))
+                regSol = (nuevosSuperv, dictSol, prod([x for x in nuevosCombVals]))
+                result.append(regSol)
+                print(asctime(), "Sol", nuevosSuperv, regSol)
+                continue
+            else:
+                deeperSol = curSol + [prodKey]
+                deeper = ValidaCombinacion(nuevosCombVals, claves[1:], nuevosSuperv, resEquipos, deeperSol)
+                if deeper is None:
                     continue
-                teamsToCheck = teamsRES[sumPRINC][sumSEC][sumTERC]
 
-                if not teamsToCheck:
-                    contStats['TER']['Nok'] += 1
-                    continue
+    ValidaCombinacion(combVals, claves, teamsOk, teamsRES, [])
 
-                cuatCombsToTest = [se[x] for x, se in zip(prTERC, terCombsToTest)]
-                prSets += prod([len(x) for x in cuatCombsToTest])
-                contStats['CUA']['Ini'] += prod([len(x) for x in cuatCombsToTest])
+    print(asctime(), comb, "OUT", len(result))
 
-                for prCUAT in product(*cuatCombsToTest):
-                    sumCUAT = sum(prCUAT)
-                    if sumCUAT not in valoresCUAT:
-                        contStats['CUA']['Nok'] += 1
-                        continue
-                    teamsToCheck = teamsRES[sumPRINC][sumSEC][sumTERC][sumCUAT]
-
-                    if not teamsToCheck:
-                        contStats['CUA']['Nok'] += 1
-                        continue
-
-                    quinCombsToTest = [se[x] for x, se in zip(prCUAT, cuatCombsToTest)]
-                    prSets += prod([len(x) for x in quinCombsToTest])
-                    contStats['QUIN']['Ini'] += prod([len(x) for x in quinCombsToTest])
-
-                    for prQUIN in product(*quinCombsToTest):
-                        sumQUIN = sum(prQUIN)
-                        if sumQUIN not in valoresQUIN:
-                            contStats['QUIN']['Nok'] += 1
-                            continue
-                        teamsToCheck = teamsRES[sumPRINC][sumSEC][sumTERC][sumCUAT][sumQUIN]
-
-                        if not teamsToCheck:
-                            contStats['QUIN']['Nok'] += 1
-                            continue
-
-                        sexCombsToTest = [se[x] for x, se in zip(prQUIN, quinCombsToTest)]
-                        prSets += prod([len(x) for x in sexCombsToTest])
-                        contStats['SEX']['Ini'] += prod([len(x) for x in sexCombsToTest])
-
-                        for prSEX in product(*sexCombsToTest):
-                            sumSEX = sum(prSEX)
-                            if sumSEX not in valoresSEX:
-                                contStats['SEX']['Nok'] += 1
-                                continue
-                            teamsToCheck = teamsRES[sumPRINC][sumSEC][sumTERC][sumCUAT][sumQUIN][sumSEX]
-
-                            if not teamsToCheck:
-                                contStats['SEX']['Nok'] += 1
-                                continue
-
-                            finCombsToTest = [se[x] for x, se in zip(prSEX, sexCombsToTest)]
-                            remainers += prod([len(x) for x in finCombsToTest])
-                            sol = list(zip(POSICIONES, comb, prPRINC, prSEC, prTERC, prCUAT, prQUIN, prSEX,
-                                           [len(x) for x in finCombsToTest]))
-                            # continue
-                            # print(asctime(), comb, "MID remainers", [len(x) for x in finCombsToTest])
-                            for t in teamsToCheck:
-                                print("Si!", comb, t, sol)
-                                result[t].append(sol)
-
-                            continue
-
-                            for prFin in product(*finCombsToTest):
-                                jugList = prFin[0].split("-") + prFin[1].split("-") + prFin[2].split("-")
-                                agr = agregaJugadores(jugList, jugadores)
-                                for t in teamsToCheck:
-                                    if resultadosSM.comparaAgregado(t, agr):
-                                        print("Si!", comb, jugList)
-                                        result[t].append(jugList)
-
-    # print(asctime(), comb, "OUT", prOrig, prSets, len(result), {x:len(result[x]) for x in result})
-    print(asctime(), comb, "OUT", prOrig, prSets, prOrig / prSets, remainers,
-          contStats, )  # {x:result[x] for x in result}
     return result
+
+    # print(asctime(), comb, "IN ")
+    #
+    # # ['cont', 'comb', 'numCombs', 'indexes', 'pos', 'key', 'contSets', 'valSets', 'combJugs']
+    #
+    # contStats['PRI']['Ini'] += prod([len(x) for x in combVals])
+    #
+    # for prPRINC in product(*combVals):
+    #     sumPRINC = sum(prPRINC)
+    #
+    #     if sumPRINC not in valoresPRINC:
+    #         contStats['PRI']['Nok'] += 1
+    #         continue
+    #
+    #     secCombsToTest = [grToTest[p]['valSets'][x] for x, p in zip(prPRINC, POSICIONES)]
+    #     prSets += prod([len(x) for x in secCombsToTest])
+    #     contStats['SEC']['Ini'] += prod([len(x) for x in secCombsToTest])
+    #
+    #     for prSEC in product(*secCombsToTest):
+    #         sumSEC = sum(prSEC)
+    #         if sumSEC not in valoresSEC:
+    #             contStats['SEC']['Nok'] += 1
+    #             continue
+    #         teamsToCheck = teamsRES[sumPRINC][sumSEC]
+    #
+    #         if not teamsToCheck:
+    #             contStats['SEC']['Nok'] += 1
+    #             continue
+    #
+    #         terCombsToTest = [se[x] for x, se in zip(prSEC, secCombsToTest)]
+    #         prSets += prod([len(x) for x in terCombsToTest])
+    #         contStats['TER']['Ini'] += prod([len(x) for x in terCombsToTest])
+    #
+    #         for prTERC in product(*terCombsToTest):
+    #             sumTERC = sum(prTERC)
+    #             if sumTERC not in valoresTERC:
+    #                 contStats['TER']['Nok'] += 1
+    #                 continue
+    #             teamsToCheck = teamsRES[sumPRINC][sumSEC][sumTERC]
+    #
+    #             if not teamsToCheck:
+    #                 contStats['TER']['Nok'] += 1
+    #                 continue
+    #
+    #             cuatCombsToTest = [se[x] for x, se in zip(prTERC, terCombsToTest)]
+    #             prSets += prod([len(x) for x in cuatCombsToTest])
+    #             contStats['CUA']['Ini'] += prod([len(x) for x in cuatCombsToTest])
+    #
+    #             for prCUAT in product(*cuatCombsToTest):
+    #                 sumCUAT = sum(prCUAT)
+    #                 if sumCUAT not in valoresCUAT:
+    #                     contStats['CUA']['Nok'] += 1
+    #                     continue
+    #                 teamsToCheck = teamsRES[sumPRINC][sumSEC][sumTERC][sumCUAT]
+    #
+    #                 if not teamsToCheck:
+    #                     contStats['CUA']['Nok'] += 1
+    #                     continue
+    #
+    #                 quinCombsToTest = [se[x] for x, se in zip(prCUAT, cuatCombsToTest)]
+    #                 prSets += prod([len(x) for x in quinCombsToTest])
+    #                 contStats['QUIN']['Ini'] += prod([len(x) for x in quinCombsToTest])
+    #
+    #                 for prQUIN in product(*quinCombsToTest):
+    #                     sumQUIN = sum(prQUIN)
+    #                     if sumQUIN not in valoresQUIN:
+    #                         contStats['QUIN']['Nok'] += 1
+    #                         continue
+    #                     teamsToCheck = teamsRES[sumPRINC][sumSEC][sumTERC][sumCUAT][sumQUIN]
+    #
+    #                     if not teamsToCheck:
+    #                         contStats['QUIN']['Nok'] += 1
+    #                         continue
+    #
+    #                     sexCombsToTest = [se[x] for x, se in zip(prQUIN, quinCombsToTest)]
+    #                     prSets += prod([len(x) for x in sexCombsToTest])
+    #                     contStats['SEX']['Ini'] += prod([len(x) for x in sexCombsToTest])
+    #
+    #                     for prSEX in product(*sexCombsToTest):
+    #                         sumSEX = sum(prSEX)
+    #                         if sumSEX not in valoresSEX:
+    #                             contStats['SEX']['Nok'] += 1
+    #                             continue
+    #                         teamsToCheck = teamsRES[sumPRINC][sumSEC][sumTERC][sumCUAT][sumQUIN][sumSEX]
+    #
+    #                         if not teamsToCheck:
+    #                             contStats['SEX']['Nok'] += 1
+    #                             continue
+    #
+    #                         finCombsToTest = [se[x] for x, se in zip(prSEX, sexCombsToTest)]
+    #                         remainers += prod([len(x) for x in finCombsToTest])
+    #                         sol = list(zip(POSICIONES, comb, prPRINC, prSEC, prTERC, prCUAT, prQUIN, prSEX,
+    #                                        [len(x) for x in finCombsToTest]))
+    #                         # continue
+    #                         # print(asctime(), comb, "MID remainers", [len(x) for x in finCombsToTest])
+    #                         for t in teamsToCheck:
+    #                             print("Si!", comb, t, sol)
+    #                             result[t].append(sol)
+    #
+    #                         continue
+    #
+    #                         for prFin in product(*finCombsToTest):
+    #                             jugList = prFin[0].split("-") + prFin[1].split("-") + prFin[2].split("-")
+    #                             agr = agregaJugadores(jugList, jugadores)
+    #                             for t in teamsToCheck:
+    #                                 if resultadosSM.comparaAgregado(t, agr):
+    #                                     print("Si!", comb, jugList)
+    #                                     result[t].append(jugList)
+    #
+    # # print(asctime(), comb, "OUT", prOrig, prSets, len(result), {x:len(result[x]) for x in result})
+    # print(asctime(), comb, "OUT", prOrig, prSets, prOrig / prSets, remainers,
+    #       contStats, )  # {x:result[x] for x in result}
+    # return result
 
 
 if __name__ == '__main__':
@@ -215,7 +236,7 @@ if __name__ == '__main__':
     # puntosSM = resJornada.valoresSM()
 
     # Recupera los datos de los jugadores que han participado en la jornada
-    indexes, posYcupos, jugadores = getPlayersByPosAndCupoJornada(args.jornada, sm, temporada)
+    indexes, posYcupos, jugadores, lenPosCupos = getPlayersByPosAndCupoJornada(args.jornada, sm, temporada)
 
     validCombs = GeneraCombinaciones()
     # Combinaciones con solución en J2
@@ -223,13 +244,11 @@ if __name__ == '__main__':
     #               [0, 0, 3, 0, 3, 1, 0, 2, 2], [0, 0, 3, 0, 3, 1, 1, 2, 1], [0, 0, 3, 1, 1, 2, 0, 3, 1]]
     groupedCombs = []
     cuentaGrupos = defaultdict(dict)
-    lenPosCupos = [0] * 9
     maxPosCupos = [0] * 9
     numCombsPosYCupos = [[]] * 9
     combsPosYCupos = [[]] * 9
 
     for i in posYcupos:
-        lenPosCupos[i] = len(posYcupos[i])
         maxPosCupos[i] = max([x[i] for x in validCombs])
         numCombsPosYCupos[i] = [0] * (maxPosCupos[i] + 1)
         combsPosYCupos[i] = [None] * (maxPosCupos[i] + 1)
@@ -273,40 +292,29 @@ if __name__ == '__main__':
                 if n != 0:
                     combList.append(combsPosYCupos[i][n])
 
-            listFin = []
+            colSets = dict()
             for pr in product(*combList):
                 aux = []
                 for gr in pr:
                     for j in gr:
                         aux.append(j)
-                listFin.append(aux)
+
+                agr = agregaJugadores(aux, jugadores)
+                claveJugs = "-".join(c)
+                indexComb = [agr[k] for k in SEQCLAVES]
+
             # cuentaGrupos[p][comb]['combJugs'] = listFin
             # TODO: cuentaGrupos[p][comb]['setVals'] = set()
 
-            colSets = dict()
-            for c in listFin:
-                agr = agregaJugadores(c, jugadores)
-                claveJugs = "-".join(c)
-                if agr[CLAVEPRINC] not in colSets:
-                    colSets[agr[CLAVEPRINC]] = dict()
-                if agr[CLAVESEC] not in colSets[agr[CLAVEPRINC]]:
-                    colSets[agr[CLAVEPRINC]][agr[CLAVESEC]] = dict()
-                if agr[CLAVETERC] not in colSets[agr[CLAVEPRINC]][agr[CLAVESEC]]:
-                    colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]] = dict()
-                if agr[CLAVECUAT] not in colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]]:
-                    colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]][agr[CLAVECUAT]] = dict()
-                if agr[CLAVEQUIN] not in colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]][agr[CLAVECUAT]]:
-                    colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]][agr[CLAVECUAT]][
-                        agr[CLAVEQUIN]] = defaultdict(list)
-
-                colSets[agr[CLAVEPRINC]][agr[CLAVESEC]][agr[CLAVETERC]][agr[CLAVECUAT]][agr[CLAVEQUIN]][
-                    agr[CLAVESEX]].append(claveJugs)
+                deepDictSet(colSets, indexComb, deepDict(colSets, indexComb, int) + 1)
 
             cuentaGrupos[p][comb]['contSets'] = (len(colSets), max([len(x) for x in colSets.values()]))
             print(asctime(), p, comb, cuentaGrupos[p][comb])
 
             cuentaGrupos[p][comb]['valSets'] = colSets
-            cuentaGrupos[p][comb]['combJugs'] = listFin
+            # print(colSets)
+
+            # TODO: Escribir las combinaciones de jug + agr en algún sitio para poder hacer la recomb final
 
     acumSets = 0
     acumOrig = 0
@@ -318,7 +326,7 @@ if __name__ == '__main__':
     subset = [['0-0-3', '0-2-2', '0-3-1']]
 
     result = Parallel(n_jobs=NJOBS)(
-        delayed(validateCombs)(c, cuentaGrupos, resJornada, jugadores) for c in groupedCombs)
+        delayed(validateCombs)(c, cuentaGrupos, resJornada) for c in groupedCombs)
 
     # for c in groupedCombs:
     #     # print(c)
