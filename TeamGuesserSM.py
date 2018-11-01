@@ -3,7 +3,7 @@
 
 from collections import defaultdict
 from itertools import product
-from time import asctime, strftime
+from time import asctime, strftime, time
 
 from configargparse import ArgumentParser
 from joblib import Parallel, delayed
@@ -41,37 +41,36 @@ def procesaArgumentos():
     return args
 
 
-def validateCombs(comb, cuentaGrupos, resultadosSM):
+def validateCombs(comb, cuentaGrupos, resultadosSM, equipo):
     result = []
 
-    print(asctime(), comb, "IN ")
-
-    teamsRES = resultadosSM.resultados
+    resEQ = resultadosSM.resultados[equipo]
 
     grToTest = {p: cuentaGrupos[p][x] for p, x in zip(POSICIONES, comb)}
 
-    teamsOk = list(teamsRES.keys())
     claves = SEQCLAVES.copy()
+    contExcl = defaultdict(lambda : defaultdict(int))
 
     combVals = [grToTest[p]['valSets'] for p in POSICIONES]
 
-    def ValidaCombinacion(arbolSols, claves, listaSupervivientes, resEquipos, curSol):
+    def ValidaCombinacion(arbolSols, claves, val2match, curSol):
         if len(claves) == 0:
             return
 
         claveAct = claves[0]
 
-        valoresOK = {resEquipos[e][claveAct] for e in listaSupervivientes}
-
         for prodKey in product(*arbolSols):
             sumKey = sum(prodKey)
 
-            if sumKey not in valoresOK:
+            if sumKey != val2match[claveAct]:
+                contExcl[claveAct]['out'] += 1
+                contExcl['depth'][len(claves)] += 1
                 # print("NO ",claveAct, prodKey,sumKey, valoresOK, curSol)
                 continue
 
+            contExcl[claveAct]['in'] += 1
+
             # print("SI ",claveAct, prodKey,sumKey, valoresOK, curSol)
-            nuevosSuperv = [t for t in resEquipos if resEquipos[t][claveAct] == sumKey]
             nuevosCombVals = [c[v] for c, v in zip(arbolSols, prodKey)]
 
             # print("SI ",claveAct, prodKey,sumKey, valoresOK, curSol)
@@ -80,19 +79,28 @@ def validateCombs(comb, cuentaGrupos, resultadosSM):
                 nuevaSol = curSol + [prodKey]
                 valsSol = zip(*nuevaSol)
                 dictSol = dict(zip(comb, valsSol))
-                regSol = (nuevosSuperv, dictSol, prod([x for x in nuevosCombVals]))
+                regSol = (equipo, dictSol, prod([x for x in nuevosCombVals]))
                 result.append(regSol)
-                print(asctime(), "Sol", nuevosSuperv, regSol)
+                print(asctime(), "Sol", val2match, equipo, regSol)
                 continue
             else:
                 deeperSol = curSol + [prodKey]
-                deeper = ValidaCombinacion(nuevosCombVals, claves[1:], nuevosSuperv, resEquipos, deeperSol)
+                deeper = ValidaCombinacion(nuevosCombVals, claves[1:], val2match, deeperSol)
                 if deeper is None:
                     continue
 
-    ValidaCombinacion(combVals, claves, teamsOk, teamsRES, [])
+    numCombs = prod([grToTest[p]['numCombs'] for p in POSICIONES])
+    print(asctime(), e, comb, "IN  ",numCombs)
+    timeIn = time()
+    ValidaCombinacion(combVals, claves, resEQ, [])
+    timeOut = time()
+    durac = timeOut - timeIn
+    # estadDesc = [{k:dict(dict(contExcl).get(k,{}))} for k in claves]
+    numEqs = sum([eq[-1] for eq in result])
+    descIn = sum([ contExcl[k]['in'] for k in claves])
+    descOut = sum([ contExcl[k]['out'] for k in claves])
 
-    print(asctime(), comb, "OUT", len(result))
+    print(asctime(), e, comb, "OUT ", len(result), numEqs, durac, (descIn,descOut), "%.4f" % (100.0* float(descIn+descOut)/float(numCombs) ), dict(contExcl['depth']))
 
     return result
 
@@ -325,8 +333,14 @@ if __name__ == '__main__':
     subSet = groupedCombs[0:2]
     subset = [['0-0-3', '0-2-2', '0-3-1']]
 
-    result = Parallel(n_jobs=NJOBS)(
-        delayed(validateCombs)(c, cuentaGrupos, resJornada) for c in groupedCombs)
+    resultado = defaultdict(list)
+    for e in resJornada.listaEquipos():
+
+        result = Parallel(n_jobs=NJOBS)(
+            delayed(validateCombs)(c, cuentaGrupos, resJornada, e) for c in groupedCombs)
+
+        resultado[e] = result
+
 
     # for c in groupedCombs:
     #     # print(c)
@@ -353,5 +367,5 @@ if __name__ == '__main__':
     #
     #
 
-    print(result)
-    print(acumOrig, acumSets)
+    print(resultado)
+    #print(acumOrig, acumSets)
