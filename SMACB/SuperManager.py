@@ -400,14 +400,21 @@ class ResultadosJornadas(object):
 
     def __init__(self, jornada, supermanager, excludelist=set()):
         self.resultados = defaultdict(dict)
+        self.socio2equipo = dict()
+        self.equipo2socio = dict()
+
         self.types = {'asistencias': int, 'broker': int, 'key': str, 'puntos': int, 'rebotes': int, 'triples': int,
                       'valJornada': decimal.Decimal}
 
         for team in supermanager.jornadas[jornada].data:
             datosJor = supermanager.jornadas[jornada].data[team]
             socio = manipulaSocio(datosJor['socio'])
+
             if socio in excludelist:
                 continue
+            self.socio2equipo[socio] = team
+            self.equipo2socio[team] = socio
+
             self.resultados[socio]['valJornada'] = (self.types['valJornada'])(
                 datosJor['value'])
 
@@ -473,8 +480,11 @@ class ResultadosJornadas(object):
 
         return auxRDD.toDF(resJschema)
 
+    def listaSocios(self):
+        return list(self.socio2equipo.keys())
+
     def listaEquipos(self):
-        return list(self.resultados.keys())
+        return list(self.equipo2socio.keys())
 
     def reduceLista(self, equipo):
         if isinstance(equipo, str):
