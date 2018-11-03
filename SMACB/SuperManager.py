@@ -11,7 +11,7 @@ from babel.numbers import decimal
 from bs4 import BeautifulSoup
 from mechanicalsoup import LinkNotFoundError
 
-from SMACB.ClasifData import ClasifData
+from SMACB.ClasifData import ClasifData, manipulaSocio
 from SMACB.ManageSMDataframes import (datosLesionMerc, datosPosMerc,
                                       datosProxPartidoMerc)
 from SMACB.MercadoPage import MercadoPageContent
@@ -404,18 +404,20 @@ class ResultadosJornadas(object):
                       'valJornada': decimal.Decimal}
 
         for team in supermanager.jornadas[jornada].data:
-            if team in excludelist:
+            datosJor = supermanager.jornadas[jornada].data[team]
+            socio = manipulaSocio(datosJor['socio'])
+            if socio in excludelist:
                 continue
-            self.resultados[team]['valJornada'] = (self.types['valJornada'])(
-                supermanager.jornadas[jornada].data[team]['value'])
+            self.resultados[socio]['valJornada'] = (self.types['valJornada'])(
+                datosJor['value'])
 
             for comp in ['puntos', 'rebotes', 'triples', 'asistencias', 'broker']:
                 if jornada in supermanager.__getattribute__(comp):
                     if jornada == 1 or jornada - 1 in supermanager.__getattribute__(comp):
-                        self.resultados[team][comp] = (self.types[comp])(
+                        self.resultados[socio][comp] = (self.types[comp])(
                             supermanager.__getattribute__(comp)[jornada].data[team]['value'])
                         if jornada != 1:
-                            self.resultados[team][comp] -= \
+                            self.resultados[socio][comp] -= \
                                 (self.types[comp])(supermanager.__getattribute__(comp)[jornada - 1].data[team]['value'])
 
             self.updateVal2Team()
@@ -426,7 +428,7 @@ class ResultadosJornadas(object):
             for k in self.resultados[e]:
                 aux[k][self.resultados[e][k]].add(e)
 
-        self.valor2team=dict()
+        self.valor2team = dict()
         for k in aux:
             self.valor2team[k] = dict(aux[k])
 

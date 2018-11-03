@@ -45,3 +45,17 @@ class ClasifData(object):
                 return True
 
         return False
+
+
+def manipulaSocio(socioID):
+    import re
+
+    # PATTERN = r"^\s*(\S+)(\s+(\([^)]\)))?\s*$"
+    PATTERN = r"^\s*(.+)\s+\(.*\)\s*$"
+
+    match = re.match(PATTERN, socioID)
+
+    if match is None:
+        return socioID
+
+    return match.group(1)
