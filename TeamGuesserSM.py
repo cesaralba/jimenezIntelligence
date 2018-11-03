@@ -36,6 +36,11 @@ def procesaArgumentos():
     parser.add('-t', dest='temporada', type=str, env_var='SM_TEMPORADA', required=True)
     parser.add('-j', dest='jornada', type=int, required=True)
 
+    parser.add('-s', '--include-socio', dest='socioIn', type=str, action="append")
+    parser.add('-e', '--exclude-socio', dest='socioOut', type=str, action="append")
+
+    parser.add('-l', '--lista-socios', dest='listaSocios', action="store_true", default=False)
+
     args = parser.parse_args()
 
     return args
@@ -43,13 +48,14 @@ def procesaArgumentos():
 
 def validateCombs(comb, cuentaGrupos, resultadosSM, equipo):
     result = []
+    print("validateCombs", comb, equipo)
 
     resEQ = resultadosSM.resultados[equipo]
 
     grToTest = {p: cuentaGrupos[p][x] for p, x in zip(POSICIONES, comb)}
 
     claves = SEQCLAVES.copy()
-    contExcl = defaultdict(lambda : defaultdict(int))
+    contExcl = defaultdict(lambda: defaultdict(int))
 
     combVals = [grToTest[p]['valSets'] for p in POSICIONES]
 
@@ -90,17 +96,18 @@ def validateCombs(comb, cuentaGrupos, resultadosSM, equipo):
                     continue
 
     numCombs = prod([grToTest[p]['numCombs'] for p in POSICIONES])
-    print(asctime(), e, comb, "IN  ",numCombs)
+    print(asctime(), equipo, comb, "IN  ", numCombs)
     timeIn = time()
     ValidaCombinacion(combVals, claves, resEQ, [])
     timeOut = time()
     durac = timeOut - timeIn
     # estadDesc = [{k:dict(dict(contExcl).get(k,{}))} for k in claves]
     numEqs = sum([eq[-1] for eq in result])
-    descIn = sum([ contExcl[k]['in'] for k in claves])
-    descOut = sum([ contExcl[k]['out'] for k in claves])
+    descIn = sum([contExcl[k]['in'] for k in claves])
+    descOut = sum([contExcl[k]['out'] for k in claves])
 
-    print(asctime(), e, comb, "OUT ", len(result), numEqs, durac, (descIn,descOut), "%.4f" % (100.0* float(descIn+descOut)/float(numCombs) ), dict(contExcl['depth']))
+    print(asctime(), equipo, comb, "OUT ", len(result), numEqs, durac, (descIn, descOut),
+          "%.6f %%" % (100.0 * float(descIn + descOut) / float(numCombs)), dict(contExcl['depth']))
 
     return result
 
@@ -235,10 +242,27 @@ if __name__ == '__main__':
         resultadoTemporada = temporada.extraeDatosJugadores()
         print("Cargada información de temporada de %s" % strftime(FORMATOtimestamp, temporada.timestamp))
 
-    badTeams = []
+    badTeams = args.socioOut if args.socioOut is not None else []
 
     # Recupera resultados de la jornada
-    resJornada = ResultadosJornadas(args.jornada, sm, excludelist=badTeams)
+    resJornada = ResultadosJornadas(args.jornada, sm)
+    goodTeams = args.socioIn if ('socioIn' in args and args.socioIn is not None) else resJornada.listaSocios()
+
+    if args.listaSocios:
+        for s in resJornada.socio2equipo:
+            pref = "  "
+            if s in goodTeams:
+                pref = "SI"
+            else:
+                pref = "NO"
+
+            if s in badTeams:
+                pref = "NO"
+
+            print("[%s] %s -> '%s'" % (pref, s, resJornada.socio2equipo[s]))
+
+        exit(0)
+
     # print(resJornada.__dict__) ; exit(1)
     # Valores de los resultados de la jornada
     # puntosSM = resJornada.valoresSM()
@@ -311,8 +335,8 @@ if __name__ == '__main__':
                 claveJugs = "-".join(c)
                 indexComb = [agr[k] for k in SEQCLAVES]
 
-            # cuentaGrupos[p][comb]['combJugs'] = listFin
-            # TODO: cuentaGrupos[p][comb]['setVals'] = set()
+                # cuentaGrupos[p][comb]['combJugs'] = listFin
+                # TODO: cuentaGrupos[p][comb]['setVals'] = set()
 
                 deepDictSet(colSets, indexComb, deepDict(colSets, indexComb, int) + 1)
 
@@ -334,13 +358,15 @@ if __name__ == '__main__':
     subset = [['0-0-3', '0-2-2', '0-3-1']]
 
     resultado = defaultdict(list)
-    for e in resJornada.listaEquipos():
+
+    for s in goodTeams:
+        if s in badTeams:
+            continue
 
         result = Parallel(n_jobs=NJOBS)(
-            delayed(validateCombs)(c, cuentaGrupos, resJornada, e) for c in groupedCombs)
+            delayed(validateCombs)(c, cuentaGrupos, resJornada, s) for c in groupedCombs)
 
-        resultado[e] = result
-
+        resultado[s] = result
 
     # for c in groupedCombs:
     #     # print(c)
@@ -368,4 +394,4 @@ if __name__ == '__main__':
     #
 
     print(resultado)
-    #print(acumOrig, acumSets)
+    # print(acumOrig, acumSets)
