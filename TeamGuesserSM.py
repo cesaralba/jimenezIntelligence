@@ -104,16 +104,15 @@ def procesaArgumentos():
     return args
 
 
-def validateCombs(comb, cuentaGrupos, val2match, equipo):
+def validateCombs(comb, grupos2check, val2match, equipo):
     result = []
 
     contExcl = {'in': 0, 'out': 0}
-    grToTest = {p: cuentaGrupos[p][x] for p, x in zip(POSICIONES, comb)}
 
     claves = SEQCLAVES.copy()
 
-    combVals = [grToTest[p]['valSets'] for p in POSICIONES]
-    combInt = [grToTest[p]['comb'] for p in POSICIONES]
+    combVals = [grupos2check[p]['valSets'] for p in POSICIONES]
+    combInt = [grupos2check[p]['comb'] for p in POSICIONES]
 
     def ValidaCombinacion(arbolSols, claves, val2match, curSol):
         if len(claves) == 0:
@@ -153,7 +152,7 @@ def validateCombs(comb, cuentaGrupos, val2match, equipo):
                     continue
         return None
 
-    numCombs = prod([grToTest[p]['numCombs'] for p in POSICIONES])
+    numCombs = prod([grupos2check[p]['numCombs'] for p in POSICIONES])
     print(asctime(), equipo, combInt, "IN  ", numCombs)
     timeIn = time()
     ValidaCombinacion(combVals, claves, val2match, [])
@@ -359,9 +358,12 @@ if __name__ == '__main__':
         valoresObj = resJornada.resultados[s]
 
         result = Parallel(n_jobs=NJOBS, verbose=40)(
-            delayed(validateCombs)(c, cuentaGrupos, valoresObj, s) for c in groupedCombsKeys)
+            delayed(validateCombs)(c, {p: cuentaGrupos[p][g] for p, g in zip(POSICIONES, c)}, valoresObj, s) for c in
+            groupedCombsKeys)
+        resultadoPlano = list(chain.from_iterable(result))
+        dumpVar(varname2fichname(jornada, "resultado-%s" % s, basedir=LOCATIONCACHE), resultadoPlano)
 
-        resultado[s] = list(chain.from_iterable(result))
+        resultado[s] = resultadoPlano
 
     print(resultado)
     # print(acumOrig, acumSets)
