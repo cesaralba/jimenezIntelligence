@@ -128,7 +128,7 @@ def getPlayersByPosAndCupoJornada(jornada, supermanager, temporada):
 
     lengrupos = [len(result[x]) for x in range(len(result))]
 
-    return indexPosCupo, result, dictJugs, lengrupos
+    return result, dictJugs, lengrupos
 
 
 def listaPosiciones():
