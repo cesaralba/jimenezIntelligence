@@ -67,7 +67,7 @@ def solucion2clave(clave, sol):
                 'broker': "%010d"}
     formatoTotal = "#".join([formatos[k] for k in SEQCLAVES])
     valores = [sol[k] for k in SEQCLAVES]
-    print(formatoTotal, valores)
+
     return clave + "#" + (formatoTotal % tuple(valores))
 
 
@@ -95,10 +95,9 @@ def procesaArgumentos():
     return args
 
 
-def validateCombs(comb, cuentaGrupos, resultadosSM, equipo):
+def validateCombs(comb, cuentaGrupos, val2match, equipo):
     result = []
 
-    resEQ = resultadosSM.resultados[equipo]
     contExcl = {'in': 0, 'out': 0}
     grToTest = {p: cuentaGrupos[p][x] for p, x in zip(POSICIONES, comb)}
 
@@ -126,11 +125,16 @@ def validateCombs(comb, cuentaGrupos, resultadosSM, equipo):
 
             if len(claves) == 1:
                 nuevaSol = curSol + [prodKey]
+                solAcum = {k: sum(s) for k, s in zip(SEQCLAVES, nuevaSol)}
+                for k in SEQCLAVES:
+                    assert (solAcum[k] == val2match[k])
+
                 valsSolD = [dict(zip(SEQCLAVES, s)) for s in list(zip(*nuevaSol))]
                 solClaves = [solucion2clave(c, s) for c, s in zip(comb, valsSolD)]
 
                 regSol = (equipo, solClaves, prod([x for x in nuevosCombVals]))
                 result.append(regSol)
+                # TODO: logging
                 print(asctime(), equipo, combInt, "Sol", regSol)
                 continue
             else:
@@ -143,7 +147,7 @@ def validateCombs(comb, cuentaGrupos, resultadosSM, equipo):
     numCombs = prod([grToTest[p]['numCombs'] for p in POSICIONES])
     print(asctime(), equipo, combInt, "IN  ", numCombs)
     timeIn = time()
-    ValidaCombinacion(combVals, claves, resEQ, [])
+    ValidaCombinacion(combVals, claves, val2match, [])
     timeOut = time()
     durac = timeOut - timeIn
 
@@ -312,7 +316,7 @@ if __name__ == '__main__':
     indexes, posYcupos, jugadores, lenPosCupos = getPlayersByPosAndCupoJornada(args.jornada, sm, temporada)
 
     validCombs = GeneraCombinaciones()
-    # validCombs = pabloPlans
+    validCombs = pabloPlans
 
     groupedCombs = []
     cuentaGrupos = defaultdict(dict)
@@ -403,8 +407,10 @@ if __name__ == '__main__':
         if s in badTeams:
             continue
 
+        valoresObj = resJornada.resultados[s]
+
         result = Parallel(n_jobs=NJOBS, verbose=40)(
-            delayed(validateCombs)(c, cuentaGrupos, resJornada, s) for c in groupedCombs)
+            delayed(validateCombs)(c, cuentaGrupos, valoresObj, s) for c in groupedCombs)
 
         resultado[s] = result
 
