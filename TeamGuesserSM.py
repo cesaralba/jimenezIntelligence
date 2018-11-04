@@ -21,6 +21,55 @@ NJOBS = 2
 
 SEQCLAVES = ['asistencias', 'triples', 'rebotes', 'puntos', 'valJornada', 'broker']
 
+# Planes con solucion usuario    Pabmm, J5
+pabloPlans = [[0, 0, 3, 1, 2, 1, 1, 2, 1],
+              [0, 0, 3, 2, 1, 1, 0, 3, 1],
+              [0, 1, 2, 0, 1, 3, 1, 2, 1],
+              [0, 1, 2, 0, 2, 2, 0, 1, 3],
+              [0, 1, 2, 0, 2, 2, 1, 2, 1],
+              [0, 1, 2, 0, 2, 2, 1, 1, 2],
+              [0, 1, 2, 0, 3, 1, 0, 0, 4],
+              [0, 1, 2, 0, 3, 1, 0, 2, 2],
+              [0, 1, 2, 0, 3, 1, 1, 1, 2],
+              [0, 1, 2, 0, 3, 1, 2, 2, 0],
+              [0, 1, 2, 1, 1, 2, 0, 2, 2],
+              [0, 1, 2, 1, 1, 2, 1, 2, 1],
+              [0, 1, 2, 1, 2, 1, 0, 1, 3],
+              [0, 1, 2, 1, 2, 1, 1, 1, 2],
+              [0, 1, 2, 1, 3, 0, 0, 2, 2],
+              [0, 1, 2, 2, 1, 1, 0, 2, 2],
+              [0, 2, 1, 0, 2, 2, 0, 2, 2],
+              [0, 2, 1, 0, 2, 2, 1, 1, 2],
+              [0, 2, 1, 1, 0, 3, 1, 2, 1],
+              [0, 2, 1, 1, 1, 2, 0, 1, 3],
+              [0, 2, 1, 1, 1, 2, 1, 1, 2],
+              [0, 2, 1, 2, 1, 1, 0, 1, 3],
+              [0, 2, 1, 2, 1, 1, 0, 2, 2],
+              [0, 3, 0, 1, 1, 2, 0, 4, 0],
+              [1, 0, 2, 0, 2, 2, 1, 2, 1],
+              [1, 0, 2, 0, 3, 1, 1, 2, 1],
+              [1, 0, 2, 0, 3, 1, 1, 3, 0],
+              [1, 0, 2, 1, 2, 1, 0, 3, 1],
+              [1, 1, 1, 0, 1, 3, 0, 3, 1],
+              [1, 1, 1, 0, 1, 3, 1, 2, 1],
+              [1, 1, 1, 0, 2, 2, 0, 2, 2],
+              [1, 1, 1, 0, 2, 2, 1, 1, 2],
+              [1, 1, 1, 0, 3, 1, 1, 1, 2],
+              [1, 1, 1, 1, 1, 2, 0, 2, 2],
+              [1, 1, 1, 1, 2, 1, 0, 1, 3],
+              [1, 1, 1, 1, 2, 1, 0, 2, 2],
+              [1, 2, 0, 1, 2, 1, 0, 1, 3]]
+pabloPlans = pabloPlans[0:1]
+
+
+def solucion2clave(clave, sol):
+    formatos = {'asistencias': "%03d", 'triples': "%03d", 'rebotes': "%03d", 'puntos': "%03d", 'valJornada': "%05.2f",
+                'broker': "%010d"}
+    formatoTotal = "#".join([formatos[k] for k in SEQCLAVES])
+    valores = [sol[k] for k in SEQCLAVES]
+    print(formatoTotal, valores)
+    return clave + "#" + (formatoTotal % tuple(valores))
+
 
 def listaPosiciones():
     return [None] * 9
@@ -48,16 +97,15 @@ def procesaArgumentos():
 
 def validateCombs(comb, cuentaGrupos, resultadosSM, equipo):
     result = []
-    print("validateCombs", comb, equipo)
 
     resEQ = resultadosSM.resultados[equipo]
-
+    contExcl = {'in': 0, 'out': 0}
     grToTest = {p: cuentaGrupos[p][x] for p, x in zip(POSICIONES, comb)}
 
     claves = SEQCLAVES.copy()
-    contExcl = defaultdict(lambda: defaultdict(int))
 
     combVals = [grToTest[p]['valSets'] for p in POSICIONES]
+    combInt = [grToTest[p]['comb'] for p in POSICIONES]
 
     def ValidaCombinacion(arbolSols, claves, val2match, curSol):
         if len(claves) == 0:
@@ -69,45 +117,43 @@ def validateCombs(comb, cuentaGrupos, resultadosSM, equipo):
             sumKey = sum(prodKey)
 
             if sumKey != val2match[claveAct]:
-                contExcl[claveAct]['out'] += 1
-                contExcl['depth'][len(claves)] += 1
-                # print("NO ",claveAct, prodKey,sumKey, valoresOK, curSol)
+                contExcl['out'] += 1
                 continue
 
-            contExcl[claveAct]['in'] += 1
+            contExcl['in'] += 1
 
-            # print("SI ",claveAct, prodKey,sumKey, valoresOK, curSol)
             nuevosCombVals = [c[v] for c, v in zip(arbolSols, prodKey)]
-
-            # print("SI ",claveAct, prodKey,sumKey, valoresOK, curSol)
 
             if len(claves) == 1:
                 nuevaSol = curSol + [prodKey]
-                valsSol = zip(*nuevaSol)
-                dictSol = dict(zip(comb, valsSol))
-                regSol = (equipo, dictSol, prod([x for x in nuevosCombVals]))
+                valsSolD = [dict(zip(SEQCLAVES, s)) for s in list(zip(*nuevaSol))]
+                solClaves = [solucion2clave(c, s) for c, s in zip(comb, valsSolD)]
+
+                regSol = (equipo, solClaves, prod([x for x in nuevosCombVals]))
                 result.append(regSol)
-                print(asctime(), "Sol", val2match, equipo, regSol)
+                print(asctime(), equipo, combInt, "Sol", regSol)
                 continue
             else:
                 deeperSol = curSol + [prodKey]
                 deeper = ValidaCombinacion(nuevosCombVals, claves[1:], val2match, deeperSol)
                 if deeper is None:
                     continue
+        return None
 
     numCombs = prod([grToTest[p]['numCombs'] for p in POSICIONES])
-    print(asctime(), equipo, comb, "IN  ", numCombs)
+    print(asctime(), equipo, combInt, "IN  ", numCombs)
     timeIn = time()
     ValidaCombinacion(combVals, claves, resEQ, [])
     timeOut = time()
     durac = timeOut - timeIn
-    # estadDesc = [{k:dict(dict(contExcl).get(k,{}))} for k in claves]
-    numEqs = sum([eq[-1] for eq in result])
-    descIn = sum([contExcl[k]['in'] for k in claves])
-    descOut = sum([contExcl[k]['out'] for k in claves])
 
-    print(asctime(), equipo, comb, "OUT ", len(result), numEqs, durac, (descIn, descOut),
-          "%.6f %%" % (100.0 * float(descIn + descOut) / float(numCombs)), dict(contExcl['depth']))
+    numEqs = sum([eq[-1] for eq in result])
+    ops = contExcl['in'] + contExcl['out']
+    descIn = contExcl['in']
+    descOut = contExcl['out']
+
+    print(asctime(), equipo, combInt, "OUT %3d %3d %10.6f %.6f%% %d -> %8d (%d,%d)" % (
+        len(result), numEqs, durac, (100.0 * float(ops) / float(numCombs)), numCombs, ops, descIn, descOut), contExcl)
 
     return result
 
@@ -263,17 +309,11 @@ if __name__ == '__main__':
 
         exit(0)
 
-    # print(resJornada.__dict__) ; exit(1)
-    # Valores de los resultados de la jornada
-    # puntosSM = resJornada.valoresSM()
-
-    # Recupera los datos de los jugadores que han participado en la jornada
     indexes, posYcupos, jugadores, lenPosCupos = getPlayersByPosAndCupoJornada(args.jornada, sm, temporada)
 
     validCombs = GeneraCombinaciones()
-    # Combinaciones con solución en J2
-    # validCombs = [[0, 0, 3, 0, 2, 2, 0, 2, 2], [0, 0, 3, 0, 2, 2, 0, 3, 1], [0, 0, 3, 0, 2, 2, 1, 2, 1],
-    #               [0, 0, 3, 0, 3, 1, 0, 2, 2], [0, 0, 3, 0, 3, 1, 1, 2, 1], [0, 0, 3, 1, 1, 2, 0, 3, 1]]
+    # validCombs = pabloPlans
+
     groupedCombs = []
     cuentaGrupos = defaultdict(dict)
     maxPosCupos = [0] * 9
@@ -294,7 +334,7 @@ if __name__ == '__main__':
         for p in POSICIONES:
             indexGrupo = [indexes[p][x] for x in CUPOS]
             grupoComb = [c[i] for i in indexGrupo]
-            claveComb = calculaClaveComb(grupoComb)
+            claveComb = p + "-" + calculaClaveComb(grupoComb)
             if claveComb not in cuentaGrupos[p]:
                 numCombs = prod([numCombsPosYCupos[x[0]][x[1]] for x in zip(indexGrupo, grupoComb)])
                 cuentaGrupos[p][claveComb] = {'cont': 0, 'comb': grupoComb, 'numCombs': numCombs, 'indexes': indexGrupo,
@@ -363,7 +403,7 @@ if __name__ == '__main__':
         if s in badTeams:
             continue
 
-        result = Parallel(n_jobs=NJOBS)(
+        result = Parallel(n_jobs=NJOBS, verbose=40)(
             delayed(validateCombs)(c, cuentaGrupos, resJornada, s) for c in groupedCombs)
 
         resultado[s] = result
