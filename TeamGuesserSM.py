@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import bz2
+import csv
 from collections import defaultdict
 from itertools import chain, product
 from pathlib import Path
@@ -23,6 +25,7 @@ NJOBS = 2
 LOCATIONCACHE = '/var/tmp/joblibCache'
 
 SEQCLAVES = ['asistencias', 'triples', 'rebotes', 'puntos', 'valJornada', 'broker']
+CLAVESCSV = ['solkey', 'grupo', 'jugs', 'valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias', 'Nones']
 
 indexes = buildPosCupoIndex()
 # Planes con solucion usuario    Pabmm, J5
@@ -184,8 +187,8 @@ def loadVar(pathFile):
     return None
 
 
-def varname2fichname(jornada, varname, basedir="."):
-    return Path.joinpath(Path(basedir), Path("J%03d-%s.pickle" % (jornada, varname)))
+def varname2fichname(jornada, varname, basedir=".", ext="pickle"):
+    return Path.joinpath(Path(basedir), Path("J%03d-%s.%s" % (jornada, varname, ext)))
 
 
 def combPos2Key(comb, pos, joinerChar="-"):
@@ -301,38 +304,46 @@ if __name__ == '__main__':
                 print("   ", c, cuentaGrupos[p][c])
             print(sum([cuentaGrupos[p][x]['numCombs'] for x in cuentaGrupos[p]]))
 
-        for p in POSICIONES:
-            for comb in cuentaGrupos[p]:
-                combList = []
+        with bz2.open(filename=varname2fichname(jornada, "grupos", basedir=LOCATIONCACHE, ext="csv.bz2"),
+                      mode='wt') as csv_file:
+            writer = csv.DictWriter(csv_file, fieldnames=CLAVESCSV, delimiter="|")
+            for p in POSICIONES:
+                for comb in cuentaGrupos[p]:
+                    combList = []
 
-                combGroup = cuentaGrupos[p][comb]['comb']
-                index = cuentaGrupos[p][comb]['indexes']
-                timeIn = time()
-                for i, n in zip(index, combGroup):
-                    # Genera combinaciones y las cachea
-                    if combsPosYCupos[i][n] is None:
-                        combsPosYCupos[i][n] = GeneraCombinacionJugs(posYcupos[i], n)
-                    if n != 0:
-                        combList.append(combsPosYCupos[i][n])
+                    combGroup = cuentaGrupos[p][comb]['comb']
+                    index = cuentaGrupos[p][comb]['indexes']
+                    timeIn = time()
+                    for i, n in zip(index, combGroup):
+                        # Genera combinaciones y las cachea
+                        if combsPosYCupos[i][n] is None:
+                            combsPosYCupos[i][n] = GeneraCombinacionJugs(posYcupos[i], n)
+                        if n != 0:
+                            combList.append(combsPosYCupos[i][n])
 
-                colSets = dict()
-                for pr in product(*combList):
-                    aux = []
-                    for gr in pr:
-                        for j in gr:
-                            aux.append(j)
+                    colSets = dict()
 
-                    agr = agregaJugadores(aux, jugadores)
-                    claveJugs = "-".join(aux)
-                    indexComb = [agr[k] for k in SEQCLAVES]
+                    for pr in product(*combList):
+                        aux = []
+                        for gr in pr:
+                            for j in gr:
+                                aux.append(j)
 
-                    deepDictSet(colSets, indexComb, deepDict(colSets, indexComb, int) + 1)
+                        agr = agregaJugadores(aux, jugadores)
+                        claveJugs = "-".join(aux)
+                        indexComb = [agr[k] for k in SEQCLAVES]
+                        agr['solkey'] = solucion2clave(comb, agr)
+                        agr['grupo'] = comb
+                        agr['jugs'] = claveJugs
+                        writer.writerow(agr)
 
-                timeOut = time()
-                duracion = timeOut - timeIn
-                print(asctime(), comb, "%10.6f" % duracion, cuentaGrupos[p][comb])
+                        deepDictSet(colSets, indexComb, deepDict(colSets, indexComb, int) + 1)
 
-                cuentaGrupos[p][comb]['valSets'] = colSets
+                    timeOut = time()
+                    duracion = timeOut - timeIn
+                    print(asctime(), comb, "%10.6f" % duracion, cuentaGrupos[p][comb])
+
+                    cuentaGrupos[p][comb]['valSets'] = colSets
 
         resDump = dumpVar(varname2fichname(jornada=jornada, varname="cuentaGrupos", basedir=LOCATIONCACHE),
                           cuentaGrupos)
