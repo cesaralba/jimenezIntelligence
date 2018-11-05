@@ -133,3 +133,38 @@ def getPlayersByPosAndCupoJornada(jornada, supermanager, temporada):
 
 def listaPosiciones():
     return [None] * 9
+
+
+def dumpVar(pathFile, var2dump):
+    res = joblib.dump(var2dump, pathFile, compress=('bz2', 3))
+
+    print("dumpVar", res)
+    return res
+
+
+def loadVar(pathFile):
+    if pathFile.exists():
+        res = joblib.load(pathFile)
+
+        return res
+
+    return None
+
+
+def varname2fichname(jornada, varname, basedir=".", ext="pickle"):
+    return Path.joinpath(Path(basedir), Path("J%03d-%s.%s" % (jornada, varname, ext)))
+
+
+def solucion2clave(clave, sol, charsep="#"):
+    formatos = {'asistencias': "%03d", 'triples': "%03d", 'rebotes': "%03d", 'puntos': "%03d", 'valJornada': "%05.2f",
+                'broker': "%010d"}
+    formatoTotal = charsep.join([formatos[k] for k in SEQCLAVES])
+    valores = [sol[k] for k in SEQCLAVES]
+
+    return clave + "#" + (formatoTotal % tuple(valores))
+
+
+def combPos2Key(comb, pos, joinerChar="-"):
+    return pos + joinerChar + joinerChar.join(str(x) for x in comb)
+
+

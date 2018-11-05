@@ -12,7 +12,7 @@ import joblib
 from configargparse import ArgumentParser
 from joblib import Parallel, delayed
 
-from SMACB.Guesser import (GeneraCombinacionJugs, agregaJugadores,
+from SMACB.Guesser import (GeneraCombinacionJugs, agregaJugadores, combPos2Key, loadVar, dumpVar, varname2fichname,
                            buildPosCupoIndex, getPlayersByPosAndCupoJornada)
 from SMACB.SMconstants import CUPOS, POSICIONES
 from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
@@ -21,8 +21,9 @@ from Utils.CombinacionesConCupos import GeneraCombinaciones, calculaClaveComb
 from Utils.combinatorics import n_choose_m, prod
 from Utils.Misc import FORMATOtimestamp, deepDict, deepDictSet
 
-NJOBS = 2
+NJOBS = 4
 LOCATIONCACHE = '/var/tmp/joblibCache'
+LOCATIONCACHE = '/home/calba/devel/SuperManager/guesser'
 
 SEQCLAVES = ['asistencias', 'triples', 'rebotes', 'puntos', 'valJornada', 'broker']
 CLAVESCSV = ['solkey', 'grupo', 'jugs', 'valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias', 'Nones']
@@ -71,17 +72,13 @@ pabloPlans = [[0, 0, 3, 1, 2, 1, 1, 2, 1],
 # pabloPlans = pabloPlans[0:1]
 
 
-def solucion2clave(clave, sol):
+def solucion2clave(clave, sol, charsep="#"):
     formatos = {'asistencias': "%03d", 'triples': "%03d", 'rebotes': "%03d", 'puntos': "%03d", 'valJornada': "%05.2f",
                 'broker': "%010d"}
-    formatoTotal = "#".join([formatos[k] for k in SEQCLAVES])
+    formatoTotal = charsep.join([formatos[k] for k in SEQCLAVES])
     valores = [sol[k] for k in SEQCLAVES]
 
     return clave + "#" + (formatoTotal % tuple(valores))
-
-
-def listaPosiciones():
-    return [None] * 9
 
 
 def procesaArgumentos():
@@ -170,30 +167,6 @@ def validateCombs(comb, grupos2check, val2match, equipo):
     return result
 
 
-def dumpVar(pathFile, var2dump):
-    res = joblib.dump(var2dump, pathFile, compress=('bz2', 3))
-
-    print("dumpVar", res)
-    return res
-
-
-def loadVar(pathFile):
-    if pathFile.exists():
-        res = joblib.load(pathFile)
-
-        return res
-
-    return None
-
-
-def varname2fichname(jornada, varname, basedir=".", ext="pickle"):
-    return Path.joinpath(Path(basedir), Path("J%03d-%s.%s" % (jornada, varname, ext)))
-
-
-def combPos2Key(comb, pos, joinerChar="-"):
-    return pos + joinerChar + joinerChar.join(str(x) for x in comb)
-
-
 def cuentaCombinaciones(combList):
     result = []
     resultKeys = []
@@ -255,7 +228,7 @@ if __name__ == '__main__':
     jugadores = None
 
     validCombs = GeneraCombinaciones()
-    validCombs = pabloPlans
+    # validCombs = pabloPlans
 
     groupedCombs, groupedCombsKeys = cuentaCombinaciones(validCombs)
 
