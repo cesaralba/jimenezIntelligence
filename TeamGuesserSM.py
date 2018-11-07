@@ -21,7 +21,7 @@ from Utils.CombinacionesConCupos import GeneraCombinaciones, calculaClaveComb
 from Utils.combinatorics import n_choose_m, prod
 from Utils.Misc import FORMATOtimestamp, deepDict, deepDictSet
 
-NJOBS = 3
+NJOBS = 2
 LOCATIONCACHE = '/var/tmp/joblibCache'
 LOCATIONCACHE = '/home/calba/devel/SuperManager/guesser'
 
@@ -94,6 +94,8 @@ def procesaArgumentos():
     parser.add('-e', '--exclude-socio', dest='socioOut', type=str, action="append")
 
     parser.add('-l', '--lista-socios', dest='listaSocios', action="store_true", default=False)
+
+    parser.add('--nproc', dest='nproc', type=int, default=NJOBS)
 
     args = parser.parse_args()
 
@@ -186,14 +188,18 @@ def cuentaCombinaciones(combList):
 
 
 if __name__ == '__main__':
+    print(asctime(), "Comenzando ejecución")
+
     args = procesaArgumentos()
     jornada = args.jornada
+
+    configParallel = {'n_jobs': args.nproc, 'verbose': 40}
 
     # Carga datos
     sm = SuperManagerACB()
     if 'infile' in args and args.infile:
         sm.loadData(args.infile)
-        print("Cargados datos SuperManager de %s" % strftime(FORMATOtimestamp, sm.timestamp))
+        print(asctime(), "Cargados datos SuperManager de %s" % strftime(FORMATOtimestamp, sm.timestamp))
 
     temporada = None
     resultadoTemporada = None
@@ -227,7 +233,7 @@ if __name__ == '__main__':
     sociosReales = [s for s in goodTeams if s in resJornada.socio2equipo and s not in badTeams]
 
     if not sociosReales:
-        print("No hay socios que procesar. Saliendo")
+        print(asctime(), "No hay socios que procesar. Saliendo")
         exit(1)
 
     jugadores = None
@@ -236,8 +242,6 @@ if __name__ == '__main__':
     # validCombs = pabloPlans
 
     groupedCombs, groupedCombsKeys = cuentaCombinaciones(validCombs)
-
-    print(asctime(), "Comenzando ejecución")
 
     cuentaGrupos = loadVar(varname2fichname(jornada=jornada, varname="cuentaGrupos", basedir=LOCATIONCACHE))
 
@@ -276,10 +280,10 @@ if __name__ == '__main__':
                 cuentaGrupos[p][claveComb]['cont'] += 1
 
         for p in cuentaGrupos:
-            print(p, len(cuentaGrupos[p]))
+            print(asctime(), p, len(cuentaGrupos[p]))
             for c in cuentaGrupos[p]:
-                print("   ", c, cuentaGrupos[p][c])
-            print(sum([cuentaGrupos[p][x]['numCombs'] for x in cuentaGrupos[p]]))
+                print(asctime(), "   ", c, cuentaGrupos[p][c])
+            print(asctime(), sum([cuentaGrupos[p][x]['numCombs'] for x in cuentaGrupos[p]]))
 
         with bz2.open(filename=varname2fichname(jornada, "grupos", basedir=LOCATIONCACHE, ext="csv.bz2"),
                       mode='wt') as csv_file:
@@ -325,12 +329,9 @@ if __name__ == '__main__':
         resDump = dumpVar(varname2fichname(jornada=jornada, varname="cuentaGrupos", basedir=LOCATIONCACHE),
                           cuentaGrupos)
 
-    print(asctime(), "Planes para ejecutar: %d" % len(groupedCombs))
-
     resultado = dict()
 
     planesAcorrer = []
-
     for plan, socio in product(groupedCombsKeys, sociosReales):
         planTotal = {'comb': plan,
                      'grupos2check': {pos: cuentaGrupos[pos][grupo] for pos, grupo in zip(POSICIONES, plan)},
@@ -338,9 +339,11 @@ if __name__ == '__main__':
                      'equipo': socio}
         planesAcorrer.append(planTotal)
 
-    result = Parallel(n_jobs=NJOBS, verbose=40)(delayed(validateCombs)(**plan) for plan in planesAcorrer)
+    print(asctime(), "Planes para ejecutar: %d" % len(planesAcorrer))
+
+    result = Parallel(**configParallel)(delayed(validateCombs)(**plan) for plan in planesAcorrer)
     resultadoPlano = list(chain.from_iterable(result))
     dumpVar(varname2fichname(jornada, "resultado-planes" % s, basedir=LOCATIONCACHE), resultadoPlano)
 
-    print(resultadoPlano)
+    print(asctime(), resultadoPlano)
     # print(acumOrig, acumSets)
