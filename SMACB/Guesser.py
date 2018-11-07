@@ -2,8 +2,12 @@
 from collections import defaultdict
 from itertools import combinations
 from os.path import join
+from pathlib import Path
 
-from SMACB.SMconstants import buildPosCupoIndex, calculaValSuperManager
+import joblib
+
+from SMACB.SMconstants import (SEQCLAVES, buildPosCupoIndex,
+                               calculaValSuperManager)
 
 
 def agregaJugadores(listaJugs, datosJugs):
@@ -166,5 +170,3 @@ def solucion2clave(clave, sol, charsep="#"):
 
 def combPos2Key(comb, pos, joinerChar="-"):
     return pos + joinerChar + joinerChar.join(str(x) for x in comb)
-
-

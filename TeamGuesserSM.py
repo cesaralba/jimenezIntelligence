@@ -5,27 +5,26 @@ import bz2
 import csv
 from collections import defaultdict
 from itertools import chain, product
-from pathlib import Path
 from time import asctime, strftime, time
 
-import joblib
 from configargparse import ArgumentParser
 from joblib import Parallel, delayed
 
-from SMACB.Guesser import (GeneraCombinacionJugs, agregaJugadores, combPos2Key, loadVar, dumpVar, varname2fichname,
-                           buildPosCupoIndex, getPlayersByPosAndCupoJornada)
-from SMACB.SMconstants import CUPOS, POSICIONES
+from SMACB.Guesser import (GeneraCombinacionJugs, agregaJugadores,
+                           buildPosCupoIndex, combPos2Key, dumpVar,
+                           getPlayersByPosAndCupoJornada, loadVar,
+                           varname2fichname)
+from SMACB.SMconstants import CUPOS, POSICIONES, SEQCLAVES
 from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.CombinacionesConCupos import GeneraCombinaciones, calculaClaveComb
 from Utils.combinatorics import n_choose_m, prod
 from Utils.Misc import FORMATOtimestamp, deepDict, deepDictSet
 
-NJOBS = 4
+NJOBS = 3
 LOCATIONCACHE = '/var/tmp/joblibCache'
 LOCATIONCACHE = '/home/calba/devel/SuperManager/guesser'
 
-SEQCLAVES = ['asistencias', 'triples', 'rebotes', 'puntos', 'valJornada', 'broker']
 CLAVESCSV = ['solkey', 'grupo', 'jugs', 'valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias', 'Nones']
 
 indexes = buildPosCupoIndex()

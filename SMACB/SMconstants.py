@@ -14,6 +14,9 @@ LISTACOMPOS = {'puntos': 'P', 'rebotes': 'REB-T', 'triples': 'T3-C', 'asistencia
 
 BONUSVICTORIA = 1.2
 
+# Orden de busqueda de las claves y de almacenamiento procesado
+SEQCLAVES = ['asistencias', 'triples', 'rebotes', 'puntos', 'valJornada', 'broker']
+
 
 def calculaValSuperManager(valoracion, haGanado=False):
     return round(
@@ -21,6 +24,10 @@ def calculaValSuperManager(valoracion, haGanado=False):
 
 
 def buildPosCupoIndex():
+    """
+    Genera un diccionario con los índices que corresponden a cada posición y cupo.
+    :return:
+    """
     indexResult = dict()
 
     aux = 0
