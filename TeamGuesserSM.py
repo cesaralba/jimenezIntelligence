@@ -329,17 +329,18 @@ if __name__ == '__main__':
 
     resultado = dict()
 
-    for s in sociosReales:
+    planesAcorrer = []
 
-        valoresObj = resJornada.resultados[s]
+    for plan, socio in product(groupedCombsKeys, sociosReales):
+        planTotal = {'comb': plan,
+                     'grupos2check': {pos: cuentaGrupos[pos][grupo] for pos, grupo in zip(POSICIONES, plan)},
+                     'val2match': resJornada.resultados[socio],
+                     'equipo': socio}
+        planesAcorrer.append(planTotal)
 
-        result = Parallel(n_jobs=NJOBS, verbose=40)(
-            delayed(validateCombs)(c, {p: cuentaGrupos[p][g] for p, g in zip(POSICIONES, c)}, valoresObj, s) for c in
-            groupedCombsKeys)
-        resultadoPlano = list(chain.from_iterable(result))
-        dumpVar(varname2fichname(jornada, "resultado-%s" % s, basedir=LOCATIONCACHE), resultadoPlano)
+    result = Parallel(n_jobs=NJOBS, verbose=40)(delayed(validateCombs)(**plan) for plan in planesAcorrer)
+    resultadoPlano = list(chain.from_iterable(result))
+    dumpVar(varname2fichname(jornada, "resultado-planes" % s, basedir=LOCATIONCACHE), resultadoPlano)
 
-        resultado[s] = resultadoPlano
-
-    print(resultado)
+    print(resultadoPlano)
     # print(acumOrig, acumSets)
