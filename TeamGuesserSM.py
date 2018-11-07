@@ -224,6 +224,12 @@ if __name__ == '__main__':
 
         exit(0)
 
+    sociosReales = [s for s in goodTeams if s in resJornada.socio2equipo and s not in badTeams]
+
+    if not sociosReales:
+        print("No hay socios que procesar. Saliendo")
+        exit(1)
+
     jugadores = None
 
     validCombs = GeneraCombinaciones()
@@ -323,9 +329,7 @@ if __name__ == '__main__':
 
     resultado = dict()
 
-    for s in goodTeams:
-        if s in badTeams:
-            continue
+    for s in sociosReales:
 
         valoresObj = resJornada.resultados[s]
 
