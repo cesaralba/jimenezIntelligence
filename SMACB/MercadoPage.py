@@ -319,7 +319,7 @@ class MercadoPageContent():
         self.asignaCodigosEquipos(datosACB=datosACB)
 
     def setTimestampFromStr(self, timeData):
-        ERDATE = re.compile(".*-(\d{4}\d{2}\d{2}(\d{4})?)\..*")
+        ERDATE = re.compile(r".*-(\d{4}\d{2}\d{2}(\d{4})?)\..*")
         ermatch = ERDATE.match(timeData)
         if ermatch:
             if ermatch.group(2):
