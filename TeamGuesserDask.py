@@ -5,6 +5,7 @@ import bz2
 import csv
 from collections import defaultdict
 from itertools import chain, product
+from sys import getsizeof
 from time import asctime, strftime, time
 
 import joblib
@@ -69,16 +70,21 @@ def procesaArgumentos():
 def validateCombs(comb, grupos2check, val2match, equipo):
     result = []
 
-    contExcl = {'in': 0, 'out': 0}
-
     claves = SEQCLAVES.copy()
+
+    contExcl = {'in': 0, 'out': 0, 'depth': dict()}
+    for i in range(len(claves) + 1):
+        contExcl['depth'][i] = 0
 
     combVals = [grupos2check[p]['valSets'] for p in POSICIONES]
     combInt = [grupos2check[p]['comb'] for p in POSICIONES]
 
-    def ValidaCombinacion(arbolSols, claves, val2match, curSol):
+    def ValidaCombinacion(arbolSols, claves, val2match, curSol, equipo, combInt):
         if len(claves) == 0:
             return
+
+        contExcl['depth'][len(claves)] += 1
+        contExcl['in'] += 1
 
         claveAct = claves[0]
 
@@ -88,8 +94,6 @@ def validateCombs(comb, grupos2check, val2match, equipo):
             if sumKey != val2match[claveAct]:
                 contExcl['out'] += 1
                 continue
-
-            contExcl['in'] += 1
 
             nuevosCombVals = [c[v] for c, v in zip(arbolSols, prodKey)]
 
@@ -109,25 +113,25 @@ def validateCombs(comb, grupos2check, val2match, equipo):
                 continue
             else:
                 deeperSol = curSol + [prodKey]
-                deeper = ValidaCombinacion(nuevosCombVals, claves[1:], val2match, deeperSol)
+                deeper = ValidaCombinacion(nuevosCombVals, claves[1:], val2match, deeperSol, equipo, combInt)
                 if deeper is None:
                     continue
         return None
 
     solBusq = ", ".join(["%s:%s" % (k, str(val2match[k])) for k in SEQCLAVES])
     numCombs = prod([grupos2check[p]['numCombs'] for p in POSICIONES])
-    print(asctime(), equipo, combInt, "IN  ", numCombs, "Valores a buscar: ", solBusq)
+    tamCubo = prod([len(grupos2check[p]['valSets']) for p in POSICIONES])
+    print(asctime(), equipo, combInt,
+          "IN  numEqs %16d cubo inicial: %10d Valores a buscar: %s" % (numCombs, tamCubo, solBusq))
     timeIn = time()
-    ValidaCombinacion(combVals, claves, val2match, [])
+    ValidaCombinacion(combVals, claves, val2match, [], equipo, combInt)
     timeOut = time()
     durac = timeOut - timeIn
 
     numEqs = sum([eq[-1] for eq in result])
     ops = contExcl['in'] + contExcl['out']
-    descIn = contExcl['in']
-    descOut = contExcl['out']
 
-    print(asctime(), equipo, combInt, "OUT %3d %3d %10.6fs %8.6f%% %15d -> %8d" % (
+    print(asctime(), equipo, combInt, "OUT %3d %3d %10.6fs %8.6f%% %16d -> %12d" % (
         len(result), numEqs, durac, (100.0 * float(ops) / float(numCombs)), numCombs, ops), contExcl)
 
     return result
@@ -164,7 +168,6 @@ if __name__ == '__main__':
     if args.backend == 'local':
         cluster = LocalCluster(n_workers=args.nproc, threads_per_worker=1)
         client = Client(cluster)
-
     elif args.backend == 'remote':
         error = 0
         if 'scheduler' not in args:
@@ -181,7 +184,6 @@ if __name__ == '__main__':
         for egg in args.package:
             client.upload_file(egg)
         configParallel['scheduler_host'] = (args.scheduler, 8786)
-
     elif args.backend == 'yarn':
         error = 0
         if 'package' not in args:
@@ -190,7 +192,6 @@ if __name__ == '__main__':
         if error:
             print(asctime(), "Backend: %s. Hubo %d errores. Saliendo." % (args.backend, error))
             exit(1)
-
     else:
         pass
 
@@ -241,11 +242,14 @@ if __name__ == '__main__':
 
     groupedCombs, groupedCombsKeys = cuentaCombinaciones(validCombs)
 
-    print(asctime(), "Cargando grupos de jornada %d" % jornada)
-    cuentaGrupos = loadVar(varname2fichname(jornada=jornada, varname="cuentaGrupos", basedir=destdir))
+    print(asctime(), "Cargando grupos de jornada %d (secuencia: %s)" % (jornada, ", ".join(SEQCLAVES)))
+    clavesParaNomFich = "+".join(SEQCLAVES)
+    nombrefichCuentaGrupos = varname2fichname(jornada=jornada, varname=("cuentaGrupos-" + clavesParaNomFich),
+                                              basedir=destdir)
+    cuentaGrupos = loadVar(nombrefichCuentaGrupos)
 
     if cuentaGrupos is None:
-
+        print(asctime(), "Generando grupos para jornada %d Seq claves %s" % (jornada, ", ".join(SEQCLAVES)))
         posYcupos, jugadores, lenPosCupos = getPlayersByPosAndCupoJornada(jornada, sm, temporada)
 
         dumpVar(varname2fichname(jornada, "jugadores", basedir=destdir), jugadores)
@@ -274,13 +278,14 @@ if __name__ == '__main__':
                 if claveComb not in cuentaGrupos:
                     numCombs = prod([numCombsPosYCupos[x[0]][x[1]] for x in zip(indexGroups[p], grupoComb)])
                     cuentaGrupos[claveComb] = {'cont': 0, 'comb': grupoComb, 'numCombs': numCombs,
-                                                  'indexes': indexGroups[p],
-                                                  'pos': p, 'key': claveComb}
+                                               'indexes': indexGroups[p],
+                                               'pos': p, 'key': claveComb}
                 cuentaGrupos[claveComb]['cont'] += 1
 
         print(asctime(), "Numero de grupos:", sum([cuentaGrupos[x]['numCombs'] for x in cuentaGrupos]))
 
-        with bz2.open(filename=varname2fichname(jornada, "grupos", basedir=destdir, ext="csv.bz2"),
+        with bz2.open(filename=varname2fichname(jornada, varname=("grupos-" + clavesParaNomFich), basedir=destdir,
+                                                ext="csv.bz2"),
                       mode='wt') as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=CLAVESCSV, delimiter="|")
             for comb in cuentaGrupos:
@@ -316,14 +321,16 @@ if __name__ == '__main__':
 
                 timeOut = time()
                 duracion = timeOut - timeIn
-                print(asctime(), comb, "%10.6f" % duracion, cuentaGrupos[comb])
 
                 cuentaGrupos[comb]['valSets'] = colSets
+                formatoTraza = "%10.6fs cont: %3d numero combs %8d memoria %8d num claves L0: %d"
+                print(asctime(), comb, formatoTraza % (duracion,
+                                                       cuentaGrupos[comb]['cont'], cuentaGrupos[comb]['numCombs'],
+                                                       getsizeof(colSets), len(colSets)))
 
-        resDump = dumpVar(varname2fichname(jornada=jornada, varname="cuentaGrupos", basedir=destdir),
-                          cuentaGrupos)
+        resDump = dumpVar(nombrefichCuentaGrupos, cuentaGrupos)
 
-    print(asctime(), "Cargados %d grupos de combinaciones." % len(cuentaGrupos))
+    print(asctime(), "Cargados %d grupos de combinaciones. Memory: %d" % (len(cuentaGrupos), getsizeof(cuentaGrupos)))
 
     resultado = dict()
 
