@@ -15,4 +15,4 @@ __pycache__
 build/
 data
 dist/
-jimInt.egg-info/
+*.egg-info/

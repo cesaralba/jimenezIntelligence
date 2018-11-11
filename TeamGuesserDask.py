@@ -7,9 +7,9 @@ from collections import defaultdict
 from itertools import chain, product
 from time import asctime, strftime, time
 
+import joblib
 from configargparse import ArgumentParser
-
-from joblib import Parallel, delayed
+from dask.distributed import Client
 
 from SMACB.Guesser import (GeneraCombinacionJugs, agregaJugadores,
                            buildPosCupoIndex, combPos2Key, dumpVar,
@@ -22,20 +22,15 @@ from Utils.CombinacionesConCupos import GeneraCombinaciones, calculaClaveComb
 from Utils.combinatorics import n_choose_m, prod
 from Utils.Misc import FORMATOtimestamp, deepDict, deepDictSet
 
-import joblib
-from dask.distributed import Client
-
-client = Client('tcp://10.95.249.143:8786')
-
 NJOBS = 2
 LOCATIONCACHE = '/var/tmp/joblibCache'
 LOCATIONCACHE = '/home/calba/devel/SuperManager/guesser'
 
-configParallel = {'n_jobs': NJOBS, 'verbose': 40, 'backend':"dask", 'scheduler_host':('10.95.249.143', 8786)}
-
 CLAVESCSV = ['solkey', 'grupo', 'jugs', 'valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias', 'Nones']
 
 indexes = buildPosCupoIndex()
+
+
 # Planes con solucion usuario    Pabmm, J5
 
 def solucion2clave(clave, sol, charsep="#"):
@@ -50,19 +45,23 @@ def solucion2clave(clave, sol, charsep="#"):
 def procesaArgumentos():
     parser = ArgumentParser()
 
-    parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, default=0)
-    parser.add('-d', dest='debug', action="store_true", env_var='SM_DEBUG', required=False, default=False)
-
     parser.add('-i', dest='infile', type=str, env_var='SM_INFILE', required=True)
     parser.add('-t', dest='temporada', type=str, env_var='SM_TEMPORADA', required=True)
     parser.add('-j', dest='jornada', type=int, required=True)
 
     parser.add('-s', '--include-socio', dest='socioIn', type=str, action="append")
     parser.add('-e', '--exclude-socio', dest='socioOut', type=str, action="append")
-
     parser.add('-l', '--lista-socios', dest='listaSocios', action="store_true", default=False)
 
+    parser.add('-b', '--backend', dest='backend', choices=['local', 'yarn', 'remote'], default='local')
+    parser.add('-x', '--scheduler', dest='scheduler', type=str, default='127.0.0.1')
+    parser.add("-o", "--output-dir", dest="outputdir", type=str, default=LOCATIONCACHE)
+    parser.add('-p', '--package', dest='package', type=str, action="append")
+
     parser.add('--nproc', dest='nproc', type=int, default=NJOBS)
+
+    parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, default=0)
+    parser.add('-d', dest='debug', action="store_true", env_var='SM_DEBUG', required=False, default=False)
 
     args = parser.parse_args()
 
@@ -117,8 +116,9 @@ def validateCombs(comb, grupos2check, val2match, equipo):
                     continue
         return None
 
+    solBusq = ",".join(["%s:%s" % (k, str(val2match[k])) for k in SEQCLAVES])
     numCombs = prod([grupos2check[p]['numCombs'] for p in POSICIONES])
-    print(asctime(), equipo, combInt, "IN  ", numCombs)
+    print(asctime(), equipo, combInt, "IN  ", numCombs, solBusq)
     timeIn = time()
     ValidaCombinacion(combVals, claves, val2match, [])
     timeOut = time()
@@ -159,7 +159,40 @@ if __name__ == '__main__':
 
     args = procesaArgumentos()
     jornada = args.jornada
+    destdir = args.outputdir
 
+    # TODO: Control de calidad con los parámetros
+    if args.backend == 'local':
+        pass
+
+    elif args.backend == 'remote':
+        error = 0
+        if 'scheduler' not in args:
+            print(asctime(), "Backend: %s. Falta scheduler '-x' o '--scheduler'.")
+            error += 1
+        if 'package' not in args:
+            print(asctime(), "Backend: %s. Falta package '-p' o '--package'.")
+            error += 1
+        if error:
+            print(asctime(), "Backend: %s. Hubo %d errores. Saliendo." % (args.backend, error))
+            exit(1)
+
+        client = Client('tcp://%s:8786' % args.scheduler)
+        for egg in args.package:
+            client.upload_file(egg)
+        configParallel = {'verbose': 100, 'backend': "dask", 'scheduler_host': (args.scheduler, 8786)}
+
+    elif args.backend == 'yarn':
+        error = 0
+        if 'package' not in args:
+            print(asctime(), "Backend: %s. Falta package '-p' o '--package'.")
+            error += 1
+        if error:
+            print(asctime(), "Backend: %s. Hubo %d errores. Saliendo." % (args.backend, error))
+            exit(1)
+
+    else:
+        pass
 
     # Carga datos
     sm = SuperManagerACB()
@@ -173,7 +206,7 @@ if __name__ == '__main__':
         temporada = TemporadaACB()
         temporada.cargaTemporada(args.temporada)
         resultadoTemporada = temporada.extraeDatosJugadores()
-        print("Cargada información de temporada de %s" % strftime(FORMATOtimestamp, temporada.timestamp))
+        print(asctime(), "Cargada información de temporada de %s" % strftime(FORMATOtimestamp, temporada.timestamp))
 
     badTeams = args.socioOut if args.socioOut is not None else []
 
@@ -209,13 +242,14 @@ if __name__ == '__main__':
 
     groupedCombs, groupedCombsKeys = cuentaCombinaciones(validCombs)
 
-    cuentaGrupos = loadVar(varname2fichname(jornada=jornada, varname="cuentaGrupos", basedir=LOCATIONCACHE))
+    print(asctime(), "Cargando grupos de jornada %d" % jornada)
+    cuentaGrupos = loadVar(varname2fichname(jornada=jornada, varname="cuentaGrupos", basedir=destdir))
 
     if cuentaGrupos is None:
 
         posYcupos, jugadores, lenPosCupos = getPlayersByPosAndCupoJornada(jornada, sm, temporada)
 
-        dumpVar(varname2fichname(jornada, "jugadores", basedir=LOCATIONCACHE), jugadores)
+        dumpVar(varname2fichname(jornada, "jugadores", basedir=destdir), jugadores)
 
         # groupedCombs = []
         cuentaGrupos = defaultdict(dict)
@@ -251,7 +285,7 @@ if __name__ == '__main__':
                 print(asctime(), "   ", c, cuentaGrupos[p][c])
             print(asctime(), sum([cuentaGrupos[p][x]['numCombs'] for x in cuentaGrupos[p]]))
 
-        with bz2.open(filename=varname2fichname(jornada, "grupos", basedir=LOCATIONCACHE, ext="csv.bz2"),
+        with bz2.open(filename=varname2fichname(jornada, "grupos", basedir=destdir, ext="csv.bz2"),
                       mode='wt') as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=CLAVESCSV, delimiter="|")
             for p in POSICIONES:
@@ -292,8 +326,10 @@ if __name__ == '__main__':
 
                     cuentaGrupos[p][comb]['valSets'] = colSets
 
-        resDump = dumpVar(varname2fichname(jornada=jornada, varname="cuentaGrupos", basedir=LOCATIONCACHE),
+        resDump = dumpVar(varname2fichname(jornada=jornada, varname="cuentaGrupos", basedir=destdir),
                           cuentaGrupos)
+
+    print(asctime(), "Cargados %d grupos de combinaciones." % len(cuentaGrupos))
 
     resultado = dict()
 
@@ -309,11 +345,11 @@ if __name__ == '__main__':
     print(asctime(), "Planes para ejecutar: %d" % len(planesAcorrer))
 
     with joblib.parallel_backend('dask'):
-        result= joblib.Parallel(verbose=100)(joblib.delayed(validateCombs)(**plan) for plan in planesAcorrer)
+        result = joblib.Parallel(configParallel)(joblib.delayed(validateCombs)(**plan) for plan in planesAcorrer)
 
     # result = Parallel(**configParallel)(delayed(validateCombs)(**plan) for plan in planesAcorrer)
     resultadoPlano = list(chain.from_iterable(result))
-    dumpVar(varname2fichname(jornada, "resultado-planes" % "-".join(sociosReales), basedir=LOCATIONCACHE), resultadoPlano)
+    dumpVar(varname2fichname(jornada, "resultado-planes" % "-".join(sociosReales), basedir=destdir), resultadoPlano)
 
     print(asctime(), resultadoPlano)
     # print(acumOrig, acumSets)
