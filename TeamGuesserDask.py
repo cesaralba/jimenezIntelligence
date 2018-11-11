@@ -62,7 +62,6 @@ def procesaArgumentos():
     parser.add('--nproc', dest='nproc', type=int, default=NJOBS)
     parser.add('--memworker', dest='memworker', default=MEMWORKER)
 
-
     parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, default=0)
     parser.add('-d', dest='debug', action="store_true", env_var='SM_DEBUG', required=False, default=False)
 
@@ -76,12 +75,12 @@ def validateCombs(comb, grupos2check, val2match, equipo):
 
     claves = SEQCLAVES.copy()
 
-    contExcl = {'in': 0, 'out': 0, 'depth': dict()}
+    contExcl = {'in': 0, 'out': 0, 'cubos': 0, 'depth': dict()}
     for i in range(len(claves) + 1):
         contExcl['depth'][i] = 0
 
-    combVals = [grupos2check[p]['valSets'] for p in POSICIONES]
-    combInt = [grupos2check[p]['comb'] for p in POSICIONES]
+    combVals = [g['valSets'] for g in grupos2check]
+    combInt = [g['comb'] for g in grupos2check]
 
     def ValidaCombinacion(arbolSols, claves, val2match, curSol, equipo, combInt):
         if len(claves) == 0:
@@ -89,6 +88,7 @@ def validateCombs(comb, grupos2check, val2match, equipo):
 
         contExcl['depth'][len(claves)] += 1
         contExcl['in'] += 1
+        contExcl['cubos'] += prod([len(g) for g in grupos2check])
 
         claveAct = claves[0]
 
@@ -122,9 +122,9 @@ def validateCombs(comb, grupos2check, val2match, equipo):
                     continue
         return None
 
-    solBusq = ", ".join(["%s:%s" % (k, str(val2match[k])) for k in SEQCLAVES])
-    numCombs = prod([grupos2check[p]['numCombs'] for p in POSICIONES])
-    tamCubo = prod([len(grupos2check[p]['valSets']) for p in POSICIONES])
+    solBusq = ", ".join(["%s: %s" % (k, str(val2match[k])) for k in SEQCLAVES])
+    numCombs = prod([g['numCombs'] for g in grupos2check])
+    tamCubo = prod([len(g['valSets']) for g in grupos2check])
     print(asctime(), equipo, combInt,
           "IN  numEqs %16d cubo inicial: %10d Valores a buscar: %s" % (numCombs, tamCubo, solBusq))
     timeIn = time()
@@ -133,7 +133,7 @@ def validateCombs(comb, grupos2check, val2match, equipo):
     durac = timeOut - timeIn
 
     numEqs = sum([eq[-1] for eq in result])
-    ops = contExcl['in'] + contExcl['out']
+    ops = contExcl['cubos']
 
     print(asctime(), equipo, combInt, "OUT %3d %3d %10.6fs %8.6f%% %16d -> %12d" % (
         len(result), numEqs, durac, (100.0 * float(ops) / float(numCombs)), numCombs, ops), contExcl)
@@ -342,7 +342,7 @@ if __name__ == '__main__':
     sociosReales.sort()
     for plan, socio in product(groupedCombsKeys, sociosReales):
         planTotal = {'comb': plan,
-                     'grupos2check': {pos: cuentaGrupos[grupo] for pos, grupo in zip(POSICIONES, plan)},
+                     'grupos2check': [cuentaGrupos[grupo] for grupo in plan],
                      'val2match': resJornada.resultados[socio],
                      'equipo': socio}
         planesAcorrer.append(planTotal)
