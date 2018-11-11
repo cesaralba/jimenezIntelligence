@@ -24,6 +24,8 @@ from Utils.combinatorics import n_choose_m, prod
 from Utils.Misc import FORMATOtimestamp, deepDict, deepDictSet
 
 NJOBS = 2
+MEMWORKER = "2GB"
+
 LOCATIONCACHE = '/var/tmp/joblibCache'
 LOCATIONCACHE = '/home/calba/devel/SuperManager/guesser'
 
@@ -58,6 +60,8 @@ def procesaArgumentos():
     parser.add('-p', '--package', dest='package', type=str, action="append")
 
     parser.add('--nproc', dest='nproc', type=int, default=NJOBS)
+    parser.add('--memworker', dest='memworker', default=MEMWORKER)
+
 
     parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, default=0)
     parser.add('-d', dest='debug', action="store_true", env_var='SM_DEBUG', required=False, default=False)
@@ -166,7 +170,7 @@ if __name__ == '__main__':
     configParallel = {'verbose': 100, 'backend': "dask"}
     # TODO: Control de calidad con los parámetros
     if args.backend == 'local':
-        cluster = LocalCluster(n_workers=args.nproc, threads_per_worker=1)
+        cluster = LocalCluster(n_workers=args.nproc, threads_per_worker=1, memory_limit=args.memworker)
         client = Client(cluster)
     elif args.backend == 'remote':
         error = 0
