@@ -9,7 +9,7 @@ from time import asctime, strftime, time
 
 import joblib
 from configargparse import ArgumentParser
-from dask.distributed import Client
+from dask.distributed import Client, LocalCluster
 
 from SMACB.Guesser import (GeneraCombinacionJugs, agregaJugadores,
                            buildPosCupoIndex, combPos2Key, dumpVar,
@@ -30,8 +30,6 @@ CLAVESCSV = ['solkey', 'grupo', 'jugs', 'valJornada', 'broker', 'puntos', 'rebot
 
 indexes = buildPosCupoIndex()
 
-
-# Planes con solucion usuario    Pabmm, J5
 
 def solucion2clave(clave, sol, charsep="#"):
     formatos = {'asistencias': "%03d", 'triples': "%03d", 'rebotes': "%03d", 'puntos': "%03d", 'valJornada': "%05.2f",
@@ -116,9 +114,9 @@ def validateCombs(comb, grupos2check, val2match, equipo):
                     continue
         return None
 
-    solBusq = ",".join(["%s:%s" % (k, str(val2match[k])) for k in SEQCLAVES])
+    solBusq = ", ".join(["%s:%s" % (k, str(val2match[k])) for k in SEQCLAVES])
     numCombs = prod([grupos2check[p]['numCombs'] for p in POSICIONES])
-    print(asctime(), equipo, combInt, "IN  ", numCombs, solBusq)
+    print(asctime(), equipo, combInt, "IN  ", numCombs, "Valores a buscar: ", solBusq)
     timeIn = time()
     ValidaCombinacion(combVals, claves, val2match, [])
     timeOut = time()
@@ -129,8 +127,8 @@ def validateCombs(comb, grupos2check, val2match, equipo):
     descIn = contExcl['in']
     descOut = contExcl['out']
 
-    print(asctime(), equipo, combInt, "OUT %3d %3d %10.6f %.6f%% %d -> %8d (%d,%d)" % (
-        len(result), numEqs, durac, (100.0 * float(ops) / float(numCombs)), numCombs, ops, descIn, descOut), contExcl)
+    print(asctime(), equipo, combInt, "OUT %3d %3d %10.6fs %8.6f%% %15d -> %8d" % (
+        len(result), numEqs, durac, (100.0 * float(ops) / float(numCombs)), numCombs, ops), contExcl)
 
     return result
 
@@ -164,7 +162,8 @@ if __name__ == '__main__':
     configParallel = {'verbose': 100, 'backend': "dask"}
     # TODO: Control de calidad con los parámetros
     if args.backend == 'local':
-        pass
+        cluster = LocalCluster(n_workers=args.nproc, threads_per_worker=1)
+        client = Client(cluster)
 
     elif args.backend == 'remote':
         error = 0
@@ -239,7 +238,6 @@ if __name__ == '__main__':
     jugadores = None
 
     validCombs = GeneraCombinaciones()
-    # validCombs = pabloPlans
 
     groupedCombs, groupedCombsKeys = cuentaCombinaciones(validCombs)
 
@@ -273,59 +271,54 @@ if __name__ == '__main__':
             posGrupoPars = [(p, g) for p, g in zip(POSICIONES, c)]
             for p, grupoComb in posGrupoPars:
                 claveComb = p + "-" + calculaClaveComb(grupoComb)
-                if claveComb not in cuentaGrupos[p]:
+                if claveComb not in cuentaGrupos:
                     numCombs = prod([numCombsPosYCupos[x[0]][x[1]] for x in zip(indexGroups[p], grupoComb)])
-                    cuentaGrupos[p][claveComb] = {'cont': 0, 'comb': grupoComb, 'numCombs': numCombs,
+                    cuentaGrupos[claveComb] = {'cont': 0, 'comb': grupoComb, 'numCombs': numCombs,
                                                   'indexes': indexGroups[p],
                                                   'pos': p, 'key': claveComb}
-                cuentaGrupos[p][claveComb]['cont'] += 1
+                cuentaGrupos[claveComb]['cont'] += 1
 
-        for p in cuentaGrupos:
-            print(asctime(), p, len(cuentaGrupos[p]))
-            for c in cuentaGrupos[p]:
-                print(asctime(), "   ", c, cuentaGrupos[p][c])
-            print(asctime(), sum([cuentaGrupos[p][x]['numCombs'] for x in cuentaGrupos[p]]))
+        print(asctime(), "Numero de grupos:", sum([cuentaGrupos[x]['numCombs'] for x in cuentaGrupos]))
 
         with bz2.open(filename=varname2fichname(jornada, "grupos", basedir=destdir, ext="csv.bz2"),
                       mode='wt') as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=CLAVESCSV, delimiter="|")
-            for p in POSICIONES:
-                for comb in cuentaGrupos[p]:
-                    combList = []
+            for comb in cuentaGrupos:
+                combList = []
 
-                    combGroup = cuentaGrupos[p][comb]['comb']
-                    index = cuentaGrupos[p][comb]['indexes']
-                    timeIn = time()
-                    for i, n in zip(index, combGroup):
-                        # Genera combinaciones y las cachea
-                        if combsPosYCupos[i][n] is None:
-                            combsPosYCupos[i][n] = GeneraCombinacionJugs(posYcupos[i], n)
-                        if n != 0:
-                            combList.append(combsPosYCupos[i][n])
+                combGroup = cuentaGrupos[comb]['comb']
+                index = cuentaGrupos[comb]['indexes']
+                timeIn = time()
+                for i, n in zip(index, combGroup):
+                    # Genera combinaciones y las cachea
+                    if combsPosYCupos[i][n] is None:
+                        combsPosYCupos[i][n] = GeneraCombinacionJugs(posYcupos[i], n)
+                    if n != 0:
+                        combList.append(combsPosYCupos[i][n])
 
-                    colSets = dict()
+                colSets = dict()
 
-                    for pr in product(*combList):
-                        aux = []
-                        for gr in pr:
-                            for j in gr:
-                                aux.append(j)
+                for pr in product(*combList):
+                    aux = []
+                    for gr in pr:
+                        for j in gr:
+                            aux.append(j)
 
-                        agr = agregaJugadores(aux, jugadores)
-                        claveJugs = "-".join(aux)
-                        indexComb = [agr[k] for k in SEQCLAVES]
-                        agr['solkey'] = solucion2clave(comb, agr)
-                        agr['grupo'] = comb
-                        agr['jugs'] = claveJugs
-                        writer.writerow(agr)
+                    agr = agregaJugadores(aux, jugadores)
+                    claveJugs = "-".join(aux)
+                    indexComb = [agr[k] for k in SEQCLAVES]
+                    agr['solkey'] = solucion2clave(comb, agr)
+                    agr['grupo'] = comb
+                    agr['jugs'] = claveJugs
+                    writer.writerow(agr)
 
-                        deepDictSet(colSets, indexComb, deepDict(colSets, indexComb, int) + 1)
+                    deepDictSet(colSets, indexComb, deepDict(colSets, indexComb, int) + 1)
 
-                    timeOut = time()
-                    duracion = timeOut - timeIn
-                    print(asctime(), comb, "%10.6f" % duracion, cuentaGrupos[p][comb])
+                timeOut = time()
+                duracion = timeOut - timeIn
+                print(asctime(), comb, "%10.6f" % duracion, cuentaGrupos[comb])
 
-                    cuentaGrupos[p][comb]['valSets'] = colSets
+                cuentaGrupos[comb]['valSets'] = colSets
 
         resDump = dumpVar(varname2fichname(jornada=jornada, varname="cuentaGrupos", basedir=destdir),
                           cuentaGrupos)
@@ -338,7 +331,7 @@ if __name__ == '__main__':
     sociosReales.sort()
     for plan, socio in product(groupedCombsKeys, sociosReales):
         planTotal = {'comb': plan,
-                     'grupos2check': {pos: cuentaGrupos[pos][grupo] for pos, grupo in zip(POSICIONES, plan)},
+                     'grupos2check': {pos: cuentaGrupos[grupo] for pos, grupo in zip(POSICIONES, plan)},
                      'val2match': resJornada.resultados[socio],
                      'equipo': socio}
         planesAcorrer.append(planTotal)
