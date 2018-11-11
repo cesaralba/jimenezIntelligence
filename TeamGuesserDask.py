@@ -161,6 +161,7 @@ if __name__ == '__main__':
     jornada = args.jornada
     destdir = args.outputdir
 
+    configParallel = {'verbose': 100, 'backend': "dask"}
     # TODO: Control de calidad con los parámetros
     if args.backend == 'local':
         pass
@@ -180,7 +181,7 @@ if __name__ == '__main__':
         client = Client('tcp://%s:8786' % args.scheduler)
         for egg in args.package:
             client.upload_file(egg)
-        configParallel = {'verbose': 100, 'backend': "dask", 'scheduler_host': (args.scheduler, 8786)}
+        configParallel['scheduler_host'] = (args.scheduler, 8786)
 
     elif args.backend == 'yarn':
         error = 0
@@ -349,7 +350,7 @@ if __name__ == '__main__':
 
     # result = Parallel(**configParallel)(delayed(validateCombs)(**plan) for plan in planesAcorrer)
     resultadoPlano = list(chain.from_iterable(result))
-    dumpVar(varname2fichname(jornada, "resultado-planes" % "-".join(sociosReales), basedir=destdir), resultadoPlano)
+    dumpVar(varname2fichname(jornada, "resultado-socios-%s" % "-".join(sociosReales), basedir=destdir), resultadoPlano)
 
     print(asctime(), resultadoPlano)
     # print(acumOrig, acumSets)
