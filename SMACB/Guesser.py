@@ -139,8 +139,13 @@ def listaPosiciones():
     return [None] * 9
 
 
-def dumpVar(pathFile, var2dump):
-    res = joblib.dump(var2dump, pathFile, compress=('bz2', 3))
+def dumpVar(pathFile, var2dump, compress=False):
+
+    extraVars = dict()
+    if compress:
+        extraVars['compress']=('bz2', 3)
+
+    res = joblib.dump(var2dump, pathFile,**extraVars)
 
     print("dumpVar", res)
     return res
@@ -148,7 +153,7 @@ def dumpVar(pathFile, var2dump):
 
 def loadVar(pathFile):
     if pathFile.exists():
-        res = joblib.load(pathFile)
+        res = joblib.load(pathFile, mmap_mode='r')
 
         return res
 
