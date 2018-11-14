@@ -151,9 +151,9 @@ def dumpVar(pathFile, var2dump, compress=False):
     return res
 
 
-def loadVar(pathFile):
+def loadVar(pathFile, mmap_mode=None):
     if pathFile.exists():
-        res = joblib.load(pathFile, mmap_mode='r')
+        res = joblib.load(pathFile, mmap_mode=mmap_mode)
 
         return res
 
