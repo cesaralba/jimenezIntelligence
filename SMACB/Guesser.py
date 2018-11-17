@@ -1,4 +1,3 @@
-
 from collections import defaultdict
 from itertools import combinations
 from os.path import join
@@ -6,8 +5,7 @@ from pathlib import Path
 
 import joblib
 
-from SMACB.SMconstants import (SEQCLAVES, buildPosCupoIndex,
-                               calculaValSuperManager)
+from SMACB.SMconstants import buildPosCupoIndex, calculaValSuperManager
 
 
 def agregaJugadores(listaJugs, datosJugs):
@@ -140,12 +138,11 @@ def listaPosiciones():
 
 
 def dumpVar(pathFile, var2dump, compress=False):
-
     extraVars = dict()
     if compress:
-        extraVars['compress']=('bz2', 3)
+        extraVars['compress'] = ('bz2', 3)
 
-    res = joblib.dump(var2dump, pathFile,**extraVars)
+    res = joblib.dump(var2dump, pathFile, **extraVars)
 
     print("dumpVar", res)
     return res
@@ -164,14 +161,5 @@ def varname2fichname(jornada, varname, basedir=".", ext="pickle"):
     return Path.joinpath(Path(basedir), Path("J%03d-%s.%s" % (jornada, varname, ext)))
 
 
-def solucion2clave(clave, sol, charsep="#"):
-    formatos = {'asistencias': "%03d", 'triples': "%03d", 'rebotes': "%03d", 'puntos': "%03d", 'valJornada': "%05.2f",
-                'broker': "%010d"}
-    formatoTotal = charsep.join([formatos[k] for k in SEQCLAVES])
-    valores = [sol[k] for k in SEQCLAVES]
-
-    return clave + "#" + (formatoTotal % tuple(valores))
-
-
-def combPos2Key(comb, pos, joinerChar="-"):
-    return pos + joinerChar + joinerChar.join(str(x) for x in comb)
+def comb2Key(comb, jornada, joinerChar="-"):
+    return ("J%03d" % jornada) + joinerChar + joinerChar.join("%1d_%1d" % (x, comb[x]) for x in comb)

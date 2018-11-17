@@ -13,35 +13,42 @@ from configargparse import ArgumentParser
 from dask.distributed import Client, LocalCluster
 
 from SMACB.Guesser import (GeneraCombinacionJugs, agregaJugadores,
-                           buildPosCupoIndex, combPos2Key, dumpVar,
+                           buildPosCupoIndex, comb2Key, dumpVar,
                            getPlayersByPosAndCupoJornada, loadVar,
                            varname2fichname)
-from SMACB.SMconstants import CUPOS, POSICIONES, SEQCLAVES
+from SMACB.SMconstants import CUPOS, POSICIONES, SEQCLAVES, solucion2clave
 from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
-from Utils.CombinacionesConCupos import GeneraCombinaciones, calculaClaveComb
+from Utils.CombinacionesConCupos import GeneraCombinaciones
 from Utils.combinatorics import n_choose_m, prod
 from Utils.Misc import FORMATOtimestamp, deepDict, deepDictSet
 
 NJOBS = 2
 MEMWORKER = "2GB"
+BACKENDCHOICES = ['joblib', 'dasklocal', 'daskyarn', 'daskremote']
+JOBLIBCHOICES = ['threads', 'processes']
 
-LOCATIONCACHE = '/var/tmp/joblibCache'
+indexGroups = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
+indexGroups = [[0, 1, 2], [3, 4], [5, 6], [7, 8]]
+indexGroups = [[0, 1, 2, 3], [4, 5], [6, 7, 8]]
+
 LOCATIONCACHE = '/home/calba/devel/SuperManager/guesser'
 
 CLAVESCSV = ['solkey', 'grupo', 'jugs', 'valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias', 'Nones']
 
+clavesParaNomFich = "+".join(SEQCLAVES)
+
 indexes = buildPosCupoIndex()
 
 
-def solucion2clave(clave, sol, charsep="#"):
-    formatos = {'asistencias': "%03d", 'triples': "%03d", 'rebotes': "%03d", 'puntos': "%03d", 'valJornada': "%05.2f",
-                'broker': "%010d"}
-    formatoTotal = charsep.join([formatos[k] for k in SEQCLAVES])
-    valores = [sol[k] for k in SEQCLAVES]
-
-    return clave + "#" + (formatoTotal % tuple(valores))
-
+# def solucion2clave(clave, sol, charsep="#"):
+#     formatos = {'asistencias': "%03d", 'triples': "%03d", 'rebotes': "%03d", 'puntos': "%03d", 'valJornada': "%05.2f",
+#                 'broker': "%010d"}
+#     formatoTotal = charsep.join([formatos[k] for k in SEQCLAVES])
+#     valores = [sol[k] for k in SEQCLAVES]
+#
+#     return clave + "#" + (formatoTotal % tuple(valores))
+#
 
 def procesaArgumentos():
     parser = ArgumentParser()
@@ -54,13 +61,14 @@ def procesaArgumentos():
     parser.add('-e', '--exclude-socio', dest='socioOut', type=str, action="append")
     parser.add('-l', '--lista-socios', dest='listaSocios', action="store_true", default=False)
 
-    parser.add('-b', '--backend', dest='backend', choices=['local', 'yarn', 'remote'], default='local')
+    parser.add('-b', '--backend', dest='backend', choices=BACKENDCHOICES, default='joblib')
     parser.add('-x', '--scheduler', dest='scheduler', type=str, default='127.0.0.1')
     parser.add("-o", "--output-dir", dest="outputdir", type=str, default=LOCATIONCACHE)
     parser.add('-p', '--package', dest='package', type=str, action="append")
 
     parser.add('--nproc', dest='nproc', type=int, default=NJOBS)
     parser.add('--memworker', dest='memworker', default=MEMWORKER)
+    parser.add('--joblibmode', dest='joblibmode', choices=JOBLIBCHOICES, default='threads')
 
     parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, default=0)
     parser.add('-d', dest='debug', action="store_true", env_var='SM_DEBUG', required=False, default=False)
@@ -110,7 +118,7 @@ def validateCombs(comb, grupos2check, val2match, equipo):
                 valsSolD = [dict(zip(SEQCLAVES, s)) for s in list(zip(*nuevaSol))]
                 solClaves = [solucion2clave(c, s) for c, s in zip(comb, valsSolD)]
 
-                regSol = (equipo, solClaves, prod([x for x in nuevosCombVals]))
+                regSol = (equipo, comb, solClaves, prod([x for x in nuevosCombVals]))
                 result.append(regSol)
                 # TODO: logging
                 print(asctime(), equipo, combInt, "Sol", regSol)
@@ -141,19 +149,20 @@ def validateCombs(comb, grupos2check, val2match, equipo):
     return result
 
 
-def cuentaCombinaciones(combList):
+def cuentaCombinaciones(combList, jornada):
     result = []
     resultKeys = []
     for c in combList:
         newComb = []
         newCombKey = []
 
-        for p in POSICIONES:
-            indexGrupo = [indexes[p][x] for x in CUPOS]
-            grupoComb = [c[i] for i in indexGrupo]
+        for ig in indexGroups:
+            grupoComb = {x: c[x] for x in ig}
+            if sum(grupoComb.values()) == 0:
+                continue
             newComb.append(grupoComb)
-            newCombKey.append(combPos2Key(grupoComb, p))
-            # claveComb = p + "-" + calculaClaveComb(grupoComb)
+            newCombKey.append(comb2Key(grupoComb, jornada))
+
         result.append(newComb)
         resultKeys.append(newCombKey)
 
@@ -167,12 +176,19 @@ if __name__ == '__main__':
     jornada = args.jornada
     destdir = args.outputdir
 
-    configParallel = {'verbose': 100, 'backend': "dask"}
+    configParallel = {'verbose': 100}
     # TODO: Control de calidad con los parámetros
-    if args.backend == 'local':
+    if args.backend == 'joblib':
+        configParallel['n_jobs'] = args.nproc
+        configParallel['prefer'] = args.joblibmode
+        # configParallel['require'] = 'sharedmem'
+
+    elif args.backend == 'dasklocal':
+        configParallel['backend'] = "dask"
         cluster = LocalCluster(n_workers=args.nproc, threads_per_worker=1, memory_limit=args.memworker)
         client = Client(cluster)
-    elif args.backend == 'remote':
+    elif args.backend == 'daskremote':
+        configParallel['backend'] = "dask"
         error = 0
         if 'scheduler' not in args:
             print(asctime(), "Backend: %s. Falta scheduler '-x' o '--scheduler'.")
@@ -188,7 +204,8 @@ if __name__ == '__main__':
         for egg in args.package:
             client.upload_file(egg)
         configParallel['scheduler_host'] = (args.scheduler, 8786)
-    elif args.backend == 'yarn':
+    elif args.backend == 'daskyarn':
+        configParallel['backend'] = "dask"
         error = 0
         if 'package' not in args:
             print(asctime(), "Backend: %s. Falta package '-p' o '--package'.")
@@ -244,11 +261,11 @@ if __name__ == '__main__':
 
     validCombs = GeneraCombinaciones()
 
-    groupedCombs, groupedCombsKeys = cuentaCombinaciones(validCombs)
+    groupedCombs, groupedCombsKeys = cuentaCombinaciones(validCombs, jornada)
 
     print(asctime(), "Cargando grupos de jornada %d (secuencia: %s)" % (jornada, ", ".join(SEQCLAVES)))
-    clavesParaNomFich = "+".join(SEQCLAVES)
-    nombrefichCuentaGrupos = varname2fichname(jornada=jornada, varname=("cuentaGrupos-" + clavesParaNomFich),
+
+    nombrefichCuentaGrupos = varname2fichname(jornada=jornada, varname=(clavesParaNomFich + "-cuentaGrupos"),
                                               basedir=destdir)
     cuentaGrupos = loadVar(nombrefichCuentaGrupos)
 
@@ -259,7 +276,7 @@ if __name__ == '__main__':
         dumpVar(varname2fichname(jornada, "jugadores", basedir=destdir), jugadores)
 
         # groupedCombs = []
-        cuentaGrupos = defaultdict(dict)
+        newCuentaGrupos = defaultdict(dict)
         maxPosCupos = [0] * 9
         numCombsPosYCupos = [[]] * 9
         combsPosYCupos = [[]] * 9
@@ -272,33 +289,33 @@ if __name__ == '__main__':
             for n in range(maxPosCupos[i] + 1):
                 numCombsPosYCupos[i][n] = n_choose_m(lenPosCupos[i], n)
 
+        print(numCombsPosYCupos)
         indexGroups = {p: [indexes[p][c] for c in CUPOS] for p in POSICIONES}
 
         # Distribuciones de jugadores válidas por posición y cupo
         for c in groupedCombs:
-            posGrupoPars = [(p, g) for p, g in zip(POSICIONES, c)]
-            for p, grupoComb in posGrupoPars:
-                claveComb = p + "-" + calculaClaveComb(grupoComb)
-                if claveComb not in cuentaGrupos:
-                    numCombs = prod([numCombsPosYCupos[x[0]][x[1]] for x in zip(indexGroups[p], grupoComb)])
-                    cuentaGrupos[claveComb] = {'cont': 0, 'comb': grupoComb, 'numCombs': numCombs,
-                                               'indexes': indexGroups[p],
-                                               'pos': p, 'key': claveComb}
-                cuentaGrupos[claveComb]['cont'] += 1
 
-        print(asctime(), "Numero de grupos:", sum([cuentaGrupos[x]['numCombs'] for x in cuentaGrupos]))
+            for grupoComb in c:
+                claveComb = comb2Key(grupoComb, jornada)
+                if claveComb not in newCuentaGrupos:
+                    numCombs = prod([numCombsPosYCupos[x][grupoComb[x]] for x in grupoComb])
+                    newCuentaGrupos[claveComb] = {'cont': 0, 'comb': grupoComb, 'numCombs': numCombs, 'key': claveComb}
+                newCuentaGrupos[claveComb]['cont'] += 1
 
-        with bz2.open(filename=varname2fichname(jornada, varname=("grupos-" + clavesParaNomFich), basedir=destdir,
+        print(asctime(), "Numero de grupos:", sum([newCuentaGrupos[x]['numCombs'] for x in newCuentaGrupos]))
+
+        with bz2.open(filename=varname2fichname(jornada, varname=(clavesParaNomFich + "-grupos"), basedir=destdir,
                                                 ext="csv.bz2"),
                       mode='wt') as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=CLAVESCSV, delimiter="|")
-            for comb in cuentaGrupos:
+            for comb in newCuentaGrupos:
                 combList = []
 
-                combGroup = cuentaGrupos[comb]['comb']
-                index = cuentaGrupos[comb]['indexes']
+                combGroup = newCuentaGrupos[comb]['comb']
+
                 timeIn = time()
-                for i, n in zip(index, combGroup):
+                for i in combGroup:
+                    n = combGroup[i]
                     # Genera combinaciones y las cachea
                     if combsPosYCupos[i][n] is None:
                         combsPosYCupos[i][n] = GeneraCombinacionJugs(posYcupos[i], n)
@@ -316,6 +333,7 @@ if __name__ == '__main__':
                     agr = agregaJugadores(aux, jugadores)
                     claveJugs = "-".join(aux)
                     indexComb = [agr[k] for k in SEQCLAVES]
+
                     agr['solkey'] = solucion2clave(comb, agr)
                     agr['grupo'] = comb
                     agr['jugs'] = claveJugs
@@ -326,13 +344,18 @@ if __name__ == '__main__':
                 timeOut = time()
                 duracion = timeOut - timeIn
 
-                cuentaGrupos[comb]['valSets'] = colSets
-                formatoTraza = "%10.6fs cont: %3d numero combs %8d memoria %8d num claves L0: %d"
+                newCuentaGrupos[comb]['valSets'] = colSets
+                formatoTraza = "%15.6fs cont: %3d numero combs %8d memoria %8d num claves L0: %d"
                 print(asctime(), comb, formatoTraza % (duracion,
-                                                       cuentaGrupos[comb]['cont'], cuentaGrupos[comb]['numCombs'],
+                                                       newCuentaGrupos[comb]['cont'], newCuentaGrupos[comb]['numCombs'],
                                                        getsizeof(colSets), len(colSets)))
 
-        resDump = dumpVar(nombrefichCuentaGrupos, cuentaGrupos)
+        resDump = dumpVar(nombrefichCuentaGrupos, newCuentaGrupos)
+        del newCuentaGrupos
+        import gc
+
+        gc.collect()
+        cuentaGrupos = loadVar(nombrefichCuentaGrupos)
 
     print(asctime(), "Cargados %d grupos de combinaciones. Memory: %d" % (len(cuentaGrupos), getsizeof(cuentaGrupos)))
 
@@ -349,12 +372,26 @@ if __name__ == '__main__':
 
     print(asctime(), "Planes para ejecutar: %d" % len(planesAcorrer))
 
-    with joblib.parallel_backend('dask'):
-        result = joblib.Parallel(configParallel)(joblib.delayed(validateCombs)(**plan) for plan in planesAcorrer)
+    if args.backend == 'joblib':
 
-    # result = Parallel(**configParallel)(delayed(validateCombs)(**plan) for plan in planesAcorrer)
-    resultadoPlano = list(chain.from_iterable(result))
-    dumpVar(varname2fichname(jornada, "resultado-socios-%s" % "-".join(sociosReales), basedir=destdir), resultadoPlano)
+        result = joblib.Parallel(**configParallel)(joblib.delayed(validateCombs)(**plan) for plan in planesAcorrer)
+
+        resultadoPlano = list(chain.from_iterable(result))
+
+    elif 'dask' in args.backend:
+
+        with joblib.parallel_backend('dask'):
+            result = joblib.Parallel(**configParallel)(joblib.delayed(validateCombs)(**plan) for plan in planesAcorrer)
+
+        # result = Parallel(**configParallel)(delayed(validateCombs)(**plan) for plan in planesAcorrer)
+        resultadoPlano = list(chain.from_iterable(result))
+
+    else:
+        pass
+
+    dumpVar(varname2fichname(jornada, "%s-resultado-socios-%s" % (clavesParaNomFich, "-".join(sociosReales)),
+                             basedir=destdir), resultadoPlano)
 
     print(asctime(), resultadoPlano)
     # print(acumOrig, acumSets)
+    print(asctime(), "Terminando ejecución")
