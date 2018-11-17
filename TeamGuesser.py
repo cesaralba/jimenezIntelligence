@@ -20,8 +20,8 @@ from SMACB.SMconstants import CUPOS, POSICIONES, SEQCLAVES, solucion2clave
 from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.CombinacionesConCupos import GeneraCombinaciones
-from Utils.combinatorics import n_choose_m, prod
 from Utils.Misc import FORMATOtimestamp, deepDict, deepDictSet
+from Utils.combinatorics import n_choose_m, prod
 
 NJOBS = 2
 MEMWORKER = "2GB"
@@ -40,15 +40,6 @@ clavesParaNomFich = "+".join(SEQCLAVES)
 
 indexes = buildPosCupoIndex()
 
-
-# def solucion2clave(clave, sol, charsep="#"):
-#     formatos = {'asistencias': "%03d", 'triples': "%03d", 'rebotes': "%03d", 'puntos': "%03d", 'valJornada': "%05.2f",
-#                 'broker': "%010d"}
-#     formatoTotal = charsep.join([formatos[k] for k in SEQCLAVES])
-#     valores = [sol[k] for k in SEQCLAVES]
-#
-#     return clave + "#" + (formatoTotal % tuple(valores))
-#
 
 def procesaArgumentos():
     parser = ArgumentParser()
@@ -118,7 +109,7 @@ def validateCombs(comb, grupos2check, val2match, equipo):
                 valsSolD = [dict(zip(SEQCLAVES, s)) for s in list(zip(*nuevaSol))]
                 solClaves = [solucion2clave(c, s) for c, s in zip(comb, valsSolD)]
 
-                regSol = (equipo, comb, solClaves, prod([x for x in nuevosCombVals]))
+                regSol = (equipo, solClaves, prod([x for x in nuevosCombVals]))
                 result.append(regSol)
                 # TODO: logging
                 print(asctime(), equipo, combInt, "Sol", regSol)
@@ -133,8 +124,8 @@ def validateCombs(comb, grupos2check, val2match, equipo):
     solBusq = ", ".join(["%s: %s" % (k, str(val2match[k])) for k in SEQCLAVES])
     numCombs = prod([g['numCombs'] for g in grupos2check])
     tamCubo = prod([len(g['valSets']) for g in grupos2check])
-    print(asctime(), equipo, combInt,
-          "IN  numEqs %16d cubo inicial: %10d Valores a buscar: %s" % (numCombs, tamCubo, solBusq))
+    FORMATOIN = "%16s %20s IN  numEqs %16d cubo inicial: %10d Valores a buscar: %s"
+    print(asctime(), FORMATOIN % (equipo, combInt, numCombs, tamCubo, solBusq))
     timeIn = time()
     ValidaCombinacion(combVals, claves, val2match, [], equipo, combInt)
     timeOut = time()
@@ -142,9 +133,9 @@ def validateCombs(comb, grupos2check, val2match, equipo):
 
     numEqs = sum([eq[-1] for eq in result])
     ops = contExcl['cubos']
-
-    print(asctime(), equipo, combInt, "OUT %3d %3d %10.6fs %8.6f%% %16d -> %12d" % (
-        len(result), numEqs, durac, (100.0 * float(ops) / float(numCombs)), numCombs, ops), contExcl)
+    FORMATOOUT = "%16s %20s  OUT %3d %3d %10.3fs %10.8f%% %16d -> %12d %s"
+    print(asctime(), FORMATOOUT % (equipo, combInt, len(result), numEqs, durac,
+                                   (100.0 * float(ops) / float(numCombs)), numCombs, ops, contExcl))
 
     return result
 
@@ -393,5 +384,4 @@ if __name__ == '__main__':
                              basedir=destdir), resultadoPlano)
 
     print(asctime(), resultadoPlano)
-    # print(acumOrig, acumSets)
     print(asctime(), "Terminando ejecución")
