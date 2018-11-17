@@ -17,7 +17,7 @@ BONUSVICTORIA = 1.2
 # Orden de busqueda de las claves y de almacenamiento procesado
 # SEQCLAVES = ['asistencias', 'triples', 'rebotes', 'puntos', 'valJornada', 'broker']
 # SEQCLAVES = ['asistencias', 'rebotes', 'puntos', 'triples', 'valJornada', 'broker']
-SEQCLAVES = ['asistencias', 'puntos', 'rebotes', 'triples', 'valJornada', 'broker']
+SEQCLAVES = ['triples', 'asistencias', 'rebotes', 'puntos', 'valJornada', 'broker']
 
 
 def calculaValSuperManager(valoracion, haGanado=False):
