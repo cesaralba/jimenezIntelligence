@@ -7,6 +7,7 @@ import logging
 from collections import defaultdict
 from itertools import chain, product
 from sys import getsizeof
+from os.path import join
 from time import strftime, time
 
 import joblib
@@ -36,7 +37,7 @@ ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
 
 # create formatter
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s %(relativeCreated)14d %(threadName)s %(message)s')
+formatter = logging.Formatter('%(asctime)s [%(process)d:%(threadName)s@%(name)s %(levelname)s %(relativeCreated)14dms]: %(message)s')
 
 # add formatter to ch
 ch.setFormatter(formatter)
@@ -79,13 +80,14 @@ def procesaArgumentos():
 
     parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, default=0)
     parser.add('-d', dest='debug', action="store_true", env_var='SM_DEBUG', required=False, default=False)
+    parser.add('--logdir', dest='logdir', type=str, env_var='SM_LOGDIR', required=False)
 
     args = parser.parse_args()
 
     return args
 
 
-def validateCombs(comb, grupos2check, val2match, equipo):
+def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada):
     result = []
 
     claves = SEQCLAVES.copy()
@@ -128,7 +130,7 @@ def validateCombs(comb, grupos2check, val2match, equipo):
                 regSol = (equipo, solClaves, prod([x for x in nuevosCombVals]))
                 result.append(regSol)
                 # TODO: logging
-                logger.info("%-16s Sol: %s", equipo, regSol)
+                logger.info("%-16s J:%2d Sol: %s", equipo, jornada, regSol)
                 continue
             else:
                 deeperSol = curSol + [prodKey]
@@ -140,8 +142,8 @@ def validateCombs(comb, grupos2check, val2match, equipo):
     solBusq = ", ".join(["%s: %s" % (k, str(val2match[k])) for k in SEQCLAVES])
     numCombs = prod([g['numCombs'] for g in grupos2check])
     tamCubo = prod([len(g['valSets']) for g in grupos2check])
-    FORMATOIN = "%-16s %20s IN  numEqs %16d cubo inicial: %10d Valores a buscar: %s"
-    logger.info(FORMATOIN % (equipo, combInt, numCombs, tamCubo, solBusq))
+    FORMATOIN = "%-16s %3d J:%2d %20s IN  numEqs %16d cubo inicial: %10d Valores a buscar: %s"
+    logger.info(FORMATOIN % (equipo, seqnum, jornada, combInt, numCombs, tamCubo, solBusq))
     timeIn = time()
     ValidaCombinacion(combVals, claves, val2match, [], equipo, combInt)
     timeOut = time()
@@ -149,8 +151,8 @@ def validateCombs(comb, grupos2check, val2match, equipo):
 
     numEqs = sum([eq[-1] for eq in result])
     ops = contExcl['cubos']
-    FORMATOOUT = "%-16s %20s OUT %3d %3d %10.3fs %10.8f%% %16d -> %12d %s"
-    logger.info(FORMATOOUT % (equipo, combInt, len(result), numEqs, durac,
+    FORMATOOUT = "%-16s %3d J:%2d %20s OUT %3d %3d %10.3fs %10.8f%% %16d -> %12d %s"
+    logger.info(FORMATOOUT % (equipo, seqnum, jornada, combInt, len(result), numEqs, durac,
                               (100.0 * float(ops) / float(numCombs)), numCombs, ops, contExcl))
 
     return result
@@ -182,6 +184,15 @@ if __name__ == '__main__':
     args = procesaArgumentos()
     jornada = args.jornada
     destdir = args.outputdir
+
+    dh = logging.FileHandler(filename=join(destdir,"TeamGuesser.log"))
+    dh.setFormatter(formatter)
+    logger.addHandler(dh)
+
+    if 'logdir' in args:
+        fh = logging.FileHandler(filename=join(args.logdir,"J%03d.log" % jornada))
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
 
     configParallel = {'verbose': 100}
     # TODO: Control de calidad con los parámetros
@@ -261,7 +272,7 @@ if __name__ == '__main__':
     sociosReales = [s for s in goodTeams if s in resJornada.socio2equipo and s not in badTeams]
 
     if not sociosReales:
-        logger.info("No hay socios que procesar. Saliendo")
+        logger.error("No hay socios que procesar. Saliendo")
         exit(1)
 
     jugadores = None
@@ -368,11 +379,14 @@ if __name__ == '__main__':
 
     planesAcorrer = []
     sociosReales.sort()
-    for plan, socio in product(groupedCombsKeys, sociosReales):
-        planTotal = {'comb': plan,
+    for i, socio in product(range(len(groupedCombsKeys)), sociosReales):
+        plan = groupedCombsKeys[i]
+        planTotal = {'seqnum': i,
+                     'comb': plan,
                      'grupos2check': [cuentaGrupos[grupo] for grupo in plan],
                      'val2match': resJornada.resultados[socio],
-                     'equipo': socio}
+                     'equipo': socio,
+                     'jornada': jornada}
         planesAcorrer.append(planTotal)
 
     logger.info("Planes para ejecutar: %d" % len(planesAcorrer))
