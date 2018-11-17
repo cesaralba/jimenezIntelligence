@@ -459,27 +459,6 @@ class ResultadosJornadas(object):
                 return False
         return True
 
-    def toDF(self, ctx):
-        from pyspark.sql import Row
-        from pyspark.sql.types import StructField, DecimalType, StringType, StructType, LongType
-
-        aux = dict(self.resultados)
-        for x in aux:
-            aux[x]['key'] = x
-
-        resJschema = StructType([StructField('asistencias', LongType(), True),
-                                 StructField('broker', LongType(), True),
-                                 StructField('key', StringType(), True),
-                                 StructField('puntos', LongType(), True),
-                                 StructField('rebotes', LongType(), True),
-                                 StructField('triples', LongType(), True),
-                                 StructField('valJornada', DecimalType(5, 2), True)
-                                 ])
-
-        auxRDD = ctx.parallelize([Row(**x) for x in aux.values()])
-
-        return auxRDD.toDF(resJschema)
-
     def listaSocios(self):
         return list(self.socio2equipo.keys())
 
