@@ -4,6 +4,9 @@ from os.path import join
 from pathlib import Path
 
 import joblib
+import logging
+logger = logging.getLogger(__name__)
+
 
 from SMACB.SMconstants import buildPosCupoIndex, calculaValSuperManager
 
@@ -144,7 +147,7 @@ def dumpVar(pathFile, var2dump, compress=False):
 
     res = joblib.dump(var2dump, pathFile, **extraVars)
 
-    print("dumpVar", res)
+    logger.debug("dumpVar %d", res)
     return res
 
 
