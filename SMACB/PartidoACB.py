@@ -15,10 +15,10 @@ from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams
 
 templateURLficha = "http://www.acb.com/fichas/%s%i%03i.php"
-reJornada = ".*J\s*(\d+)\s*"
-rePublico = ".*ico:(\d+)"
-reArbitro = ".*rb:\s*(.*)\s*$"
-reResultadoEquipo = "^\s*(.*)\s+(\d+)\s*$"
+reJornada = r".*J\s*(\d+)\s*"
+rePublico = r".*ico:(\d+)"
+reArbitro = r".*rb:\s*(.*)\s*$"
+reResultadoEquipo = r"^\s*(.*)\s+(\d+)\s*$"
 
 LocalVisitante = ('Local', 'Visitante')
 
@@ -179,7 +179,7 @@ class PartidoACB(object):
         estheaders = [x.get_text().strip() for x in filaheaders.find_all("td")]
 
         headers = [((x[0] + "-") if x[0] else "") + x[1] for x in zip(prefixes, estheaders)]
-        assert(len(set(headers)) == len(headers))
+        assert (len(set(headers)) == len(headers))
 
         return (headers)
 
@@ -271,7 +271,7 @@ class PartidoACB(object):
                 raise BaseException("ProcesaLineaTablaEstadistica: info string '%s' unknown" % (textos[0].lower()))
 
         # print(result)
-        return(result)
+        return (result)
 
         # print(len(textos),textos)
 
@@ -279,36 +279,36 @@ class PartidoACB(object):
 
         result = {}
 
-        reTiempo = "^\s*(\d+):(\d+)\s*$"
-        reTiros = "^\s*(\d+)/(\d+)\s*$"
-        reRebotes = "^\s*(\d+)\+(\d+)\s*$"
-        rePorcentaje = "^\s*(\d+)%\s*$"
+        reTiempo = r"^\s*(\d+):(\d+)\s*$"
+        reTiros = r"^\s*(\d+)/(\d+)\s*$"
+        reRebotes = r"^\s*(\\d+)\+(\d+)\s*$"
+        rePorcentaje = r"^\s*(\d+)%\s*$"
 
         def ProcesaTiempo(cadena):
             auxTemp = ExtractREGroups(cadena=cadena, regex=reTiempo)
             if auxTemp:
-                return(int(auxTemp[0]) * 60 + int(auxTemp[1]))
+                return (int(auxTemp[0]) * 60 + int(auxTemp[1]))
             else:
                 raise BadString("ProcesaEstadisticas:ProcesaTiempo '%s' no casa RE '%s' " % (cadena, reTiempo))
 
         def ProcesaTiros(cadena):
             auxTemp = ExtractREGroups(cadena=cadena, regex=reTiros)
             if auxTemp:
-                return(int(auxTemp[0]), int(auxTemp[1]))
+                return (int(auxTemp[0]), int(auxTemp[1]))
             else:
                 raise BadString("ProcesaEstadisticas:ProcesaTiros '%s' no casa RE '%s' " % (cadena, reTiros))
 
         def ProcesaRebotes(cadena):
             auxTemp = ExtractREGroups(cadena=cadena, regex=reRebotes)
             if auxTemp:
-                return(int(auxTemp[0]), int(auxTemp[1]))
+                return (int(auxTemp[0]), int(auxTemp[1]))
             else:
                 raise BadString("ProcesaEstadisticas:ProcesaRebotes '%s' no casa RE '%s' " % (cadena, reRebotes))
 
         def ProcesaPorcentajes(cadena):
             auxTemp = ExtractREGroups(cadena=cadena, regex=rePorcentaje)
             if auxTemp:
-                return(int(auxTemp[0]))
+                return (int(auxTemp[0]))
             else:
                 raise BadString("ProcesaEstadisticas:ProcesaPorcentajes '%s' no casa RE '%s' " %
                                 (cadena, rePorcentaje))
@@ -339,7 +339,7 @@ class PartidoACB(object):
                     print("ProcesaEstadisticas: Error: '%s'='%s' converting to INT. "
                           "URL Partido: %s -> %s" % (key, val, self.url, contadores))
 
-        return(result)
+        return (result)
 
     def getResultEquipo(self, cadena, estado):
         aux = ExtractREGroups(regex=reResultadoEquipo, cadena=cadena)
@@ -361,8 +361,9 @@ class PartidoACB(object):
     def jugadoresAdataframe(self):
         typesDF = {'competicion': 'object', 'temporada': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
                    'haJugado': 'bool', 'titular': 'bool', 'haGanado': 'bool', 'enActa': 'bool', 'Vsm': 'float64'}
-# 'equipo': 'object', 'CODequipo': 'object', 'rival': 'object', 'CODrival': 'object', 'dorsal': 'object'
-# 'nombre': 'object', 'codigo': 'object'
+
+        # 'equipo': 'object', 'CODequipo': 'object', 'rival': 'object', 'CODrival': 'object', 'dorsal': 'object'
+        # 'nombre': 'object', 'codigo': 'object'
 
         def jugador2dataframe(jugador):
             dictJugador = dict()
@@ -377,9 +378,9 @@ class PartidoACB(object):
                 for dato in jugador['estads']:
                     dictJugador[dato] = jugador['estads'][dato]
                     typesDF[dato] = 'float64'
-                dictJugador['Vsm'] = (
-                    jugador['estads']['V'] *
-                    (BONUSVICTORIA if (jugador['haGanado'] and (jugador['estads']['V'] > 0)) else 1.0))
+                dictJugador['Vsm'] = (jugador['estads']['V'] * (BONUSVICTORIA if (
+                        jugador['haGanado'] and (jugador['estads']['V'] > 0)) else 1.0)
+                                      )
             else:
                 dictJugador['V'] = 0.0
                 dictJugador['Vsm'] = 0.0
@@ -388,16 +389,15 @@ class PartidoACB(object):
             dfresult = pd.DataFrame.from_dict(dictJugador, orient='index').transpose()
             dfresult['Fecha'] = pd.to_datetime(mktime(self.FechaHora), unit='s')
 
-            return(dfresult)
+            return (dfresult)
 
         dfJugs = [jugador2dataframe(self.Jugadores[x]) for x in self.Jugadores]
         dfResult = pd.concat(dfJugs, axis=0, ignore_index=True, sort=True).astype(typesDF)
 
-        return(dfResult)
+        return (dfResult)
 
 
 def GeneraURLpartido(link):
-
     def CheckParameters(dictParams):
         requiredParamList = ('cod_competicion', 'cod_edicion', 'partido')
         errores = False

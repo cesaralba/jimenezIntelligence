@@ -12,10 +12,11 @@ from Utils.CombinacionesConCupos import GeneraCombinaciones
 from Utils.combinatorics import n_choose_m, prod
 from Utils.Misc import ReadFile
 
-mf = ReadFile("/home/calba/devel/SuperManager/mercado/SuperManager-201711070723.html")
+mf = ReadFile("/home/calba/Dropbox/SuperManager/SuperManager-201809280846.html")
 co = MercadoPageContent(mf)
 posYcupos = co.getPlayersByPosAndCupo()
 
+print(posYcupos)
 combTeams = GeneraCombinaciones()
 
 maxNum = [0] * len(CUPOS) * len(POSICIONES)
@@ -50,10 +51,7 @@ for i in range(len(maxNum)):
             listaAux.append((combJug.copy(), valTotal))
         preCalcListas[i][n] = listaAux.copy()
 
-
 print(preCalcListas)
-
-exit(1)
 
 cont = 0
 for comb in combTeams:
@@ -73,6 +71,5 @@ for comb in combTeams:
     # for comb in product(comb0,comb1,comb2,comb3,comb4,comb5
 
 print("%18d " % (cont), log10(cont))
-
 
 # print(posYcupos)
