@@ -1,16 +1,17 @@
 # -*- coding: utf-8 -*-
 
-from collections import defaultdict
-from copy import copy
+from collections import Iterable, defaultdict
+from copy import copy, deepcopy
 from pickle import dump, load
 from time import gmtime
 
 import mechanicalsoup
 import pandas as pd
+from babel.numbers import decimal
 from bs4 import BeautifulSoup
 from mechanicalsoup import LinkNotFoundError
 
-from SMACB.ClasifData import ClasifData
+from SMACB.ClasifData import ClasifData, manipulaSocio
 from SMACB.ManageSMDataframes import (datosLesionMerc, datosPosMerc,
                                       datosProxPartidoMerc)
 from SMACB.MercadoPage import MercadoPageContent
@@ -399,33 +400,89 @@ class ResultadosJornadas(object):
 
     def __init__(self, jornada, supermanager, excludelist=set()):
         self.resultados = defaultdict(dict)
-        self.valor2team = defaultdict(set)
+        self.socio2equipo = dict()
+        self.equipo2socio = dict()
+
+        self.types = {'asistencias': int, 'broker': int, 'key': str, 'puntos': int, 'rebotes': int, 'triples': int,
+                      'valJornada': decimal.Decimal}
 
         for team in supermanager.jornadas[jornada].data:
-            if team in excludelist:
-                continue
-            self.resultados[team]['sm'] = supermanager.jornadas[jornada].data[team]['value']
+            datosJor = supermanager.jornadas[jornada].data[team]
+            socio = manipulaSocio(datosJor['socio'])
 
-            for comp in ['puntos', 'rebotes', 'triples', 'asistencias']:
+            if socio in excludelist:
+                continue
+            self.socio2equipo[socio] = team
+            self.equipo2socio[team] = socio
+
+            self.resultados[socio]['valJornada'] = (self.types['valJornada'])(
+                datosJor['value'])
+
+            for comp in ['puntos', 'rebotes', 'triples', 'asistencias', 'broker']:
                 if jornada in supermanager.__getattribute__(comp):
                     if jornada == 1 or jornada - 1 in supermanager.__getattribute__(comp):
-                        self.resultados[team][comp] = supermanager.__getattribute__(comp)[jornada].data[team]['value']
+                        self.resultados[socio][comp] = (self.types[comp])(
+                            supermanager.__getattribute__(comp)[jornada].data[team]['value'])
                         if jornada != 1:
-                            self.resultados[team][comp] -= \
-                                supermanager.__getattribute__(comp)[jornada - 1].data[team]['value']
+                            self.resultados[socio][comp] -= \
+                                (self.types[comp])(supermanager.__getattribute__(comp)[jornada - 1].data[team]['value'])
 
-    def puntosSM(self):
-        return set([self.resultados[x]['sm'] for x in self.resultados])
+            self.updateVal2Team()
+
+    def updateVal2Team(self):
+        aux = defaultdict(lambda: defaultdict(set))
+        for e in self.resultados:
+            for k in self.resultados[e]:
+                aux[k][self.resultados[e][k]].add(e)
+
+        self.valor2team = dict()
+        for k in aux:
+            self.valor2team[k] = dict(aux[k])
+
+    def puntos2team(self, comp, valor):
+        if valor not in self.valor2team[comp]:
+            return []
+        return self.valor2team[comp][valor]
 
     def valoresSM(self):
-        result = defaultdict(list)
+        result = defaultdict(set)
 
         for equipo in self.resultados:
-            total = list()
-            for clave in ['sm', 'puntos', 'rebotes', 'triples', 'asistencias']:
-                if clave in self.resultados[equipo]:
-                    total.append(self.resultados[equipo].get(clave))
-            result[int(total[0] * 100)].append(total)
+            for comp in self.resultados[equipo]:
+                result[comp].add(self.resultados[equipo][comp])
+
+        return result
+
+    def comparaAgregado(self, team, agregado):
+        for comp in ['broker', 'valJornada', 'puntos', 'rebotes', 'triples', 'asistencias']:
+            if agregado[comp] != self.resultados[team][comp]:
+                return False
+        return True
+
+    def listaSocios(self):
+        return list(self.socio2equipo.keys())
+
+    def listaEquipos(self):
+        return list(self.equipo2socio.keys())
+
+    def reduceLista(self, equipo):
+        if isinstance(equipo, str):
+            teams2add = [equipo]
+        elif isinstance(equipo, Iterable):
+            teams2add = equipo
+        else:
+            raise(TypeError, "reduceLista: tipo incorrecto para 'equipos'")
+
+        equiposFallan = [e for e in teams2add if e not in self.resultados]
+
+        if equiposFallan:
+            raise(ValueError, "%s no están en la liga." % ", ".join(equiposFallan))
+
+        result = deepcopy(self)
+        for e in self.listaEquipos():
+            if e not in teams2add:
+                result.resultados.pop(e)
+        result.updateVal2Team()
 
         return result
 

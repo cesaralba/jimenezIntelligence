@@ -65,5 +65,9 @@ def GeneraCombinaciones():
     return result
 
 
+def calculaClaveComb(comb):
+    return "-".join(["%i" % x for x in comb])
+
+
 if __name__ == '__main__':
     print(len(GeneraCombinaciones()))

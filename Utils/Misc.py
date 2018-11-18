@@ -102,3 +102,34 @@ def SubSet(lista, idx):
         return []
 
     return [lista[x] for x in idx if x < len(lista) and lista[x] is not None]
+
+
+def deepDictSet(dic, keys, value):
+    for key in keys[:-1]:
+        dic = dic.setdefault(key, {})
+    dic[keys[-1]] = value
+
+
+def deepDict(dic, keys, tipoFinal):
+    if len(keys) == 0:
+        return dic
+    if keys[0] not in dic and len(keys) == 1:
+        dic[keys[0]] = (tipoFinal)()
+
+    return deepDict(dic.setdefault(keys[0], {}), keys[1:], tipoFinal)
+
+
+def generaDefaultDict(listaClaves, tipoFinal):
+    """
+    Genera un diccionario (defauldict) de 4 niveles de profundidad y cuyo tipo final es el que se indica en el parámetro
+    :param listaClaves: lista con los niveles de claves (en realidad se usa la longitud)
+    :param tipoFinal: tipo que va almacenar el diccionario más profundo
+    :return: defaultdict(defaultdict(...(defaultdict(tipoFinal)))
+    """
+    def actGenera(objLen, tipo):
+        if objLen == 1:
+            return defaultdict((tipo))
+        else:
+            return defaultdict(lambda: actGenera(objLen - 1, tipo))
+
+    return actGenera(len(listaClaves), tipoFinal)

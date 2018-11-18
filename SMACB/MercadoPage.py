@@ -86,15 +86,17 @@ class MercadoPageCompare():
             self.changes = True
             self.bajas = [old.PlayerData[x] for x in bajasID]
             for key in bajasID:
-                self.playerChanges[key]['baja'] += "{} ({}) es baja en '{}'. ".format(
-                    old.PlayerData[key]['nombre'], key, old.PlayerData[key]['equipo'])
+                self.playerChanges[key]['key'] = "{} ({},{})".format(old.PlayerData[key]['nombre'], key,
+                                                                     old.PlayerData[key]['equipo'])
+                self.playerChanges[key]['baja'] += "Es baja en '{}'. ".format(old.PlayerData[key]['equipo'])
 
         if altasID:
             self.changes = True
             self.altas = [new.PlayerData[x] for x in altasID]
             for key in altasID:
-                self.playerChanges[key]['alta'] += "{} ({}) es alta en '{}'. ".format(
-                    new.PlayerData[key]['nombre'], key, new.PlayerData[key]['equipo'])
+                self.playerChanges[key]['key'] = "{} ({},{})".format(new.PlayerData[key]['nombre'], key,
+                                                                     new.PlayerData[key]['equipo'])
+                self.playerChanges[key]['alta'] += "Es alta en '{}'. ".format(new.PlayerData[key]['equipo'])
 
         for key in siguenID:
             oldPlInfo = old.PlayerData[key]
@@ -107,8 +109,9 @@ class MercadoPageCompare():
                 self.contCambEquipo += 1
                 origTeam[oldTeam] += 1
                 destTeam[newTeam] += 1
-                self.playerChanges[key]['cambio'] += "{} ({}) pasa de '{}' a '{}'. ".format(
-                    new.PlayerData[key]['nombre'], key, oldTeam, newTeam)
+                self.playerChanges[key]['key'] = "{} ({},{})".format(new.PlayerData[key]['nombre'], key,
+                                                                     new.PlayerData[key]['equipo'])
+                self.playerChanges[key]['cambio'] += "Pasa de '{}' a '{}'. ".format(oldTeam, newTeam)
 
                 cambEquipo[key] = "{} pasa de {} a {}".format(key, oldPlInfo['equipo'], newPlInfo['equipo'])
 
@@ -123,13 +126,15 @@ class MercadoPageCompare():
             if oldPlInfo['lesion'] != newPlInfo['lesion']:
                 self.changes = True
                 if newPlInfo['lesion']:
-                    self.playerChanges[key]['lesion'] += "{} ({},{}) se ha lesionado. ".format(
-                        newPlInfo['nombre'], key, newPlInfo['equipo'])
+                    self.playerChanges[key]['key'] = "{} ({},{})".format(new.PlayerData[key]['nombre'], key,
+                                                                         new.PlayerData[key]['equipo'])
+                    self.playerChanges[key]['lesion'] += "Se ha lesionado. "
                     self.changes = True
                     self.lesionado.append(key)
                 else:
-                    self.playerChanges[key]['salud'] += "{} ({},{}) se ha recuperado. ".format(
-                        new.PlayerData[key]['nombre'], key, oldPlInfo['equipo'])
+                    self.playerChanges[key]['key'] = "{} ({},{})".format(new.PlayerData[key]['nombre'], key,
+                                                                         new.PlayerData[key]['equipo'])
+                    self.playerChanges[key]['salud'] += "Se ha recuperado. "
                     self.changes = True
                     self.curado.append(key)
 
@@ -138,16 +143,19 @@ class MercadoPageCompare():
                     if 'info' in newPlInfo:
                         if oldPlInfo['info'] != newPlInfo['info']:
                             self.changes = True
-                            self.playerChanges[key]['info'] += "{} ({}) info pasa de '{}' a '{}'. ".format(
-                                new.PlayerData[key]['nombre'], key, oldPlInfo['info'], newPlInfo['info'])
+                            self.playerChanges[key]['key'] = "{} ({},{})".format(new.PlayerData[key]['nombre'], key,
+                                                                         new.PlayerData[key]['equipo'])
+                            self.playerChanges[key]['info'] += "Info pasa de '{}' a '{}'. ".format(oldPlInfo['info'], newPlInfo['info'])
                     else:
                         self.changes = True
-                        self.playerChanges[key]['info'] += "{} ({}) info eliminada '{}'. ".format(
-                            new.PlayerData[key]['nombre'], key, oldPlInfo['info'])
+                        self.playerChanges[key]['key'] = "{} ({},{})".format(new.PlayerData[key]['nombre'], key,
+                                                                             new.PlayerData[key]['equipo'])
+                        self.playerChanges[key]['info'] += "Info eliminada '{}'. ".format(oldPlInfo['info'])
                 else:
                     self.changes = True
-                    self.playerChanges[key]['info'] += "{} ({}) info nueva '{}'. ".format(
-                        new.PlayerData[key]['nombre'], key, newPlInfo['info'])
+                    self.playerChanges[key]['key'] = "{} ({},{})".format(new.PlayerData[key]['nombre'], key,
+                                                                         new.PlayerData[key]['equipo'])
+                    self.playerChanges[key]['info'] += "Info nueva '{}'. ".format(newPlInfo['info'])
 
         if (len(self.newRivals) == self.teamsJornada) or (len(self.newRivals) > 4):
             self.cambioJornada = True
@@ -173,9 +181,13 @@ class MercadoPageCompare():
             for team in self.teamTranslationsOld2New.keys():
                 result += "  '{}' pasa a ser '{}'\n".format(team, self.teamTranslationsOld2New[team])
         if self.newTeams:
-            result += "Nuevos equipos ({}): {}\n".format(len(self.newTeams), self.newTeams.sort())
+            listaTeams = self.newTeams
+            listaTeams.sort()
+            result += "Nuevos equipos ({}): {}\n".format(len(self.newTeams), listaTeams)
         if self.delTeams:
-            result += "Equipos no juegan ({}): {}\n".format(len(self.delTeams), self.delTeams.sort())
+            listaTeams = self.delTeams
+            listaTeams.sort()
+            result += "Equipos no juegan ({}): {}\n".format(len(self.delTeams), listaTeams)
 
         if self.teamRenamed or self.newTeams or self.delTeams:
             result += "\n"
@@ -198,10 +210,12 @@ class MercadoPageCompare():
         if self.altas or self.bajas or self.lesionado or self.curado:
             result += "\n"
 
-        for key in self.playerChanges:
+        orderList = list(self.playerChanges.keys())
+        orderList.sort(key=lambda x:(self.playerChanges[x]['key']).lower())
+        for key in orderList:
             playerChangesInfo = self.playerChanges[key]
-
-            for item in playerChangesInfo.keys():
+            result += playerChangesInfo['key'] + ": "
+            for item in [x for x in playerChangesInfo.keys() if x != 'key']:
                 result += playerChangesInfo[item]
             result += "\n"
 
@@ -315,7 +329,7 @@ class MercadoPageContent():
         self.asignaCodigosEquipos(datosACB=datosACB)
 
     def setTimestampFromStr(self, timeData):
-        ERDATE = re.compile(".*-(\d{4}\d{2}\d{2}(\d{4})?)\..*")
+        ERDATE = re.compile(r".*-(\d{4}\d{2}\d{2}(\d{4})?)\..*")
         ermatch = ERDATE.match(timeData)
         if ermatch:
             if ermatch.group(2):
@@ -459,7 +473,7 @@ class MercadoPageContent():
 
             dfresult = pd.DataFrame.from_dict(dictJugador, orient='index').transpose().rename(renombraCampos,
                                                                                               axis='columns')
-            return(dfresult)
+            return (dfresult)
 
         dfJugs = [jugador2dataframe(jugador) for jugador in self.PlayerData.values()]
         dfResult = pd.concat(dfJugs, axis=0, ignore_index=True, sort=True)
@@ -469,13 +483,13 @@ class MercadoPageContent():
         dfResult.loc[dfResult['info'].isna(), 'info'] = ""
         dfResult['infoLesion'] = dfResult.apply(datosLesionMerc, axis=1)
 
-        return(dfResult.astype(colTypes))
+        return (dfResult.astype(colTypes))
 
 
 class NoSuchPlayerException(Exception):
 
     def __init__(self, codigo, source, timestamp):
-        Exception.__init__(self,)
+        Exception.__init__(self, )
 
 
 class BadSetException(Exception):

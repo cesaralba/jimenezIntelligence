@@ -67,7 +67,7 @@ class CalendarioACB(object):
                     else:
                         self.nombresCompeticion[tituloFields[0]] += 1
 
-                    jornadaMatch = re.match("JORNADA\s+(\d+)", tituloFields[1])
+                    jornadaMatch = re.match(r"JORNADA\s+(\d+)", tituloFields[1])
                     if jornadaMatch:  # Liga Endesa 2017-18 - JORNADA 34
                         currJornada = int(jornadaMatch.groups()[0])
                         self.Jornadas[currJornada] = dict()

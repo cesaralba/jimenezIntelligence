@@ -1,0 +1,18 @@
+# No olvidar actualizar con las de programa las que están en los scripts
+# Librerias para el programa
+ConfigArgParse
+
+bs4
+MechanicalSoup
+babel
+pandas
+
+joblib
+XlsxWriter==1.0.2
+
+#Guesser
+dask
+distributed
+dask-yarn
+bokeh
+
