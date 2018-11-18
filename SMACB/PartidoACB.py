@@ -281,7 +281,7 @@ class PartidoACB(object):
 
         reTiempo = r"^\s*(\d+):(\d+)\s*$"
         reTiros = r"^\s*(\d+)/(\d+)\s*$"
-        reRebotes = r"^\s*(\\d+)\+(\d+)\s*$"
+        reRebotes = r"^\s*(\d+)\+(\d+)\s*$"
         rePorcentaje = r"^\s*(\d+)%\s*$"
 
         def ProcesaTiempo(cadena):
