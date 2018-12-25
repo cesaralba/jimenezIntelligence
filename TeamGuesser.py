@@ -37,7 +37,7 @@ ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
 
 # create formatter
-formatter = logging.Formatter('%(asctime)s [%(process)d:%(threadName)s@%(name)s %(levelname)s %(relativeCreated)14dms]: %(message)s')
+formatter = logging.Formatter('%(asctime)s [%(process)d:%(threadName)10s@%(name)s %(levelname)s %(relativeCreated)14dms]: %(message)s')
 
 # add formatter to ch
 ch.setFormatter(formatter)
