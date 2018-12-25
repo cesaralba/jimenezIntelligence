@@ -1,14 +1,14 @@
+import logging
 from collections import defaultdict
 from itertools import combinations
 from os.path import join
 from pathlib import Path
 
 import joblib
-import logging
+
+from .SMconstants import SEQCLAVES, buildPosCupoIndex, calculaValSuperManager
+
 logger = logging.getLogger(__name__)
-
-
-from SMACB.SMconstants import buildPosCupoIndex, calculaValSuperManager
 
 
 def agregaJugadores(listaJugs, datosJugs):
@@ -166,3 +166,25 @@ def varname2fichname(jornada, varname, basedir=".", ext="pickle"):
 
 def comb2Key(comb, jornada, joinerChar="-"):
     return ("J%03d" % jornada) + joinerChar + joinerChar.join("%1d_%1d" % (x, comb[x]) for x in comb)
+
+
+def keySearchOrderParameter(param):
+    if param is None:
+        return SEQCLAVES
+
+    id2key = {'t': 'triples', 'a': 'asistencias', 'r': 'rebotes', 'p': 'puntos', 'v': 'valJornada', 'b': 'broker'}
+
+    try:
+        result = [id2key[k.lower()] for k in param]
+    except KeyError as exc:
+        raise ValueError(
+            "keySearchOrderParameter: There was a problem with parameter '%s': bad key %s. Bye." % (param, exc))
+
+    if len(result) != len(id2key):
+        key2id = {v: k for k, v in id2key.items()}
+        missing = ["%s(%s)" % (k, key2id[k]) for k in key2id if k not in result]
+
+        raise ValueError("keySearchOrderParameter: There was a problem with parameter '%s': missing keys : %s. Bye." % (
+            param, ", ".join(missing)))
+
+    return result
