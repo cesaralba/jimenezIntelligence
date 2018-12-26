@@ -4,17 +4,18 @@
 import bz2
 import csv
 import logging
+from argparse import Namespace
 from collections import defaultdict
 from itertools import chain, product
-from sys import getsizeof
 from os.path import join
+from sys import getsizeof
 from time import strftime, time
 
 import joblib
 from configargparse import ArgumentParser
 from dask.distributed import Client, LocalCluster
 
-from SMACB.Guesser import (GeneraCombinacionJugs, agregaJugadores,
+from SMACB.Guesser import (GeneraCombinacionJugs, agregaJugadores, keySearchOrderParameter,
                            buildPosCupoIndex, comb2Key, dumpVar,
                            getPlayersByPosAndCupoJornada, loadVar,
                            varname2fichname)
@@ -37,7 +38,8 @@ ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
 
 # create formatter
-formatter = logging.Formatter('%(asctime)s [%(process)d:%(threadName)10s@%(name)s %(levelname)s %(relativeCreated)14dms]: %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s [%(process)d:%(threadName)10s@%(name)s %(levelname)s %(relativeCreated)14dms]: %(message)s')
 
 # add formatter to ch
 ch.setFormatter(formatter)
@@ -73,6 +75,7 @@ def procesaArgumentos():
     parser.add('-x', '--scheduler', dest='scheduler', type=str, default='127.0.0.1')
     parser.add("-o", "--output-dir", dest="outputdir", type=str, default=LOCATIONCACHE)
     parser.add('-p', '--package', dest='package', type=str, action="append")
+    parser.add('--keySearchOrder', dest='searchOrder', type=str)
 
     parser.add('--nproc', dest='nproc', type=int, default=NJOBS)
     parser.add('--memworker', dest='memworker', default=MEMWORKER)
@@ -82,15 +85,20 @@ def procesaArgumentos():
     parser.add('-d', dest='debug', action="store_true", env_var='SM_DEBUG', required=False, default=False)
     parser.add('--logdir', dest='logdir', type=str, env_var='SM_LOGDIR', required=False)
 
-    args = parser.parse_args()
+    args = vars(parser.parse_args())
 
-    return args
+    if 'searchOrder' in args:
+        args['clavesSeq'] = keySearchOrderParameter(args['searchOrder'])
+    else:
+        args['clavesSeq'] = SEQCLAVES
+
+    return Namespace(**args)
 
 
 def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada):
     result = []
 
-    claves = SEQCLAVES.copy()
+    claves = args.clavesSeq.copy()
 
     contExcl = {'in': 0, 'out': 0, 'cubos': 0, 'depth': dict()}
     for i in range(len(claves) + 1):
@@ -120,11 +128,11 @@ def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada):
 
             if len(claves) == 1:
                 nuevaSol = curSol + [prodKey]
-                solAcum = {k: sum(s) for k, s in zip(SEQCLAVES, nuevaSol)}
-                for k in SEQCLAVES:
+                solAcum = {k: sum(s) for k, s in zip(args.clavesSeq, nuevaSol)}
+                for k in args.clavesSeq:
                     assert (solAcum[k] == val2match[k])
 
-                valsSolD = [dict(zip(SEQCLAVES, s)) for s in list(zip(*nuevaSol))]
+                valsSolD = [dict(zip(args.clavesSeq, s)) for s in list(zip(*nuevaSol))]
                 solClaves = [solucion2clave(c, s) for c, s in zip(comb, valsSolD)]
 
                 regSol = (equipo, solClaves, prod([x for x in nuevosCombVals]))
@@ -139,7 +147,7 @@ def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada):
                     continue
         return None
 
-    solBusq = ", ".join(["%s: %s" % (k, str(val2match[k])) for k in SEQCLAVES])
+    solBusq = ", ".join(["%s: %s" % (k, str(val2match[k])) for k in args.clavesSeq])
     numCombs = prod([g['numCombs'] for g in grupos2check])
     tamCubo = prod([len(g['valSets']) for g in grupos2check])
     FORMATOIN = "%-16s %3d J:%2d %20s IN  numEqs %16d cubo inicial: %10d Valores a buscar: %s"
@@ -182,15 +190,16 @@ if __name__ == '__main__':
     logger.info("Comenzando ejecución")
 
     args = procesaArgumentos()
+    clavesParaNomFich = "+".join(args.clavesSeq)
     jornada = args.jornada
     destdir = args.outputdir
 
-    dh = logging.FileHandler(filename=join(destdir,"TeamGuesser.log"))
+    dh = logging.FileHandler(filename=join(destdir, "TeamGuesser.log"))
     dh.setFormatter(formatter)
     logger.addHandler(dh)
 
     if 'logdir' in args:
-        fh = logging.FileHandler(filename=join(args.logdir,"J%03d.log" % jornada))
+        fh = logging.FileHandler(filename=join(args.logdir, "J%03d.log" % jornada))
         fh.setFormatter(formatter)
         logger.addHandler(fh)
 
@@ -281,14 +290,14 @@ if __name__ == '__main__':
 
     groupedCombs, groupedCombsKeys = cuentaCombinaciones(validCombs, jornada)
 
-    logger.info("Cargando grupos de jornada %d (secuencia: %s)" % (jornada, ", ".join(SEQCLAVES)))
+    logger.info("Cargando grupos de jornada %d (secuencia: %s)" % (jornada, ", ".join(args.clavesSeq)))
 
     nombrefichCuentaGrupos = varname2fichname(jornada=jornada, varname=(clavesParaNomFich + "-cuentaGrupos"),
                                               basedir=destdir)
     cuentaGrupos = loadVar(nombrefichCuentaGrupos)
 
     if cuentaGrupos is None:
-        logger.info("Generando grupos para jornada %d Seq claves %s" % (jornada, ", ".join(SEQCLAVES)))
+        logger.info("Generando grupos para jornada %d Seq claves %s" % (jornada, ", ".join(args.clavesSeq)))
         posYcupos, jugadores, lenPosCupos = getPlayersByPosAndCupoJornada(jornada, sm, temporada)
 
         dumpVar(varname2fichname(jornada, "jugadores", basedir=destdir), jugadores)
@@ -349,7 +358,7 @@ if __name__ == '__main__':
 
                     agr = agregaJugadores(aux, jugadores)
                     claveJugs = "-".join(aux)
-                    indexComb = [agr[k] for k in SEQCLAVES]
+                    indexComb = [agr[k] for k in args.clavesSeq]
 
                     agr['solkey'] = solucion2clave(comb, agr)
                     agr['grupo'] = comb
