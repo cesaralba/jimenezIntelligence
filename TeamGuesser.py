@@ -8,8 +8,8 @@ from argparse import Namespace
 from collections import defaultdict
 from itertools import chain, product
 from os.path import join
-from sys import getsizeof
 from time import strftime, time
+from Utils.pysize import get_size
 
 import joblib
 from configargparse import ArgumentParser
@@ -373,7 +373,7 @@ if __name__ == '__main__':
                 newCuentaGrupos[comb]['valSets'] = colSets
                 formatoTraza = "Gen grupos %-20s %10.3fs cont: %3d numero combs %8d memoria %8d num claves L0: %d"
                 logger.info(formatoTraza, comb, duracion, newCuentaGrupos[comb]['cont'],
-                            newCuentaGrupos[comb]['numCombs'], getsizeof(colSets), len(colSets))
+                            newCuentaGrupos[comb]['numCombs'], get_size(colSets), len(colSets))
 
         resDump = dumpVar(nombrefichCuentaGrupos, newCuentaGrupos)
         del newCuentaGrupos
@@ -382,7 +382,7 @@ if __name__ == '__main__':
         gc.collect()
         cuentaGrupos = loadVar(nombrefichCuentaGrupos)
 
-    logger.info("Cargados %d grupos de combinaciones. Memory: %d" % (len(cuentaGrupos), getsizeof(cuentaGrupos)))
+    logger.info("Cargados %d grupos de combinaciones. Memory: %d" % (len(cuentaGrupos), get_size(cuentaGrupos)))
 
     resultado = dict()
 
