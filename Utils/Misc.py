@@ -1,5 +1,6 @@
 import re
 from collections import defaultdict
+from pathlib import Path
 from time import gmtime
 
 ####################################################################################################################
@@ -133,3 +134,9 @@ def generaDefaultDict(listaClaves, tipoFinal):
             return defaultdict(lambda: actGenera(objLen - 1, tipo))
 
     return actGenera(len(listaClaves), tipoFinal)
+
+
+def creaPath(*kargs):
+    pathList = [Path(p) for p in kargs]
+
+    return Path.joinpath(*pathList)

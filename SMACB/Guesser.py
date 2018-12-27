@@ -2,11 +2,15 @@ import logging
 from collections import defaultdict
 from itertools import combinations
 from os.path import join
-from pathlib import Path
 
 import joblib
 
+from Utils.Misc import creaPath
+
 from .SMconstants import SEQCLAVES, buildPosCupoIndex, calculaValSuperManager
+
+id2key = {'t': 'triples', 'a': 'asistencias', 'r': 'rebotes', 'p': 'puntos', 'v': 'valJornada', 'b': 'broker'}
+key2id = {v: k for k, v in id2key.items()}
 
 logger = logging.getLogger(__name__)
 
@@ -161,7 +165,7 @@ def loadVar(pathFile, mmap_mode=None):
 
 
 def varname2fichname(jornada, varname, basedir=".", ext="pickle"):
-    return Path.joinpath(Path(basedir), Path("J%03d-%s.%s" % (jornada, varname, ext)))
+    return creaPath(basedir, "J%03d-%s.%s" % (jornada, varname, ext))
 
 
 def comb2Key(comb, jornada, joinerChar="-"):
@@ -172,8 +176,6 @@ def keySearchOrderParameter(param):
     if param is None:
         return SEQCLAVES
 
-    id2key = {'t': 'triples', 'a': 'asistencias', 'r': 'rebotes', 'p': 'puntos', 'v': 'valJornada', 'b': 'broker'}
-
     try:
         result = [id2key[k.lower()] for k in param]
     except KeyError as exc:
@@ -181,10 +183,23 @@ def keySearchOrderParameter(param):
             "keySearchOrderParameter: There was a problem with parameter '%s': bad key %s. Bye." % (param, exc))
 
     if len(result) != len(id2key):
-        key2id = {v: k for k, v in id2key.items()}
         missing = ["%s(%s)" % (k, key2id[k]) for k in key2id if k not in result]
 
         raise ValueError("keySearchOrderParameter: There was a problem with parameter '%s': missing keys : %s. Bye." % (
             param, ", ".join(missing)))
 
     return result
+
+
+def plan2filename(plan, seqk):
+    combDicts = [g['comb'] for g in plan['grupos2check']]
+    allCombs = dict()
+    for g in combDicts:
+        allCombs.update(g)
+
+    planPart = "-".join(["%i_%i" % (k, allCombs[k]) for k in sorted(allCombs.keys())])
+    seqPart = "".join([key2id[k] for k in seqk])
+
+    filename = "+".join([("J%03d" % plan['jornada']), plan['equipo'], planPart, seqPart]) + ".pickle"
+
+    return filename

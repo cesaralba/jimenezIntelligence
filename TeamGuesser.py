@@ -3,28 +3,31 @@
 
 import bz2
 import csv
+import errno
 import logging
 from argparse import Namespace
 from collections import defaultdict
 from itertools import chain, product
+from os import makedirs
 from os.path import join
 from time import strftime, time
-from Utils.pysize import get_size
 
 import joblib
 from configargparse import ArgumentParser
 from dask.distributed import Client, LocalCluster
 
-from SMACB.Guesser import (GeneraCombinacionJugs, agregaJugadores, keySearchOrderParameter,
+from SMACB.Guesser import (GeneraCombinacionJugs, agregaJugadores,
                            buildPosCupoIndex, comb2Key, dumpVar,
-                           getPlayersByPosAndCupoJornada, loadVar,
+                           getPlayersByPosAndCupoJornada,
+                           keySearchOrderParameter, loadVar, plan2filename,
                            varname2fichname)
 from SMACB.SMconstants import CUPOS, POSICIONES, SEQCLAVES, solucion2clave
 from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.CombinacionesConCupos import GeneraCombinaciones
-from Utils.Misc import FORMATOtimestamp, deepDict, deepDictSet
 from Utils.combinatorics import n_choose_m, prod
+from Utils.Misc import FORMATOtimestamp, creaPath, deepDict, deepDictSet
+from Utils.pysize import get_size
 
 NJOBS = 2
 MEMWORKER = "2GB"
@@ -95,7 +98,7 @@ def procesaArgumentos():
     return Namespace(**args)
 
 
-def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada):
+def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada, **kwargs):
     result = []
 
     claves = args.clavesSeq.copy()
@@ -163,6 +166,7 @@ def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada):
     logger.info(FORMATOOUT % (equipo, seqnum, jornada, combInt, len(result), numEqs, durac,
                               (100.0 * float(ops) / float(numCombs)), numCombs, ops, contExcl))
 
+    dumpVar(kwargs['filename'], result, False)
     return result
 
 
@@ -294,6 +298,7 @@ if __name__ == '__main__':
 
     nombrefichCuentaGrupos = varname2fichname(jornada=jornada, varname=(clavesParaNomFich + "-cuentaGrupos"),
                                               basedir=destdir)
+    logger.info("[fichero: %s]" % (nombrefichCuentaGrupos))
     cuentaGrupos = loadVar(nombrefichCuentaGrupos)
 
     if cuentaGrupos is None:
@@ -371,7 +376,7 @@ if __name__ == '__main__':
                 duracion = timeOut - timeIn
 
                 newCuentaGrupos[comb]['valSets'] = colSets
-                formatoTraza = "Gen grupos %-20s %10.3fs cont: %3d numero combs %8d memoria %8d num claves L0: %d"
+                formatoTraza = "Gen grupos %-20s %10.3fs cont: %3d numero combs %8d memoria %12d num claves L0: %d"
                 logger.info(formatoTraza, comb, duracion, newCuentaGrupos[comb]['cont'],
                             newCuentaGrupos[comb]['numCombs'], get_size(colSets), len(colSets))
 
@@ -384,27 +389,45 @@ if __name__ == '__main__':
 
     logger.info("Cargados %d grupos de combinaciones. Memory: %d" % (len(cuentaGrupos), get_size(cuentaGrupos)))
 
-    resultado = dict()
+    socio2path = dict()
+
+    for socio in sociosReales:
+        socio2path[socio] = creaPath(destdir, "sols", socio)
+
+        try:
+            makedirs(socio2path[socio])
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
 
     planesAcorrer = []
+    solucionesConocidas = []
     sociosReales.sort()
     for i, socio in product(range(len(groupedCombsKeys)), sociosReales):
         plan = groupedCombsKeys[i]
+
         planTotal = {'seqnum': i,
                      'comb': plan,
                      'grupos2check': [cuentaGrupos[grupo] for grupo in plan],
                      'val2match': resJornada.resultados[socio],
                      'equipo': socio,
                      'jornada': jornada}
-        planesAcorrer.append(planTotal)
+        planTotal['filename'] = creaPath(socio2path[socio], plan2filename(planTotal, args.clavesSeq))
+
+        sol = loadVar(planTotal['filename'])
+
+        if sol is None:
+            planesAcorrer.append(planTotal)
+        else:
+            solucionesConocidas.append(sol)
+        # print(planTotal)
 
     logger.info("Planes para ejecutar: %d" % len(planesAcorrer))
+    print(solucionesConocidas)
 
     if args.backend == 'joblib':
 
         result = joblib.Parallel(**configParallel)(joblib.delayed(validateCombs)(**plan) for plan in planesAcorrer)
-
-        resultadoPlano = list(chain.from_iterable(result))
 
     elif 'dask' in args.backend:
 
@@ -412,10 +435,11 @@ if __name__ == '__main__':
             result = joblib.Parallel(**configParallel)(joblib.delayed(validateCombs)(**plan) for plan in planesAcorrer)
 
         # result = Parallel(**configParallel)(delayed(validateCombs)(**plan) for plan in planesAcorrer)
-        resultadoPlano = list(chain.from_iterable(result))
 
     else:
-        pass
+        raise ValueError("Procesador '%s' desconocido" % args.backend)
+
+    resultadoPlano = list(chain.from_iterable(result + solucionesConocidas))
 
     dumpVar(varname2fichname(jornada, "%s-resultado-socios-%s" % (clavesParaNomFich, "-".join(sociosReales)),
                              basedir=destdir), resultadoPlano)
