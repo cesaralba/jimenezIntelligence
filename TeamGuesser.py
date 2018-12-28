@@ -53,6 +53,7 @@ logger.addHandler(ch)
 indexGroups = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
 indexGroups = [[0, 1, 2], [3, 4], [5, 6], [7, 8]]
 indexGroups = [[0, 1, 2, 3], [4, 5], [6, 7, 8]]
+# indexGroups = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
 
 LOCATIONCACHE = '/home/calba/devel/SuperManager/guesser'
 
@@ -376,16 +377,15 @@ if __name__ == '__main__':
                 duracion = timeOut - timeIn
 
                 newCuentaGrupos[comb]['valSets'] = colSets
-                formatoTraza = "Gen grupos %-20s %10.3fs cont: %3d numero combs %8d memoria %12d num claves L0: %d"
+                formatoTraza = "Gen grupos %-20s %10.3fs cont: %3d numero combs %8d memoria %12d num claves L0: %4d"
                 logger.info(formatoTraza, comb, duracion, newCuentaGrupos[comb]['cont'],
                             newCuentaGrupos[comb]['numCombs'], get_size(colSets), len(colSets))
 
         resDump = dumpVar(nombrefichCuentaGrupos, newCuentaGrupos)
-        del newCuentaGrupos
         import gc
 
         gc.collect()
-        cuentaGrupos = loadVar(nombrefichCuentaGrupos)
+        cuentaGrupos = newCuentaGrupos
 
     logger.info("Cargados %d grupos de combinaciones. Memory: %d" % (len(cuentaGrupos), get_size(cuentaGrupos)))
 
