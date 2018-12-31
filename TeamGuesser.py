@@ -4,24 +4,26 @@
 import bz2
 import csv
 import errno
+import gc
 import logging
 from argparse import Namespace
 from collections import defaultdict
 from itertools import chain, product
 from os import makedirs
-from os.path import join
+from os.path import isfile, join
 from time import strftime, time
 
 import joblib
+from babel.numbers import parse_decimal
 from configargparse import ArgumentParser
 from dask.distributed import Client, LocalCluster
 
 from SMACB.Guesser import (GeneraCombinacionJugs, agregaJugadores,
                            buildPosCupoIndex, comb2Key, dumpVar,
-                           getPlayersByPosAndCupoJornada,
+                           getPlayersByPosAndCupoJornada, indexGroup2Key,
                            keySearchOrderParameter, loadVar, plan2filename,
-                           varname2fichname)
-from SMACB.SMconstants import CUPOS, POSICIONES, SEQCLAVES, solucion2clave
+                           seq2name, varname2fichname)
+from SMACB.SMconstants import SEQCLAVES, solucion2clave
 from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.CombinacionesConCupos import GeneraCombinaciones
@@ -214,7 +216,6 @@ if __name__ == '__main__':
         configParallel['n_jobs'] = args.nproc
         configParallel['prefer'] = args.joblibmode
         # configParallel['require'] = 'sharedmem'
-
     elif args.backend == 'dasklocal':
         configParallel['backend'] = "dask"
         cluster = LocalCluster(n_workers=args.nproc, threads_per_worker=1, memory_limit=args.memworker)
@@ -297,16 +298,21 @@ if __name__ == '__main__':
 
     logger.info("Cargando grupos de jornada %d (secuencia: %s)" % (jornada, ", ".join(args.clavesSeq)))
 
-    nombrefichCuentaGrupos = varname2fichname(jornada=jornada, varname=(clavesParaNomFich + "-cuentaGrupos"),
-                                              basedir=destdir)
-    logger.info("[fichero: %s]" % (nombrefichCuentaGrupos))
-    cuentaGrupos = loadVar(nombrefichCuentaGrupos)
+    nombreFichCuentaGrupos = varname2fichname(jornada=jornada, varname="-".join([
+        indexGroup2Key(indexGroups), seq2name(args.clavesSeq), "cuentaGrupos"]), basedir=destdir)
+
+    nombreFichGruposJugs = varname2fichname(jornada=jornada,
+                                            varname="-".join([indexGroup2Key(indexGroups), "grupoJugs"]),
+                                            basedir=destdir, ext="csv.bz2")
+
+    logger.info("[fichero cuentaGrupos: %s]" % (nombreFichCuentaGrupos))
+    logger.info("[fichero grupo Jugadores: %s]" % (nombreFichGruposJugs))
+
+    cuentaGrupos = loadVar(nombreFichCuentaGrupos)
 
     if cuentaGrupos is None:
         logger.info("Generando grupos para jornada %d Seq claves %s" % (jornada, ", ".join(args.clavesSeq)))
         posYcupos, jugadores, lenPosCupos = getPlayersByPosAndCupoJornada(jornada, sm, temporada)
-
-        dumpVar(varname2fichname(jornada, "jugadores", basedir=destdir), jugadores)
 
         # groupedCombs = []
         newCuentaGrupos = defaultdict(dict)
@@ -322,69 +328,79 @@ if __name__ == '__main__':
             for n in range(maxPosCupos[i] + 1):
                 numCombsPosYCupos[i][n] = n_choose_m(lenPosCupos[i], n)
 
-        indexGroups = {p: [indexes[p][c] for c in CUPOS] for p in POSICIONES}
+        # indexGroups = {p: [indexes[p][c] for c in CUPOS] for p in POSICIONES}
 
         # Distribuciones de jugadores válidas por posición y cupo
         for c in groupedCombs:
-
             for grupoComb in c:
                 claveComb = comb2Key(grupoComb, jornada)
                 if claveComb not in newCuentaGrupos:
                     numCombs = prod([numCombsPosYCupos[x][grupoComb[x]] for x in grupoComb])
                     newCuentaGrupos[claveComb] = {'cont': 0, 'comb': grupoComb, 'numCombs': numCombs, 'key': claveComb}
-                newCuentaGrupos[claveComb]['cont'] += 1
+                    newCuentaGrupos[claveComb]['valSets'] = dict()
+                    newCuentaGrupos[claveComb]['cont'] += 1
 
-        logger.info("Numero de grupos: %d", sum([newCuentaGrupos[x]['numCombs'] for x in newCuentaGrupos]))
+        logger.info("Numero de combinaciones: %d en %d grupos",
+                    sum([newCuentaGrupos[x]['numCombs'] for x in newCuentaGrupos]), len(newCuentaGrupos))
 
-        with bz2.open(filename=varname2fichname(jornada, varname=(clavesParaNomFich + "-grupos"), basedir=destdir,
-                                                ext="csv.bz2"),
-                      mode='wt') as csv_file:
-            writer = csv.DictWriter(csv_file, fieldnames=CLAVESCSV, delimiter="|")
-            for comb in newCuentaGrupos:
-                combList = []
+        if not isfile(nombreFichGruposJugs):
+            logger.info("Generando archivo de grupos de jugadores indexGroup(%s): %s", indexGroup2Key(indexGroups),
+                        nombreFichGruposJugs)
+            with bz2.open(filename=nombreFichGruposJugs, mode='wt') as csv_file:
+                writer = csv.DictWriter(csv_file, fieldnames=CLAVESCSV, delimiter="|")
+                writer.writeheader()
 
-                combGroup = newCuentaGrupos[comb]['comb']
+                for comb in newCuentaGrupos:
+                    combList = []
+                    combGroup = newCuentaGrupos[comb]['comb']
 
-                timeIn = time()
-                for i in combGroup:
-                    n = combGroup[i]
-                    # Genera combinaciones y las cachea
-                    if combsPosYCupos[i][n] is None:
-                        combsPosYCupos[i][n] = GeneraCombinacionJugs(posYcupos[i], n)
-                    if n != 0:
-                        combList.append(combsPosYCupos[i][n])
+                    timeIn = time()
+                    for i in combGroup:
+                        n = combGroup[i]
+                        # Genera combinaciones y las cachea
+                        if combsPosYCupos[i][n] is None:
+                            combsPosYCupos[i][n] = GeneraCombinacionJugs(posYcupos[i], n)
+                        if n != 0:
+                            combList.append(combsPosYCupos[i][n])
 
-                colSets = dict()
+                    colSets = dict()
 
-                for pr in product(*combList):
-                    aux = []
-                    for gr in pr:
-                        for j in gr:
-                            aux.append(j)
+                    for pr in product(*combList):
+                        aux = list(chain.from_iterable(pr))
 
-                    agr = agregaJugadores(aux, jugadores)
-                    claveJugs = "-".join(aux)
-                    indexComb = [agr[k] for k in args.clavesSeq]
+                        agr = agregaJugadores(aux, jugadores)
+                        claveJugs = "-".join(aux)
+                        indexComb = [agr[k] for k in args.clavesSeq]
 
-                    agr['solkey'] = solucion2clave(comb, agr)
-                    agr['grupo'] = comb
-                    agr['jugs'] = claveJugs
-                    writer.writerow(agr)
+                        agr['solkey'] = solucion2clave(comb, agr)
+                        agr['grupo'] = comb
+                        agr['jugs'] = claveJugs
+                        writer.writerow(agr)
 
-                    deepDictSet(colSets, indexComb, deepDict(colSets, indexComb, int) + 1)
+                    timeOut = time()
+                    duracion = timeOut - timeIn
 
-                timeOut = time()
-                duracion = timeOut - timeIn
+                    formatoTraza = "Gen grupos %-20s %10.3fs cont: %3d numero combs %8d"
+                    logger.info(formatoTraza, comb, duracion, newCuentaGrupos[comb]['cont'],
+                                newCuentaGrupos[comb]['numCombs'])
+                    gc.collect()
 
-                newCuentaGrupos[comb]['valSets'] = colSets
-                formatoTraza = "Gen grupos %-20s %10.3fs cont: %3d numero combs %8d memoria %12d num claves L0: %4d"
-                logger.info(formatoTraza, comb, duracion, newCuentaGrupos[comb]['cont'],
-                            newCuentaGrupos[comb]['numCombs'], get_size(colSets), len(colSets))
+        logger.info("Generando arboles para grupos.")
 
-        resDump = dumpVar(nombrefichCuentaGrupos, newCuentaGrupos)
-        import gc
+        with bz2.open(filename=nombreFichGruposJugs, mode='rt') as csv_file:
+            reader = csv.DictReader(csv_file, fieldnames=CLAVESCSV, delimiter="|")
+            headers = next(reader)
+            for row in reader:
+                comb = row['grupo']
+                indexComb = [parse_decimal(row[k]) for k in args.clavesSeq]
 
-        gc.collect()
+                deepDictSet(newCuentaGrupos[comb]['valSets'], indexComb,
+                            deepDict(newCuentaGrupos[comb]['valSets'], indexComb, int) + 1)
+
+        logger.info(
+            "Generados %d grupos de combinaciones. Memory: %d. Grabando." % (len(cuentaGrupos), get_size(cuentaGrupos)))
+
+        resDump = dumpVar(nombreFichCuentaGrupos, newCuentaGrupos)
         cuentaGrupos = newCuentaGrupos
 
     logger.info("Cargados %d grupos de combinaciones. Memory: %d" % (len(cuentaGrupos), get_size(cuentaGrupos)))

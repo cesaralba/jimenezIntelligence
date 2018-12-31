@@ -198,8 +198,16 @@ def plan2filename(plan, seqk):
         allCombs.update(g)
 
     planPart = "-".join(["%i_%i" % (k, allCombs[k]) for k in sorted(allCombs.keys())])
-    seqPart = "".join([key2id[k] for k in seqk])
+    seqPart = seq2name(seqk)
 
     filename = "+".join([("J%03d" % plan['jornada']), plan['equipo'], planPart, seqPart]) + ".pickle"
 
     return filename
+
+
+def indexGroup2Key(ig):
+    return "_".join(["".join(map(str, g)) for g in ig])
+
+
+def seq2name(seqk):
+    return "".join([key2id[k] for k in seqk])
