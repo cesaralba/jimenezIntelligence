@@ -486,6 +486,8 @@ class ResultadosJornadas(object):
 
         return result
 
+    def resSocio2Str(self,socio):
+        return "Val: %7.2f Broker: %8i Puntos: %4d Rebotes: %4d Triples: %4d Asistencias: %4d" % tuple([self.resultados[socio][k] for k in ('valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias')])
 
 def extractPrivateLeagues(content):
     forms = content.find_all("form", {"name": "listaprivadas"})

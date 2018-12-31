@@ -280,7 +280,7 @@ if __name__ == '__main__':
             if s in badTeams:
                 pref = "NO"
 
-            print("[%s] %s -> '%s'" % (pref, s, resJornada.socio2equipo[s]))
+            print("[%s] %-15s -> '%-28s': %s" % (pref, s, resJornada.socio2equipo[s],resJornada.resSocio2Str(s)))
 
         exit(0)
 
@@ -398,7 +398,7 @@ if __name__ == '__main__':
                             deepDict(newCuentaGrupos[comb]['valSets'], indexComb, int) + 1)
 
         logger.info(
-            "Generados %d grupos de combinaciones. Memory: %d. Grabando." % (len(cuentaGrupos), get_size(cuentaGrupos)))
+            "Generados %d grupos de combinaciones. Memory: %d. Grabando." % (len(newCuentaGrupos), get_size(newCuentaGrupos)))
 
         resDump = dumpVar(nombreFichCuentaGrupos, newCuentaGrupos)
         cuentaGrupos = newCuentaGrupos
