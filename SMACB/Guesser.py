@@ -1,16 +1,23 @@
 import logging
 from collections import defaultdict
-from itertools import combinations
+from itertools import combinations, product
 from os.path import join
 
 import joblib
 
 from Utils.Misc import creaPath
 
-from .SMconstants import SEQCLAVES, buildPosCupoIndex, calculaValSuperManager
+from .SMconstants import (CUPOS, POSICIONES, SEQCLAVES, buildPosCupoIndex,
+                          calculaValSuperManager)
 
 id2key = {'t': 'triples', 'a': 'asistencias', 'r': 'rebotes', 'p': 'puntos', 'v': 'valJornada', 'b': 'broker'}
 key2id = {v: k for k, v in id2key.items()}
+
+ig = buildPosCupoIndex()
+# {'posicion1': {'Extracomunitario': 0, 'Español': 1, 'normal': 2},
+# 'posicion3': {'Extracomunitario': 3, 'Español': 4, 'normal': 5},
+# 'posicion5': {'Extracomunitario': 6, 'Español': 7, 'normal': 8}}
+ig2posYcupo = {ig[p][c]: (p, c) for p, c in product(POSICIONES, CUPOS)}
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +31,7 @@ def agregaJugadores(listaJugs, datosJugs):
         if j is None:
             result['Nones'] += 1
             continue
+
         result['jugs'].append(j)
         for k in ['valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias']:
             targKey = tradKEys.get(k, k)
@@ -126,6 +134,7 @@ def getPlayersByPosAndCupoJornada(jornada, supermanager, temporada):
             dictJugs[j]['valSM'] = calculaValSuperManager(jugadoresEnPartidos[j]['estads'].get('V', 0),
                                                           jugadoresEnPartidos[j]['haGanado'])
 
+    # TODO: Control de calidad respecto a valSM vs valJornada
     indexPosCupo = buildPosCupoIndex()
     result = defaultdict(list)
 
@@ -211,3 +220,10 @@ def indexGroup2Key(ig):
 
 def seq2name(seqk):
     return "".join([key2id[k] for k in seqk])
+
+
+def indexPosCupo2str(i):
+    pos2abr = {'posicion1': 'B', 'posicion3': 'A', 'posicion5': 'P'}
+    cupo2abr = {'Extracomunitario': 'EXT', 'Español': 'ESP', 'normal': 'COM'}
+
+    return "%s-%s" % (pos2abr[ig2posYcupo[i][0]], cupo2abr[ig2posYcupo[i][1]])

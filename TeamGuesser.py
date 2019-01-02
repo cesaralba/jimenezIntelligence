@@ -20,7 +20,8 @@ from dask.distributed import Client, LocalCluster
 
 from SMACB.Guesser import (GeneraCombinacionJugs, agregaJugadores,
                            buildPosCupoIndex, comb2Key, dumpVar,
-                           getPlayersByPosAndCupoJornada, indexGroup2Key,
+                           getPlayersByPosAndCupoJornada, ig2posYcupo,
+                           indexGroup2Key, indexPosCupo2str,
                            keySearchOrderParameter, loadVar, plan2filename,
                            seq2name, varname2fichname)
 from SMACB.SMconstants import SEQCLAVES, solucion2clave
@@ -280,7 +281,9 @@ if __name__ == '__main__':
             if s in badTeams:
                 pref = "NO"
 
-            print("[%s] %-15s -> '%-28s': %s" % (pref, s, resJornada.socio2equipo[s],resJornada.resSocio2Str(s)))
+            print("[%s] %-15s -> '%-28s': %s" % (pref, s, resJornada.socio2equipo[s], resJornada.resSocio2Str(s)))
+
+        print("\n" + ", ".join(["%i -> %s" % (i, indexPosCupo2str(i)) for i in sorted(ig2posYcupo)]))
 
         exit(0)
 
@@ -293,7 +296,6 @@ if __name__ == '__main__':
     jugadores = None
 
     validCombs = GeneraCombinaciones()
-
     groupedCombs, groupedCombsKeys = cuentaCombinaciones(validCombs, jornada)
 
     logger.info("Cargando grupos de jornada %d (secuencia: %s)" % (jornada, ", ".join(args.clavesSeq)))
@@ -314,7 +316,6 @@ if __name__ == '__main__':
         logger.info("Generando grupos para jornada %d Seq claves %s" % (jornada, ", ".join(args.clavesSeq)))
         posYcupos, jugadores, lenPosCupos = getPlayersByPosAndCupoJornada(jornada, sm, temporada)
 
-        # groupedCombs = []
         newCuentaGrupos = defaultdict(dict)
         maxPosCupos = [0] * 9
         numCombsPosYCupos = [[]] * 9
@@ -329,6 +330,11 @@ if __name__ == '__main__':
                 numCombsPosYCupos[i][n] = n_choose_m(lenPosCupos[i], n)
 
         # indexGroups = {p: [indexes[p][c] for c in CUPOS] for p in POSICIONES}
+        # ([{0: 0, 1: 0, 2: 3, 3: 0}, {4: 4, 5: 0}, {6: 1, 7: 1, 8: 2}], ['J014-0_0-1_0-2_3-3_0',
+        # 'J014-4_4-5_0', 'J014-6_1-7_1-8_2'])
+        # Solucion conocida para J14/mirza15
+        # groupedCombs = [[{0: 0, 1: 0, 2: 3, 3: 0}, {4: 4, 5: 0}, {6: 1, 7: 1, 8: 2}]]
+        # groupedCombsKeys = [['J014-0_0-1_0-2_3-3_0', 'J014-4_4-5_0', 'J014-6_1-7_1-8_2']]
 
         # Distribuciones de jugadores válidas por posición y cupo
         for c in groupedCombs:
@@ -398,7 +404,8 @@ if __name__ == '__main__':
                             deepDict(newCuentaGrupos[comb]['valSets'], indexComb, int) + 1)
 
         logger.info(
-            "Generados %d grupos de combinaciones. Memory: %d. Grabando." % (len(newCuentaGrupos), get_size(newCuentaGrupos)))
+            "Generados %d grupos de combinaciones. Memory: %d. Grabando." % (len(newCuentaGrupos),
+                                                                             get_size(newCuentaGrupos)))
 
         resDump = dumpVar(nombreFichCuentaGrupos, newCuentaGrupos)
         cuentaGrupos = newCuentaGrupos
