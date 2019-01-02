@@ -164,11 +164,15 @@ def dumpVar(pathFile, var2dump, compress=False):
     return res
 
 
+#TODO: Mensajes ilustrativos en las excepciones
 def loadVar(pathFile, mmap_mode=None):
-    if pathFile.exists():
+    try:
         res = joblib.load(pathFile, mmap_mode=mmap_mode)
-
         return res
+    except EOFError as exc:
+        pass
+    except FileNotFoundError:
+        pass
 
     return None
 
