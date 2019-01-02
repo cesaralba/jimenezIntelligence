@@ -200,16 +200,15 @@ def keySearchOrderParameter(param):
     return result
 
 
-def plan2filename(plan, seqk):
+def plan2filename(plan):
     combDicts = [g['comb'] for g in plan['grupos2check']]
     allCombs = dict()
     for g in combDicts:
         allCombs.update(g)
 
     planPart = "-".join(["%i_%i" % (k, allCombs[k]) for k in sorted(allCombs.keys())])
-    seqPart = seq2name(seqk)
 
-    filename = "+".join([("J%03d" % plan['jornada']), plan['equipo'], planPart, seqPart]) + ".pickle"
+    filename = "+".join([("J%03d" % plan['jornada']), plan['equipo'], planPart]) + ".pickle"
 
     return filename
 

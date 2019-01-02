@@ -435,7 +435,7 @@ if __name__ == '__main__':
                      'val2match': resJornada.resultados[socio],
                      'equipo': socio,
                      'jornada': jornada}
-        planTotal['filename'] = creaPath(socio2path[socio], plan2filename(planTotal, args.clavesSeq))
+        planTotal['filename'] = creaPath(socio2path[socio], plan2filename(planTotal))
 
         sol = loadVar(planTotal['filename'])
 
@@ -445,8 +445,10 @@ if __name__ == '__main__':
             solucionesConocidas.append(sol)
         # print(planTotal)
 
+    if solucionesConocidas:
+        logger.info("Encontradas soluciones  para %d planes" % len(solucionesConocidas))
+
     logger.info("Planes para ejecutar: %d" % len(planesAcorrer))
-    print(solucionesConocidas)
 
     if args.backend == 'joblib':
 
@@ -464,8 +466,8 @@ if __name__ == '__main__':
 
     resultadoPlano = list(chain.from_iterable(result + solucionesConocidas))
 
-    dumpVar(varname2fichname(jornada, "%s-resultado-socios-%s" % (clavesParaNomFich, "-".join(sociosReales)),
-                             basedir=destdir), resultadoPlano)
+    fichSoluciones = varname2fichname(jornada, "resultado-socios-%s" % ("-".join(sociosReales)), basedir=destdir)
+    dumpVar(fichSoluciones, resultadoPlano)
 
-    logger.info(resultadoPlano)
+    logger.info("Encontradas %d soluciones almancenadas en '%s'" % (len(resultadoPlano), fichSoluciones))
     logger.info("Terminando ejecución")
