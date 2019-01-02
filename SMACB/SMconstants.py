@@ -19,6 +19,7 @@ BONUSVICTORIA = 1.2
 # SEQCLAVES = ['asistencias', 'rebotes', 'puntos', 'triples', 'valJornada', 'broker']
 SEQCLAVES = ['triples', 'asistencias', 'rebotes', 'puntos', 'valJornada', 'broker']
 
+CLAVESCSV = ['solkey', 'grupo', 'jugs', 'valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias', 'Nones']
 
 def calculaValSuperManager(valoracion, haGanado=False):
     return round(

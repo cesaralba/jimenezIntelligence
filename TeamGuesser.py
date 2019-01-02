@@ -24,7 +24,7 @@ from SMACB.Guesser import (GeneraCombinacionJugs, agregaJugadores,
                            indexGroup2Key, indexPosCupo2str,
                            keySearchOrderParameter, loadVar, plan2filename,
                            seq2name, varname2fichname)
-from SMACB.SMconstants import SEQCLAVES, solucion2clave
+from SMACB.SMconstants import CLAVESCSV, SEQCLAVES, solucion2clave
 from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.CombinacionesConCupos import GeneraCombinaciones
@@ -60,7 +60,6 @@ indexGroups = [[0, 1, 2, 3], [4, 5], [6, 7, 8]]
 
 LOCATIONCACHE = '/home/calba/devel/SuperManager/guesser'
 
-CLAVESCSV = ['solkey', 'grupo', 'jugs', 'valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias', 'Nones']
 
 clavesParaNomFich = "+".join(SEQCLAVES)
 
