@@ -104,10 +104,10 @@ def procesaArgumentos():
 def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada, **kwargs):
     result = []
 
-    claves = args.clavesSeq.copy()
+    clavesP = kwargs['claves']
 
     contExcl = {'in': 0, 'out': 0, 'cubos': 0, 'depth': dict()}
-    for i in range(len(claves) + 1):
+    for i in range(len(clavesP) + 1):
         contExcl['depth'][i] = 0
 
     combVals = [g['valSets'] for g in grupos2check]
@@ -135,7 +135,7 @@ def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada, **kwar
             if len(claves) == 1:
                 nuevaSol = curSol + [prodKey]
                 solAcum = {k: sum(s) for k, s in zip(args.clavesSeq, nuevaSol)}
-                for k in args.clavesSeq:
+                for k in clavesP:
                     assert (solAcum[k] == val2match[k])
 
                 valsSolD = [dict(zip(args.clavesSeq, s)) for s in list(zip(*nuevaSol))]
@@ -153,13 +153,13 @@ def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada, **kwar
                     continue
         return None
 
-    solBusq = ", ".join(["%s: %s" % (k, str(val2match[k])) for k in args.clavesSeq])
+    solBusq = ", ".join(["%s: %s" % (k, str(val2match[k])) for k in clavesP])
     numCombs = prod([g['numCombs'] for g in grupos2check])
     tamCubo = prod([len(g['valSets']) for g in grupos2check])
     FORMATOIN = "%-16s %3d J:%2d %20s IN  numEqs %16d cubo inicial: %10d Valores a buscar: %s"
     logger.info(FORMATOIN % (equipo, seqnum, jornada, combInt, numCombs, tamCubo, solBusq))
     timeIn = time()
-    ValidaCombinacion(combVals, claves, val2match, [], equipo, combInt)
+    ValidaCombinacion(combVals, clavesP, val2match, [], equipo, combInt)
     timeOut = time()
     durac = timeOut - timeIn
 
@@ -432,6 +432,7 @@ if __name__ == '__main__':
                      'comb': plan,
                      'grupos2check': [cuentaGrupos[grupo] for grupo in plan],
                      'val2match': resJornada.resultados[socio],
+                     'claves': args.clavesSeq.copy(),
                      'equipo': socio,
                      'jornada': jornada}
         planTotal['filename'] = creaPath(socio2path[socio], plan2filename(planTotal))
