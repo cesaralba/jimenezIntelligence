@@ -238,7 +238,7 @@ if __name__ == '__main__':
 
     if cuentaGrupos is None:
 
-        logger.info("Generando grupos para jornada %d Seq claves %s" % (jornada, ", ".join(args.clavesSeq)))
+        logger.info("Generando grupos para jornada %d" % (jornada))
         posYcupos, jugadores, lenPosCupos = getPlayersByPosAndCupoJornada(jornada, sm, temporada)
 
         newCuentaGrupos = defaultdict(dict)
