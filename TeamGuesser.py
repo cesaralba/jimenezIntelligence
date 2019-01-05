@@ -134,11 +134,11 @@ def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada, **kwar
 
             if len(claves) == 1:
                 nuevaSol = curSol + [prodKey]
-                solAcum = {k: sum(s) for k, s in zip(args.clavesSeq, nuevaSol)}
+                solAcum = {k: sum(s) for k, s in zip(clavesP, nuevaSol)}
                 for k in clavesP:
                     assert (solAcum[k] == val2match[k])
 
-                valsSolD = [dict(zip(args.clavesSeq, s)) for s in list(zip(*nuevaSol))]
+                valsSolD = [dict(zip(clavesP, s)) for s in list(zip(*nuevaSol))]
                 solClaves = [solucion2clave(c, s) for c, s in zip(comb, valsSolD)]
 
                 regSol = (equipo, solClaves, prod([x for x in nuevosCombVals]))
@@ -170,6 +170,7 @@ def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada, **kwar
                               (100.0 * float(ops) / float(numCombs)), numCombs, ops, contExcl))
 
     dumpVar(kwargs['filename'], result, False)
+    gc.collect()
     return result
 
 
