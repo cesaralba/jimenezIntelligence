@@ -249,7 +249,7 @@ if __name__ == '__main__':
             precioAntes = sum([jugadores[j]['precioIni'] for j in sol])
             precioFin = sum([jugadores[j]['precioFin'] for j in sol])
 
-            for j in sol:
+            for j in sorted(sol, key=lambda x: (jugadores[x]['pos'], jugadores[x]['code'])):
                 print(j, jugadores[j]['nombre'], jugadores[j].get('precioIni', "--------"),
                       jugadores[j].get('precioFin', "--------"))
                 jugEnSocio[j] += 1
