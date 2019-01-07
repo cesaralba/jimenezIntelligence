@@ -6,9 +6,8 @@ import csv
 import errno
 import gc
 import logging
-from argparse import Namespace
 from collections import defaultdict
-from itertools import chain, product
+from itertools import product
 from os import makedirs
 from os.path import isfile, join
 from time import strftime, time
@@ -18,15 +17,14 @@ from babel.numbers import parse_decimal
 from configargparse import ArgumentParser
 
 from SMACB.Guesser import (buildPosCupoIndex, comb2Key, dumpVar,
-                           getPlayersByPosAndCupoJornada, indexGroup2Key, keySearchOrderParameter, loadVar,
-                           plan2filename,
-                           varname2fichname)
-from SMACB.SMconstants import CLAVESCSV, SEQCLAVES, solucion2clave
+                           getPlayersByPosAndCupoJornada, indexGroup2Key,
+                           loadVar, plan2filename, varname2fichname)
+from SMACB.SMconstants import CLAVESCSV, SEQCLAVES
 from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.CombinacionesConCupos import GeneraCombinaciones
-from Utils.Misc import FORMATOtimestamp, creaPath, deepDict, deepDictSet
 from Utils.combinatorics import n_choose_m, prod
+from Utils.Misc import FORMATOtimestamp, creaPath
 from Utils.pysize import get_size
 
 NJOBS = 2
@@ -86,21 +84,21 @@ def procesaArgumentos():
 
     return parser.parse_args()
 
+
 class CuboCounter(object):
-    def __init__(self,ocurrencias=0, contador=0):
+    def __init__(self, ocurrencias=0, contador=0):
         self.ocurrencias = ocurrencias
         self.contador = contador
 
     def pon(self, c):
-        self.ocurrencias=self.ocurrencias+ c.ocurrencias
-        self.contador=self.contador+ c.contador
+        self.ocurrencias = self.ocurrencias + c.ocurrencias
+        self.contador = self.contador + c.contador
 
     def __repr__(self):
         return "(%d,%d)" % (self.ocurrencias, self.contador)
 
 
 def calculaCuentaResultados(comb, grupos2check, seqnum, jornada, **kwargs):
-
     def calculaValores(valores):
         result = defaultdict(CuboCounter)
         cubo = 0
@@ -108,25 +106,25 @@ def calculaCuentaResultados(comb, grupos2check, seqnum, jornada, **kwargs):
         for comb in product(*valores):
             valor = sum([c[0] for c in comb])
             contador = sum([c[1] for c in comb])
-            cubo +=1
+            cubo += 1
             contcombs += contador
-            result[valor].pon(CuboCounter(1,contador))
+            result[valor].pon(CuboCounter(1, contador))
 
         return result, cubo, contcombs
 
     planIn = time()
 
     claves = SEQCLAVES
-    contExcl = {'in': 0, 'out': 0, 'cubos': 0, 'depth': dict()}
 
-    result = {'seqnum': i, 'comb': plan, 'equipo': 'cuenta', 'jornada': jornada, 'valores': {}, 'cubos': {}, 'conts': {}}
+    result = {'seqnum': i, 'comb': plan, 'equipo': 'cuenta', 'jornada': jornada, 'valores': {}, 'cubos': {},
+              'conts': {}}
 
     for c in claves:
 
         valoresAcontar = [list(g['valores'][c].items()) for g in grupos2check]
         cuboIni = prod([len(g) for g in valoresAcontar])
         FORMATOIN = "%3d J:%2d %20s clave: '%-15s' equipos: %16d -> cubo inicial %10d reducción: %10f%%"
-        ratio = 100.0* cuboIni/ (kwargs['numEquipos'])
+        ratio = 100.0 * cuboIni / (kwargs['numEquipos'])
 
         logger.info(FORMATOIN % (seqnum, jornada, comb, c, kwargs['numEquipos'], cuboIni, ratio))
         print(FORMATOIN % (seqnum, jornada, comb, c, kwargs['numEquipos'], cuboIni, ratio))
@@ -137,7 +135,7 @@ def calculaCuentaResultados(comb, grupos2check, seqnum, jornada, **kwargs):
             logger.info(FORMATOOUT % (seqnum, jornada, comb, c))
             continue
 
-        result['valores'][c], result['cubos'][c], result['conts'][c]  = calculaValores(valoresAcontar)
+        result['valores'][c], result['cubos'][c], result['conts'][c] = calculaValores(valoresAcontar)
 
         timeOut = time()
         durac = timeOut - timeIn
@@ -147,7 +145,7 @@ def calculaCuentaResultados(comb, grupos2check, seqnum, jornada, **kwargs):
         logger.info(FORMATOOUT % (seqnum, jornada, comb, c, durac, vel, len(result['valores'][c])))
         print(FORMATOOUT % (seqnum, jornada, comb, c, durac, vel, len(result['valores'][c])))
 
-    msgIn = "%3d J:%2d Grabando plan. Memory %12d" % (seqnum, jornada,get_size(result))
+    msgIn = "%3d J:%2d Grabando plan. Memory %12d" % (seqnum, jornada, get_size(result))
     grabIn = time()
     logger.info(msgIn)
     print(msgIn)
@@ -232,8 +230,6 @@ if __name__ == '__main__':
 
     logger.info("[fichero grupo Jugadores: %s]" % (nombreFichGruposJugs))
 
-    ##############################3
-
     cuentaGrupos = loadVar(nombreFichCuentaValoresGrupos)
 
     if cuentaGrupos is None:
@@ -303,10 +299,9 @@ if __name__ == '__main__':
                     nombreFichCuentaValoresGrupos)
 
     logger.info("%d grupos de valores para grupos indexGroup(%s): %d", len(indexGroups), indexGroup2Key(indexGroups),
-                    get_size(cuentaGrupos))
+                get_size(cuentaGrupos))
 
-
-    dirCuentas = creaPath(destdir,"cuentas")
+    dirCuentas = creaPath(destdir, "cuentas")
     try:
         makedirs(dirCuentas)
     except OSError as e:
@@ -344,6 +339,7 @@ if __name__ == '__main__':
     configParallel['n_jobs'] = args.nproc
     configParallel['prefer'] = args.joblibmode
 
-    result = joblib.Parallel(**configParallel)(joblib.delayed(calculaCuentaResultados)(**plan) for plan in planesAcorrer)
+    result = joblib.Parallel(**configParallel)(
+        joblib.delayed(calculaCuentaResultados)(**plan) for plan in planesAcorrer)
 
     logger.info("Terminando ejecución")
