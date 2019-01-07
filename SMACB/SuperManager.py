@@ -418,9 +418,17 @@ class ResultadosJornadas(object):
             self.resultados[socio]['valJornada'] = (self.types['valJornada'])(
                 datosJor['value'])
 
+            if jornada in supermanager.__getattribute__('general'):
+                self.resultados[socio]['general'] = (self.types['valJornada'])(
+                    supermanager.general[jornada].data[team]['value'])
+
             for comp in ['puntos', 'rebotes', 'triples', 'asistencias', 'broker']:
                 if jornada in supermanager.__getattribute__(comp):
                     if jornada == 1 or jornada - 1 in supermanager.__getattribute__(comp):
+                        if comp == 'broker':
+                            self.resultados[socio]['saldo'] = (self.types[comp])(
+                                supermanager.__getattribute__(comp)[jornada].data[team]['value'])
+
                         self.resultados[socio][comp] = (self.types[comp])(
                             supermanager.__getattribute__(comp)[jornada].data[team]['value'])
                         if jornada != 1:
@@ -471,12 +479,12 @@ class ResultadosJornadas(object):
         elif isinstance(equipo, Iterable):
             teams2add = equipo
         else:
-            raise(TypeError, "reduceLista: tipo incorrecto para 'equipos'")
+            raise (TypeError, "reduceLista: tipo incorrecto para 'equipos'")
 
         equiposFallan = [e for e in teams2add if e not in self.resultados]
 
         if equiposFallan:
-            raise(ValueError, "%s no están en la liga." % ", ".join(equiposFallan))
+            raise (ValueError, "%s no están en la liga." % ", ".join(equiposFallan))
 
         result = deepcopy(self)
         for e in self.listaEquipos():
@@ -486,8 +494,16 @@ class ResultadosJornadas(object):
 
         return result
 
-    def resSocio2Str(self,socio):
-        return "Val: %7.2f Broker: %8i Puntos: %4d Rebotes: %4d Triples: %4d Asistencias: %4d" % tuple([self.resultados[socio][k] for k in ('valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias')])
+    def resSocio2Str(self, socio):
+        keylist = ('valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias', 'saldo', 'general')
+        key2label = {'valJornada': 'Val: %7.2f', 'broker': 'Broker: %8i', 'puntos': 'Puntos: %4d',
+                     'rebotes': 'Rebotes: %4d', 'triples': 'Triples: %4d', 'asistencias': 'Asistencias: %4d',
+                     'saldo': 'Saldo: %10d', 'general': 'General: %7.2f'}
+        FORMAT = " ".join([key2label[k] for k in keylist if k in self.resultados[socio]])
+        DATA = tuple([self.resultados[socio][k] for k in keylist if k in self.resultados[socio]])
+
+        return FORMAT % DATA
+
 
 def extractPrivateLeagues(content):
     forms = content.find_all("form", {"name": "listaprivadas"})
