@@ -58,9 +58,14 @@ def calculaDFcategACB(dfTemp, dfMerc, clave, filtroFechas=None):
     listaCats = ['competicion', 'temporada', 'jornada', 'codigo', clave]
     dfTempEstats = calculaTempStats(datosWrk, clave=clave, filtroFechas=filtroFechas)
 
-    dfResult = (dfMerc[CATMERCADOFINAL].copy().merge(dfTempEstats)
-                .merge(datosWrk[listaCats].set_index(['competicion', 'temporada'])
-                       .pivot(index='codigo', columns='jornada', values=clave).reset_index()).set_index('codigo'))
+    # dfResult = (dfMerc[CATMERCADOFINAL].copy().merge(dfTempEstats)
+    #             .merge(datosWrk[listaCats].set_index(['competicion', 'temporada'])
+    #                    .pivot(index='codigo', columns='jornada', values=clave).reset_index()).set_index('codigo'))
+
+    print(datosWrk[listaCats].set_index(['competicion', 'temporada']))
+    dfAux = datosWrk[listaCats].set_index(['competicion', 'temporada']).pivot(index='codigo', columns='jornada', values=clave).reset_index()
+
+    dfResult = dfMerc[CATMERCADOFINAL].copy().merge(dfTempEstats).merge(dfAux).set_index('codigo')
 
     return dfResult
 

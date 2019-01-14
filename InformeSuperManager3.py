@@ -367,15 +367,13 @@ if __name__ == '__main__':
 
     sm = SuperManagerACB()
 
-    if 'infile' in args and args.infile:
-        sm.loadData(args.infile)
-        print("Cargados datos SuperManager de %s" % strftime(FORMATOtimestamp, sm.timestamp))
+    sm.loadData(args.infile)
+    print("Cargados datos SuperManager de %s" % strftime(FORMATOtimestamp, sm.timestamp))
 
     temporada = None
-    if 'temporada' in args and args.temporada:
-        temporada = TemporadaACB()
-        temporada.cargaTemporada(args.temporada)
-        print("Cargada información de temporada de %s" % strftime(FORMATOtimestamp, temporada.timestamp))
+    temporada = TemporadaACB()
+    temporada.cargaTemporada(args.temporada)
+    print("Cargada información de temporada de %s" % strftime(FORMATOtimestamp, temporada.timestamp))
 
     if 'outfile' in args and args.outfile:
         preparaExcel(sm, temporada, args.outfile)
