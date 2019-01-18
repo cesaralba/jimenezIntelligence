@@ -119,6 +119,8 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
     # All data fall playrs
     dfUltMerc = sm.mercado[sm.ultimoMercado].mercado2dataFrame()
     dfUltMerc['activo'] = True
+    dfUltMerc['Alta'] = 'S'
+
     dfVZ = calculaZ(dfTemporada, 'V', useStd=True)
 
     varsVZ = calculaVars(dfTemporada, 'V')
@@ -169,7 +171,7 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
         dfUltMerc['precObj'] = auxPrecioObj
         dfUltMerc['distAObj'] = dfUltMerc['precio'] - dfUltMerc['precObj']
 
-        dfUltMerc['activo'] = True
+        dfUltMerc['Alta'] = 'S'
 
         COLSDIFPRECIO = ['precObj', 'distAObj']
 
@@ -367,15 +369,13 @@ if __name__ == '__main__':
 
     sm = SuperManagerACB()
 
-    if 'infile' in args and args.infile:
-        sm.loadData(args.infile)
-        print("Cargados datos SuperManager de %s" % strftime(FORMATOtimestamp, sm.timestamp))
+    sm.loadData(args.infile)
+    print("Cargados datos SuperManager de %s" % strftime(FORMATOtimestamp, sm.timestamp))
 
     temporada = None
-    if 'temporada' in args and args.temporada:
-        temporada = TemporadaACB()
-        temporada.cargaTemporada(args.temporada)
-        print("Cargada información de temporada de %s" % strftime(FORMATOtimestamp, temporada.timestamp))
+    temporada = TemporadaACB()
+    temporada.cargaTemporada(args.temporada)
+    print("Cargada información de temporada de %s" % strftime(FORMATOtimestamp, temporada.timestamp))
 
     if 'outfile' in args and args.outfile:
         preparaExcel(sm, temporada, args.outfile)

@@ -1,14 +1,14 @@
+import logging
 from collections import defaultdict
 from itertools import combinations
 from os.path import join
 from pathlib import Path
 
 import joblib
-import logging
-logger = logging.getLogger(__name__)
-
 
 from SMACB.SMconstants import buildPosCupoIndex, calculaValSuperManager
+
+logger = logging.getLogger(__name__)
 
 
 def agregaJugadores(listaJugs, datosJugs):
