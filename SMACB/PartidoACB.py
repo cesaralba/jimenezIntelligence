@@ -10,9 +10,11 @@ from traceback import print_exc
 import pandas as pd
 from bs4 import Tag
 
-from SMACB.SMconstants import BONUSVICTORIA
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams
+
+from .SMconstants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp,
+                          titular2esp)
 
 templateURLficha = "http://www.acb.com/fichas/%s%i%03i.php"
 reJornada = r".*J\s*(\d+)\s*"
@@ -360,7 +362,7 @@ class PartidoACB(object):
 
     def jugadoresAdataframe(self):
         typesDF = {'competicion': 'object', 'temporada': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
-                   'haJugado': 'bool', 'titular': 'bool', 'haGanado': 'bool', 'enActa': 'bool', 'Vsm': 'float64'}
+                   'haJugado': 'bool', 'titular': 'category', 'haGanado': 'bool', 'enActa': 'bool', 'Vsm': 'float64'}
 
         # 'equipo': 'object', 'CODequipo': 'object', 'rival': 'object', 'CODrival': 'object', 'dorsal': 'object'
         # 'nombre': 'object', 'codigo': 'object'
@@ -368,6 +370,7 @@ class PartidoACB(object):
         def jugador2dataframe(jugador):
             dictJugador = dict()
             dictJugador['enActa'] = True
+            dictJugador['acta'] = 'S'
 
             for dato in jugador:
                 if dato in ['esJugador', 'entrenador', 'estads', 'estado']:
@@ -388,6 +391,10 @@ class PartidoACB(object):
 
             dfresult = pd.DataFrame.from_dict(dictJugador, orient='index').transpose()
             dfresult['Fecha'] = pd.to_datetime(mktime(self.FechaHora), unit='s')
+            dfresult['local'] = dfresult['esLocal'].map(local2esp)
+            dfresult['titular'] = dfresult['titular'].map(titular2esp)
+            dfresult['resultado'] = dfresult['haGanado'].map(haGanado2esp)
+            dfresult['jugado'] = dfresult['haJugado'].map(bool2esp)
 
             return (dfresult)
 

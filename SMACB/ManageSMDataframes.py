@@ -7,7 +7,7 @@ Created on Apr 1, 2018
 from SMACB.SMconstants import POSICIONES
 from SMACB.TemporadaACB import calculaTempStats, calculaVars
 
-CATMERCADOFINAL = ['nombre', 'equipo', 'pos', 'cupo', 'activo', 'infoLesion', 'precio', 'prom3Jornadas', 'promVal',
+CATMERCADOFINAL = ['nombre', 'equipo', 'pos', 'cupo', 'Alta', 'lesion', 'info', 'precio', 'prom3Jornadas', 'promVal',
                    'ProxPartido', 'valJornada', 'codigo']
 VARSCOLS = ['CODrival', 'esLocal']
 
@@ -55,12 +55,13 @@ def calculaDFcategACB(dfTemp, dfMerc, clave, filtroFechas=None):
     else:
         datosWrk = dfTemp
 
-    listaCats = ['competicion', 'temporada', 'jornada', 'codigo', clave]
+    listaCats = ['competicion', 'temporada', 'periodo', 'codigo', clave]
     dfTempEstats = calculaTempStats(datosWrk, clave=clave, filtroFechas=filtroFechas)
 
-    dfResult = (dfMerc[CATMERCADOFINAL].copy().merge(dfTempEstats)
-                .merge(datosWrk[listaCats].set_index(['competicion', 'temporada'])
-                       .pivot(index='codigo', columns='jornada', values=clave).reset_index()).set_index('codigo'))
+    dfAux = datosWrk[listaCats].set_index(['competicion', 'temporada']).pivot(index='codigo', columns='periodo',
+                                                                              values=clave).reset_index()
+
+    dfResult = dfMerc[CATMERCADOFINAL].copy().merge(dfTempEstats).merge(dfAux).set_index('codigo')
 
     return dfResult
 
@@ -93,7 +94,7 @@ def calculaDFprecedentes(dfTemp, dfMerc, clave, filtroFechas=None):
     dfResult.loc[dfResult['enActa'] & ~dfResult['haJugado'], clave] = 0
     dfResult['D-' + clave + '-prec'] = dfResult[clave] - dfResult[clave + '-mean']
     dfResult['Z-' + clave + '-prec'] = (
-        (dfResult[clave] - dfResult[clave + '-mean']) * (1.0 / dfResult[clave + '-std']))
+            (dfResult[clave] - dfResult[clave + '-mean']) * (1.0 / dfResult[clave + '-std']))
 
     return (dfResult[['codigo', 'Precedente', clave, 'D-' + clave + '-prec', 'Z-' + clave + '-prec']].rename(
         columns={clave: clave + '-prec'}))
