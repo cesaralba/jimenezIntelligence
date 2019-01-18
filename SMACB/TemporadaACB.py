@@ -287,7 +287,7 @@ class TemporadaACB(object):
                 jf2periodo[p[1]][p[0]] = periodoAct
 
             p2k = {p: (("%s" % claveMin[p]) + (("\na %s" % claveMax[p]) if (claveMin[p] != claveMax[p]) else "") + (
-                        "\n(J:%2i)" % jornada[p])) for p in jornada}
+                    "\n(J:%2i)" % jornada[p])) for p in jornada}
 
             result = dict()
             for j in jf2periodo:

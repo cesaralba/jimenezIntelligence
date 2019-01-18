@@ -144,8 +144,9 @@ class MercadoPageCompare():
                         if oldPlInfo['info'] != newPlInfo['info']:
                             self.changes = True
                             self.playerChanges[key]['key'] = "{} ({},{})".format(new.PlayerData[key]['nombre'], key,
-                                                                         new.PlayerData[key]['equipo'])
-                            self.playerChanges[key]['info'] += "Info pasa de '{}' a '{}'. ".format(oldPlInfo['info'], newPlInfo['info'])
+                                                                                 new.PlayerData[key]['equipo'])
+                            self.playerChanges[key]['info'] += "Info pasa de '{}' a '{}'. ".format(oldPlInfo['info'],
+                                                                                                   newPlInfo['info'])
                     else:
                         self.changes = True
                         self.playerChanges[key]['key'] = "{} ({},{})".format(new.PlayerData[key]['nombre'], key,
@@ -211,7 +212,7 @@ class MercadoPageCompare():
             result += "\n"
 
         orderList = list(self.playerChanges.keys())
-        orderList.sort(key=lambda x:(self.playerChanges[x]['key']).lower())
+        orderList.sort(key=lambda x: (self.playerChanges[x]['key']).lower())
         for key in orderList:
             playerChangesInfo = self.playerChanges[key]
             result += playerChangesInfo['key'] + ": "
