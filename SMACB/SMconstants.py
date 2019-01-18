@@ -19,6 +19,11 @@ BONUSVICTORIA = 1.2
 # SEQCLAVES = ['asistencias', 'rebotes', 'puntos', 'triples', 'valJornada', 'broker']
 SEQCLAVES = ['triples', 'asistencias', 'rebotes', 'puntos', 'valJornada', 'broker']
 
+bool2esp = {True: "S", False: "N"}
+haGanado2esp = {True: "V", False: "D"}
+titular2esp = {True: "T", False: "B"}
+local2esp = {True: "L", False: "V"}
+
 
 def calculaValSuperManager(valoracion, haGanado=False):
     return round(

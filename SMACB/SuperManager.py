@@ -11,10 +11,10 @@ from babel.numbers import decimal
 from bs4 import BeautifulSoup
 from mechanicalsoup import LinkNotFoundError
 
-from SMACB.ClasifData import ClasifData, manipulaSocio
-from SMACB.ManageSMDataframes import (datosLesionMerc, datosPosMerc,
-                                      datosProxPartidoMerc)
-from SMACB.MercadoPage import MercadoPageContent
+from .ClasifData import ClasifData, manipulaSocio
+from .ManageSMDataframes import datosPosMerc, datosProxPartidoMerc
+from .MercadoPage import MercadoPageContent
+from .SMconstants import bool2esp
 
 URL_SUPERMANAGER = "http://supermanager.acb.com/index/identificar"
 
@@ -348,7 +348,10 @@ class SuperManagerACB(object):
         dfResult['esLocal'] = ~(dfResult['proxFuera'].astype('bool'))
         dfResult['ProxPartido'] = dfResult.apply(datosProxPartidoMerc, axis=1)
         dfResult.loc[dfResult['info'].isna(), 'info'] = ""
-        dfResult['infoLesion'] = dfResult.apply(datosLesionMerc, axis=1)
+        dfResult['lesion'] = dfResult['lesion'].map(bool2esp)
+        dfResult['Alta'] = dfResult['activo'].map(bool2esp)
+
+        # dfResult['infoLesion'] = dfResult.apply(datosLesionMerc, axis=1)
         dfResult.loc[~dfResult['activo'], 'ProxPartido'] = ""
         dfResult.loc[~dfResult['activo'], 'infoLesion'] = ""
 
@@ -471,12 +474,12 @@ class ResultadosJornadas(object):
         elif isinstance(equipo, Iterable):
             teams2add = equipo
         else:
-            raise(TypeError, "reduceLista: tipo incorrecto para 'equipos'")
+            raise (TypeError, "reduceLista: tipo incorrecto para 'equipos'")
 
         equiposFallan = [e for e in teams2add if e not in self.resultados]
 
         if equiposFallan:
-            raise(ValueError, "%s no están en la liga." % ", ".join(equiposFallan))
+            raise (ValueError, "%s no están en la liga." % ", ".join(equiposFallan))
 
         result = deepcopy(self)
         for e in self.listaEquipos():

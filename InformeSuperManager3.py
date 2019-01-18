@@ -119,6 +119,8 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
     # All data fall playrs
     dfUltMerc = sm.mercado[sm.ultimoMercado].mercado2dataFrame()
     dfUltMerc['activo'] = True
+    dfUltMerc['Alta'] = 'S'
+
     dfVZ = calculaZ(dfTemporada, 'V', useStd=True)
 
     varsVZ = calculaVars(dfTemporada, 'V')
@@ -169,7 +171,7 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
         dfUltMerc['precObj'] = auxPrecioObj
         dfUltMerc['distAObj'] = dfUltMerc['precio'] - dfUltMerc['precObj']
 
-        dfUltMerc['activo'] = True
+        dfUltMerc['Alta'] = 'S'
 
         COLSDIFPRECIO = ['precObj', 'distAObj']
 

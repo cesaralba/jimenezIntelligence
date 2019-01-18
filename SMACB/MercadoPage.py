@@ -8,9 +8,8 @@ import pandas as pd
 from babel.numbers import decimal, parse_decimal
 from bs4 import BeautifulSoup
 
-from SMACB.ManageSMDataframes import (datosLesionMerc, datosPosMerc,
-                                      datosProxPartidoMerc)
-from SMACB.SMconstants import CUPOS, POSICIONES
+from SMACB.ManageSMDataframes import datosPosMerc, datosProxPartidoMerc
+from SMACB.SMconstants import CUPOS, POSICIONES, bool2esp
 from Utils.Misc import FORMATOtimestamp
 
 INCLUDEPLAYERDATA = False
@@ -460,7 +459,7 @@ class MercadoPageContent():
     def mercado2dataFrame(self):
         renombraCampos = {'codJugador': 'codigo'}
         colTypes = {'CODequipo': 'category', 'CODrival': 'category', 'codigo': 'category', 'cupo': 'category',
-                    'equipo': 'category', 'lesion': 'bool', 'pos': 'category', 'precio': 'int64',
+                    'equipo': 'category', 'lesion': 'category', 'pos': 'category', 'precio': 'int64',
                     'prom3Jornadas': 'float64', 'promVal': 'float64', 'proxFuera': 'bool', 'rival': 'category',
                     'esLocal': 'bool'}
 
@@ -482,7 +481,8 @@ class MercadoPageContent():
         dfResult['ProxPartido'] = dfResult.apply(datosProxPartidoMerc, axis=1)
         dfResult['pos'] = dfResult.apply(datosPosMerc, axis=1)
         dfResult.loc[dfResult['info'].isna(), 'info'] = ""
-        dfResult['infoLesion'] = dfResult.apply(datosLesionMerc, axis=1)
+        dfResult['lesion'] = dfResult['lesion'].map(bool2esp)
+        # dfResult['infoLesion'] = dfResult.apply(datosLesionMerc, axis=1)
 
         return (dfResult.astype(colTypes))
 

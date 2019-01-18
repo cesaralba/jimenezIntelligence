@@ -7,7 +7,7 @@ Created on Apr 1, 2018
 from SMACB.SMconstants import POSICIONES
 from SMACB.TemporadaACB import calculaTempStats, calculaVars
 
-CATMERCADOFINAL = ['nombre', 'equipo', 'pos', 'cupo', 'activo', 'infoLesion', 'precio', 'prom3Jornadas', 'promVal',
+CATMERCADOFINAL = ['nombre', 'equipo', 'pos', 'cupo', 'Alta', 'lesion', 'info', 'precio', 'prom3Jornadas', 'promVal',
                    'ProxPartido', 'valJornada', 'codigo']
 VARSCOLS = ['CODrival', 'esLocal']
 
