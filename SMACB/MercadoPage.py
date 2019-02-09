@@ -11,6 +11,7 @@ from bs4 import BeautifulSoup
 from SMACB.ManageSMDataframes import datosPosMerc, datosProxPartidoMerc
 from SMACB.SMconstants import (CUPOCORTO, CUPOS, POSICIONCORTA, POSICIONES,
                                bool2esp)
+
 from Utils.Misc import FORMATOtimestamp
 
 INCLUDEPLAYERDATA = False
