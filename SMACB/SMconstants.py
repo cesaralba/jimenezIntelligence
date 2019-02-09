@@ -10,6 +10,9 @@ MINPRECIO = 45000.0
 POSICIONES = {'posicion1': 'Base', 'posicion3': 'Alero', 'posicion5': 'Pivot'}
 CUPOS = ['Extracomunitario', 'Español', 'normal']
 
+POSICIONCORTA = {'posicion1': 'B', 'posicion3': 'A', 'posicion5': 'P'}
+CUPOCORTO = {'Extracomunitario': 'Ext', 'Español': 'Esp', 'normal': 'Com'}
+
 LISTACOMPOS = {'puntos': 'P', 'rebotes': 'REB-T', 'triples': 'T3-C', 'asistencias': 'A'}
 
 BONUSVICTORIA = 1.2
