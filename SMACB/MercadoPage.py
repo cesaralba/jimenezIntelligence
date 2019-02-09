@@ -9,7 +9,8 @@ from babel.numbers import decimal, parse_decimal
 from bs4 import BeautifulSoup
 
 from SMACB.ManageSMDataframes import datosPosMerc, datosProxPartidoMerc
-from SMACB.SMconstants import CUPOS, POSICIONES, bool2esp
+from SMACB.SMconstants import (CUPOCORTO, CUPOS, POSICIONCORTA, POSICIONES,
+                               bool2esp)
 from Utils.Misc import FORMATOtimestamp
 
 INCLUDEPLAYERDATA = False
@@ -85,16 +86,14 @@ class MercadoPageCompare():
             self.changes = True
             self.bajas = [old.PlayerData[x] for x in bajasID]
             for key in bajasID:
-                self.playerChanges[key]['key'] = "{} ({},{})".format(old.PlayerData[key]['nombre'], key,
-                                                                     old.PlayerData[key]['equipo'])
+                self.playerChanges[key]['key'] = self.playerInfo(old, key)
                 self.playerChanges[key]['baja'] += "Es baja en '{}'. ".format(old.PlayerData[key]['equipo'])
 
         if altasID:
             self.changes = True
             self.altas = [new.PlayerData[x] for x in altasID]
             for key in altasID:
-                self.playerChanges[key]['key'] = "{} ({},{})".format(new.PlayerData[key]['nombre'], key,
-                                                                     new.PlayerData[key]['equipo'])
+                self.playerChanges[key]['key'] = self.playerInfo(new, key)
                 self.playerChanges[key]['alta'] += "Es alta en '{}'. ".format(new.PlayerData[key]['equipo'])
 
         for key in siguenID:
@@ -108,8 +107,7 @@ class MercadoPageCompare():
                 self.contCambEquipo += 1
                 origTeam[oldTeam] += 1
                 destTeam[newTeam] += 1
-                self.playerChanges[key]['key'] = "{} ({},{})".format(new.PlayerData[key]['nombre'], key,
-                                                                     new.PlayerData[key]['equipo'])
+                self.playerChanges[key]['key'] = self.playerInfo(new, key)
                 self.playerChanges[key]['cambio'] += "Pasa de '{}' a '{}'. ".format(oldTeam, newTeam)
 
                 cambEquipo[key] = "{} pasa de {} a {}".format(key, oldPlInfo['equipo'], newPlInfo['equipo'])
@@ -142,19 +140,16 @@ class MercadoPageCompare():
                     if 'info' in newPlInfo:
                         if oldPlInfo['info'] != newPlInfo['info']:
                             self.changes = True
-                            self.playerChanges[key]['key'] = "{} ({},{})".format(new.PlayerData[key]['nombre'], key,
-                                                                                 new.PlayerData[key]['equipo'])
+                            self.playerChanges[key]['key'] = self.playerInfo(new, key)
                             self.playerChanges[key]['info'] += "Info pasa de '{}' a '{}'. ".format(oldPlInfo['info'],
                                                                                                    newPlInfo['info'])
                     else:
                         self.changes = True
-                        self.playerChanges[key]['key'] = "{} ({},{})".format(new.PlayerData[key]['nombre'], key,
-                                                                             new.PlayerData[key]['equipo'])
+                        self.playerChanges[key]['key'] = self.playerInfo(new, key)
                         self.playerChanges[key]['info'] += "Info eliminada '{}'. ".format(oldPlInfo['info'])
                 else:
                     self.changes = True
-                    self.playerChanges[key]['key'] = "{} ({},{})".format(new.PlayerData[key]['nombre'], key,
-                                                                         new.PlayerData[key]['equipo'])
+                    self.playerChanges[key]['key'] = self.playerInfo(new, key)
                     self.playerChanges[key]['info'] += "Info nueva '{}'. ".format(newPlInfo['info'])
 
         if (len(self.newRivals) == self.teamsJornada) or (len(self.newRivals) > 4):
@@ -197,15 +192,19 @@ class MercadoPageCompare():
 
         if self.altas:
             result += "Altas: {}\n".format(len(self.altas))
+            # print("Altas:",self.altas)
 
         if self.bajas:
             result += "Bajas: {}\n".format(len(self.bajas))
+            # print("Bajas:",self.bajas)
 
         if self.lesionado:
             result += "Lesionados: {}\n".format(len(self.lesionado))
+            # print("Lesionados:",self.lesionado)
 
         if self.curado:
             result += "Recuperados: {}\n".format(len(self.curado))
+            # print("Curados:",self.curado)
 
         if self.altas or self.bajas or self.lesionado or self.curado:
             result += "\n"
@@ -225,6 +224,14 @@ class MercadoPageCompare():
         result += "\n"
 
         return result
+
+    def playerInfo(self, mercado, key):
+        datos = mercado.PlayerData[key]
+        info = [key, POSICIONCORTA[datos['pos']], CUPOCORTO[datos['cupo']], datos['equipo']]
+        if datos['lesion']:
+            info.append('Lesionado')
+
+        return "{} ({})".format(datos['nombre'], ",".join(info))
 
 
 class MercadoPageContent():
