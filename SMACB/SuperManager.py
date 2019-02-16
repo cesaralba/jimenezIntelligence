@@ -38,8 +38,9 @@ class ClosedSystemError(Exception):
 
 class NoPrivateLeaguesError(Exception):
 
-    def __init__(self, user):
-        Exception.__init__(self, "User '{}' is no member of any private league.".format(user))
+    def __init__(self, msg, *kargs):
+        print(msg.format(*kargs))
+        exit(1)
 
 
 class SuperManagerACB(object):
@@ -114,13 +115,18 @@ class SuperManagerACB(object):
 
         ligas = extractPrivateLeagues(browser.get_current_page())
 
-        if self.ligaID is None and len(ligas) == 1:
+        if len(ligas) == 0:
+            raise NoPrivateLeaguesError("El usuario '{}' no tiene ligas privadas", config.user)
+        elif self.ligaID is None and len(ligas) == 1:
             targLeague = list(ligas.values())[0]
             self.ligaID = targLeague['id']
         elif self.ligaID is None and len(ligas) > 1:
-            raise NoPrivateLeaguesError(config.user)
+            raise NoPrivateLeaguesError("Usuario '{}' juega en más de una liga privada: %s", config.user, ", ".join(ligas.keys()))
         else:
-            targLeague = ligas[self.ligaID]
+            try:
+                targLeague = ligas[self.ligaID]
+            except KeyError:
+                raise NoPrivateLeaguesError("El usuario {} no participa en la liga privada {}", config.user, self.ligaID)
 
         browser.follow_link(targLeague['Ampliar'])
 
