@@ -21,6 +21,8 @@ ig2posYcupo = {ig[p][c]: (p, c) for p, c in product(POSICIONES, CUPOS)}
 
 logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
+
 
 def agregaJugadores(listaJugs, datosJugs):
     tradKEys = {'puntos': 'P', 'rebotes': 'REB-T', 'triples': 'T3-C', 'asistencias': 'A'}

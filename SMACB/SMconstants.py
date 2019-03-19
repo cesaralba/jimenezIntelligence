@@ -10,6 +10,9 @@ MINPRECIO = 45000.0
 POSICIONES = {'posicion1': 'Base', 'posicion3': 'Alero', 'posicion5': 'Pivot'}
 CUPOS = ['Extracomunitario', 'Español', 'normal']
 
+POSICIONCORTA = {'posicion1': 'B', 'posicion3': 'A', 'posicion5': 'P'}
+CUPOCORTO = {'Extracomunitario': 'Ext', 'Español': 'Esp', 'normal': 'Com'}
+
 LISTACOMPOS = {'puntos': 'P', 'rebotes': 'REB-T', 'triples': 'T3-C', 'asistencias': 'A'}
 
 BONUSVICTORIA = 1.2
@@ -20,6 +23,10 @@ BONUSVICTORIA = 1.2
 SEQCLAVES = ['triples', 'asistencias', 'rebotes', 'puntos', 'valJornada', 'broker']
 
 CLAVESCSV = ['solkey', 'grupo', 'jugs', 'valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias', 'Nones']
+bool2esp = {True: "S", False: "N"}
+haGanado2esp = {True: "V", False: "D"}
+titular2esp = {True: "T", False: "B"}
+local2esp = {True: "L", False: "V"}
 
 def calculaValSuperManager(valoracion, haGanado=False):
     return round(
