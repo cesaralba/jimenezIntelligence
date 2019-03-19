@@ -74,7 +74,3 @@ python InformeSuperManager.py -i /home/calba/devel/SuperManager/full/SM2017.late
 * Cuenta atras
 
 * Outliers frecuencia de outliers
-
-#Temporada 2018-2019
-* Jornadas malas 1 y 6.
-

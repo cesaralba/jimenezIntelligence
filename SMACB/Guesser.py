@@ -1,12 +1,25 @@
 import logging
 from collections import defaultdict
-from itertools import combinations
+from itertools import combinations, product
 from os.path import join
-from pathlib import Path
 
 import joblib
 
-from SMACB.SMconstants import buildPosCupoIndex, calculaValSuperManager
+from Utils.Misc import creaPath
+
+from .SMconstants import (CUPOS, POSICIONES, SEQCLAVES, buildPosCupoIndex,
+                          calculaValSuperManager)
+
+id2key = {'t': 'triples', 'a': 'asistencias', 'r': 'rebotes', 'p': 'puntos', 'v': 'valJornada', 'b': 'broker'}
+key2id = {v: k for k, v in id2key.items()}
+
+ig = buildPosCupoIndex()
+# {'posicion1': {'Extracomunitario': 0, 'Español': 1, 'normal': 2},
+# 'posicion3': {'Extracomunitario': 3, 'Español': 4, 'normal': 5},
+# 'posicion5': {'Extracomunitario': 6, 'Español': 7, 'normal': 8}}
+ig2posYcupo = {ig[p][c]: (p, c) for p, c in product(POSICIONES, CUPOS)}
+
+logger = logging.getLogger(__name__)
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +33,7 @@ def agregaJugadores(listaJugs, datosJugs):
         if j is None:
             result['Nones'] += 1
             continue
+
         result['jugs'].append(j)
         for k in ['valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias']:
             targKey = tradKEys.get(k, k)
@@ -122,6 +136,7 @@ def getPlayersByPosAndCupoJornada(jornada, supermanager, temporada):
             dictJugs[j]['valSM'] = calculaValSuperManager(jugadoresEnPartidos[j]['estads'].get('V', 0),
                                                           jugadoresEnPartidos[j]['haGanado'])
 
+    # TODO: Control de calidad respecto a valSM vs valJornada
     indexPosCupo = buildPosCupoIndex()
     result = defaultdict(list)
 
@@ -151,18 +166,69 @@ def dumpVar(pathFile, var2dump, compress=False):
     return res
 
 
+# TODO: Mensajes ilustrativos en las excepciones
 def loadVar(pathFile, mmap_mode=None):
-    if pathFile.exists():
+    try:
         res = joblib.load(pathFile, mmap_mode=mmap_mode)
-
         return res
+    except EOFError as exc:
+        print("loadVar: exc: {}".format(exc))
+    except FileNotFoundError:
+        pass
 
     return None
 
 
 def varname2fichname(jornada, varname, basedir=".", ext="pickle"):
-    return Path.joinpath(Path(basedir), Path("J%03d-%s.%s" % (jornada, varname, ext)))
+    return creaPath(basedir, "J%03d-%s.%s" % (jornada, varname, ext))
 
 
 def comb2Key(comb, jornada, joinerChar="-"):
     return ("J%03d" % jornada) + joinerChar + joinerChar.join("%1d_%1d" % (x, comb[x]) for x in comb)
+
+
+def keySearchOrderParameter(param):
+    if param is None:
+        return SEQCLAVES
+
+    try:
+        result = [id2key[k.lower()] for k in param]
+    except KeyError as exc:
+        raise ValueError(
+            "keySearchOrderParameter: There was a problem with parameter '%s': bad key %s. Bye." % (param, exc))
+
+    if len(result) != len(id2key):
+        missing = ["%s(%s)" % (k, key2id[k]) for k in key2id if k not in result]
+
+        raise ValueError("keySearchOrderParameter: There was a problem with parameter '%s': missing keys : %s. Bye." % (
+            param, ", ".join(missing)))
+
+    return result
+
+
+def plan2filename(plan):
+    combDicts = [g['comb'] for g in plan['grupos2check']]
+    allCombs = dict()
+    for g in combDicts:
+        allCombs.update(g)
+
+    planPart = "-".join(["%i_%i" % (k, allCombs[k]) for k in sorted(allCombs.keys())])
+
+    filename = "+".join([("J%03d" % plan['jornada']), plan['equipo'], planPart]) + ".pickle"
+
+    return filename
+
+
+def indexGroup2Key(ig):
+    return "_".join(["".join(map(str, g)) for g in ig])
+
+
+def seq2name(seqk):
+    return "".join([key2id[k] for k in seqk])
+
+
+def indexPosCupo2str(i):
+    pos2abr = {'posicion1': 'B', 'posicion3': 'A', 'posicion5': 'P'}
+    cupo2abr = {'Extracomunitario': 'EXT', 'Español': 'ESP', 'normal': 'COM'}
+
+    return "%s-%s" % (pos2abr[ig2posYcupo[i][0]], cupo2abr[ig2posYcupo[i][1]])
