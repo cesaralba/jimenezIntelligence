@@ -28,6 +28,7 @@ haGanado2esp = {True: "V", False: "D"}
 titular2esp = {True: "T", False: "B"}
 local2esp = {True: "L", False: "V"}
 
+
 def calculaValSuperManager(valoracion, haGanado=False):
     return round(
         decimal.Decimal.from_float(float(valoracion) * (BONUSVICTORIA if (haGanado and (valoracion > 0)) else 1.0)), 2)
