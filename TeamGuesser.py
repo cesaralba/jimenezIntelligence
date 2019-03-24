@@ -214,9 +214,12 @@ if __name__ == '__main__':
     configParallel = {'verbose': 100}
     # TODO: Control de calidad con los parámetros
     if args.backend == 'joblib':
+
         configParallel['n_jobs'] = args.nproc
         configParallel['prefer'] = args.joblibmode
-        # configParallel['require'] = 'sharedmem'
+        configParallel['max_nbytes'] = None
+
+        # configParallel['require'] = None
     elif args.backend == 'dasklocal':
         configParallel['backend'] = "dask"
         cluster = LocalCluster(n_workers=args.nproc, threads_per_worker=1, memory_limit=args.memworker)
@@ -310,7 +313,7 @@ if __name__ == '__main__':
     logger.info("[fichero cuentaGrupos: %s]" % (nombreFichCuentaGrupos))
     logger.info("[fichero grupo Jugadores: %s]" % (nombreFichGruposJugs))
 
-    cuentaGrupos = loadVar(nombreFichCuentaGrupos)
+    cuentaGrupos = loadVar(nombreFichCuentaGrupos, mmap_mode='r')
 
     if cuentaGrupos is None:
         logger.info("Generando grupos para jornada %d Seq claves %s" % (jornada, ", ".join(args.clavesSeq)))
