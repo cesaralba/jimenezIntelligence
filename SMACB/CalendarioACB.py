@@ -213,6 +213,7 @@ class CalendarioACB(object):
         codigosTemporada = set(self.codigo2equipo.keys())
         combinacionesNoUsadas = defaultdict(set)
 
+        #Repasa todas las jornadas (hacia atrás) asignando los codigos a los equipos a partir de la lista del calendario
         for jornada in sorted(self.Jornadas.keys(), reverse=True):
             if self.Jornadas[jornada]['esPlayoff']:
                 continue
@@ -238,6 +239,7 @@ class CalendarioACB(object):
                 equipo = equiposNoAsignados.pop()
                 self.nuevaTraduccionEquipo2Codigo(equipo, codigo)
 
+            #Trata de buscar en los nombres no asignados por similitud de palabras
             auxEquiposNoAsignados = deepcopy(equiposNoAsignados)
             for equipo in auxEquiposNoAsignados:
                 auxCodigosNoUsados = deepcopy(codigosNoUsados)
@@ -250,13 +252,14 @@ class CalendarioACB(object):
             if not equiposNoAsignados:  # Se asignado todo!
                 continue
 
+            #No hay manera, a la busqueda final
             if codigosNoUsados:
                 combinacionesNoUsadas[cods2key(codigosNoUsados)].add(cods2key(equiposNoAsignados))
 
         if not combinacionesNoUsadas:
             return
 
-        # busca similitures entre el nombre que aparece en el formulario (recortado) y el de las jornadas
+        # De todos los grupos (codigos sin asignar y nombres sin asignar). Los compara para ver si saca algo.
         changes = True
         while changes:
             changes = False
@@ -266,9 +269,11 @@ class CalendarioACB(object):
             for k, nomslist in list(combinacionesNoUsadas.items()):
                 cods = k.split("|")
 
+
                 for v in deepcopy(nomslist):
                     noms = v.split("|")
 
+                    #Elimina el caso trivial 1 codigo = 1 nombre. No debería haber llegado aquí pero...
                     if len(cods) == 1 and len(noms) == 1:
                         nom = noms.pop()
                         cod = cods[0]
@@ -282,10 +287,12 @@ class CalendarioACB(object):
 
                     conjs.append((set(cods), set(noms)))
 
+            # Para cada par de grupos no asignados los compara entre sí e intenta aplicar alguna lógica
             for c1, c2 in combinations(conjs, 2):
                 if c1 == c2:
                     continue
 
+                # Lo que queda del grupo c1 si le quitas lo que ya se sabe
                 cods1, noms1 = purgaSets(self, deepcopy(c1))
                 if c1[0] != cods1 and c1[1] != noms1:
                     kc = cods2key(c1[0])
@@ -296,6 +303,7 @@ class CalendarioACB(object):
                         del combinacionesNoUsadas[kc]
                     changes = True
 
+                # Lo que queda del grupo c2 si le quitas lo que ya se sabe
                 cods2, noms2 = purgaSets(self, deepcopy(c2))
                 if c2[0] != cods1 and c2[1] != noms2:
                     kc = cods2key(c2[0])
@@ -306,6 +314,8 @@ class CalendarioACB(object):
                         del combinacionesNoUsadas[kc]
                     changes = True
 
+                # Si de alguno de los grupos ya se conocian todas las asignaciones no nos vale pero puede habre creado
+                # alguno nuevo
                 if len(cods1) == 0 or len(cods2) == 0 or len(noms1) == 0 or len(noms2) == 0:
                     if len(cods1) > 0 and len(noms1) > 0:
                         combinacionesNoUsadas[cods2key(cods1)].add(cods2key(noms1))
@@ -317,6 +327,7 @@ class CalendarioACB(object):
 
                     continue
 
+                # Calcula la intersección entre los grupos. Si nos sale alguno de len 1, ya tenemos asignación
                 intC12 = cods1.intersection(cods2)
                 intN12 = noms1.intersection(noms2)
 
@@ -338,12 +349,14 @@ class CalendarioACB(object):
                     newN1 = noms1 - newN
                     newN2 = noms2 - newN
 
+                    # Y creamos grupos nuevos con lo que queda de quitar lo aprendido nuevo
                     if len(newC1) > 0 and len(newN1) > 0:
                         combinacionesNoUsadas[cods2key(newC1)].add(cods2key(newN1))
 
                     if len(newC2) > 0 and len(newN2) > 0:
                         combinacionesNoUsadas[cods2key(newC2)].add(cods2key(newN2))
 
+        # Por combinatoria ya no sale nada, toca comparar con los calendarios existentes
         changes = True
         while changes:
             changes = False
@@ -355,6 +368,7 @@ class CalendarioACB(object):
                     origPair = (set(cods), set(noms))
                     pCod, pNom = purgaSets(self, origPair)
 
+                    # Un ultimo intento de quitar cosas conocidas
                     if len(pCod) == 0 or len(pNom) == 0:
                         continue
                     elif len(pCod) == 1 or len(pNom) == 1:
@@ -362,9 +376,11 @@ class CalendarioACB(object):
                         nom = pNom.pop()
                         print("Encontrada comb %s -> %s" % (nom, cod))
                         self.nuevaTraduccionEquipo2Codigo(nom, cod)
-                        changes = False
+                        changes = True
                         continue
 
+                    # se acabó, toca descargar el calendario completo del club y buscar los nombres más frecuentes no
+                    # conocidos
                     for cod in pCod:
                         calEQ = self.descargaCalendarioEquipo(codEquipo=cod)
                         calProc = self.procesaCalendarioEquipo(calEQ)
