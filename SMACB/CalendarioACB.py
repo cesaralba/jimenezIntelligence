@@ -1,6 +1,7 @@
 import re
 from collections import defaultdict
-from copy import copy
+from copy import deepcopy
+from itertools import combinations
 from time import gmtime, strptime
 
 import bs4
@@ -29,12 +30,10 @@ class CalendarioACB(object):
         self.codigo2equipo = defaultdict(set)
         self.url = urlbase
 
-    def bajaCalendario(self, home=None, browser=None, config={}):
-        urlCalendario = ComposeURL(self.url,
-                                   {'cod_competicion': self.competicion, 'cod_edicion': self.edicion, 'vd': "1",
-                                    'vh': "60"})
-        calendarioPage = DescargaPagina(urlCalendario, home=home, browser=browser, config=config)
+    def actualizaCalendario(self, home=None, browser=None, config={}):
+        calendarioPage = self.descargaCalendario(home=home, browser=browser, config=config)
         self.procesaCalendario(calendarioPage)
+        calendarioPage['browser'].close()
 
     def procesaCalendario(self, content):
         if 'timestamp' in content:
@@ -181,8 +180,38 @@ class CalendarioACB(object):
         """ Intenta tener en cuenta los nombres de equipos que cambian a lo largo de la temporada (patrocinios)
         """
 
+        def cods2key(cset):
+            return "|".join(sorted(list(cset)))
+
+        def purgaSets(obj, pair):
+            cods, noms = deepcopy(pair)
+
+            changes = True
+            while changes:
+                changes = False
+                if len(cods) == 1 and len(noms) == 1:
+                    cod = cods.pop()
+                    nom = noms.pop()
+                    print("PS: Encontrada comb %s -> %s" % (nom, cod))
+                    obj.nuevaTraduccionEquipo2Codigo(nom, cod)
+                    changes = True
+
+                auxNoms = deepcopy(noms)
+                for nom in auxNoms:
+                    if nom in obj.equipo2codigo:
+                        cod = obj.equipo2codigo[nom]
+                        if cod not in cods:
+                            raise ValueError(
+                                "purgaSets: traduccion '%s' para '%s' no está en códigos disponibles %s en %s" % (
+                                    cod, nom, cods, pair))
+                        noms.remove(nom)
+                        cods.remove(cod)
+                        changes = True
+
+            return (cods, noms)
+
         codigosTemporada = set(self.codigo2equipo.keys())
-        combinacionesNoUsadas = dict()
+        combinacionesNoUsadas = defaultdict(set)
 
         for jornada in sorted(self.Jornadas.keys(), reverse=True):
             if self.Jornadas[jornada]['esPlayoff']:
@@ -193,6 +222,7 @@ class CalendarioACB(object):
 
             codigosUsados = set()
             equiposNoAsignados = set()
+
             for equipo in self.Jornadas[jornada]['equipos']:
                 if equipo in self.equipo2codigo:
                     codigosUsados.add(self.equipo2codigo[equipo])
@@ -203,41 +233,155 @@ class CalendarioACB(object):
             if not equiposNoAsignados:  # Se asignado todo!
                 continue
 
-            # TODO: Habra que hacer algo para cuando haya equipos impares
+            if len(codigosNoUsados) == 1 and len(equiposNoAsignados) == 1:
+                codigo = codigosNoUsados.pop()
+                equipo = equiposNoAsignados.pop()
+                self.nuevaTraduccionEquipo2Codigo(equipo, codigo)
 
-            # busca similitures entre el nombre que aparece en el formulario (recortado) y el de las jornadas
-            changes = True
-            while changes:
-                changes = False
-                if not equiposNoAsignados:
-                    continue
-
-                auxEquiposNoAsignados = copy(equiposNoAsignados)
-                for equipo in auxEquiposNoAsignados:
-                    auxCodigosNoUsados = copy(codigosNoUsados)
-                    codigo = self.buscaEquipo2CodigoDistancia(equipo, codigosObjetivo=auxCodigosNoUsados)
-                    if codigo:
-                        self.nuevaTraduccionEquipo2Codigo(equipo, codigo)
-                        equiposNoAsignados.remove(equipo)
-                        codigosNoUsados.remove(codigo)
-                        changes = True
-                        break
-
-                # Caso trivial, sólo queda uno por asignar
-                if len(codigosNoUsados) == 1 and len(equiposNoAsignados) == 1:
-                    codigo = codigosNoUsados.pop()
-                    equipo = equiposNoAsignados.pop()
+            auxEquiposNoAsignados = deepcopy(equiposNoAsignados)
+            for equipo in auxEquiposNoAsignados:
+                auxCodigosNoUsados = deepcopy(codigosNoUsados)
+                codigo = self.buscaEquipo2CodigoDistancia(equipo, codigosObjetivo=auxCodigosNoUsados)
+                if codigo:
                     self.nuevaTraduccionEquipo2Codigo(equipo, codigo)
-                    changes = True
-                    continue
+                    equiposNoAsignados.remove(equipo)
+                    codigosNoUsados.remove(codigo)
+
+            if not equiposNoAsignados:  # Se asignado todo!
+                continue
 
             if codigosNoUsados:
-                combinacionesNoUsadas["|".join(sorted(list(codigosNoUsados)))] = equiposNoAsignados
+                combinacionesNoUsadas[cods2key(codigosNoUsados)].add(cods2key(equiposNoAsignados))
 
         if not combinacionesNoUsadas:
             return
-        else:
-            print(combinacionesNoUsadas)
+
+        # busca similitures entre el nombre que aparece en el formulario (recortado) y el de las jornadas
+        changes = True
+        while changes:
+            changes = False
+
+            conjs = []
+
+            for k, nomslist in list(combinacionesNoUsadas.items()):
+                cods = k.split("|")
+
+                for v in deepcopy(nomslist):
+                    noms = v.split("|")
+
+                    if len(cods) == 1 and len(noms) == 1:
+                        nom = noms.pop()
+                        cod = cods[0]
+                        print("Encontrada comb %s -> %s" % (nom, cod))
+                        self.nuevaTraduccionEquipo2Codigo(nom, cod)
+                        combinacionesNoUsadas[k].remove(v)
+                        if len(combinacionesNoUsadas[k]) == 0:
+                            del combinacionesNoUsadas[k]
+                        changes = True
+                        continue
+
+                    conjs.append((set(cods), set(noms)))
+
+            for c1, c2 in combinations(conjs, 2):
+                if c1 == c2:
+                    continue
+
+                cods1, noms1 = purgaSets(self, deepcopy(c1))
+                if c1[0] != cods1 and c1[1] != noms1:
+                    kc = cods2key(c1[0])
+                    kv = cods2key(c1[1])
+                    if kv in combinacionesNoUsadas[kc]:
+                        combinacionesNoUsadas[kc].remove(kv)
+                    if len(combinacionesNoUsadas[kc]) == 0:
+                        del combinacionesNoUsadas[kc]
+                    changes = True
+
+                cods2, noms2 = purgaSets(self, deepcopy(c2))
+                if c2[0] != cods1 and c2[1] != noms2:
+                    kc = cods2key(c2[0])
+                    kv = cods2key(c2[1])
+                    if kv in combinacionesNoUsadas[kc]:
+                        combinacionesNoUsadas[kc].remove(kv)
+                    if len(combinacionesNoUsadas[kc]) == 0:
+                        del combinacionesNoUsadas[kc]
+                    changes = True
+
+                if len(cods1) == 0 or len(cods2) == 0 or len(noms1) == 0 or len(noms2) == 0:
+                    if len(cods1) > 0 and len(noms1) > 0:
+                        combinacionesNoUsadas[cods2key(cods1)].add(cods2key(noms1))
+                        changes = True
+
+                    if len(cods2) > 0 and len(noms2) > 0:
+                        combinacionesNoUsadas[cods2key(cods2)].add(cods2key(noms2))
+                        changes = True
+
+                    continue
+
+                intC12 = cods1.intersection(cods2)
+                intN12 = noms1.intersection(noms2)
+
+                if len(intC12) == 1 and len(intN12) == 1:
+                    cod = intC12.pop()
+                    nom = intN12.pop()
+                    print("Encontrada comb %s -> %s" % (nom, cod))
+                    self.nuevaTraduccionEquipo2Codigo(nom, cod)
+                    changes = True
+
+                    newC = set()
+                    newC.add(cod)
+
+                    newN = set()
+                    newN.add(nom)
+
+                    newC1 = cods1 - newC
+                    newC2 = cods2 - newC
+                    newN1 = noms1 - newN
+                    newN2 = noms2 - newN
+
+                    if len(newC1) > 0 and len(newN1) > 0:
+                        combinacionesNoUsadas[cods2key(newC1)].add(cods2key(newN1))
+
+                    if len(newC2) > 0 and len(newN2) > 0:
+                        combinacionesNoUsadas[cods2key(newC2)].add(cods2key(newN2))
+
+        changes = True
+        while changes:
+            changes = False
+            for k, nomslist in list(combinacionesNoUsadas.items()):
+                cods = k.split("|")
+
+                for v in nomslist:
+                    noms = v.split("|")
+                    origPair = (set(cods), set(noms))
+                    pCod, pNom = purgaSets(self, origPair)
+
+                    if len(pCod) == 0 or len(pNom) == 0:
+                        continue
+                    elif len(pCod) == 1 or len(pNom) == 1:
+                        cod = pCod.pop()
+                        nom = pNom.pop()
+                        print("Encontrada comb %s -> %s" % (nom, cod))
+                        self.nuevaTraduccionEquipo2Codigo(nom, cod)
+                        changes = False
+                        continue
+
+                    for cod in pCod:
+                        calEQ = self.descargaCalendarioEquipo(codEquipo=cod)
+                        calProc = self.procesaCalendarioEquipo(calEQ)
+                        if len(calProc) == 1:
+                            newNom = list(calProc.keys())[0]
+                            self.nuevaTraduccionEquipo2Codigo(newNom, cod)
+                            print("Encontrada comb %s -> %s" % (newNom, cod))
+                            changes = True
+                            continue
+
+                        calPurged = {k: v for k, v in calProc.items() if v >= 2}
+                        if len(calPurged) == 1:
+                            newNom = list(calPurged.keys())[0]
+                            self.nuevaTraduccionEquipo2Codigo(newNom, cod)
+                            print("Encontrada comb %s -> %s" % (newNom, cod))
+                            changes = True
+                            continue
 
     def buscaEquipo2CodigoDistancia(self, equipoAbuscar, codigosObjetivo=None):
         if equipoAbuscar in self.equipo2codigo:
@@ -279,6 +423,69 @@ class CalendarioACB(object):
                   for x in self.Jornadas]
 
         return result
+
+    def descargaCalendario(self, home=None, browser=None, config={}):
+        urlCalendario = ComposeURL(self.url,
+                                   {'cod_competicion': self.competicion, 'cod_edicion': self.edicion, 'vd': "1",
+                                    'vh': "60"})
+        calendarioPage = DescargaPagina(urlCalendario, home=home, browser=browser, config=config)
+
+        return calendarioPage
+
+    def descargaCalendarioEquipo(self, codEquipo, home=None, browser=None, config={}):
+        calWrk = self.descargaCalendario(home=home, browser=browser, config=config)
+
+        # Mira si el equipo es válido
+        pagWrk = calWrk['data']
+
+        divWrk = pagWrk.find('div', attrs={'class': 'cuerponaranja'})
+        frmWrk = divWrk.find('form')
+
+        opts = dict()
+        for opt in frmWrk.findAll('option'):
+            opttxt = opt.get_text()
+            if opttxt == '':
+                continue
+            optval = opt['value']
+            opts[optval] = opttxt
+        if codEquipo not in opts:
+            raise KeyError("descargaCalendarioEquipo: '%s' no está en la edición %s. Equipos disponibles: %s" % (
+                codEquipo, self.edicion, ", ".join(opts)))
+
+        # Descarga calendario
+        browserWrk = calWrk['browser']
+
+        browserWrk.select_form('form[action="partclub.php"]')
+        browserWrk['cod_equipo'] = codEquipo
+
+        result = browserWrk.submit_selected()
+        if not result.ok:
+            raise ValueError("descargaCalendarioEquipo: problemas descargando calendario para '%s'. %s: %s" % (
+                codEquipo, result.status_code, result.content))
+
+        source = browserWrk.get_url()
+        content = browserWrk.get_current_page()
+
+        return {'source': source, 'data': content, 'timestamp': gmtime(), 'home': home, 'browser': browserWrk,
+                'config': config}
+
+    def procesaCalendarioEquipo(self, calEquipo):
+        tableCal = calEquipo['data'].find('table', attrs={'class': 'resultados'})
+
+        eqNames = defaultdict(int)
+        for part in tableCal.findAll('tr'):
+            tdPart = part.find('td', attrs={'class': 'naranjaclaro2'})
+            if tdPart is None:
+                continue
+            partTxt = tdPart.get_text()
+            partEqs = partTxt.split(' - ')
+            for equipo in partEqs:
+                eqName = equipo.strip()
+                if eqName in self.equipo2codigo:
+                    continue
+                eqNames[eqName] += 1
+
+        return eqNames
 
 
 def BuscaCalendario(url=URL_BASE, home=None, browser=None, config={}):

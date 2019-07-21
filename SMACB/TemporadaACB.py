@@ -35,7 +35,7 @@ class TemporadaACB(object):
         self.translations = defaultdict(set)
 
     def actualizaTemporada(self, home=None, browser=None, config={}):
-        self.Calendario.bajaCalendario(browser=browser, config=config)
+        self.Calendario.actualizaCalendario(browser=browser, config=config)
 
         partidosBajados = set()
 
