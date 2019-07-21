@@ -12,7 +12,6 @@ from bs4 import Tag
 
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams
-
 from .SMconstants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp,
                           titular2esp)
 
@@ -214,27 +213,32 @@ class PartidoACB(object):
 
             # mergedCeldas=dict(zip(headers[:2],celdas[:2])) ,mergedCeldas
             if textos[0]:
-                result['titular'] = ("gristit" in celdas[0].get('class', ""))
-                result['dorsal'] = textos[0]
-                result['nombre'] = textos[1]
-                result['haGanado'] = False
-                linkdata = (celdas[1].find("a"))['href']
-                linkdatapars = ExtraeGetParams(linkdata)
-                try:
-                    result['codigo'] = linkdatapars['id']
-                except KeyError:
-                    print("Exception: procesaLineaTablaEstadistica %s: unable to find id in %s '%s'" % (self.url,
-                                                                                                        linkdata,
-                                                                                                        textos[0]))
+                if textos[1]:
+                    result['titular'] = ("gristit" in celdas[0].get('class', ""))
+                    result['dorsal'] = textos[0]
+                    result['nombre'] = textos[1]
+                    result['haGanado'] = False
+                    linkdata = (celdas[1].find("a"))['href']
+                    linkdatapars = ExtraeGetParams(linkdata)
+                    try:
+                        result['codigo'] = linkdatapars['id']
+                    except KeyError:
+                        print(
+                            "Exception: procesaLineaTablaEstadistica %s: unable to find id in %s '%s': %s" % (self.url,
+                                                                                                              linkdata,
+                                                                                                              textos[0],
+                                                                                                              textos))
+                        return None
+
+                    # (self.Equipos[estado]['Jugadores']).append(result['codigo'])
+                    if not estads:
+                        result['haJugado'] = False
+
+                    result['estads'] = estads
+                    # self.Jugadores[result['codigo']]=result
+                else:
+                    # Caso random en  http://www.acb.com/fichas/LACB62177.php de linea sin datos
                     return None
-
-                # (self.Equipos[estado]['Jugadores']).append(result['codigo'])
-                if not estads:
-                    result['haJugado'] = False
-
-                result['estads'] = estads
-                # self.Jugadores[result['codigo']]=result
-
             else:
                 result['esJugador'] = False
                 if textos[1].lower() == "equipo":

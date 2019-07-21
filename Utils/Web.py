@@ -13,10 +13,10 @@ def DescargaPagina(dest, home=None, browser=None, config={}):
                                   )
 
     if 'verbose' in config:
-        browser.set_verbose(config.verbose)
+        browser.set_verbose(config['verbose'])
 
     if 'debug' in config:
-        browser.set_debug(config.debug)
+        browser.set_debug(config['debug'])
 
     if home is None:
         browser.open(dest)
@@ -27,7 +27,8 @@ def DescargaPagina(dest, home=None, browser=None, config={}):
     source = browser.get_url()
     content = browser.get_current_page()
 
-    return {'source': source, 'data': content, 'timestamp': gmtime()}
+    return {'source': source, 'data': content, 'timestamp': gmtime(), 'home': home, 'browser': browser,
+            'config': config}
 
 
 def ExtraeGetParams(url):
@@ -43,7 +44,6 @@ def ExtraeGetParams(url):
 
 
 def ComposeURL(url, argsToAdd=None, argsToRemove=[]):
-
     if not (argsToAdd or argsToRemove):
         return url
 
