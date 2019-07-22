@@ -6,7 +6,7 @@ import sys
 from configargparse import ArgumentParser
 from mechanicalsoup import StatefulBrowser
 
-from SMACB.CalendarioACB import BuscaCalendario
+from SMACB.CalendarioACB import BuscaCalendario, calendario_URLBASE
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.Web import ExtraeGetParams
 
@@ -18,6 +18,8 @@ parser.add('-f', dest='saveanyway', action="store_true", env_var='SM_SAVEANYWAY'
 
 parser.add('-e', dest='edicion', action="store", env_var='SM_EDICION', required=False, default=None)
 parser.add('-c', dest='competicion', action="store", env_var='SM_COMPETICION', required=False, default="LACB")
+parser.add('-u', dest='url', action="store", env_var='SM_URLCAL', required=False)
+
 
 parser.add('-i', dest='infile', type=str, env_var='SM_INFILE', required=False)
 parser.add('-o', dest='outfile', type=str, env_var='SM_OUTFILE', required=False)
@@ -26,7 +28,10 @@ args = parser.parse_args()
 
 browser = StatefulBrowser(soup_config={'features': "html.parser"}, raise_on_404=True, user_agent="SMparser",)
 
-sourceURL = BuscaCalendario(browser=browser, config=args)
+if args.url is not None:
+    sourceURL = args.url
+else:
+    sourceURL = calendario_URLBASE
 
 if args.edicion is not None:
     parEdicion = args.edicion
