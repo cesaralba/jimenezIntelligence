@@ -4,12 +4,12 @@ Created on Dec 31, 2017
 @author: calba
 '''
 
+from argparse import Namespace
 from time import gmtime, mktime, strptime
 from traceback import print_exc
 
 import pandas as pd
 from bs4 import Tag
-from argparse import Namespace
 
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams
@@ -42,7 +42,8 @@ class PartidoACB(object):
             self.Equipos[x]['Jugadores'] = []
             self.Equipos[x]['haGanado'] = False
 
-        self.Jugadores = {}
+        self.Jugadores = dict()
+        self.Entrenadores = dict()
 
         self.EquiposCalendario = dict(zip(LocalVisitante, kwargs['equipos']))
         self.ResultadoCalendario = dict(zip(LocalVisitante, kwargs['resultado']))
@@ -74,7 +75,7 @@ class PartidoACB(object):
 
         self.procesaPartido(partidoPage)
 
-    def procesaPartido(self, content):
+    def procesaPartido(self, content: dict):
         if 'timestamp' in content:
             self.timestamp = content['timestamp']
         else:
@@ -150,7 +151,8 @@ class PartidoACB(object):
                 self.Equipos[estado]['estads'] = datos['estads']
 
             elif datos.get('entrenador', False):
-                self.Equipos[estado]['Entrenador'] = datos
+                self.Entrenadores[datos['codigo']] = datos
+                self.Equipos[estado]['Entrenador'] = datos['codigo']
 
             else:
                 BaseException("I am missing something: {}" % datos)
@@ -161,7 +163,7 @@ class PartidoACB(object):
         else:
             estadoGanador = 'Visitante'
         self.Equipos[estadoGanador]['haGanado'] = True
-        self.Equipos[estadoGanador]['Entrenador']['haGanado'] = True
+        self.Entrenadores[self.Equipos[estadoGanador]['Entrenador']]['haGanado'] = True
         for jug in self.Equipos[estadoGanador]['Jugadores']:
             self.Jugadores[jug]['haGanado'] = True
 
@@ -239,7 +241,7 @@ class PartidoACB(object):
                     result['estads'] = estads
                     # self.Jugadores[result['codigo']]=result
                 else:
-                    # Caso random en  http://www.acb.com/fichas/LACB62177.php de linea sin datos
+                    # Caso random en  http://www.acb.com/fichas/LACB62177.php de linea sin datos pero con dorsal
                     return None
             else:
                 result['esJugador'] = False
@@ -268,20 +270,17 @@ class PartidoACB(object):
                 result['entrenador'] = True
                 result['nombre'] = textos[1]
                 linkdata = (celdas[1].find("a"))['href']
+                result['linkPersona'] = linkdata
                 linkdatapars = ExtraeGetParams(linkdata)
                 result['codigo'] = linkdatapars['id']
                 result['haGanado'] = False
-                # self.Equipos[estado]['Entrenador']=result
             elif textos[0].lower() == "5f":
                 return dict()
                 pass
             else:
                 raise BaseException("ProcesaLineaTablaEstadistica: info string '%s' unknown" % (textos[0].lower()))
 
-        # print(result)
         return (result)
-
-        # print(len(textos),textos)
 
     def procesaEstadisticas(self, contadores):
 
