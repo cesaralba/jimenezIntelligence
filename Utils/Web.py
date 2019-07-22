@@ -3,9 +3,9 @@ from urllib.parse import (parse_qs, unquote, urlencode, urljoin, urlparse,
                           urlunparse)
 
 from mechanicalsoup import StatefulBrowser
+from argparse import Namespace
 
-
-def DescargaPagina(dest, home=None, browser=None, config={}):
+def DescargaPagina(dest, home=None, browser=None, config=Namespace()):
     if browser is None:
         browser = StatefulBrowser(soup_config={'features': "html.parser"},
                                   raise_on_404=True,
@@ -13,10 +13,10 @@ def DescargaPagina(dest, home=None, browser=None, config={}):
                                   )
 
     if 'verbose' in config:
-        browser.set_verbose(config['verbose'])
+        browser.set_verbose(config.verbose)
 
     if 'debug' in config:
-        browser.set_debug(config['debug'])
+        browser.set_debug(config.debug)
 
     if home is None:
         browser.open(dest)

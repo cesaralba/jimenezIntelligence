@@ -1,4 +1,5 @@
 import re
+from argparse import Namespace
 from collections import defaultdict
 from copy import deepcopy
 from itertools import combinations
@@ -30,10 +31,9 @@ class CalendarioACB(object):
         self.codigo2equipo = defaultdict(set)
         self.url = urlbase
 
-    def actualizaCalendario(self, home=None, browser=None, config={}):
+    def actualizaCalendario(self, home=None, browser=None, config=Namespace()):
         calendarioPage = self.descargaCalendario(home=home, browser=browser, config=config)
         self.procesaCalendario(calendarioPage)
-        calendarioPage['browser'].close()
 
     def procesaCalendario(self, content):
         if 'timestamp' in content:
@@ -213,7 +213,7 @@ class CalendarioACB(object):
         codigosTemporada = set(self.codigo2equipo.keys())
         combinacionesNoUsadas = defaultdict(set)
 
-        #Repasa todas las jornadas (hacia atrás) asignando los codigos a los equipos a partir de la lista del calendario
+        # Repasa todas las jornadas (hacia atrás) asignando los codigos a los equipos a partir de la lista del calendario
         for jornada in sorted(self.Jornadas.keys(), reverse=True):
             if self.Jornadas[jornada]['esPlayoff']:
                 continue
@@ -239,7 +239,7 @@ class CalendarioACB(object):
                 equipo = equiposNoAsignados.pop()
                 self.nuevaTraduccionEquipo2Codigo(equipo, codigo)
 
-            #Trata de buscar en los nombres no asignados por similitud de palabras
+            # Trata de buscar en los nombres no asignados por similitud de palabras
             auxEquiposNoAsignados = deepcopy(equiposNoAsignados)
             for equipo in auxEquiposNoAsignados:
                 auxCodigosNoUsados = deepcopy(codigosNoUsados)
@@ -252,7 +252,7 @@ class CalendarioACB(object):
             if not equiposNoAsignados:  # Se asignado todo!
                 continue
 
-            #No hay manera, a la busqueda final
+            # No hay manera, a la busqueda final
             if codigosNoUsados:
                 combinacionesNoUsadas[cods2key(codigosNoUsados)].add(cods2key(equiposNoAsignados))
 
@@ -269,11 +269,10 @@ class CalendarioACB(object):
             for k, nomslist in list(combinacionesNoUsadas.items()):
                 cods = k.split("|")
 
-
                 for v in deepcopy(nomslist):
                     noms = v.split("|")
 
-                    #Elimina el caso trivial 1 codigo = 1 nombre. No debería haber llegado aquí pero...
+                    # Elimina el caso trivial 1 codigo = 1 nombre. No debería haber llegado aquí pero...
                     if len(cods) == 1 and len(noms) == 1:
                         nom = noms.pop()
                         cod = cods[0]
@@ -522,7 +521,7 @@ def BuscaCalendario(url=URL_BASE, home=None, browser=None, config={}):
                 link = auxlink
                 break
         else:
-            raise SystemError("Too many links to Calendario. {}".format(callinks))
+            raise SystemError("Too many or none links to Calendario. {}".format(callinks))
 
     result = MergeURL(url, link['href'])
 

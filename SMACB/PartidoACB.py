@@ -9,6 +9,7 @@ from traceback import print_exc
 
 import pandas as pd
 from bs4 import Tag
+from argparse import Namespace
 
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams
@@ -62,7 +63,7 @@ class PartidoACB(object):
             self.temporada = kwargs['URLparams']['cod_edicion']
             self.idPartido = kwargs['URLparams']['partido']
 
-    def descargaPartido(self, home=None, browser=None, config={}):
+    def descargaPartido(self, home=None, browser=None, config=Namespace()):
 
         if not hasattr(self, 'url'):
             raise BadParameters("PartidoACB: DescargaPartido: imposible encontrar la URL del partido")
@@ -219,6 +220,7 @@ class PartidoACB(object):
                     result['nombre'] = textos[1]
                     result['haGanado'] = False
                     linkdata = (celdas[1].find("a"))['href']
+                    result['linkPersona'] = linkdata
                     linkdatapars = ExtraeGetParams(linkdata)
                     try:
                         result['codigo'] = linkdatapars['id']

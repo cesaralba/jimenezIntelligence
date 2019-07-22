@@ -10,6 +10,7 @@ from copy import copy
 from pickle import dump, load
 from sys import setrecursionlimit
 from time import gmtime, strftime
+from argparse import Namespace
 
 import pandas as pd
 from babel.numbers import decimal
@@ -34,8 +35,11 @@ class TemporadaACB(object):
         self.changed = False
         self.translations = defaultdict(set)
 
-    def actualizaTemporada(self, home=None, browser=None, config={}):
+    def actualizaTemporada(self, home=None, browser=None, config=Namespace()):
         self.Calendario.actualizaCalendario(browser=browser, config=config)
+
+        if isinstance(config, dict):
+            config = Namespace(**config)
 
         partidosBajados = set()
 
