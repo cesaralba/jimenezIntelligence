@@ -15,7 +15,7 @@ from time import gmtime, strftime
 import pandas as pd
 from babel.numbers import decimal
 
-from SMACB.CalendarioACB import CalendarioACB, calendario_URLBASE
+from SMACB.CalendarioACB import CalendarioACB, calendario_URLBASE, URL_BASE
 from SMACB.FichaJugador import FichaJugador
 from SMACB.PartidoACB import PartidoACB
 from SMACB.SMconstants import LISTACOMPOS, calculaValSuperManager
@@ -49,6 +49,7 @@ class TemporadaACB(object):
 
         if browser is None:
             browser = creaBrowser(config)
+            browser.open(URL_BASE)
 
         self.Calendario.actualizaCalendario(browser=browser, config=config)
 
@@ -70,18 +71,7 @@ class TemporadaACB(object):
             partidosBajados.add(partido)
 
             if self.descargaFichas:
-                for codJ in nuevoPartido.Jugadores:
-                    if codJ not in self.fichaJugadores:
-                        self.fichaJugadores[codJ] = FichaJugador.fromURL(nuevoPartido.Jugadores[codJ]['linkPersona'],
-                                                                         home=browser.get_url(),
-                                                                         browser=browser, config=config)
-
-                    self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
-
-                # TODO: Procesar ficha de entrenadores
-                for codE in nuevoPartido.Entrenadores:
-                    pass
-
+                self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
             if config.justone:  # Just downloads a game (for testing/dev purposes)
                 break
 
@@ -472,6 +462,25 @@ class TemporadaACB(object):
                     result[jug] = aux
 
         return result
+
+    def actualizaFichasPartido(self, nuevoPartido, browser=None, config=Namespace(), refrescaFichas=False):
+        if browser is None:
+            browser = creaBrowser(config)
+            browser.open(URL_BASE)
+
+        for codJ in nuevoPartido.Jugadores:
+            if codJ not in self.fichaJugadores:
+                self.fichaJugadores[codJ] = FichaJugador.fromURL(nuevoPartido.Jugadores[codJ]['linkPersona'],
+                                                                 home=browser.get_url(),
+                                                                 browser=browser, config=config)
+            elif refrescaFichas:
+                self.fichaJugadores[codJ] = FichaJugador.actualizaFicha(browser=browser, config=config)
+
+            self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
+
+        # TODO: Procesar ficha de entrenadores
+        for codE in nuevoPartido.Entrenadores:
+            pass
 
 
 def calculaTempStats(datos, clave, filtroFechas=None):
