@@ -92,12 +92,15 @@ class PartidoACB(object):
         # Primera fila
         celdas = filas.pop(0).find_all("td")
         espTiempo = celdas.pop(0).get_text().split("|")
-
+        print("CAP", espTiempo)
         # Jaux = ExtractREGroups(cadena=espTiempo.pop(0).strip(), regex=reJornada)
         self.Jornada = int(ExtractREGroups(cadena=espTiempo.pop(0).strip(), regex=reJornada)[0])
         self.FechaHora = strptime(espTiempo[0] + espTiempo[1], " %d/%m/%Y  %H:%M ")
         self.Pabellon = espTiempo[2].strip()
-        self.Asistencia = int(ExtractREGroups(cadena=espTiempo[3], regex=rePublico)[0])
+
+        grpsAsist = ExtractREGroups(cadena=espTiempo[3], regex=rePublico)
+        self.Asistencia = int(grpsAsist[0]) if grpsAsist else None
+
         celdas.pop(0)  # Spacer
         self.prorrogas = len(celdas) - 4
 
