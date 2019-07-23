@@ -11,7 +11,7 @@ from copy import copy
 from pickle import dump, load
 from sys import setrecursionlimit
 from time import gmtime, strftime
-
+from sys import exc_info
 import pandas as pd
 from babel.numbers import decimal
 
@@ -65,19 +65,19 @@ class TemporadaACB(object):
             try:
                 nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
                 nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
-            except Exception as exc:
-                print("actualizaTemporada: problemas descargando  partido'%s': %s" % (partido, exc))
-                raise exc
+                self.PartidosDescargados.add(partido)
+                self.Partidos[partido] = nuevoPartido
+                self.actualizaNombresEquipo(nuevoPartido)
+                partidosBajados.add(partido)
 
-            self.PartidosDescargados.add(partido)
-            self.Partidos[partido] = nuevoPartido
-            self.actualizaNombresEquipo(nuevoPartido)
-            partidosBajados.add(partido)
+                if self.descargaFichas:
+                    self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
+                if config.justone:  # Just downloads a game (for testing/dev purposes)
+                    break
 
-            if self.descargaFichas:
-                self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
-            if config.justone:  # Just downloads a game (for testing/dev purposes)
-                break
+            except:
+                print("actualizaTemporada: problemas descargando  partido'%s': %s" % (partido, exc_info()))
+
 
         if partidosBajados:
             self.changed = True
