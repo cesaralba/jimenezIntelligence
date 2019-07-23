@@ -83,7 +83,7 @@ class PartidoACB(object):
         if 'source' in content:
             self.url = content['source']
 
-        tablasPartido = content['data'].find_all("table", {"class": "estadisticasnew"})
+        tablasPartido = content['data'].find_all("table", {"class": ["estadisticasnew", "estadisticas"]})
 
         # Encabezado de Tabla
         tabDatosGenerales = tablasPartido.pop(0)
@@ -109,7 +109,8 @@ class PartidoACB(object):
                                                             regex=reArbitro)[0].split(",")]
         celdas.pop(0)  # Spacer
         aux = map(lambda x: x.split("|"), celdas)
-        self.ResultadosParciales = [(int(x[0]), int(x[1])) for x in aux]
+
+        self.ResultadosParciales = [(int(x[0]), int(x[1])) for x in aux if x != ['', '']]
 
         # Datos Partido
         tabDatosGenerales = tablasPartido.pop(0)

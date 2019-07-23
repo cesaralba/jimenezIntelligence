@@ -62,8 +62,12 @@ class TemporadaACB(object):
             if partido in self.PartidosDescargados:
                 continue
 
-            nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
-            nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
+            try:
+                nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
+                nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
+            except Exception as exc:
+                print("actualizaTemporada: problemas descargando  partido'%s': %s" % (partido, exc))
+                raise exc
 
             self.PartidosDescargados.add(partido)
             self.Partidos[partido] = nuevoPartido
