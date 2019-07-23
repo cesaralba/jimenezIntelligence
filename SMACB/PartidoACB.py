@@ -4,6 +4,7 @@ Created on Dec 31, 2017
 @author: calba
 '''
 
+import re
 from argparse import Namespace
 from time import gmtime, mktime, strptime
 from traceback import print_exc
@@ -92,10 +93,17 @@ class PartidoACB(object):
         # Primera fila
         celdas = filas.pop(0).find_all("td")
         espTiempo = celdas.pop(0).get_text().split("|")
+
         print("CAP", espTiempo)
+
         # Jaux = ExtractREGroups(cadena=espTiempo.pop(0).strip(), regex=reJornada)
         self.Jornada = int(ExtractREGroups(cadena=espTiempo.pop(0).strip(), regex=reJornada)[0])
-        self.FechaHora = strptime(espTiempo[0] + espTiempo[1], " %d/%m/%Y  %H:%M ")
+        cadTiempo = espTiempo[0].strip() + " " + espTiempo[1].strip()
+        PATRONdmyhm = r'^\s*(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})?$'
+        REhora = re.match(PATRONdmyhm, cadTiempo)
+        patronH = "%d/%m/%Y %H:%M" if REhora.group(2) else "%d/%m/%Y "
+        self.FechaHora = strptime(cadTiempo, patronH)
+
         self.Pabellon = espTiempo[2].strip()
 
         grpsAsist = ExtractREGroups(cadena=espTiempo[3], regex=rePublico)
