@@ -1,3 +1,4 @@
+from argparse import Namespace
 from time import gmtime
 from urllib.parse import (parse_qs, unquote, urlencode, urljoin, urlparse,
                           urlunparse)
@@ -5,21 +6,23 @@ from urllib.parse import (parse_qs, unquote, urlencode, urljoin, urlparse,
 from mechanicalsoup import StatefulBrowser
 
 
-def DescargaPagina(dest, home=None, browser=None, config={}):
+def DescargaPagina(dest, home=None, browser=None, config=Namespace()):
+    """
+    Descarga el contenido de una pagina y lo devuelve con metadatos
+    :param dest: Resultado de un link, URL absoluta o relativa.
+    :param home: Situación del browser
+    :param browser: Stateful Browser Object
+    :param config: Namespace de configuración (de argparse) para manipular ciertas características del browser
+    :return: Diccionario con página bajada y metadatos varios
+    """
     if browser is None:
-        browser = StatefulBrowser(soup_config={'features': "html.parser"},
-                                  raise_on_404=True,
-                                  user_agent="SMparser",
-                                  )
-
-    if 'verbose' in config:
-        browser.set_verbose(config.verbose)
-
-    if 'debug' in config:
-        browser.set_debug(config.debug)
+        browser = creaBrowser(config)
 
     if home is None:
         browser.open(dest)
+    elif dest.startswith('/'):
+        newDest = MergeURL(home, dest)
+        browser.open(newDest)
     else:
         browser.open(home)
         browser.follow_link(dest)
@@ -27,7 +30,8 @@ def DescargaPagina(dest, home=None, browser=None, config={}):
     source = browser.get_url()
     content = browser.get_current_page()
 
-    return {'source': source, 'data': content, 'timestamp': gmtime()}
+    return {'source': source, 'data': content, 'timestamp': gmtime(), 'home': home, 'browser': browser,
+            'config': config}
 
 
 def ExtraeGetParams(url):
@@ -43,7 +47,6 @@ def ExtraeGetParams(url):
 
 
 def ComposeURL(url, argsToAdd=None, argsToRemove=[]):
-
     if not (argsToAdd or argsToRemove):
         return url
 
@@ -72,3 +75,18 @@ def MergeURL(base, link):
     result = urljoin(base, link)
 
     return result
+
+
+def creaBrowser(config=Namespace()):
+    browser = StatefulBrowser(soup_config={'features': "html.parser"},
+                              raise_on_404=True,
+                              user_agent="SMparser",
+                              )
+
+    if 'verbose' in config:
+        browser.set_verbose(config.verbose)
+
+    if 'debug' in config:
+        browser.set_debug(config.debug)
+
+    return browser
