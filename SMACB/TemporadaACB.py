@@ -56,6 +56,9 @@ class TemporadaACB(object):
         if isinstance(config, dict):
             config = Namespace(**config)
 
+        if config.descargaFichas:
+            self.descargaFichas=True
+
         partidosBajados = set()
 
         for partido in self.Calendario.Partidos:
