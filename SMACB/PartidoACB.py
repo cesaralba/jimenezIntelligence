@@ -4,6 +4,7 @@ Created on Dec 31, 2017
 @author: calba
 '''
 
+import re
 from argparse import Namespace
 from time import gmtime, mktime, strptime
 from traceback import print_exc
@@ -83,7 +84,7 @@ class PartidoACB(object):
         if 'source' in content:
             self.url = content['source']
 
-        tablasPartido = content['data'].find_all("table", {"class": "estadisticasnew"})
+        tablasPartido = content['data'].find_all("table", {"class": ["estadisticasnew", "estadisticas"]})
 
         # Encabezado de Tabla
         tabDatosGenerales = tablasPartido.pop(0)
@@ -95,9 +96,17 @@ class PartidoACB(object):
 
         # Jaux = ExtractREGroups(cadena=espTiempo.pop(0).strip(), regex=reJornada)
         self.Jornada = int(ExtractREGroups(cadena=espTiempo.pop(0).strip(), regex=reJornada)[0])
-        self.FechaHora = strptime(espTiempo[0] + espTiempo[1], " %d/%m/%Y  %H:%M ")
+        cadTiempo = espTiempo[0].strip() + " " + espTiempo[1].strip()
+        PATRONdmyhm = r'^\s*(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})?$'
+        REhora = re.match(PATRONdmyhm, cadTiempo)
+        patronH = "%d/%m/%Y %H:%M" if REhora.group(2) else "%d/%m/%Y "
+        self.FechaHora = strptime(cadTiempo, patronH)
+
         self.Pabellon = espTiempo[2].strip()
-        self.Asistencia = int(ExtractREGroups(cadena=espTiempo[3], regex=rePublico)[0])
+
+        grpsAsist = ExtractREGroups(cadena=espTiempo[3], regex=rePublico)
+        self.Asistencia = int(grpsAsist[0]) if grpsAsist else None
+
         celdas.pop(0)  # Spacer
         self.prorrogas = len(celdas) - 4
 
@@ -109,7 +118,8 @@ class PartidoACB(object):
                                                             regex=reArbitro)[0].split(",")]
         celdas.pop(0)  # Spacer
         aux = map(lambda x: x.split("|"), celdas)
-        self.ResultadosParciales = [(int(x[0]), int(x[1])) for x in aux]
+
+        self.ResultadosParciales = [(int(x[0]), int(x[1])) for x in aux if x != ['', '']]
 
         # Datos Partido
         tabDatosGenerales = tablasPartido.pop(0)
