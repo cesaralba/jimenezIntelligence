@@ -94,8 +94,6 @@ class PartidoACB(object):
         celdas = filas.pop(0).find_all("td")
         espTiempo = celdas.pop(0).get_text().split("|")
 
-        print("CAP", espTiempo)
-
         # Jaux = ExtractREGroups(cadena=espTiempo.pop(0).strip(), regex=reJornada)
         self.Jornada = int(ExtractREGroups(cadena=espTiempo.pop(0).strip(), regex=reJornada)[0])
         cadTiempo = espTiempo[0].strip() + " " + espTiempo[1].strip()
