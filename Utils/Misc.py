@@ -2,6 +2,7 @@ import re
 from collections import defaultdict
 from pathlib import Path
 from time import gmtime
+from unicodedata import normalize
 
 ####################################################################################################################
 
@@ -42,8 +43,11 @@ def ReadFile(filename):
 
 
 def CompareBagsOfWords(x, y):
-    bogx = set(x.lower().split())
-    bogy = set(y.lower().split())
+    # ['NFC', 'NFKC', 'NFD', 'NFKD']
+    NORMA = 'NFKD'
+
+    bogx = set(normalize(NORMA, x).encode('ascii', 'ignore').lower().split())
+    bogy = set(normalize(NORMA, y).encode('ascii', 'ignore').lower().split())
 
     return len(bogx.intersection(bogy))
 
@@ -127,6 +131,7 @@ def generaDefaultDict(listaClaves, tipoFinal):
     :param tipoFinal: tipo que va almacenar el diccionario más profundo
     :return: defaultdict(defaultdict(...(defaultdict(tipoFinal)))
     """
+
     def actGenera(objLen, tipo):
         if objLen == 1:
             return defaultdict((tipo))
