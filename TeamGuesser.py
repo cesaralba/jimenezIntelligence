@@ -3,27 +3,34 @@
 
 import bz2
 import csv
+import errno
+import gc
 import logging
+from argparse import Namespace
 from collections import defaultdict
 from itertools import chain, product
-from sys import getsizeof
-from os.path import join
+from os import makedirs
+from os.path import isfile, join
 from time import strftime, time
 
 import joblib
+from babel.numbers import parse_decimal
 from configargparse import ArgumentParser
 from dask.distributed import Client, LocalCluster
 
 from SMACB.Guesser import (GeneraCombinacionJugs, agregaJugadores,
                            buildPosCupoIndex, comb2Key, dumpVar,
-                           getPlayersByPosAndCupoJornada, loadVar,
-                           varname2fichname)
-from SMACB.SMconstants import CUPOS, POSICIONES, SEQCLAVES, solucion2clave
+                           getPlayersByPosAndCupoJornada, ig2posYcupo,
+                           indexGroup2Key, indexPosCupo2str,
+                           keySearchOrderParameter, loadVar, plan2filename,
+                           seq2name, varname2fichname)
+from SMACB.SMconstants import CLAVESCSV, SEQCLAVES, solucion2clave
 from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.CombinacionesConCupos import GeneraCombinaciones
-from Utils.Misc import FORMATOtimestamp, deepDict, deepDictSet
 from Utils.combinatorics import n_choose_m, prod
+from Utils.Misc import FORMATOtimestamp, creaPath, deepDict, deepDictSet
+from Utils.pysize import get_size
 
 NJOBS = 2
 MEMWORKER = "2GB"
@@ -37,7 +44,8 @@ ch = logging.StreamHandler()
 ch.setLevel(logging.DEBUG)
 
 # create formatter
-formatter = logging.Formatter('%(asctime)s [%(process)d:%(threadName)s@%(name)s %(levelname)s %(relativeCreated)14dms]: %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s [%(process)d:%(threadName)10s@%(name)s %(levelname)s %(relativeCreated)14dms]: %(message)s')
 
 # add formatter to ch
 ch.setFormatter(formatter)
@@ -48,10 +56,10 @@ logger.addHandler(ch)
 indexGroups = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
 indexGroups = [[0, 1, 2], [3, 4], [5, 6], [7, 8]]
 indexGroups = [[0, 1, 2, 3], [4, 5], [6, 7, 8]]
+# indexGroups = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
 
 LOCATIONCACHE = '/home/calba/devel/SuperManager/guesser'
 
-CLAVESCSV = ['solkey', 'grupo', 'jugs', 'valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias', 'Nones']
 
 clavesParaNomFich = "+".join(SEQCLAVES)
 
@@ -73,6 +81,7 @@ def procesaArgumentos():
     parser.add('-x', '--scheduler', dest='scheduler', type=str, default='127.0.0.1')
     parser.add("-o", "--output-dir", dest="outputdir", type=str, default=LOCATIONCACHE)
     parser.add('-p', '--package', dest='package', type=str, action="append")
+    parser.add('--keySearchOrder', dest='searchOrder', type=str)
 
     parser.add('--nproc', dest='nproc', type=int, default=NJOBS)
     parser.add('--memworker', dest='memworker', default=MEMWORKER)
@@ -82,18 +91,23 @@ def procesaArgumentos():
     parser.add('-d', dest='debug', action="store_true", env_var='SM_DEBUG', required=False, default=False)
     parser.add('--logdir', dest='logdir', type=str, env_var='SM_LOGDIR', required=False)
 
-    args = parser.parse_args()
+    args = vars(parser.parse_args())
 
-    return args
+    if 'searchOrder' in args:
+        args['clavesSeq'] = keySearchOrderParameter(args['searchOrder'])
+    else:
+        args['clavesSeq'] = SEQCLAVES
+
+    return Namespace(**args)
 
 
-def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada):
+def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada, **kwargs):
     result = []
 
-    claves = SEQCLAVES.copy()
+    clavesP = kwargs['claves']
 
     contExcl = {'in': 0, 'out': 0, 'cubos': 0, 'depth': dict()}
-    for i in range(len(claves) + 1):
+    for i in range(len(clavesP) + 1):
         contExcl['depth'][i] = 0
 
     combVals = [g['valSets'] for g in grupos2check]
@@ -120,11 +134,11 @@ def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada):
 
             if len(claves) == 1:
                 nuevaSol = curSol + [prodKey]
-                solAcum = {k: sum(s) for k, s in zip(SEQCLAVES, nuevaSol)}
-                for k in SEQCLAVES:
+                solAcum = {k: sum(s) for k, s in zip(clavesP, nuevaSol)}
+                for k in clavesP:
                     assert (solAcum[k] == val2match[k])
 
-                valsSolD = [dict(zip(SEQCLAVES, s)) for s in list(zip(*nuevaSol))]
+                valsSolD = [dict(zip(clavesP, s)) for s in list(zip(*nuevaSol))]
                 solClaves = [solucion2clave(c, s) for c, s in zip(comb, valsSolD)]
 
                 regSol = (equipo, solClaves, prod([x for x in nuevosCombVals]))
@@ -139,13 +153,13 @@ def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada):
                     continue
         return None
 
-    solBusq = ", ".join(["%s: %s" % (k, str(val2match[k])) for k in SEQCLAVES])
+    solBusq = ", ".join(["%s: %s" % (k, str(val2match[k])) for k in clavesP])
     numCombs = prod([g['numCombs'] for g in grupos2check])
     tamCubo = prod([len(g['valSets']) for g in grupos2check])
     FORMATOIN = "%-16s %3d J:%2d %20s IN  numEqs %16d cubo inicial: %10d Valores a buscar: %s"
     logger.info(FORMATOIN % (equipo, seqnum, jornada, combInt, numCombs, tamCubo, solBusq))
     timeIn = time()
-    ValidaCombinacion(combVals, claves, val2match, [], equipo, combInt)
+    ValidaCombinacion(combVals, clavesP, val2match, [], equipo, combInt)
     timeOut = time()
     durac = timeOut - timeIn
 
@@ -155,6 +169,8 @@ def validateCombs(comb, grupos2check, val2match, equipo, seqnum, jornada):
     logger.info(FORMATOOUT % (equipo, seqnum, jornada, combInt, len(result), numEqs, durac,
                               (100.0 * float(ops) / float(numCombs)), numCombs, ops, contExcl))
 
+    dumpVar(kwargs['filename'], result, False)
+    gc.collect()
     return result
 
 
@@ -182,25 +198,28 @@ if __name__ == '__main__':
     logger.info("Comenzando ejecución")
 
     args = procesaArgumentos()
+    clavesParaNomFich = "+".join(args.clavesSeq)
     jornada = args.jornada
     destdir = args.outputdir
 
-    dh = logging.FileHandler(filename=join(destdir,"TeamGuesser.log"))
+    dh = logging.FileHandler(filename=join(destdir, "TeamGuesser.log"))
     dh.setFormatter(formatter)
     logger.addHandler(dh)
 
     if 'logdir' in args:
-        fh = logging.FileHandler(filename=join(args.logdir,"J%03d.log" % jornada))
+        fh = logging.FileHandler(filename=join(args.logdir, "J%03d.log" % jornada))
         fh.setFormatter(formatter)
         logger.addHandler(fh)
 
     configParallel = {'verbose': 100}
     # TODO: Control de calidad con los parámetros
     if args.backend == 'joblib':
+
         configParallel['n_jobs'] = args.nproc
         configParallel['prefer'] = args.joblibmode
-        # configParallel['require'] = 'sharedmem'
+        configParallel['max_nbytes'] = None
 
+        # configParallel['require'] = None
     elif args.backend == 'dasklocal':
         configParallel['backend'] = "dask"
         cluster = LocalCluster(n_workers=args.nproc, threads_per_worker=1, memory_limit=args.memworker)
@@ -265,7 +284,9 @@ if __name__ == '__main__':
             if s in badTeams:
                 pref = "NO"
 
-            print("[%s] %s -> '%s'" % (pref, s, resJornada.socio2equipo[s]))
+            print("[%s] %-15s -> '%-28s': %s" % (pref, s, resJornada.socio2equipo[s], resJornada.resSocio2Str(s)))
+
+        print("\n" + ", ".join(["%i -> %s" % (i, indexPosCupo2str(i)) for i in sorted(ig2posYcupo)]))
 
         exit(0)
 
@@ -278,22 +299,26 @@ if __name__ == '__main__':
     jugadores = None
 
     validCombs = GeneraCombinaciones()
-
     groupedCombs, groupedCombsKeys = cuentaCombinaciones(validCombs, jornada)
 
-    logger.info("Cargando grupos de jornada %d (secuencia: %s)" % (jornada, ", ".join(SEQCLAVES)))
+    logger.info("Cargando grupos de jornada %d (secuencia: %s)" % (jornada, ", ".join(args.clavesSeq)))
 
-    nombrefichCuentaGrupos = varname2fichname(jornada=jornada, varname=(clavesParaNomFich + "-cuentaGrupos"),
-                                              basedir=destdir)
-    cuentaGrupos = loadVar(nombrefichCuentaGrupos)
+    nombreFichCuentaGrupos = varname2fichname(jornada=jornada, varname="-".join([
+        indexGroup2Key(indexGroups), seq2name(args.clavesSeq), "cuentaGrupos"]), basedir=destdir)
+
+    nombreFichGruposJugs = varname2fichname(jornada=jornada,
+                                            varname="-".join([indexGroup2Key(indexGroups), "grupoJugs"]),
+                                            basedir=destdir, ext="csv.bz2")
+
+    logger.info("[fichero cuentaGrupos: %s]" % (nombreFichCuentaGrupos))
+    logger.info("[fichero grupo Jugadores: %s]" % (nombreFichGruposJugs))
+
+    cuentaGrupos = loadVar(nombreFichCuentaGrupos, mmap_mode='r')
 
     if cuentaGrupos is None:
-        logger.info("Generando grupos para jornada %d Seq claves %s" % (jornada, ", ".join(SEQCLAVES)))
+        logger.info("Generando grupos para jornada %d Seq claves %s" % (jornada, ", ".join(args.clavesSeq)))
         posYcupos, jugadores, lenPosCupos = getPlayersByPosAndCupoJornada(jornada, sm, temporada)
 
-        dumpVar(varname2fichname(jornada, "jugadores", basedir=destdir), jugadores)
-
-        # groupedCombs = []
         newCuentaGrupos = defaultdict(dict)
         maxPosCupos = [0] * 9
         numCombsPosYCupos = [[]] * 9
@@ -307,87 +332,125 @@ if __name__ == '__main__':
             for n in range(maxPosCupos[i] + 1):
                 numCombsPosYCupos[i][n] = n_choose_m(lenPosCupos[i], n)
 
-        indexGroups = {p: [indexes[p][c] for c in CUPOS] for p in POSICIONES}
+        # indexGroups = {p: [indexes[p][c] for c in CUPOS] for p in POSICIONES}
+        # ([{0: 0, 1: 0, 2: 3, 3: 0}, {4: 4, 5: 0}, {6: 1, 7: 1, 8: 2}], ['J014-0_0-1_0-2_3-3_0',
+        # 'J014-4_4-5_0', 'J014-6_1-7_1-8_2'])
+        # Solucion conocida para J14/mirza15
+        # groupedCombs = [[{0: 0, 1: 0, 2: 3, 3: 0}, {4: 4, 5: 0}, {6: 1, 7: 1, 8: 2}]]
+        # groupedCombsKeys = [['J014-0_0-1_0-2_3-3_0', 'J014-4_4-5_0', 'J014-6_1-7_1-8_2']]
 
         # Distribuciones de jugadores válidas por posición y cupo
         for c in groupedCombs:
-
             for grupoComb in c:
                 claveComb = comb2Key(grupoComb, jornada)
                 if claveComb not in newCuentaGrupos:
                     numCombs = prod([numCombsPosYCupos[x][grupoComb[x]] for x in grupoComb])
                     newCuentaGrupos[claveComb] = {'cont': 0, 'comb': grupoComb, 'numCombs': numCombs, 'key': claveComb}
-                newCuentaGrupos[claveComb]['cont'] += 1
+                    newCuentaGrupos[claveComb]['valSets'] = dict()
+                    newCuentaGrupos[claveComb]['cont'] += 1
 
-        logger.info("Numero de grupos: %d", sum([newCuentaGrupos[x]['numCombs'] for x in newCuentaGrupos]))
+        logger.info("Numero de combinaciones: %d en %d grupos",
+                    sum([newCuentaGrupos[x]['numCombs'] for x in newCuentaGrupos]), len(newCuentaGrupos))
 
-        with bz2.open(filename=varname2fichname(jornada, varname=(clavesParaNomFich + "-grupos"), basedir=destdir,
-                                                ext="csv.bz2"),
-                      mode='wt') as csv_file:
-            writer = csv.DictWriter(csv_file, fieldnames=CLAVESCSV, delimiter="|")
-            for comb in newCuentaGrupos:
-                combList = []
+        if not isfile(nombreFichGruposJugs):
+            logger.info("Generando archivo de grupos de jugadores indexGroup(%s): %s", indexGroup2Key(indexGroups),
+                        nombreFichGruposJugs)
+            with bz2.open(filename=nombreFichGruposJugs, mode='wt') as csv_file:
+                writer = csv.DictWriter(csv_file, fieldnames=CLAVESCSV, delimiter="|")
+                writer.writeheader()
 
-                combGroup = newCuentaGrupos[comb]['comb']
+                for comb in newCuentaGrupos:
+                    combList = []
+                    combGroup = newCuentaGrupos[comb]['comb']
 
-                timeIn = time()
-                for i in combGroup:
-                    n = combGroup[i]
-                    # Genera combinaciones y las cachea
-                    if combsPosYCupos[i][n] is None:
-                        combsPosYCupos[i][n] = GeneraCombinacionJugs(posYcupos[i], n)
-                    if n != 0:
-                        combList.append(combsPosYCupos[i][n])
+                    timeIn = time()
+                    for i in combGroup:
+                        n = combGroup[i]
+                        # Genera combinaciones y las cachea
+                        if combsPosYCupos[i][n] is None:
+                            combsPosYCupos[i][n] = GeneraCombinacionJugs(posYcupos[i], n)
+                        if n != 0:
+                            combList.append(combsPosYCupos[i][n])
 
-                colSets = dict()
+                    colSets = dict()
 
-                for pr in product(*combList):
-                    aux = []
-                    for gr in pr:
-                        for j in gr:
-                            aux.append(j)
+                    for pr in product(*combList):
+                        aux = list(chain.from_iterable(pr))
 
-                    agr = agregaJugadores(aux, jugadores)
-                    claveJugs = "-".join(aux)
-                    indexComb = [agr[k] for k in SEQCLAVES]
+                        agr = agregaJugadores(aux, jugadores)
+                        claveJugs = "-".join(aux)
+                        indexComb = [agr[k] for k in args.clavesSeq]
 
-                    agr['solkey'] = solucion2clave(comb, agr)
-                    agr['grupo'] = comb
-                    agr['jugs'] = claveJugs
-                    writer.writerow(agr)
+                        agr['solkey'] = solucion2clave(comb, agr)
+                        agr['grupo'] = comb
+                        agr['jugs'] = claveJugs
+                        writer.writerow(agr)
 
-                    deepDictSet(colSets, indexComb, deepDict(colSets, indexComb, int) + 1)
+                    timeOut = time()
+                    duracion = timeOut - timeIn
 
-                timeOut = time()
-                duracion = timeOut - timeIn
+                    formatoTraza = "Gen grupos %-20s %10.3fs cont: %3d numero combs %8d"
+                    logger.info(formatoTraza, comb, duracion, newCuentaGrupos[comb]['cont'],
+                                newCuentaGrupos[comb]['numCombs'])
+                    gc.collect()
 
-                newCuentaGrupos[comb]['valSets'] = colSets
-                formatoTraza = "Gen grupos %-20s %10.3fs cont: %3d numero combs %8d memoria %8d num claves L0: %d"
-                logger.info(formatoTraza, comb, duracion, newCuentaGrupos[comb]['cont'],
-                            newCuentaGrupos[comb]['numCombs'], getsizeof(colSets), len(colSets))
+        logger.info("Generando arboles para grupos.")
 
-        resDump = dumpVar(nombrefichCuentaGrupos, newCuentaGrupos)
-        del newCuentaGrupos
-        import gc
+        with bz2.open(filename=nombreFichGruposJugs, mode='rt') as csv_file:
+            reader = csv.DictReader(csv_file, fieldnames=CLAVESCSV, delimiter="|")
+            headers = next(reader)
+            for row in reader:
+                comb = row['grupo']
+                indexComb = [parse_decimal(row[k]) for k in args.clavesSeq]
 
-        gc.collect()
-        cuentaGrupos = loadVar(nombrefichCuentaGrupos)
+                deepDictSet(newCuentaGrupos[comb]['valSets'], indexComb,
+                            deepDict(newCuentaGrupos[comb]['valSets'], indexComb, int) + 1)
 
-    logger.info("Cargados %d grupos de combinaciones. Memory: %d" % (len(cuentaGrupos), getsizeof(cuentaGrupos)))
+        logger.info(
+            "Generados %d grupos de combinaciones. Memory: %d. Grabando." % (len(newCuentaGrupos),
+                                                                             get_size(newCuentaGrupos)))
 
-    resultado = dict()
+        resDump = dumpVar(nombreFichCuentaGrupos, newCuentaGrupos)
+        cuentaGrupos = newCuentaGrupos
+
+    logger.info("Cargados %d grupos de combinaciones. Memory: %d" % (len(cuentaGrupos), get_size(cuentaGrupos)))
+
+    socio2path = dict()
+
+    for socio in sociosReales:
+        socio2path[socio] = creaPath(destdir, "sols", socio)
+
+        try:
+            makedirs(socio2path[socio])
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
 
     planesAcorrer = []
+    solucionesConocidas = []
     sociosReales.sort()
     for i, socio in product(range(len(groupedCombsKeys)), sociosReales):
         plan = groupedCombsKeys[i]
+
         planTotal = {'seqnum': i,
                      'comb': plan,
                      'grupos2check': [cuentaGrupos[grupo] for grupo in plan],
                      'val2match': resJornada.resultados[socio],
+                     'claves': args.clavesSeq.copy(),
                      'equipo': socio,
                      'jornada': jornada}
-        planesAcorrer.append(planTotal)
+        planTotal['filename'] = creaPath(socio2path[socio], plan2filename(planTotal))
+
+        sol = loadVar(planTotal['filename'])
+
+        if sol is None:
+            planesAcorrer.append(planTotal)
+        else:
+            solucionesConocidas.append(sol)
+        # print(planTotal)
+
+    if solucionesConocidas:
+        logger.info("Encontradas soluciones  para %d planes" % len(solucionesConocidas))
 
     logger.info("Planes para ejecutar: %d" % len(planesAcorrer))
 
@@ -395,21 +458,20 @@ if __name__ == '__main__':
 
         result = joblib.Parallel(**configParallel)(joblib.delayed(validateCombs)(**plan) for plan in planesAcorrer)
 
-        resultadoPlano = list(chain.from_iterable(result))
-
     elif 'dask' in args.backend:
 
         with joblib.parallel_backend('dask'):
             result = joblib.Parallel(**configParallel)(joblib.delayed(validateCombs)(**plan) for plan in planesAcorrer)
 
         # result = Parallel(**configParallel)(delayed(validateCombs)(**plan) for plan in planesAcorrer)
-        resultadoPlano = list(chain.from_iterable(result))
 
     else:
-        pass
+        raise ValueError("Procesador '%s' desconocido" % args.backend)
 
-    dumpVar(varname2fichname(jornada, "%s-resultado-socios-%s" % (clavesParaNomFich, "-".join(sociosReales)),
-                             basedir=destdir), resultadoPlano)
+    resultadoPlano = list(chain.from_iterable(result + solucionesConocidas))
 
-    logger.info(resultadoPlano)
+    fichSoluciones = varname2fichname(jornada, "resultado-socios-%s" % ("-".join(sociosReales)), basedir=destdir)
+    dumpVar(fichSoluciones, resultadoPlano)
+
+    logger.info("Encontradas %d soluciones almancenadas en '%s'" % (len(resultadoPlano), fichSoluciones))
     logger.info("Terminando ejecución")

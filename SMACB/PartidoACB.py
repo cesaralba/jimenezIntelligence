@@ -4,6 +4,8 @@ Created on Dec 31, 2017
 @author: calba
 '''
 
+import re
+from argparse import Namespace
 from time import gmtime, mktime, strptime
 from traceback import print_exc
 
@@ -12,7 +14,6 @@ from bs4 import Tag
 
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams
-
 from .SMconstants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp,
                           titular2esp)
 
@@ -42,7 +43,8 @@ class PartidoACB(object):
             self.Equipos[x]['Jugadores'] = []
             self.Equipos[x]['haGanado'] = False
 
-        self.Jugadores = {}
+        self.Jugadores = dict()
+        self.Entrenadores = dict()
 
         self.EquiposCalendario = dict(zip(LocalVisitante, kwargs['equipos']))
         self.ResultadoCalendario = dict(zip(LocalVisitante, kwargs['resultado']))
@@ -63,7 +65,7 @@ class PartidoACB(object):
             self.temporada = kwargs['URLparams']['cod_edicion']
             self.idPartido = kwargs['URLparams']['partido']
 
-    def descargaPartido(self, home=None, browser=None, config={}):
+    def descargaPartido(self, home=None, browser=None, config=Namespace()):
 
         if not hasattr(self, 'url'):
             raise BadParameters("PartidoACB: DescargaPartido: imposible encontrar la URL del partido")
@@ -74,7 +76,7 @@ class PartidoACB(object):
 
         self.procesaPartido(partidoPage)
 
-    def procesaPartido(self, content):
+    def procesaPartido(self, content: dict):
         if 'timestamp' in content:
             self.timestamp = content['timestamp']
         else:
@@ -82,7 +84,7 @@ class PartidoACB(object):
         if 'source' in content:
             self.url = content['source']
 
-        tablasPartido = content['data'].find_all("table", {"class": "estadisticasnew"})
+        tablasPartido = content['data'].find_all("table", {"class": ["estadisticasnew", "estadisticas"]})
 
         # Encabezado de Tabla
         tabDatosGenerales = tablasPartido.pop(0)
@@ -94,9 +96,17 @@ class PartidoACB(object):
 
         # Jaux = ExtractREGroups(cadena=espTiempo.pop(0).strip(), regex=reJornada)
         self.Jornada = int(ExtractREGroups(cadena=espTiempo.pop(0).strip(), regex=reJornada)[0])
-        self.FechaHora = strptime(espTiempo[0] + espTiempo[1], " %d/%m/%Y  %H:%M ")
+        cadTiempo = espTiempo[0].strip() + " " + espTiempo[1].strip()
+        PATRONdmyhm = r'^\s*(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})?$'
+        REhora = re.match(PATRONdmyhm, cadTiempo)
+        patronH = "%d/%m/%Y %H:%M" if REhora.group(2) else "%d/%m/%Y "
+        self.FechaHora = strptime(cadTiempo, patronH)
+
         self.Pabellon = espTiempo[2].strip()
-        self.Asistencia = int(ExtractREGroups(cadena=espTiempo[3], regex=rePublico)[0])
+
+        grpsAsist = ExtractREGroups(cadena=espTiempo[3], regex=rePublico)
+        self.Asistencia = int(grpsAsist[0]) if grpsAsist else None
+
         celdas.pop(0)  # Spacer
         self.prorrogas = len(celdas) - 4
 
@@ -108,7 +118,8 @@ class PartidoACB(object):
                                                             regex=reArbitro)[0].split(",")]
         celdas.pop(0)  # Spacer
         aux = map(lambda x: x.split("|"), celdas)
-        self.ResultadosParciales = [(int(x[0]), int(x[1])) for x in aux]
+
+        self.ResultadosParciales = [(int(x[0]), int(x[1])) for x in aux if x != ['', '']]
 
         # Datos Partido
         tabDatosGenerales = tablasPartido.pop(0)
@@ -150,7 +161,8 @@ class PartidoACB(object):
                 self.Equipos[estado]['estads'] = datos['estads']
 
             elif datos.get('entrenador', False):
-                self.Equipos[estado]['Entrenador'] = datos
+                self.Entrenadores[datos['codigo']] = datos
+                self.Equipos[estado]['Entrenador'] = datos['codigo']
 
             else:
                 BaseException("I am missing something: {}" % datos)
@@ -161,7 +173,7 @@ class PartidoACB(object):
         else:
             estadoGanador = 'Visitante'
         self.Equipos[estadoGanador]['haGanado'] = True
-        self.Equipos[estadoGanador]['Entrenador']['haGanado'] = True
+        self.Entrenadores[self.Equipos[estadoGanador]['Entrenador']]['haGanado'] = True
         for jug in self.Equipos[estadoGanador]['Jugadores']:
             self.Jugadores[jug]['haGanado'] = True
 
@@ -214,27 +226,33 @@ class PartidoACB(object):
 
             # mergedCeldas=dict(zip(headers[:2],celdas[:2])) ,mergedCeldas
             if textos[0]:
-                result['titular'] = ("gristit" in celdas[0].get('class', ""))
-                result['dorsal'] = textos[0]
-                result['nombre'] = textos[1]
-                result['haGanado'] = False
-                linkdata = (celdas[1].find("a"))['href']
-                linkdatapars = ExtraeGetParams(linkdata)
-                try:
-                    result['codigo'] = linkdatapars['id']
-                except KeyError:
-                    print("Exception: procesaLineaTablaEstadistica %s: unable to find id in %s '%s'" % (self.url,
-                                                                                                        linkdata,
-                                                                                                        textos[0]))
+                if textos[1]:
+                    result['titular'] = ("gristit" in celdas[0].get('class', ""))
+                    result['dorsal'] = textos[0]
+                    result['nombre'] = textos[1]
+                    result['haGanado'] = False
+                    linkdata = (celdas[1].find("a"))['href']
+                    result['linkPersona'] = linkdata
+                    linkdatapars = ExtraeGetParams(linkdata)
+                    try:
+                        result['codigo'] = linkdatapars['id']
+                    except KeyError:
+                        print(
+                            "Exception: procesaLineaTablaEstadistica %s: unable to find id in %s '%s': %s" % (self.url,
+                                                                                                              linkdata,
+                                                                                                              textos[0],
+                                                                                                              textos))
+                        return None
+
+                    # (self.Equipos[estado]['Jugadores']).append(result['codigo'])
+                    if not estads:
+                        result['haJugado'] = False
+
+                    result['estads'] = estads
+                    # self.Jugadores[result['codigo']]=result
+                else:
+                    # Caso random en  http://www.acb.com/fichas/LACB62177.php de linea sin datos pero con dorsal
                     return None
-
-                # (self.Equipos[estado]['Jugadores']).append(result['codigo'])
-                if not estads:
-                    result['haJugado'] = False
-
-                result['estads'] = estads
-                # self.Jugadores[result['codigo']]=result
-
             else:
                 result['esJugador'] = False
                 if textos[1].lower() == "equipo":
@@ -262,20 +280,17 @@ class PartidoACB(object):
                 result['entrenador'] = True
                 result['nombre'] = textos[1]
                 linkdata = (celdas[1].find("a"))['href']
+                result['linkPersona'] = linkdata
                 linkdatapars = ExtraeGetParams(linkdata)
                 result['codigo'] = linkdatapars['id']
                 result['haGanado'] = False
-                # self.Equipos[estado]['Entrenador']=result
             elif textos[0].lower() == "5f":
                 return dict()
                 pass
             else:
                 raise BaseException("ProcesaLineaTablaEstadistica: info string '%s' unknown" % (textos[0].lower()))
 
-        # print(result)
         return (result)
-
-        # print(len(textos),textos)
 
     def procesaEstadisticas(self, contadores):
 

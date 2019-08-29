@@ -4,21 +4,24 @@ Created on Jan 4, 2018
 @author: calba
 '''
 
+from argparse import Namespace
 from calendar import timegm
 from collections import defaultdict
 from copy import copy
 from pickle import dump, load
 from sys import setrecursionlimit
 from time import gmtime, strftime
-
+from sys import exc_info
 import pandas as pd
 from babel.numbers import decimal
 
-from SMACB.CalendarioACB import CalendarioACB, calendario_URLBASE
+from SMACB.CalendarioACB import CalendarioACB, calendario_URLBASE, URL_BASE
+from SMACB.FichaJugador import FichaJugador
 from SMACB.PartidoACB import PartidoACB
 from SMACB.SMconstants import LISTACOMPOS, calculaValSuperManager
 from Utils.Misc import FORMATOfecha, FORMATOtimestamp, Seg2Tiempo
 from Utils.Pandas import combinaPDindexes
+from Utils.Web import creaBrowser
 
 
 class TemporadaACB(object):
@@ -26,16 +29,35 @@ class TemporadaACB(object):
     Aglutina calendario y lista de partidos
     '''
 
-    def __init__(self, competicion="LACB", edicion=None, urlbase=calendario_URLBASE):
+    def __init__(self, **kwargs):
+        competicion = kwargs.get('competicion', "LACB")
+        edicion = kwargs.get('edicion', None)
+        urlbase = kwargs.get('urlbase', calendario_URLBASE)
+        descargaFichas = kwargs.get('descargaFichas', False)
+
         self.timestamp = gmtime()
         self.Calendario = CalendarioACB(competicion=competicion, edicion=edicion, urlbase=urlbase)
         self.PartidosDescargados = set()
         self.Partidos = dict()
         self.changed = False
         self.translations = defaultdict(set)
+        self.descargaFichas = descargaFichas
+        self.fichaJugadores = dict()
+        self.fichaEntrenadores = dict()
 
-    def actualizaTemporada(self, home=None, browser=None, config={}):
-        self.Calendario.bajaCalendario(browser=browser, config=config)
+    def actualizaTemporada(self, home=None, browser=None, config=Namespace()):
+
+        if browser is None:
+            browser = creaBrowser(config)
+            browser.open(URL_BASE)
+
+        self.Calendario.actualizaCalendario(browser=browser, config=config)
+
+        if isinstance(config, dict):
+            config = Namespace(**config)
+
+        if config.procesaBio:
+            self.descargaFichas=True
 
         partidosBajados = set()
 
@@ -43,16 +65,22 @@ class TemporadaACB(object):
             if partido in self.PartidosDescargados:
                 continue
 
-            nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
-            nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
+            try:
+                nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
+                nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
+                self.PartidosDescargados.add(partido)
+                self.Partidos[partido] = nuevoPartido
+                self.actualizaNombresEquipo(nuevoPartido)
+                partidosBajados.add(partido)
 
-            self.PartidosDescargados.add(partido)
-            self.Partidos[partido] = nuevoPartido
-            self.actualizaNombresEquipo(nuevoPartido)
-            partidosBajados.add(partido)
+                if self.descargaFichas:
+                    self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
+                if config.justone:  # Just downloads a game (for testing/dev purposes)
+                    break
 
-            if config.justone:  # Just downloads a game (for testing/dev purposes)
-                break
+            except:
+                print("actualizaTemporada: problemas descargando  partido'%s': %s" % (partido, exc_info()))
+
 
         if partidosBajados:
             self.changed = True
@@ -441,6 +469,25 @@ class TemporadaACB(object):
                     result[jug] = aux
 
         return result
+
+    def actualizaFichasPartido(self, nuevoPartido, browser=None, config=Namespace(), refrescaFichas=False):
+        if browser is None:
+            browser = creaBrowser(config)
+            browser.open(URL_BASE)
+
+        for codJ in nuevoPartido.Jugadores:
+            if codJ not in self.fichaJugadores:
+                self.fichaJugadores[codJ] = FichaJugador.fromURL(nuevoPartido.Jugadores[codJ]['linkPersona'],
+                                                                 home=browser.get_url(),
+                                                                 browser=browser, config=config)
+            elif refrescaFichas:
+                self.fichaJugadores[codJ] = FichaJugador.actualizaFicha(browser=browser, config=config)
+
+            self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
+
+        # TODO: Procesar ficha de entrenadores
+        for codE in nuevoPartido.Entrenadores:
+            pass
 
 
 def calculaTempStats(datos, clave, filtroFechas=None):
