@@ -19,7 +19,7 @@ parser.add('-f', dest='saveanyway', action="store_true", env_var='SM_SAVEANYWAY'
 parser.add('-e', dest='edicion', action="store", env_var='SM_EDICION', required=False, default=None)
 parser.add('-c', dest='competicion', action="store", env_var='SM_COMPETICION', required=False, default="LACB")
 parser.add('-u', dest='url', action="store", env_var='SM_URLCAL', required=False)
-parser.add('-b', dest='processBio', action="store_true", env_var='SM_STOREBIO', required=False, default=False)
+parser.add('-b', dest='procesaBio', action="store_true", env_var='SM_STOREBIO', required=False, default=False)
 
 parser.add('-i', dest='infile', type=str, env_var='SM_INFILE', required=False)
 parser.add('-o', dest='outfile', type=str, env_var='SM_OUTFILE', required=False)
@@ -46,7 +46,7 @@ temporada = TemporadaACB(competicion=parCompeticion, edicion=parEdicion, urlbase
 if 'infile' in args and args.infile:
     temporada.cargaTemporada(args.infile)
 
-if 'processBio' in args and args.processBio:
+if 'procesaBio' in args and args.procesaBio:
     if not temporada.descargaFichas:
         temporada.descargaFichas = True
         temporada.changed = True

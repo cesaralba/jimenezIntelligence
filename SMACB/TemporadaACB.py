@@ -56,7 +56,7 @@ class TemporadaACB(object):
         if isinstance(config, dict):
             config = Namespace(**config)
 
-        if config.descargaFichas:
+        if config.procesaBio:
             self.descargaFichas=True
 
         partidosBajados = set()
