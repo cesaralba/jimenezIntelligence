@@ -73,6 +73,10 @@ class FichaJugador(object):
         :param partido: OBJETO partido
         :return: Si ha cambiado el objeto o no
         """
+
+        if self.id not in partido.Jugadores:
+            raise ValueError("Jugador '%s' (%s) no ha jugado partido %s" % (self.nombre, self.id, partido.url))
+
         if partido.url in self.partidos:
             return False
 
