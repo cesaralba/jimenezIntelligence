@@ -120,10 +120,10 @@ class FichaJugador(object):
                 continue
             if other.__getattribute__(k, None) is None:
                 continue
-            if self.__getattribute__(k) is None and other.__getattribute__(k, None) is not None:
+            if self.__getattribute__(k) is None and other.__getattribute__(k) is not None:
                 self.__setattr__(k, other.__getattribute__(k))
                 changes = True
-            elif newer and self.__getattribute__(k) != other.__getattribute__(k, None):
+            elif newer and self.__getattribute__(k) != other.__getattribute__(k):
                 self.__setattr__(k, other.__getattribute__(k))
                 changes = True
 
