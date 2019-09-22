@@ -1,7 +1,6 @@
 import re
 from argparse import Namespace
-from time import gmtime, strptime
-from time import strftime
+from time import gmtime, strftime, strptime
 
 from Utils.Web import DescargaPagina, ExtraeGetParams, creaBrowser
 
