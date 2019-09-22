@@ -1,5 +1,6 @@
 import re
 from argparse import Namespace
+
 from time import gmtime, strftime, strptime
 
 from Utils.Web import DescargaPagina, ExtraeGetParams, creaBrowser
@@ -41,6 +42,7 @@ class FichaJugador(object):
         return FichaJugador(**fichaJug)
 
     def actualizaFicha(self, home=None, browser=None, config=Namespace()):
+
         changes = False
 
         if browser is None:
@@ -125,7 +127,6 @@ class FichaJugador(object):
             elif newer and self.__getattribute__(k) != other.__getattribute__(k):
                 self.__setattr__(k, other.__getattribute__(k))
                 changes = True
-
 
 def descargaURLficha(urlFicha, home=None, browser=None, config=Namespace()):
     if browser is None:

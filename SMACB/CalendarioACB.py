@@ -421,6 +421,7 @@ class CalendarioACB(object):
             self.nuevaTraduccionEquipo2Codigo(equipoAbuscar, codigoResultado)
             return codigoResultado
         else:
+
             print("No se han encontrado códigos posibles: %s (%s:%s)" % (equipoAbuscar, codigosObjetivo, listaCodigos))
             # TODO: Esto debería ser una excepción
             return None
