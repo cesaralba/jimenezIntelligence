@@ -418,9 +418,9 @@ class PartidoACB(object):
 
         return (dfResult)
 
-    def __repr__(self):
+    def __str__(self):
         return "J %i: [%s] %s (%s) %i - %i %s (%s) " % (
-            self.Jornada, strftime("%Y-%m-%d", self.FechaHora), self.EquiposCalendario['Local'],
+            self.Jornada, strftime("%Y-%m-%d %H:%M", self.FechaHora), self.EquiposCalendario['Local'],
             self.CodigosCalendario['Local'],
             self.ResultadoCalendario['Local'],
             self.ResultadoCalendario['Visitante'],

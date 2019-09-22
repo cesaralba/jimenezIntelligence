@@ -118,7 +118,7 @@ class FichaJugador(object):
         for k in vars(other).keys():
             if k in CLAVESAIGNORAR:
                 continue
-            if other.__getattribute__(k, None) is None:
+            if not hasattr(other, k) or other.__getattribute__(k) is None:
                 continue
             if self.__getattribute__(k) is None and other.__getattribute__(k) is not None:
                 self.__setattr__(k, other.__getattribute__(k))
