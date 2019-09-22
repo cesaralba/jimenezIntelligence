@@ -1,6 +1,6 @@
 import re
 from argparse import Namespace
-from time import gmtime, strptime
+from time import gmtime, strftime, strptime
 
 from Utils.Web import DescargaPagina, ExtraeGetParams, creaBrowser
 
@@ -27,9 +27,6 @@ class FichaJugador(object):
         self.primPartidoT = None
         self.ultPartidoT = None
         self.partidos = set()
-        self.temporadas = set()
-        self.historico = list()
-        self.historico.append((self.timestamp, "%s (%s): Carga inicial" % (self.alias, self.id)))
 
         if 'urlFoto' in kwargs:
             self.fotos.add(kwargs['urlFoto'])
@@ -44,8 +41,7 @@ class FichaJugador(object):
         return FichaJugador(**fichaJug)
 
     def actualizaFicha(self, home=None, browser=None, config=Namespace()):
-        changes = list()
-        subChanges = []
+        changes = False
 
         if browser is None:
             browser = creaBrowser(config)
@@ -54,45 +50,81 @@ class FichaJugador(object):
 
         for k in CLAVESFICHA:
             if self.__getattribute__(k) != newData[k]:
-                changes.append((k, self.__getattribute__(k), newData[k]))
+                changes = True
                 self.__setattr__(k, newData[k])
-        if changes:
-            subChanges = ["'%s':'%s'->'%s'" % (k, oldV, newV) for k, oldV, newV in changes]
 
         if newData['urlFoto'] not in self.fotos:
+            changes = True
             self.fotos.add(newData['urlFoto'])
-            subChanges.append("New foto")
 
-        if subChanges:
-            self.timestamp = newData['timestamp']
-            self.historico.append((self.timestamp, "%s (%s): %s" % (self.alias, self.id, ','.join(subChanges))))
+        if changes:
+            self.timestamp = newData.get('timestamp', gmtime())
 
     def nuevoPartido(self, partido):
         """
         Actualiza información relativa a partidos jugados
-        :param partido: OBJETO partido
+        :param partido: OBJETO partidoACB
         :return: Si ha cambiado el objeto o no
         """
+
+        if self.id not in partido.Jugadores:
+            raise ValueError("Jugador '%s' (%s) no ha jugado partido %s" % (self.nombre, self.id, partido.url))
+
         if partido.url in self.partidos:
             return False
 
         self.partidos.add(partido.url)
         if self.primPartidoT is None:
             self.primPartidoP = partido.url
-            self.primPartidoT = partido.timestamp
+            self.primPartidoT = partido.FechaHora
         else:
-            if partido.timestamp < self.primPartidoT:
+            if partido.FechaHora < self.primPartidoT:
                 self.primPartidoP = partido.url
-                self.primPartidoT = partido.timestamp
+                self.primPartidoT = partido.FechaHora
 
         if self.ultPartidoT is None:
             self.ultPartidoP = partido.url
-            self.ultPartidoT = partido.timestamp
+            self.ultPartidoT = partido.FechaHora
         else:
-            if partido.timestamp > self.ultPartidoT:
+            if partido.FechaHora > self.ultPartidoT:
                 self.ultPartidoP = partido.url
-                self.ultPartidoT = partido.timestamp
+                self.ultPartidoT = partido.FechaHora
         return True
+
+    def __repr__(self):
+
+        return "%s (%s) %s P:[%i] %s -> %s (i)" % (
+            self.nombre, self.id, strftime("%Y-%m-%d", self.fechaNac), len(self.partidos),
+            strftime("%Y-%m-%d", self.primPartidoT),
+            strftime("%Y-%m-%d", self.ultPartidoT))
+
+    def limpiaPartidos(self):
+        self.primPartidoP = None
+        self.ultPartidoP = None
+        self.primPartidoT = None
+        self.ultPartidoT = None
+        self.partidos = set()
+        self.timestamp = gmtime()
+
+    def __add__(self, other):
+        CLAVESAIGNORAR = ['id', 'url', 'timestamp', 'primPartidoP', 'ultPartidoP', 'primPartidoT', 'ultPartidoT',
+                          'partidos']
+        if self.id != other.id:
+            raise ValueError("Claves de fichas no coinciden '%s' %s != %s" % (self.nombre, self.id, other.id))
+
+        changes = False
+        newer = self.timestamp < other.timestamp
+        for k in vars(other).keys():
+            if k in CLAVESAIGNORAR:
+                continue
+            if not hasattr(other, k) or other.__getattribute__(k) is None:
+                continue
+            if self.__getattribute__(k) is None and other.__getattribute__(k) is not None:
+                self.__setattr__(k, other.__getattribute__(k))
+                changes = True
+            elif newer and self.__getattribute__(k) != other.__getattribute__(k):
+                self.__setattr__(k, other.__getattribute__(k))
+                changes = True
 
 
 def descargaURLficha(urlFicha, home=None, browser=None, config=Namespace()):

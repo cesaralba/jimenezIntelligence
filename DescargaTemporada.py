@@ -56,7 +56,7 @@ nuevosPartidos = temporada.actualizaTemporada(browser=browser, config=args)
 
 if nuevosPartidos or args.saveanyway:
     if nuevosPartidos:
-        resumenPartidos = [temporada.Partidos[x].resumenPartido() for x in sorted(list(nuevosPartidos))]
+        resumenPartidos = [str(temporada.Partidos[x]) for x in sorted(list(nuevosPartidos))]
         print("Nuevos partidos incorporados:\n%s" % ("\n".join(resumenPartidos)))
 
     sys.setrecursionlimit(50000)
