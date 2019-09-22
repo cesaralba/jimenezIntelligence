@@ -213,7 +213,7 @@ class CalendarioACB(object):
         codigosTemporada = set(self.codigo2equipo.keys())
         combinacionesNoUsadas = defaultdict(set)
 
-        # Repasa todas las jornadas (hacia atrás) asignando los codigos a los equipos a partir de la lista del calendario
+        # Repasa todas las jornadas (y pasadas) asignando los codigos a los equipos a partir de la lista del calendario
         for jornada in sorted(self.Jornadas.keys(), reverse=True):
             if self.Jornadas[jornada]['esPlayoff']:
                 continue
@@ -421,7 +421,8 @@ class CalendarioACB(object):
             self.nuevaTraduccionEquipo2Codigo(equipoAbuscar, codigoResultado)
             return codigoResultado
         else:
-            print("No se han encontrado códigos posibles: %s (%s:%s)" % (equipoAbuscar,codigosObjetivo,listaCodigos))
+
+            print("No se han encontrado códigos posibles: %s (%s:%s)" % (equipoAbuscar, codigosObjetivo, listaCodigos))
             # TODO: Esto debería ser una excepción
             return None
 

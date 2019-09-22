@@ -6,7 +6,8 @@ Created on Dec 31, 2017
 
 import re
 from argparse import Namespace
-from time import gmtime, mktime, strptime
+
+from time import gmtime, mktime, strptime, strftime
 from traceback import print_exc
 
 import pandas as pd
@@ -417,6 +418,15 @@ class PartidoACB(object):
         dfResult = pd.concat(dfJugs, axis=0, ignore_index=True, sort=True).astype(typesDF)
 
         return (dfResult)
+
+    def __str__(self):
+        return "J %i: [%s] %s (%s) %i - %i %s (%s) " % (
+            self.Jornada, strftime("%Y-%m-%d %H:%M", self.FechaHora), self.EquiposCalendario['Local'],
+            self.CodigosCalendario['Local'],
+            self.ResultadoCalendario['Local'],
+            self.ResultadoCalendario['Visitante'],
+            self.EquiposCalendario['Visitante'],
+            self.CodigosCalendario['Visitante'])
 
 
 def GeneraURLpartido(link):
