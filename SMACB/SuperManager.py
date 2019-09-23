@@ -121,12 +121,14 @@ class SuperManagerACB(object):
             targLeague = list(ligas.values())[0]
             self.ligaID = targLeague['id']
         elif self.ligaID is None and len(ligas) > 1:
-            raise NoPrivateLeaguesError("Usuario '{}' juega en más de una liga privada: %s", config.user, ", ".join(ligas.keys()))
+            raise NoPrivateLeaguesError("Usuario '{}' juega en más de una liga privada: {}", config.user,
+                                        ", ".join(list(ligas.keys())))
         else:
             try:
                 targLeague = ligas[self.ligaID]
             except KeyError:
-                raise NoPrivateLeaguesError("El usuario {} no participa en la liga privada {}", config.user, self.ligaID)
+                raise NoPrivateLeaguesError("El usuario {} no participa en la liga privada {}", config.user,
+                                            self.ligaID)
 
         browser.follow_link(targLeague['Ampliar'])
 
