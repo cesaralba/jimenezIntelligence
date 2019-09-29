@@ -145,3 +145,24 @@ def creaPath(*kargs):
     pathList = [Path(p) for p in kargs]
 
     return Path.joinpath(*pathList)
+
+
+def normalize_data_structs(data, **kwargs):
+    """
+    Returns a 'normalized' version of data (lists ordered, strings lowercased,...)
+    :param data: thing to normalize
+    :param kwargs: manipulation of data
+      * sort_lists: (default python sorted order)
+      * lowercase_strings:
+    :return:
+    """
+
+    if isinstance(data, str):
+        return (data.lower() if kwargs.get('lowercase_strings', False) else data)
+    elif isinstance(data, list):
+        result = [normalize_data_structs(x, **kwargs) for x in data]
+        return (sorted(result) if kwargs.get('sort_lists', False) else result)
+    elif isinstance(data, dict):
+        return {k: normalize_data_structs(data[k], **kwargs) for k in sorted(data.keys())}
+    else:
+        return data
