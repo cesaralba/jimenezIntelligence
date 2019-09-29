@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 from mechanicalsoup import LinkNotFoundError
 
 from .ClasifData import ClasifData, manipulaSocio
+from .LigaSM import LigaSM
 from .ManageSMDataframes import datosPosMerc, datosProxPartidoMerc
 from .MercadoPage import MercadoPageContent
 from .SMconstants import bool2esp
@@ -45,19 +46,13 @@ class NoPrivateLeaguesError(Exception):
 
 class SuperManagerACB(object):
 
-    def __init__(self, ligaPrivada=None, url=URL_SUPERMANAGER):
+    def __init__(self, ligasPrivadas=None, url=URL_SUPERMANAGER):
         self.timestamp = gmtime()
         self.changed = False
         self.url = url
-        self.ligaID = ligaPrivada
-
-        self.jornadas = {}
-        self.general = {}
-        self.broker = {}
-        self.puntos = {}
-        self.rebotes = {}
-        self.triples = {}
-        self.asistencias = {}
+        self.reqLigas = ligasPrivadas
+        self.ligasASeguir = set()
+        self.ligas = dict()
 
         self.mercado = {}
         self.mercadoJornada = {}
@@ -86,7 +81,23 @@ class SuperManagerACB(object):
         self.getMercados(browser, datosACB)
         # Vuelta al sendero
         browser.open(here)
-        self.getIntoPrivateLeague(browser, config)
+        ligasExistentes = None
+
+        if not self.ligasASeguir:
+            ligasExistentes = self.getLigas(browser, config)
+            if self.reqLigas is None:
+                self.ligasASeguir = set(ligasExistentes.keys())
+            else:
+                self.ligasASeguir = self.reqLigas
+        else:
+            if self.reqLigas is not None or self.reqLigas:
+                self.ligasASeguir = set(self.reqLigas)
+
+        for lID in self.ligasASeguir:
+            if lID not in self.ligas:
+                if ligasExistentes is None:
+                    ligasExistentes = self.getLigas(browser, config)
+                self.ligas[lID] = LigaSM(id=lID, nombre=ligasExistentes[lID]['nombre'])
 
     def loginSM(self, browser, config):
         browser.open(self.url)
@@ -109,7 +120,7 @@ class SuperManagerACB(object):
             elif 'El SuperManager KIA estar' in script.get_text():
                 raise ClosedSystemError(url=self.url)
 
-    def getIntoPrivateLeague(self, browser, config):
+    def getLigas(self, browser, config):
         lplink = browser.find_link(link_text='ligas privadas')
         browser.follow_link(lplink)
 
@@ -117,24 +128,28 @@ class SuperManagerACB(object):
 
         if len(ligas) == 0:
             raise NoPrivateLeaguesError("El usuario '{}' no tiene ligas privadas", config.user)
-        elif self.ligaID is None and len(ligas) == 1:
-            targLeague = list(ligas.values())[0]
-            self.ligaID = targLeague['id']
-        elif self.ligaID is None and len(ligas) > 1:
-            raise NoPrivateLeaguesError("Usuario '{}' juega en más de una liga privada: {}", config.user,
-                                        ", ".join(list(ligas.keys())))
+
+        return ligas
+
+    def getIntoPrivateLeague(self, browser, config, lID):
+        lplink = browser.find_link(link_text='ligas privadas')
+        browser.follow_link(lplink)
+
+        ligas = extractPrivateLeagues(browser.get_current_page())
+
+        if len(ligas) == 0:
+            raise NoPrivateLeaguesError("El usuario '{}' no tiene ligas privadas", config.user)
         else:
             try:
-                targLeague = ligas[self.ligaID]
+                targLeague = ligas[lID]
             except KeyError:
-                raise NoPrivateLeaguesError("El usuario {} no participa en la liga privada {}", config.user,
-                                            self.ligaID)
+                raise NoPrivateLeaguesError("El usuario {} no participa en la liga privada {}", config.user, lID)
 
         browser.follow_link(targLeague['Ampliar'])
 
-    def getJornada(self, idJornada, browser):
+    def getJornada(self, ligaID, idJornada, browser):
         pageForm = browser.get_current_page().find("form", {"id": 'FormClasificacion'})
-        pageForm['action'] = "/privadas/ver/id/{}/tipo/jornada/jornada/{}".format(self.ligaID, idJornada)
+        pageForm['action'] = "/privadas/ver/id/{}/tipo/jornada/jornada/{}".format(ligaID, idJornada)
 
         jorForm = mechanicalsoup.Form(pageForm)
         jorForm['jornada'] = str(idJornada)
@@ -145,7 +160,6 @@ class SuperManagerACB(object):
         jorResults = ClasifData(label="jornada{}".format(idJornada),
                                 source=browser.get_url(),
                                 content=bs4Jornada)
-        self.jornadas[idJornada] = jorResults
         return jorResults
 
     def getMercados(self, browser, datosACB=None):
@@ -202,42 +216,20 @@ class SuperManagerACB(object):
         self.changed = True
 
     def getSMstatus(self, browser, config=None):
-        fuerzaDescarga = False
-        jornadas = getJornadasJugadas(browser.get_current_page())
+        for lID in self.ligasASeguir:
+            self.getIntoPrivateLeague(browser, config, lID)
+            jornadas = getJornadasJugadas(browser.get_current_page())
 
-        if (config is not None) and ('jornada' in config) and config.jornada:
-            fuerzaDescarga = True
-            ultJornada = int(config.jornada)
-            jornadasAdescargar = []
-        elif jornadas:
-            ultJornada = max(jornadas) if jornadas else 0
-            jornadasAdescargar = [j for j in jornadas if ((j in self.jornadasForzadas) or (j not in self.jornadas))]
-        else:
-            return
+            estadoSM = {'jornadas': {}, 'general': {}, 'broker': {}, 'puntos': {}, 'rebotes': {}, 'triples': {},
+                        'asistencias': {}}
 
-        if jornadasAdescargar or fuerzaDescarga:
-            self.changed = True
+            for j in jornadas:
+                estadoSM['jornadas'][j] = self.getJornada(ligaID=lID, idJornada=j, browser=browser)
 
-            for jornada in jornadasAdescargar:
-                self.getJornada(jornada, browser)
-                if jornada in self.jornadasForzadas:
-                    self.jornadasForzadas.discard(jornada)
+            for compo in ["general", "broker", "puntos", "rebotes", "triples", "asistencias"]:
+                estadoSM[compo] = getClasif(compo, browser, lID)
 
-            if (ultJornada in jornadasAdescargar) or fuerzaDescarga:
-                self.general[ultJornada] = getClasif("general", browser, self.ligaID)
-                self.broker[ultJornada] = getClasif("broker", browser, self.ligaID)
-                self.puntos[ultJornada] = getClasif("puntos", browser, self.ligaID)
-                self.rebotes[ultJornada] = getClasif("rebotes", browser, self.ligaID)
-                self.triples[ultJornada] = getClasif("triples", browser, self.ligaID)
-                self.asistencias[ultJornada] = getClasif("asistencias", browser, self.ligaID)
-
-                # Hay otros mecanismos para asociar mercados a jornadas
-                if not fuerzaDescarga:
-                    self.mercadoJornada[ultJornada] = self.ultimoMercado
-
-            if fuerzaDescarga:
-                self.jornadas[ultJornada] = self.general[ultJornada]
-                self.jornadasForzadas.add(ultJornada)
+            self.changed |= self.ligas[lID].nuevoEstado(estadoSM)
 
     def saveData(self, filename):
         aux = copy(self)

@@ -9,13 +9,13 @@ from calendar import timegm
 from collections import defaultdict
 from copy import copy
 from pickle import dump, load
-from sys import setrecursionlimit
+from sys import exc_info, setrecursionlimit
 from time import gmtime, strftime
-from sys import exc_info
+
 import pandas as pd
 from babel.numbers import decimal
 
-from SMACB.CalendarioACB import CalendarioACB, calendario_URLBASE, URL_BASE
+from SMACB.CalendarioACB import URL_BASE, CalendarioACB, calendario_URLBASE
 from SMACB.FichaJugador import FichaJugador
 from SMACB.PartidoACB import PartidoACB
 from SMACB.SMconstants import LISTACOMPOS, calculaValSuperManager
@@ -57,7 +57,7 @@ class TemporadaACB(object):
             config = Namespace(**config)
 
         if config.procesaBio:
-            self.descargaFichas=True
+            self.descargaFichas = True
 
         partidosBajados = set()
 
@@ -78,9 +78,8 @@ class TemporadaACB(object):
                 if config.justone:  # Just downloads a game (for testing/dev purposes)
                     break
 
-            except:
+            except BaseException:
                 print("actualizaTemporada: problemas descargando  partido'%s': %s" % (partido, exc_info()))
-
 
         if partidosBajados:
             self.changed = True
