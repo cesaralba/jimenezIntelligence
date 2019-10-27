@@ -1,3 +1,4 @@
+import re
 from argparse import Namespace
 from time import gmtime
 from urllib.parse import (parse_qs, unquote, urlencode, urljoin, urlparse,
@@ -90,3 +91,13 @@ def creaBrowser(config=Namespace()):
         browser.set_debug(config.debug)
 
     return browser
+
+
+def getObjID(objURL, clave='id'):
+    PATid = r'^.*/' + clave + '/(?P<id>\d+)(/.*)?'
+    REid = re.match(PATid, objURL)
+
+    if REid:
+        return REid.group('id')
+    else:
+        raise ValueError("getObjID '%s' no casa patrón '%s' para clave '%s'" % (objURL, PATid, clave))
