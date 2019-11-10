@@ -93,11 +93,18 @@ def creaBrowser(config=Namespace()):
     return browser
 
 
-def getObjID(objURL, clave='id'):
+# https://effbot.org/zone/default-values.htm#what-to-do-instead
+sentinel = object()
+
+
+def getObjID(objURL, clave='id', defaultresult=sentinel):
     PATid = r'^.*/' + clave + '/(?P<id>\d+)(/.*)?'
     REid = re.match(PATid, objURL)
 
     if REid:
         return REid.group('id')
     else:
-        raise ValueError("getObjID '%s' no casa patrón '%s' para clave '%s'" % (objURL, PATid, clave))
+        if defaultresult is sentinel:
+            raise ValueError("getObjID '%s' no casa patrón '%s' para clave '%s'" % (objURL, PATid, clave))
+        else:
+            return defaultresult
