@@ -1,5 +1,7 @@
 from babel.numbers import decimal
 
+URL_BASE = "http://www.acb.com"
+
 MAXIMOextranjeros = 2
 MINIMOnacionales = 4
 
