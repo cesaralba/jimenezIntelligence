@@ -11,18 +11,25 @@ from SMACB.TemporadaACB import TemporadaACB
 from Utils.Web import ExtraeGetParams
 
 parser = ArgumentParser()
-parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, default=0)
-parser.add('-d', dest='debug', action="store_true", env_var='SM_DEBUG', required=False, default=False)
-parser.add('-j', dest='justone', action="store_true", env_var='SM_JUSTONE', required=False, default=False)
-parser.add('-f', dest='saveanyway', action="store_true", env_var='SM_SAVEANYWAY', required=False, default=False)
+parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, help='', default=0)
+parser.add('-d', dest='debug', action="store_true", env_var='SM_DEBUG', required=False, help='', default=False)
+parser.add('-j', dest='justone', action="store_true", env_var='SM_JUSTONE', required=False,
+           help='Solo descarga un partido', default=False)
+parser.add('-f', dest='saveanyway', action="store_true", env_var='SM_SAVEANYWAY', required=False,
+           help='Graba el fichero aunque no haya habido cambios', default=False)
 
-parser.add('-e', dest='edicion', action="store", env_var='SM_EDICION', required=False, default=None)
-parser.add('-c', dest='competicion', action="store", env_var='SM_COMPETICION', required=False, default="LACB")
-parser.add('-u', dest='url', action="store", env_var='SM_URLCAL', required=False)
-parser.add('-b', dest='procesaBio', action="store_true", env_var='SM_STOREBIO', required=False, default=False)
+parser.add('-e', dest='edicion', action="store", env_var='SM_EDICION', required=False,
+           help='Año de la temporada (para 2015-2016 sería 2016). La ACB empieza en 1983. La copa se referencia por el año menor ',
+           default=None)
+parser.add('-c', dest='competicion', action="store", env_var='SM_COMPETICION', required=False,
+           choices=['LACB', 'COPA', 'SCOPA'], help='Clave de la competición: Liga=LACB, Copa=COPA, Supercopa=SCOPA',
+           default="LACB")
+parser.add('-u', dest='url', action="store", env_var='SM_URLCAL', help='', required=False)
+parser.add('-b', dest='procesaBio', action="store_true", env_var='SM_STOREBIO',
+           help='Descarga los datos biográficos de los jugadores', required=False, default=False)
 
-parser.add('-i', dest='infile', type=str, env_var='SM_INFILE', required=False)
-parser.add('-o', dest='outfile', type=str, env_var='SM_OUTFILE', required=False)
+parser.add('-i', dest='infile', type=str, env_var='SM_INFILE', help='Fichero de entrada', required=False)
+parser.add('-o', dest='outfile', type=str, env_var='SM_OUTFILE', help='Fichero de salida', required=False)
 
 args = parser.parse_args()
 

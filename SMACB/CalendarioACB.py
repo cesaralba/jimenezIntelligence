@@ -5,16 +5,18 @@ from copy import deepcopy
 from itertools import combinations
 from time import gmtime, strptime
 
-import bs4
+from Utils.Misc import CompareBagsOfWords, FORMATOtimestamp
+from Utils.Web import DescargaPagina, ExtraeGetParams, MergeURL, getObjID
+from .PartidoACB import GeneraURLpartido
+from .SMconstants import URL_BASE
 
-from SMACB.PartidoACB import GeneraURLpartido
-from Utils.Misc import CompareBagsOfWords, PARSERfechaC
-from Utils.Web import ComposeURL, DescargaPagina, ExtraeGetParams, MergeURL
-
-URL_BASE = "http://www.acb.com"
-
-calendario_URLBASE = "http://acb.com/calendario.php"
+calendario_URLBASE = "http://www.acb.com/calendario"
 template_URLFICHA = "http://www.acb.com/fichas/%s%i%03i.php"
+# http://www.acb.com/calendario/index/temporada_id/2018
+# http://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
+template_CALENDARIOYEAR = "http://www.acb.com/calendario/index/temporada_id/{year}"
+template_CALENDARIOFULL = "http://www.acb.com/calendario/index/temporada_id/{year}/edicion_id/{compoID}"
+
 UMBRALbusquedaDistancia = 1  # La comparación debe ser >
 
 
@@ -29,11 +31,13 @@ class CalendarioACB(object):
         self.Jornadas = {}
         self.equipo2codigo = {}
         self.codigo2equipo = defaultdict(set)
-        self.url = urlbase
+        self.urlbase = urlbase
+        self.url = None
 
     def actualizaCalendario(self, home=None, browser=None, config=Namespace()):
         calendarioPage = self.descargaCalendario(home=home, browser=browser, config=config)
-        self.procesaCalendario(calendarioPage)
+
+        return self.procesaCalendario(calendarioPage)  # CAP:
 
     def procesaCalendario(self, content):
         if 'timestamp' in content:
@@ -42,78 +46,16 @@ class CalendarioACB(object):
             self.url = content['source']
         calendarioData = content['data']
 
-        tablaCuerpo = calendarioData.table(recursive=False)[0]
+        for divJ in calendarioData.find_all("div", {"class": "cabecera_jornada"}):
+            datosCab = procesaCab(divJ)
 
-        tablaCols = tablaCuerpo.find_all("td", recursive=False)
-        colFechas = tablaCols[2]
+            currJornada = int(datosCab['jornada'])
 
-        # Tomamos toda la informacion posible de la pagina del calendario.
-        currJornada = None
-        tablaPlayoffs = False
-        for item in colFechas:
-            if type(item) is bs4.element.NavigableString:  # Retornos de carro y cosas así
-                continue
-            elif item.name == 'div':
-                divClasses = item.attrs.get('class', [])
-                if (('menuseparacion' in divClasses) or ('piemenuclubs' in divClasses) or
-                        ('cuerpobusca' in divClasses) or ('titulomenuclubsl' in divClasses)):
-                    continue  # DIV estéticos o que no aportan información interesante
-                elif 'titulomenuclubs' in divClasses:
-                    tituloDiv = item.string
-                    tituloFields = tituloDiv.split(" - ")
-                    if len(tituloFields) == 1:  # Encabezado Selector de Jornadas a mostrar
-                        continue
-                    else:
-                        self.nombresCompeticion[tituloFields[0]] += 1
+            divPartidos = divJ.find_next_sibling("div", {"class": "listado_partidos"})
 
-                    jornadaMatch = re.match(r"JORNADA\s+(\d+)", tituloFields[1])
-                    if jornadaMatch:  # Liga Endesa 2017-18 - JORNADA 34
-                        currJornada = int(jornadaMatch.groups()[0])
-                        self.Jornadas[currJornada] = dict()
-                        self.Jornadas[currJornada]['nombre'] = tituloFields[1]
-                        self.Jornadas[currJornada]['partidos'] = []
-                        self.Jornadas[currJornada]['pendientes'] = []
-                        self.Jornadas[currJornada]['equipos'] = set()
-                        self.Jornadas[currJornada]['esPlayoff'] = False
+            self.Jornadas[currJornada] = self.procesaBloqueJornada(divPartidos, datosCab)
 
-                        continue
-                    else:  # Liga Endesa 2017-18 - Calendario jornadas - Liga Regular
-                        currJornada = None
-                        if 'playoff' in tituloFields[2].lower():
-                            tablaPlayoffs = True
-                        else:
-                            tablaPlayoffs = False
-
-                elif ('cuerponaranja' in divClasses):  # Selector para calendario de clubes
-                    self.procesaSelectorClubes(item)
-                elif ('tablajornadas' in divClasses):  # Selector para calendario de clubes
-                    if tablaPlayoffs:
-                        self.procesaTablaCalendarioJornadas(item)
-                    else:
-                        continue
-                else:
-                    print("DIV Unprocessed: ", item.attrs)
-            elif item.name == 'table':
-                self.procesaTablaJornada(item, currJornada)
-            elif item.name in ('br'):  # Otras cosas que no interesan
-                continue
-            else:
-                print("Unexpected: ", item, item.__dict__.keys())
-
-        # Detecta los cambios de nombre de equipo
-        self.gestionaNombresDeEquipo()
-
-        for jornada in self.Jornadas:
-            if not self.Jornadas[jornada]['partidos']:
-                continue
-
-            for partido in self.Jornadas[jornada]['partidos']:
-                self.Partidos[partido]['esPlayoff'] = self.Jornadas[jornada]['esPlayoff']
-                codigos = [self.equipo2codigo.get(x, None) for x in self.Partidos[partido]['equipos']]
-                if None in codigos:
-                    raise BaseException("Equipo sin codigo en '%s' (%s) " %
-                                        (" - ".join(self.Partidos[partido]['equipos']), partido))
-                self.Partidos[partido]['codigos'] = codigos
+        return content  # CAP
 
     def procesaTablaJornada(self, tagTabla, currJornada):
         for row in tagTabla.find_all("tr"):
@@ -440,13 +382,51 @@ class CalendarioACB(object):
 
         return result
 
-    def descargaCalendario(self, home=None, browser=None, config={}):
-        urlCalendario = ComposeURL(self.url,
-                                   {'cod_competicion': self.competicion, 'cod_edicion': self.edicion, 'vd': "1",
-                                    'vh': "60"})
-        calendarioPage = DescargaPagina(urlCalendario, home=home, browser=browser, config=config)
+    def descargaCalendario(self, home=None, browser=None, config=Namespace()):
+        if self.url is None:
+            pagCalendario = DescargaPagina(self.urlbase, home=home, browser=browser, config=config)
+            pagCalendarioData = pagCalendario['data']
+            divTemporadas = pagCalendarioData.find("div", {"class": "listado_temporada"})
 
-        return calendarioPage
+            currYear = divTemporadas.find('div', {"class": "elemento"})['data-t2v-id']
+
+            urlYear = template_CALENDARIOYEAR.format(year=self.edicion)
+            if self.edicion == currYear:
+                urlYear = self.urlbase
+                pagYear = pagCalendario
+            else:
+                listaTemporadas = {x['data-t2v-id']: x.get_text() for x in
+                                   divTemporadas.find_all('div', {"class": "elemento"})}
+                if self.edicion not in listaTemporadas:
+                    raise KeyError("Temporada solicitada {year} no está entre las disponibles ({listaYears})".format(
+                        year=self.edicion, listaYears=", ".join(listaTemporadas.keys())))
+
+                pagYear = DescargaPagina(urlYear, home=None, browser=browser, config=config)
+
+            pagYearData = pagYear['data']
+
+            divCompos = pagYearData.find("div", {"class": "listado_competicion"})
+            listaCompos = {x['data-t2v-id']: x.get_text() for x in divCompos.find_all('div', {"class": "elemento"})}
+            compoClaves = compo2clave(listaCompos)
+
+            priCompoID = divCompos.find('div', {"class": "elemento"})['data-t2v-id']
+
+            if self.competicion not in compoClaves:
+                listaComposTxt = ["{k} = '{label}'".format(k=x, label=listaCompos[compoClaves[x]]) for x in
+                                  compoClaves]
+                raise KeyError("Compo solicitada {compo} no disponible. Disponibles: {listaCompos}".format(
+                    compo=self.competicion, listaCompos=", ".join(listaComposTxt)))
+
+            self.url = template_CALENDARIOFULL.format(year=self.edicion, compoID=compoClaves[self.competicion])
+
+            if compoClaves[self.competicion] == priCompoID:
+                result = pagYear
+            else:
+                result = DescargaPagina(self.url, browser=browser, home=None, config=config)
+        else:
+            result = DescargaPagina(self.url, browser=browser, home=None, config=config)
+
+        return result
 
     def descargaCalendarioEquipo(self, codEquipo, home=None, browser=None, config={}):
         calWrk = self.descargaCalendario(home=home, browser=browser, config=config)
@@ -503,6 +483,61 @@ class CalendarioACB(object):
 
         return eqNames
 
+    def procesaBloqueJornada(self, divDatos, dictCab):
+        # TODO: incluir datos de competicion
+        result = dict()
+        result['nombre'] = dictCab['comp']
+        result['jornada'] = int(dictCab['jornada'])
+        result['partidos'] = []
+        result['pendientes'] = []
+        result['equipos'] = set()
+        result['esPlayoff'] = None
+
+        # print(divPartidos)
+        for artP in divDatos.find_all("article", {"class": "partido"}):
+            datosPart = self.procesaBloquePartido(dictCab, artP)
+            if datosPart['pendiente']:
+                result['pendientes'].append(datosPart)
+            else:
+                self.Partidos[datosPart['url']] = datosPart
+                result['partidos'].append(datosPart)
+
+    def procesaBloquePartido(self, datosJornada, divPartido):
+        # TODO: incluir datos de competicion
+        resultado = dict()
+        resultado['pendiente'] = True
+        resultado['fecha'] = None
+        resultado['jornada'] = datosJornada['jornada']
+
+        resultado['cod_competicion'] = self.competicion
+        resultado['cod_edicion'] = self.edicion
+
+        datosPartEqs = dict()
+        for eqUbic in ['local', 'visitante']:
+            divsEq = divPartido.find_all("div", {"class": eqUbic})
+            datosPartEqs[eqUbic.capitalize()] = procesaDivsEquipo(divsEq)
+
+        resultado['equipos'] = datosPartEqs
+
+        if 'enlace' in datosPartEqs['Local']:
+            resultado['pendiente'] = False
+            linkGame = datosPartEqs['Local']['enlace']
+            resultado['url'] = MergeURL(self.url, linkGame)
+            resultado['resultado'] = {x: datosPartEqs[x]['puntos'] for x in datosPartEqs}
+            resultado['codigos'] = {x: datosPartEqs[x]['abrev'] for x in datosPartEqs}
+            resultado['partido'] = getObjID(linkGame)
+
+        else:
+            divTiempo = divPartido.find('div', {"class": "info"})
+
+            if divTiempo:
+                cadFecha = divTiempo.find('span', {"class": "fecha"}).next.lower()
+                cadHora = divTiempo.find('span', {"class": "hora"}).get_text()
+
+                resultado['fecha'] = procesaFechaHoraPartido(cadFecha.strip(), cadHora.strip(), datosJornada)
+
+        return resultado
+
 
 def BuscaCalendario(url=URL_BASE, home=None, browser=None, config={}):
     link = None
@@ -527,3 +562,122 @@ def BuscaCalendario(url=URL_BASE, home=None, browser=None, config={}):
     result = MergeURL(url, link['href'])
 
     return result
+
+
+def compo2clave(listaCompos):
+    """
+    Dado un diccionario con lo que aparece en el desplegable (id -> nombre compo), devuelve otro con las claves
+    tradicionales (pre verano 2019)
+    :param listaCompos:
+    :return:
+    """
+    result = dict()
+
+    for id, label in listaCompos.items():
+        if 'liga' in label.lower():
+            result['LACB'] = id
+        elif 'supercopa' in label.lower():
+            result['SCOPA'] = id
+        elif 'copa' in label.lower():
+            result['COPA'] = id
+
+    return result
+
+
+def procesaCab(cab):
+    """
+    Extrae datos relevantes de la cabecera de cada jornada en el calendario
+    :param cab: div que contiene la cabecera COMPLETA
+    :return:  {'comp': 'Liga Endesa', 'yini': '2018', 'yfin': '2019', 'jor': '46'}
+    """
+    resultado = dict()
+    cadL = cab.find('div', {"class": "float-left"}).text
+    cadR = cab.find('div', {"class": "fechas"}).text
+
+    patronL = r'(?P<comp>.*) (?P<yini>\d{4})-(?P<yfin>\d{4}) - JORNADA (?P<jornada>\d+)'
+
+    patL = re.match(patronL, cadL)
+
+    resultado.update(patL.groupdict())
+
+    resultado['auxFechas'] = procesaFechasJornada(cadR)
+
+    return resultado
+
+
+def procesaFechasJornada(cadFechas):
+    resultado = dict()
+
+    mes2n = {'ene': 1, 'feb': 2, 'mar': 3, 'abr': 4, 'may': 5, 'jun': 6, 'jul': 7, 'ago': 8, 'sep': 9, 'oct': 10,
+             'nov': 11, 'dic': 12}
+
+    patronBloqueFechas = r'^(?P<dias>\d{1,2}(-\d{1,2})*)\s+(?P<mes>\w+)\s+(?P<year>\d{4})$'
+
+    cadWrk = cadFechas.lower().strip()
+    bloques = cadWrk.split(" y ")
+
+    for b in bloques:
+        reFecha = re.match(patronBloqueFechas, b.strip())
+        if reFecha:
+            yearN = int(reFecha['year'].strip())
+            for d in reFecha['dias'].split("-"):
+                diaN = int(d.strip())
+                cadResult = "%04i-%02i-%02i" % (yearN, mes2n[reFecha['mes']], diaN)
+                if diaN in resultado:
+                    resultado[diaN].add(cadResult)
+                else:
+                    resultado[diaN] = {cadResult}
+        else:
+            raise ValueError("RE: '%s' no casa patrón '%s'" % (b, patronBloqueFechas))
+
+    return resultado
+
+
+def procesaDivsEquipo(divList):
+    resultado = dict()
+    resultado['haGanado'] = None
+
+    for d in divList:
+        if 'equipo' in d.attrs['class']:
+            resultado['abrev'] = d.find('span', {"class": "abreviatura"}).get_text()
+            resultado['nomblargo'] = d.find('span', {"class": "nombre_largo"}).get_text()
+            resultado['nombcorto'] = d.find('span', {"class": "nombre_corto"}).get_text()
+        elif 'resultado' in d.attrs['class']:
+            resultado['puntos'] = int(d.find('a').get_text())
+            resultado['enlace'] = d.find('a').attrs['href']
+            resultado['haGanado'] = 'ganador' in d.attrs['class']
+        else:
+            raise ValueError("procesaDivsEquipo: CASO NO TRATADO: %s" % str(d))
+
+    return resultado
+
+
+def procesaFechaHoraPartido(cadFecha, cadHora, datosCab):
+    resultado = None
+    diaSem2n = {'lun': 0, 'mar': 1, 'mié': 2, 'jue': 3, 'vie': 4, 'sáb': 5, 'dom': 6}
+    patronDiaPartido = r'^(?P<diasem>\w+)\s(?P<diames>\d{1,2})$'
+
+    reFechaPart = re.match(patronDiaPartido, cadFecha.strip())
+
+    if reFechaPart:
+        diaSemN = diaSem2n[reFechaPart['diasem']]
+        diaMesN = int(reFechaPart['diames'])
+
+        auxFechasN = deepcopy(datosCab['auxFechas'])[diaMesN]
+
+        if len(auxFechasN) > 1:
+            # TODO Magic para procesar dias repetidos (cuando suceda)
+            pass
+        else:
+            cadFechaFin = auxFechasN.pop()
+            cadMezclada = "%s %s" % (cadFechaFin.strip(), cadHora.strip())
+            try:
+                fechaPart = strptime(cadMezclada, FORMATOtimestamp)
+                resultado = fechaPart
+            except ValueError:
+                print("procesaFechaHoraPartido: '%s' no casa RE '%s'" % (cadFechaFin, FORMATOtimestamp))
+                resultado = None
+    else:
+        raise ValueError("RE: '%s' no casa patrón '%s'" % (cadFecha, patronDiaPartido))
+
+    return resultado
