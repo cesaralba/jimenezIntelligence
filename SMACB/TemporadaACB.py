@@ -11,6 +11,7 @@ from copy import copy
 from pickle import dump, load
 from sys import exc_info, setrecursionlimit
 from time import gmtime, strftime
+from traceback import print_exception
 
 import pandas as pd
 from babel.numbers import decimal
@@ -30,13 +31,13 @@ class TemporadaACB(object):
     '''
 
     def __init__(self, **kwargs):
-        competicion = kwargs.get('competicion', "LACB")
-        edicion = kwargs.get('edicion', None)
-        urlbase = kwargs.get('urlbase', calendario_URLBASE)
+        self.competicion = kwargs.get('competicion', "LACB")
+        self.edicion = kwargs.get('edicion', None)
+        self.urlbase = kwargs.get('urlbase', calendario_URLBASE)
         descargaFichas = kwargs.get('descargaFichas', False)
 
         self.timestamp = gmtime()
-        self.Calendario = CalendarioACB(competicion=competicion, edicion=edicion, urlbase=urlbase)
+        self.Calendario = CalendarioACB(competicion=self.competicion, edicion=self.edicion, urlbase=self.urlbase)
         self.PartidosDescargados = set()
         self.Partidos = dict()
         self.changed = False
@@ -47,16 +48,16 @@ class TemporadaACB(object):
 
     def actualizaTemporada(self, home=None, browser=None, config=Namespace()):
 
+        if isinstance(config, dict):
+            config = Namespace(**config)
+
         if browser is None:
             browser = creaBrowser(config)
             browser.open(URL_BASE)
 
         self.Calendario.actualizaCalendario(browser=browser, config=config)
 
-        if isinstance(config, dict):
-            config = Namespace(**config)
-
-        if config.procesaBio:
+        if 'procesabio' in config and config.procesaBio:
             self.descargaFichas = True
 
         partidosBajados = set()
@@ -73,13 +74,15 @@ class TemporadaACB(object):
                 self.actualizaNombresEquipo(nuevoPartido)
                 partidosBajados.add(partido)
 
-                if self.descargaFichas:
-                    self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
-                if config.justone:  # Just downloads a game (for testing/dev purposes)
-                    break
+                # if self.descargaFichas:
+                #     self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
 
             except BaseException:
-                print("actualizaTemporada: problemas descargando  partido'%s': %s" % (partido, exc_info()))
+                print("actualizaTemporada: problemas descargando  partido '%s': %s" % (partido, exc_info()))
+                print_exception(*exc_info())
+
+            if 'justone' in config and config.justone:  # Just downloads a game (for testing/dev purposes)
+                break
 
         if partidosBajados:
             self.changed = True

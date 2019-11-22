@@ -1,3 +1,4 @@
+import re
 from argparse import Namespace
 from time import gmtime
 from urllib.parse import (parse_qs, unquote, urlencode, urljoin, urlparse,
@@ -90,3 +91,20 @@ def creaBrowser(config=Namespace()):
         browser.set_debug(config.debug)
 
     return browser
+
+
+# https://effbot.org/zone/default-values.htm#what-to-do-instead
+sentinel = object()
+
+
+def getObjID(objURL, clave='id', defaultresult=sentinel):
+    PATid = r'^.*/' + clave + '/(?P<id>\d+)(/.*)?'
+    REid = re.match(PATid, objURL)
+
+    if REid:
+        return REid.group('id')
+    else:
+        if defaultresult is sentinel:
+            raise ValueError("getObjID '%s' no casa patrón '%s' para clave '%s'" % (objURL, PATid, clave))
+        else:
+            return defaultresult
