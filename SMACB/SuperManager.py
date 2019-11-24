@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from argparse import Namespace
 from collections import Iterable, defaultdict
 from copy import copy, deepcopy
 from pickle import dump, load
@@ -59,7 +60,7 @@ class SuperManagerACB(object):
         self.ultimoMercado = None
         self.jornadasForzadas = set()
 
-    def Connect(self, url=None, browser=None, config={}, datosACB=None):
+    def Connect(self, url=None, browser=None, config=Namespace(), datosACB=None):
         """ Se conecta al SuperManager con las credenciales suministradas,
             descarga el mercado y se introduce en la liga privada indicada
             o la única.
@@ -80,6 +81,7 @@ class SuperManagerACB(object):
         here = browser.get_url()
         self.getMercados(browser, datosACB)
         # Vuelta al sendero
+
         browser.open(here)
         ligasExistentes = None
 
@@ -166,6 +168,7 @@ class SuperManagerACB(object):
         """ Descarga la hoja de mercado y la almacena si ha habido cambios """
         lastMercado = None
         newMercado = getMercado(browser, datosACB)
+
         newMercadoID = newMercado.timestampKey()
 
         if hasattr(self, "ultimoMercado"):
@@ -557,5 +560,6 @@ def getClasif(categ, browser, liga):
 
 def getMercado(browser, datosACB=None):
     browser.follow_link("mercado")
+
     mercadoData = MercadoPageContent({'source': browser.get_url(), 'data': browser.get_current_page()}, datosACB)
     return mercadoData
