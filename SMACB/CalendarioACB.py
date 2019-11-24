@@ -6,8 +6,7 @@ from itertools import combinations
 from time import gmtime, strptime
 
 from Utils.Misc import CompareBagsOfWords, FORMATOtimestamp
-from Utils.Web import DescargaPagina, ExtraeGetParams, MergeURL, getObjID
-from .PartidoACB import GeneraURLpartido
+from Utils.Web import DescargaPagina, MergeURL, getObjID
 from .SMconstants import URL_BASE
 
 calendario_URLBASE = "http://www.acb.com/calendario"
@@ -57,41 +56,42 @@ class CalendarioACB(object):
 
         return content  # CAP
 
-    def procesaTablaJornada(self, tagTabla, currJornada):
-        for row in tagTabla.find_all("tr"):
-            cols = row.find_all("td", recursive=False)
-
-            equipos = [x.strip() for x in cols[1].string.split(" - ")]
-            for equipo in equipos:
-                (self.Jornadas[currJornada]['equipos']).add(equipo)
-
-            # si el partido ha sucedido, hay un enlace a las estadisticas en la col 0 (tambien en la del resultado)
-            linksCol0 = cols[0].find_all("a")
-
-            if linksCol0:
-                linkGame = linksCol0[0]
-                linkOk = GeneraURLpartido(linkGame)
-                puntos = [int(x.strip()) for x in cols[2].string.split(" - ")]
-
-                paramsURL = ExtraeGetParams(linkGame['href'])
-                self.Partidos[linkOk] = {'url': linkOk, 'URLparams': paramsURL, 'jornada': currJornada,
-                                         'equipos': equipos, 'resultado': puntos}
-                (self.Jornadas[currJornada]['partidos']).append(linkOk)
-            else:  # No ha habido partido
-                partidoPendiente = dict()
-                partidoPendiente['jornada'] = currJornada
-                partidoPendiente['equipos'] = equipos
-                textoFecha = cols[2].string
-                if textoFecha:
-                    try:
-                        fechaPart = strptime(textoFecha, PARSERfechaC)
-                        partidoPendiente['fecha'] = fechaPart
-                    except ValueError:
-                        partidoPendiente['fecha'] = None
-                else:
-                    partidoPendiente['fecha'] = None
-
-                self.Jornadas[currJornada]['pendientes'].append(partidoPendiente)
+    # def procesaTablaJornada(self, tagTabla, currJornada):
+    #     for row in tagTabla.find_all("tr"):
+    #         cols = row.find_all("td", recursive=False)
+    #
+    #         equipos = [x.strip() for x in cols[1].string.split(" - ")]
+    #         for equipo in equipos:
+    #             (self.Jornadas[currJornada]['equipos']).add(equipo)
+    #
+    #         # si el partido ha sucedido, hay un enlace a las estadisticas en la col 0 (tambien en la del resultado)
+    #         linksCol0 = cols[0].find_all("a")
+    #
+    #         if linksCol0:
+    #             linkGame = linksCol0[0]
+    #             linkOk = GeneraURLpartido(linkGame)
+    #             puntos = [int(x.strip()) for x in cols[2].string.split(" - ")]
+    #
+    #             paramsURL = ExtraeGetParams(linkGame['href'])
+    #             self.Partidos[linkOk] = {'url': linkOk, 'URLparams': paramsURL, 'jornada': currJornada,
+    #                                      'equipos': equipos, 'resultado': puntos}
+    #             (self.Jornadas[currJornada]['partidos']).append(linkOk)
+    #         else:  # No ha habido partido
+    #             partidoPendiente = dict()
+    #             partidoPendiente['jornada'] = currJornada
+    #             partidoPendiente['equipos'] = equipos
+    #             textoFecha = cols[2].string
+    #             if textoFecha:
+    #                 try:
+    #                     fechaPart = strptime(textoFecha, PARSERfechaC)
+    #                     partidoPendiente['fecha'] = fechaPart
+    #                 except ValueError:
+    #                     partidoPendiente['fecha'] = None
+    #             else:
+    #                 partidoPendiente['fecha'] = None
+    #
+    #             self.Jornadas[currJornada]['pendientes'].append(partidoPendiente)
+    #
 
     def procesaSelectorClubes(self, tagForm):
         optionList = tagForm.find_all("option")
@@ -102,21 +102,21 @@ class CalendarioACB(object):
                 continue
             self.nuevaTraduccionEquipo2Codigo(equipoNombre, equipoCodigo)
 
-    def procesaTablaCalendarioJornadas(self, tagTabla):
-        for table in tagTabla.find_all("table", attrs={'class': 'jornadas'}):
-            for row in table.find_all("tr"):
-                cols = row.find_all("td", recursive=False)
-                if len(cols) == 2:  # Encabezamiento tabla
-                    continue
-                currJornada = int(cols[1].string)
-                if currJornada not in self.Jornadas:
-                    self.Jornadas[currJornada] = dict()
-                    self.Jornadas[currJornada]['partidos'] = []
-                    self.Jornadas[currJornada]['equipos'] = set()
-
-                tituloFields = cols[2].string.split(":")
-                self.Jornadas[currJornada]['nombre'] = tituloFields[0].strip()
-                self.Jornadas[currJornada]['esPlayoff'] = True
+    # def procesaTablaCalendarioJornadas(self, tagTabla):
+    #     for table in tagTabla.find_all("table", attrs={'class': 'jornadas'}):
+    #         for row in table.find_all("tr"):
+    #             cols = row.find_all("td", recursive=False)
+    #             if len(cols) == 2:  # Encabezamiento tabla
+    #                 continue
+    #             currJornada = int(cols[1].string)
+    #             if currJornada not in self.Jornadas:
+    #                 self.Jornadas[currJornada] = dict()
+    #                 self.Jornadas[currJornada]['partidos'] = []
+    #                 self.Jornadas[currJornada]['equipos'] = set()
+    #
+    #             tituloFields = cols[2].string.split(":")
+    #             self.Jornadas[currJornada]['nombre'] = tituloFields[0].strip()
+    #             self.Jornadas[currJornada]['esPlayoff'] = True
 
     def gestionaNombresDeEquipo(self):
         """ Intenta tener en cuenta los nombres de equipos que cambian a lo largo de la temporada (patrocinios)
@@ -391,8 +391,8 @@ class CalendarioACB(object):
             currYear = divTemporadas.find('div', {"class": "elemento"})['data-t2v-id']
 
             urlYear = template_CALENDARIOYEAR.format(year=self.edicion)
-            if self.edicion == currYear:
-                urlYear = self.urlbase
+            if self.edicion is None:
+                self.edicion = currYear
                 pagYear = pagCalendario
             else:
                 listaTemporadas = {x['data-t2v-id']: x.get_text() for x in
@@ -502,6 +502,8 @@ class CalendarioACB(object):
                 self.Partidos[datosPart['url']] = datosPart
                 result['partidos'].append(datosPart)
 
+        return result
+
     def procesaBloquePartido(self, datosJornada, divPartido):
         # TODO: incluir datos de competicion
         resultado = dict()
@@ -515,7 +517,12 @@ class CalendarioACB(object):
         datosPartEqs = dict()
         for eqUbic in ['local', 'visitante']:
             divsEq = divPartido.find_all("div", {"class": eqUbic})
-            datosPartEqs[eqUbic.capitalize()] = procesaDivsEquipo(divsEq)
+            infoEq = procesaDivsEquipo(divsEq)
+            datosPartEqs[eqUbic.capitalize()] = infoEq
+            self.codigo2equipo[infoEq['abrev']].add(infoEq['nomblargo'])
+            self.codigo2equipo[infoEq['abrev']].add(infoEq['nombcorto'])
+            self.equipo2codigo[infoEq['nomblargo']] = infoEq['abrev']
+            self.equipo2codigo[infoEq['nombcorto']] = infoEq['abrev']
 
         resultado['equipos'] = datosPartEqs
 
@@ -639,11 +646,11 @@ def procesaDivsEquipo(divList):
 
     for d in divList:
         if 'equipo' in d.attrs['class']:
-            resultado['abrev'] = d.find('span', {"class": "abreviatura"}).get_text()
-            resultado['nomblargo'] = d.find('span', {"class": "nombre_largo"}).get_text()
-            resultado['nombcorto'] = d.find('span', {"class": "nombre_corto"}).get_text()
+            resultado['abrev'] = d.find('span', {"class": "abreviatura"}).get_text().strip()
+            resultado['nomblargo'] = d.find('span', {"class": "nombre_largo"}).get_text().strip()
+            resultado['nombcorto'] = d.find('span', {"class": "nombre_corto"}).get_text().strip()
         elif 'resultado' in d.attrs['class']:
-            resultado['puntos'] = int(d.find('a').get_text())
+            resultado['puntos'] = int(d.find('a').get_text().strip())
             resultado['enlace'] = d.find('a').attrs['href']
             resultado['haGanado'] = 'ganador' in d.attrs['class']
         else:
