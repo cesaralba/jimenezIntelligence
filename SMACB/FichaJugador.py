@@ -27,6 +27,7 @@ class FichaJugador(object):
         self.primPartidoT = None
         self.ultPartidoT = None
         self.partidos = set()
+        self.equipos = set()
 
         if 'urlFoto' in kwargs:
             self.fotos.add(kwargs['urlFoto'])
@@ -75,6 +76,10 @@ class FichaJugador(object):
             return False
 
         self.partidos.add(partido.url)
+
+        datosJug = partido.Jugadores[self.id]
+        self.equipos.add(datosJug['CODequipo'])
+
         if self.primPartidoT is None:
             self.primPartidoP = partido.url
             self.primPartidoT = partido.FechaHora
