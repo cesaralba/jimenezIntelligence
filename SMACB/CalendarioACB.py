@@ -28,8 +28,8 @@ class CalendarioACB(object):
         self.edicion = kwargs.get('edicion')
         self.Partidos = {}
         self.Jornadas = {}
-        self.equipo2codigo = {}
-        self.codigo2equipo = defaultdict(set)
+        self.eq2codigo = {}
+        self.codigo2eq = defaultdict(set)
         self.urlbase = urlbase
         self.url = None
 
@@ -152,7 +152,7 @@ class CalendarioACB(object):
 
             return (cods, noms)
 
-        codigosTemporada = set(self.codigo2equipo.keys())
+        codigosTemporada = set(self.codigo2eq.keys())
         combinacionesNoUsadas = defaultdict(set)
 
         # Repasa todas las jornadas (y pasadas) asignando los codigos a los equipos a partir de la lista del calendario
@@ -167,8 +167,8 @@ class CalendarioACB(object):
             equiposNoAsignados = set()
 
             for equipo in self.Jornadas[jornada]['equipos']:
-                if equipo in self.equipo2codigo:
-                    codigosUsados.add(self.equipo2codigo[equipo])
+                if equipo in self.eq2codigo:
+                    codigosUsados.add(self.eq2codigo[equipo])
                 else:
                     equiposNoAsignados.add(equipo)
             codigosNoUsados = codigosTemporada - codigosUsados
@@ -341,17 +341,17 @@ class CalendarioACB(object):
                             continue
 
     def buscaEquipo2CodigoDistancia(self, equipoAbuscar, codigosObjetivo=None):
-        if equipoAbuscar in self.equipo2codigo:
-            return self.equipo2codigo[equipoAbuscar]
+        if equipoAbuscar in self.eq2codigo:
+            return self.eq2codigo[equipoAbuscar]
 
         if codigosObjetivo:
             listaCodigos = codigosObjetivo
         else:
-            listaCodigos = self.codigo2equipo.keys()
+            listaCodigos = self.codigo2eq.keys()
 
         distancias = []
         for codigo in listaCodigos:
-            for nombreObj in list(self.codigo2equipo[codigo]):
+            for nombreObj in list(self.codigo2eq[codigo]):
                 tupla = (nombreObj, codigo, CompareBagsOfWords(equipoAbuscar, nombreObj))
                 if tupla[2] > UMBRALbusquedaDistancia:
                     distancias.append(tupla)
@@ -369,11 +369,11 @@ class CalendarioACB(object):
             return None
 
     def nuevaTraduccionEquipo2Codigo(self, equipo, codigo):
-        if equipo in self.equipo2codigo:
+        if equipo in self.eq2codigo:
             return False
 
-        self.equipo2codigo[equipo] = codigo
-        (self.codigo2equipo[codigo]).add(equipo)
+        self.eq2codigo[equipo] = codigo
+        (self.codigo2eq[codigo]).add(equipo)
         return True
 
     def nombresJornada(self):
@@ -477,7 +477,7 @@ class CalendarioACB(object):
             partEqs = partTxt.split(' - ')
             for equipo in partEqs:
                 eqName = equipo.strip()
-                if eqName in self.equipo2codigo:
+                if eqName in self.eq2codigo:
                     continue
                 eqNames[eqName] += 1
 
@@ -519,10 +519,10 @@ class CalendarioACB(object):
             divsEq = divPartido.find_all("div", {"class": eqUbic})
             infoEq = procesaDivsEquipo(divsEq)
             datosPartEqs[eqUbic.capitalize()] = infoEq
-            self.codigo2equipo[infoEq['abrev']].add(infoEq['nomblargo'])
-            self.codigo2equipo[infoEq['abrev']].add(infoEq['nombcorto'])
-            self.equipo2codigo[infoEq['nomblargo']] = infoEq['abrev']
-            self.equipo2codigo[infoEq['nombcorto']] = infoEq['abrev']
+            self.codigo2eq[infoEq['abrev']].add(infoEq['nomblargo'])
+            self.codigo2eq[infoEq['abrev']].add(infoEq['nombcorto'])
+            self.eq2codigo[infoEq['nomblargo']] = infoEq['abrev']
+            self.eq2codigo[infoEq['nombcorto']] = infoEq['abrev']
 
         resultado['equipos'] = datosPartEqs
 
