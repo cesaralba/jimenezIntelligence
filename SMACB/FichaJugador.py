@@ -78,7 +78,7 @@ class FichaJugador(object):
         self.partidos.add(partido.url)
 
         datosJug = partido.Jugadores[self.id]
-        self.equipos.add(datosJug['CODequipo'])
+        self.equipos.add(datosJug['IDequipo'])
 
         if self.primPartidoT is None:
             self.primPartidoP = partido.url
@@ -99,10 +99,12 @@ class FichaJugador(object):
 
     def __repr__(self):
 
-        return "%s (%s) %s P:[%i] %s -> %s (i)" % (
+        return "%s (%s) %s P:[%i] %s -> %s (%i)" % (
             self.nombre, self.id, strftime("%Y-%m-%d", self.fechaNac), len(self.partidos),
             strftime("%Y-%m-%d", self.primPartidoT),
-            strftime("%Y-%m-%d", self.ultPartidoT))
+            strftime("%Y-%m-%d", self.ultPartidoT),
+            len(self.equipos)
+        )
 
     def limpiaPartidos(self):
         self.primPartidoP = None
