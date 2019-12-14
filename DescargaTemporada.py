@@ -61,11 +61,16 @@ if 'procesaBio' in args and args.procesaBio:
 # sm = SuperManagerACB(config=args)
 nuevosPartidos = temporada.actualizaTemporada(browser=browser, config=args)
 
-if nuevosPartidos or args.saveanyway:
+resultOS = 1  # No hubo cambios
+
+if nuevosPartidos or temporada.changed or args.saveanyway:
     if nuevosPartidos:
         resumenPartidos = [str(temporada.Partidos[x]) for x in sorted(list(nuevosPartidos))]
         print("Nuevos partidos incorporados:\n%s" % ("\n".join(resumenPartidos)))
 
     sys.setrecursionlimit(50000)
     if 'outfile' in args and args.outfile:
+        resultOS = 0
         temporada.grabaTemporada(args.outfile)
+
+sys.exit(resultOS)
