@@ -3,7 +3,6 @@ from argparse import Namespace
 from time import gmtime
 
 from Utils.Web import DescargaPagina, MergeURL, creaBrowser, getObjID
-
 from .SMconstants import URL_BASE
 
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
@@ -19,12 +18,16 @@ class PlantillaACB(object):
         browser = kwargs.get('browser', None)
         config = kwargs.get('config', Namespace())
 
-        self.data = descargaURLplantilla(self.URL, home, browser, config)
+        data = descargaURLplantilla(self.URL, home, browser, config)
+        self.timestamp = data.get('timestamp', gmtime())
+
+        self.club = data.get('club', {})
+        self.jugadores = data.get('jugadores', {})
+        self.tecnicos = data.get('tecnicos', {})
 
         if self.edicion is None:
-            self.edicion = self.data['edicion']
+            self.edicion = data['edicion']
 
-        self.timestamp = self.data.get('timestamp', gmtime())
 
     def generaURL(self):
         # http://www.acb.com/club/plantilla/id/6/temporada_id/2016
@@ -49,18 +52,25 @@ class PlantillaACB(object):
 
         return PlantillaACB(**params)
 
+    def __str__(self):
+        result = "%s [%s] Year: %s Jugadores conocidos: %i Entrenadores conocidos: %i" % (
+            self.club.get('nombreActual', "TBD"), self.id, self.edicion, len(self.jugadores), len(self.tecnicos))
+        return result
+
+    __repr__ = __str__
+
     def getCode(self, nombre, dorsal, esTecnico=False, esJugador=False):
         setNombre = preparaNombreParaBuscar(nombre)
 
         if esJugador:
-            for jCode, jData in self.data['jugadores'].items():
+            for jCode, jData in self.jugadores.items():
                 if jData['dorsal'] == dorsal:
                     for jNombre in jData['nombre']:
                         jDataSet = preparaNombreParaBuscar(jNombre)
                         if len(setNombre.intersection(jDataSet)) > 0:
                             return jCode
         elif esTecnico:
-            for tCode, tData in self.data['tecnicos'].items():
+            for tCode, tData in self.tecnicos.items():
                 for tNombre in tData['nombre']:
                     tDataSet = preparaNombreParaBuscar(tNombre)
                     if len(setNombre.intersection(tDataSet)) > 0:
@@ -95,6 +105,7 @@ def procesaPlantillaDescargada(plantDesc):
     result['jugadores'] = dict()
     result['tecnicos'] = dict()
 
+    result['club'] = extraeDatosClub(plantDesc)
     fichaData = plantDesc['data']
 
     cosasUtiles = fichaData.find(name='section', attrs={'class': 'contenido_central_equipo'})
@@ -154,6 +165,18 @@ def procesaPlantillaDescargada(plantDesc):
     return result
 
 
+def extraeDatosClub(plantDesc):
+    result = dict()
+
+    fichaData = plantDesc['data']
+
+    cosasUtiles = fichaData.find(name='div', attrs={'class': 'datos'})
+    result['nombreActual'] = cosasUtiles.find('h1').get_text().strip()
+    result['nombreOficial'] = cosasUtiles.find('h3').get_text().strip()
+
+    return result
+
+
 def encuentraUltEdicion(plantDesc):
     """
     Obtiene la última edición de la temporada del contenido de la página (lo extrae del selector de temporadas)
@@ -178,3 +201,27 @@ def preparaNombreParaBuscar(nombre):
     REquitaComa = re.match(patQuitaComa, nombre)
     resNombre = REquitaComa.group(1)
     return set(resNombre.lower().split(' '))
+
+
+def descargaPlantillasCabecera(browser=None, config=Namespace()):
+    result = dict()
+    if browser is None:
+        browser = creaBrowser(config)
+
+    paginaRaiz = DescargaPagina(dest=URL_BASE, browser=browser, config=config)
+
+    if paginaRaiz is None:
+        raise Exception("Incapaz de descargar %s" % URL_BASE)
+
+    raizData = paginaRaiz['data']
+    divLogos = raizData.find('div', {'class': 'contenedor_logos_equipos'})
+
+    for eqLink in divLogos.find_all('a', {'class': 'equipo_logo'}):
+        urlLink = eqLink['href']
+        urlFull = MergeURL(browser.get_url(), urlLink)
+
+        idEq = getObjID(objURL=urlFull, clave='id')
+        print(idEq)
+        result[idEq] = PlantillaACB.fromURL(urlFull, browser=browser, config=config)
+
+    return result
