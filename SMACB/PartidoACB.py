@@ -6,7 +6,7 @@ Created on Dec 31, 2017
 
 import re
 from argparse import Namespace
-from time import gmtime, mktime, strptime, strftime
+from time import gmtime, mktime, strftime, strptime
 from traceback import print_exc
 
 import pandas as pd
@@ -133,9 +133,9 @@ class PartidoACB(object):
                             raiser = True
 
                 self.pendientes[l] = newPendientes
-        if raiser:
-            raise ValueError("procesaPartido: Imposible encontrar (%i) código(s) para (%s) en partido '%s': %s" % (
-            len(newPendientes), l, self.url, newPendientes))
+            if raiser:
+                raise ValueError("procesaPartido: Imposible encontrar (%i) código(s) para (%s) en partido '%s': %s" % (
+                    len(newPendientes), l, self.url, newPendientes))
 
         return divCabecera
 
@@ -161,7 +161,7 @@ class PartidoACB(object):
         self.Asistencia = parse_number(grpsAsist[0], locale='de_DE') if grpsAsist else None
 
     def procesaDivCabecera(self, divATratar):
-        equipos = [(x.find("a")['href'], x.find("img")['title']) for x in
+        equipos = [(x.find("a")['href'], x.find("img")['title'].strip()) for x in
                    divATratar.find_all("div", {"class": "logo_equipo"})]
         puntos = [int(x.get_text()) for x in divATratar.find_all("div", {"class": "resultado"})]
 
@@ -397,8 +397,8 @@ class PartidoACB(object):
             elif datos.get('totalEquipo', False):
                 self.prorrogas = datos['prorrogas']
                 if '+/-' in datos['estads'] and datos['estads']['+/-'] is None:
-                    datos['estads']['+/-'] = (self.ResultadoCalendario[estado] -
-                                              self.ResultadoCalendario[OtherTeam(estado)])
+                    datos['estads']['+/-'] = (
+                            self.ResultadoCalendario[estado] - self.ResultadoCalendario[OtherTeam(estado)])
                 self.Equipos[estado]['estads'] = datos['estads']
             elif datos.get('entrenador', False):
                 self.Entrenadores[datos['codigo']] = datos
@@ -406,11 +406,10 @@ class PartidoACB(object):
 
     def __str__(self):
         return "J %02i: [%s] %s (%s) %i - %i %s (%s)" % (
-            self.Jornada, strftime("%Y-%m-%d %H:%M", self.FechaHora), self.EquiposCalendario['Local']['nomblargo'],
-            self.CodigosCalendario['Local'],
+            self.Jornada, strftime("%Y-%m-%d %H:%M", self.FechaHora),
+            self.EquiposCalendario['Local']['nomblargo'], self.CodigosCalendario['Local'],
             self.ResultadoCalendario['Local'],
-            self.ResultadoCalendario['Visitante'],
-            self.EquiposCalendario['Visitante']['nomblargo'],
+            self.ResultadoCalendario['Visitante'], self.EquiposCalendario['Visitante']['nomblargo'],
             self.CodigosCalendario['Visitante'])
 
     __repr__ = __str__
