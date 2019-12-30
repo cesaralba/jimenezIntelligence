@@ -37,8 +37,7 @@ class TemporadaACB(object):
         self.PartidosDescargados = set()
         self.Partidos = dict()
         self.changed = False
-        self.id2jugador = defaultdict(set)
-        self.jugador2id = defaultdict(set)
+        self.tradJugadores = {'id2nombres': defaultdict(set), 'nombre2ids': defaultdict(set)}
         self.descargaFichas = descargaFichas
         self.fichaJugadores = dict()
         self.fichaEntrenadores = dict()
@@ -73,6 +72,7 @@ class TemporadaACB(object):
 
                 if self.descargaFichas:
                     self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
+                self.actualizaTraduccionesJugador(nuevoPartido)
 
             except BaseException:
                 print("actualizaTemporada: problemas descargando  partido '%s': %s" % (partido, exc_info()))
@@ -125,28 +125,29 @@ class TemporadaACB(object):
             if codJ not in self.fichaJugadores:
                 nuevaFicha = FichaJugador.fromURL(datosJug['linkPersona'], home=browser.get_url(), browser=browser,
                                                   config=config)
-
-                self.jugador2id[nuevaFicha.nombre].add(nuevaFicha.id)
-                self.jugador2id[nuevaFicha.alias].add(nuevaFicha.id)
-                self.id2jugador[nuevaFicha.id].add(nuevaFicha.nombre)
-                self.id2jugador[nuevaFicha.id].add(nuevaFicha.alias)
                 self.fichaJugadores[codJ] = nuevaFicha
 
             elif refrescaFichas:
                 self.fichaJugadores[codJ] = self.fichaJugadores[codJ].actualizaFicha(browser=browser, config=config)
-                self.jugador2id[self.fichaJugadores[codJ].nombre].add(self.fichaJugadores[codJ].id)
-                self.jugador2id[self.fichaJugadores[codJ].alias].add(self.fichaJugadores[codJ].id)
-                self.id2jugador[self.fichaJugadores[codJ].id] = self.fichaJugadores[codJ].nombre
-                self.id2jugador[self.fichaJugadores[codJ].id] = self.fichaJugadores[codJ].alias
-
-            self.jugador2id[datosJug['nombre']].add(datosJug['codigo'])
-            self.id2jugador[datosJug['codigo']].add(datosJug['nombre'])
 
             self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
 
         # TODO: Procesar ficha de entrenadores
         for codE in nuevoPartido.Entrenadores:
             pass
+
+    def actualizaTraduccionesJugador(self, nuevoPartido):
+        for codJ, datosJug in nuevoPartido.Jugadores.items():
+            if codJ in self.fichaJugadores:
+                ficha = self.fichaJugadores[codJ]
+
+                self.tradJugadores['nombre2ids'][ficha.nombre].add(ficha.id)
+                self.tradJugadores['nombre2ids'][ficha.alias].add(ficha.id)
+                self.tradJugadores['id2nombres'][ficha.id].add(ficha.nombre)
+                self.tradJugadores['id2nombres'][ficha.id].add(ficha.alias)
+
+            self.tradJugadores['nombre2ids'][datosJug['nombre']].add(datosJug['codigo'])
+            self.tradJugadores['id2nombres'][datosJug['codigo']].add(datosJug['nombre'])
 
 
 def calculaTempStats(datos, clave, filtroFechas=None):
