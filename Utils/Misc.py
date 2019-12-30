@@ -164,3 +164,12 @@ def listize(param):
     :return:
     """
     return param if isinstance(param, (list, set, tuple)) else [param]
+
+
+def onlySetElement(myset):
+    """
+    Returns only element of set or full set
+    :param myset: a set
+    :return:
+    """
+    return list(myset.copy())[0] if isinstance(myset, (set, list)) and len(myset) == 1 else myset
