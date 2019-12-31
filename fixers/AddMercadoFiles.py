@@ -80,7 +80,7 @@ if __name__ == '__main__':
     for mercadoFile in args.files:
 
         Mfile = ReadFile(mercadoFile)
-        mf = MercadoPageContent(Mfile, datosACB=temporada)
+        mf = MercadoPageContent(Mfile, datosSM=temporada)
         mf.setTimestampFromStr(mf.source)
 
         if orig is None:

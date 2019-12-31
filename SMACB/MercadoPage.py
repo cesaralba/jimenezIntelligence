@@ -8,10 +8,10 @@ import pandas as pd
 from babel.numbers import decimal, parse_decimal
 from bs4 import BeautifulSoup
 
-from SMACB.ManageSMDataframes import datosPosMerc, datosProxPartidoMerc
-from SMACB.SMconstants import (CUPOCORTO, CUPOS, POSICIONCORTA, POSICIONES,
-                               bool2esp)
-from Utils.Misc import FORMATOtimestamp
+from Utils.Misc import FORMATOtimestamp, onlySetElement
+from .ManageSMDataframes import datosPosMerc, datosProxPartidoMerc
+from .PlantillaACB import descargaPlantillasCabecera
+from .SMconstants import CUPOCORTO, CUPOS, POSICIONCORTA, POSICIONES, bool2esp
 
 INCLUDEPLAYERDATA = False
 
@@ -236,20 +236,15 @@ class MercadoPageCompare():
 
 class MercadoPageContent():
 
-    def __init__(self, textPage, datosACB=None):
+    def __init__(self, textPage, datosSM=None):
         self.timestamp = gmtime()
         self.source = textPage['source']
         self.PositionsCounter = defaultdict(int)
         self.PlayerData = {}
         self.PlayerByPos = defaultdict(list)
         self.Team2Player = defaultdict(set)
-        if datosACB:
-            self.equipo2codigo = dict()
 
-        contadorNoFoto = 0
-        NoFoto2Nombre = {}
-        Nombre2NoFoto = {}
-        NoFotoData = {}
+        jugadoresPendientes = []
 
         if (type(textPage['data']) is str):
             soup = BeautifulSoup(textPage['data'], "html.parser")
@@ -265,7 +260,8 @@ class MercadoPageContent():
 
             for player in pos.find_all("tr"):
                 player_data = player.find_all("td")
-                player_data or next
+                if not player_data:
+                    continue
 
                 fieldTrads = {'foto': ['foto'], 'jugador': ['jugador'], 'equipo': ['equipo'],
                               'promedio': ['promVal', 'valJornada', 'seMantiene'],
@@ -276,27 +272,10 @@ class MercadoPageContent():
                 result['pos'] = position
                 self.PositionsCounter[position] += 1
                 for data in player_data:
-                    # print(data,data['class'])
+                    classes = data.attrs['class']
+                    # print("AQUI",data)
 
-                    dataid = (fieldTrads.get(data['class'][0])).pop(0)
-                    if dataid == "foto":
-                        img_link = data.img['src']
-                        result['foto'] = img_link
-                        result['nombre'] = data.img['title']
-                        auxre = re.search(r'J(.{3})LACB([0-9]{2})\.(jpg|JPG)', img_link)
-                        if auxre:
-                            result['codJugador'] = auxre.group(1)
-                            result['temp'] = auxre.group(2)
-                        else:
-                            jugCode = "NOFOTO%03i" % contadorNoFoto
-                            contadorNoFoto += 1
-                            NoFoto2Nombre[jugCode] = result['nombre']
-                            Nombre2NoFoto[result['nombre']] = jugCode
-                            result['codJugador'] = jugCode
-                    elif dataid == 'jugador':
-                        if data.a:
-                            result['kiaLink'] = data.a['href']
-                    elif dataid == 'iconos':
+                    if 'iconos' in classes:
                         for icon in data.find_all("img"):
                             if icon['title'] == "Extracomunitario":
                                 result['cupo'] = 'Extracomunitario'
@@ -308,32 +287,81 @@ class MercadoPageContent():
                                 result['info'] = icon['title']
                             else:
                                 print("No debería llegar aquí: ", icon)
+                        continue
+                    elif "foto" in classes:
+                        img_link = data.img['src']
+                        result['foto'] = img_link
+                        result['nombre'] = data.img['title']
 
-                    elif dataid == 'equipo':
+                        # if result['nombre'] in datosSM.traducciones['jugadores']['j2c']:
+                        #     tradsPosibles = datosSM.traducciones['jugadores']['j2c']
+                        # elif traductor:
+                        #     nombreRetoc = RetocaNombreJugador(result['nombre'])
+                        #     tradsPosibles = traductor.BuscaTraduccion(nombreRetoc, 0)
+                        #
+                        # if isinstance(tradsPosibles, str):  # Solo un codigo!
+                        #     result['codJugador'] = tradsPosibles
+                        # else:  # Set or None
+                        #     print("Troublesome player", result['nombre'], result)
+                        #     result['posibles'] = tradsPosibles
+                        continue
+
+                    elif 'jugador' in classes:
+                        if data.a:
+                            result['kiaLink'] = data.a['href']
+                            # if traductor is None:
+                            #     result['codJugador'] = result['kiaLink']
+                        continue
+                    elif 'equipo' in classes:
                         result['equipo'] = data.img['title']
-                    elif dataid == 'rival':
+                        if result['equipo'] in datosSM.traducciones['equipos']['n2c']:
+                            result['CODequipo'] = sorted(datosSM.traducciones['equipos']['n2c'][result['equipo']])[0]
+                        auxId = datosSM.traducciones['equipos']['c2i'].get(result['CODequipo'], None)
+                        result['IDequipo'] = onlySetElement(auxId)
+                        continue
+                    elif 'rival' in classes:
                         for icon in data.find_all('img'):
                             if icon['title'].lower() == "partido fuera":
                                 result['proxFuera'] = True
                             else:
                                 result['rival'] = icon['title']
+                                if result['rival'] in datosSM.traducciones['equipos']['n2c']:
+                                    result['CODrival'] = \
+                                        sorted(datosSM.traducciones['equipos']['n2c'][result['rival']])[0]
+                                auxId = datosSM.traducciones['equipos']['c2i'][result['CODrival']]
+                                result['IDrival'] = onlySetElement(auxId)
+                        continue
                     else:
                         auxval = data.get_text().strip()
-                        if dataid == "enEquipos%":
+                        classCel = classes[0]
+                        if '%' in auxval and classCel == 'precio':
                             auxval = auxval.replace("%", "")
-                        result[dataid] = parse_decimal(auxval, locale="de")
+                            classCel = "enEquipos%"
+                        result[classCel] = parse_decimal(auxval, locale="de")
 
-                        # print("Not treated %s" % dataid, data,)
-                if result.get('codJugador'):
-                    if result.get('codJugador') not in NoFoto2Nombre:
-                        self.PlayerData[result['codJugador']] = result
-                        self.PlayerByPos[position].append(result['codJugador'])
-                        self.Team2Player[result['equipo']].add(result['codJugador'])
-                    else:
-                        NoFotoData[result['codJugador']] = result
+                codJugador = result['kiaLink']
+                self.PlayerData[codJugador] = result
+                self.PlayerByPos[position].append(codJugador)
+                self.Team2Player[result['equipo']].add(codJugador)
 
-        self.arreglaNoFotos(datosACB, NoFoto2Nombre, Nombre2NoFoto, NoFotoData)
-        self.asignaCodigosEquipos(datosACB=datosACB)
+                # if result.get('codJugador', None):
+                #     self.PlayerData[result['codJugador']] = result
+                #     self.PlayerByPos[position].append(result['codJugador'])
+                #     self.Team2Player[result['equipo']].add(result['codJugador'])
+                # else:
+                #     if 'posibles' in result:
+                #         jugadoresPendientes.append(result)
+
+        # if jugadoresPendientes:
+        #     self.pendientes = jugadoresPendientes
+        #     self.buscaCodigoJugadoresPendientes(infoPlantillas=None)
+        #     # TODO: ¿Qué hacer con los pendientes?
+        #
+        # print(jugadoresPendientes)
+
+        # if datosSM is not None:
+        #     for cod, jugData in self.PlayerData.items():
+        #         datosSM.addTraduccionJugador(cod, RetocaNombreJugador(jugData['nombre']))
 
     def setTimestampFromStr(self, timeData):
         ERDATE = re.compile(r".*-(\d{4}\d{2}\d{2}(\d{4})?)\..*")
@@ -397,42 +425,6 @@ class MercadoPageContent():
     def timestampKey(self):
         return strftime("%Y%m%d-%H%M%S", self.timestamp)
 
-    def arreglaNoFotos(self, datosACB=None, NoFoto2Nombre=None, Nombre2NoFoto=None, NoFotoData=None):
-        if Nombre2NoFoto and datosACB:
-            codJugador = None
-            jugadores = datosACB.listaJugadores(fechaMax=self.timestamp)
-            cod2jugACB = jugadores['codigo2nombre']
-            jug2codACB = dict()
-
-            # Elimina jugadores asignados
-            for codigo in self.PlayerData:
-                if codigo in cod2jugACB:
-                    cod2jugACB.pop(codigo)
-
-            # Crea diccionario inverso
-            for codigo in cod2jugACB:
-                for nombre in cod2jugACB[codigo]:
-                    jug2codACB[nombre] = codigo
-
-            for codigo in NoFoto2Nombre:
-                nombreNoFoto = NoFoto2Nombre[codigo]
-                if nombreNoFoto in jug2codACB:
-                    codJugador = jug2codACB[nombreNoFoto]
-                else:
-                    print("Incapaz de encontrar codigo para '%s' " % nombreNoFoto)
-                    codJugador = codigo
-
-                result = NoFotoData[codigo]
-                result['codJugador'] = codJugador
-
-                self.PlayerData[result['codJugador']] = result
-                self.PlayerByPos[result['pos']].append(result['codJugador'])
-                self.Team2Player[result['equipo']].add(result['codJugador'])
-                # print("+ ",codigo,"\n- ",self.PlayerData[result['codJugador']],"\n- ", self.PlayerData[codigo])
-
-                if codigo in self.PlayerData:
-                    self.PlayerData.pop(codigo)
-
     def asignaCodigosEquipos(self, datosACB=None):
         if not datosACB:
             return
@@ -492,6 +484,31 @@ class MercadoPageContent():
         # dfResult['infoLesion'] = dfResult.apply(datosLesionMerc, axis=1)
 
         return (dfResult.astype(colTypes))
+
+    def buscaCodigoJugadoresPendientes(self, infoPlantillas=None):
+
+        dataPlantillas = descargaPlantillasCabecera() if infoPlantillas is None else infoPlantillas
+
+        newPendientes = []
+
+        for jug in self.pendientes:
+            posTrads = jug.get('posibles', set()) if 'posibles' in jug and jug['posibles'] is not None else set()
+            print(jug['nombre'], posTrads, jug['IDequipo'])
+            resCode = onlySetElement(dataPlantillas[jug['IDequipo']].getCode(jug['nombre'], dorsal=None, esJugador=True,
+                                                                             esTecnico=False))
+
+            if isinstance(resCode, (str, bytes)):
+                jug['codJugador'] = resCode
+                if 'posibles' in jug:
+                    jug.pop('posibles')
+                self.PlayerData[jug['codJugador']] = jug
+                self.PlayerByPos[jug['pos']].append(jug['codJugador'])
+                self.Team2Player[jug['equipo']].add(jug['codJugador'])
+            else:
+                jug['posibles'] = resCode
+                newPendientes.append(jug)
+
+        self.pendientes = newPendientes
 
 
 class NoSuchPlayerException(Exception):
