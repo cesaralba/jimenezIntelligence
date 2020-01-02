@@ -1,9 +1,10 @@
-import re
 from argparse import Namespace
 from time import gmtime
 
+from Utils.BoWtraductor import (CompareBagsOfWords, CreaBoW, NormalizaCadena,
+                                RetocaNombreJugador, comparaFrases)
+from Utils.Misc import onlySetElement
 from Utils.Web import DescargaPagina, MergeURL, creaBrowser, getObjID
-
 from .SMconstants import URL_BASE
 
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
@@ -19,12 +20,15 @@ class PlantillaACB(object):
         browser = kwargs.get('browser', None)
         config = kwargs.get('config', Namespace())
 
-        self.data = descargaURLplantilla(self.URL, home, browser, config)
+        data = descargaURLplantilla(self.URL, home, browser, config)
+        self.timestamp = data.get('timestamp', gmtime())
+
+        self.club = data.get('club', {})
+        self.jugadores = data.get('jugadores', {})
+        self.tecnicos = data.get('tecnicos', {})
 
         if self.edicion is None:
-            self.edicion = self.data['edicion']
-
-        self.timestamp = self.data.get('timestamp', gmtime())
+            self.edicion = data['edicion']
 
     def generaURL(self):
         # http://www.acb.com/club/plantilla/id/6/temporada_id/2016
@@ -49,26 +53,56 @@ class PlantillaACB(object):
 
         return PlantillaACB(**params)
 
-    def getCode(self, nombre, dorsal, esTecnico=False, esJugador=False):
-        setNombre = preparaNombreParaBuscar(nombre)
+    def __str__(self):
+        result = "%s [%s] Year: %s Jugadores conocidos: %i Entrenadores conocidos: %i" % (
+            self.club.get('nombreActual', "TBD"), self.id, self.edicion, len(self.jugadores), len(self.tecnicos))
+        return result
+
+    __repr__ = __str__
+
+    def getCode(self, nombre, dorsal=None, esTecnico=False, esJugador=False, umbral=1):
 
         if esJugador:
-            for jCode, jData in self.data['jugadores'].items():
-                if jData['dorsal'] == dorsal:
-                    for jNombre in jData['nombre']:
-                        jDataSet = preparaNombreParaBuscar(jNombre)
-                        if len(setNombre.intersection(jDataSet)) > 0:
-                            return jCode
+            targetDict = self.jugadores
         elif esTecnico:
-            for tCode, tData in self.data['tecnicos'].items():
-                for tNombre in tData['nombre']:
-                    tDataSet = preparaNombreParaBuscar(tNombre)
-                    if len(setNombre.intersection(tDataSet)) > 0:
-                        return tCode
-        else:
-            print("getCode: ¿Ni técnico ni jugador? (WTF)", nombre, dorsal, esTecnico, esJugador)
+            targetDict = self.tecnicos
+        else:  # Ni jugador ni tecnico???
+            raise ValueError("Jugador '%s' (%s) no es ni jugador ni técnico" % (
+                nombre, dorsal if dorsal is not None else "Sin dorsal"))
 
-        return None
+        resultSet = set()
+
+        nombreNormaliz = NormalizaCadena(RetocaNombreJugador(nombre))
+        setNombre = CreaBoW(nombreNormaliz)
+
+        for jCode, jData in targetDict.items():
+            if dorsal is not None:
+                if jData['dorsal'] == dorsal:  # Hay dorsal, coincide algo => nos vale
+                    for jNombre in jData['nombre']:
+                        dsSet = CreaBoW(NormalizaCadena(RetocaNombreJugador(jNombre)))
+                        if CompareBagsOfWords(setNombre, dsSet) > 0:
+                            return jCode
+            else:  # Sin dorsal no es suficiente sólo con apellidos (apellidos o nombres muy comunes)
+                for jNombre in jData['nombre']:
+                    dsSet = CreaBoW(NormalizaCadena(RetocaNombreJugador(jNombre)))
+                    if CompareBagsOfWords(setNombre, dsSet) > umbral:
+                        resultSet.add(jCode)
+
+        if not resultSet:  # Ni siquiera candidatos => nada que hacer
+            return None
+        if isinstance(resultSet, set) and len(resultSet) == 1:  # Unica respuesta! => Nos vale
+            return onlySetElement(resultSet)
+
+        # Hay más de una respuesta posible (¿les da miedo citar a Sergio Rodríguez?) Tocará afinar más
+        codeList = set()
+        for jCode in resultSet:
+            jData = targetDict[jCode]
+            for jNombre in jData['nombre']:
+                dsNormaliz = NormalizaCadena(RetocaNombreJugador(jNombre))
+                if comparaFrases(dsNormaliz, nombreNormaliz, umbral=umbral):
+                    codeList.add(jCode)
+
+        return onlySetElement(codeList)
 
 
 def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=Namespace()):
@@ -95,6 +129,7 @@ def procesaPlantillaDescargada(plantDesc):
     result['jugadores'] = dict()
     result['tecnicos'] = dict()
 
+    result['club'] = extraeDatosClub(plantDesc)
     fichaData = plantDesc['data']
 
     cosasUtiles = fichaData.find(name='section', attrs={'class': 'contenido_central_equipo'})
@@ -154,6 +189,18 @@ def procesaPlantillaDescargada(plantDesc):
     return result
 
 
+def extraeDatosClub(plantDesc):
+    result = dict()
+
+    fichaData = plantDesc['data']
+
+    cosasUtiles = fichaData.find(name='div', attrs={'class': 'datos'})
+    result['nombreActual'] = cosasUtiles.find('h1').get_text().strip()
+    result['nombreOficial'] = cosasUtiles.find('h3').get_text().strip()
+
+    return result
+
+
 def encuentraUltEdicion(plantDesc):
     """
     Obtiene la última edición de la temporada del contenido de la página (lo extrae del selector de temporadas)
@@ -167,14 +214,24 @@ def encuentraUltEdicion(plantDesc):
     return result
 
 
-def preparaNombreParaBuscar(nombre):
-    """
-    Tokeniza el nombre del jugador para compararlo con otros nombres conocidos de él (en la ficha)
-    :param nombre:
-    :return: set de palabras normalizado
-    """
-    patQuitaComa = r'^([^,]+)(\s*,.*)?$'
+def descargaPlantillasCabecera(browser=None, config=Namespace()):
+    result = dict()
+    if browser is None:
+        browser = creaBrowser(config)
 
-    REquitaComa = re.match(patQuitaComa, nombre)
-    resNombre = REquitaComa.group(1)
-    return set(resNombre.lower().split(' '))
+    paginaRaiz = DescargaPagina(dest=URL_BASE, browser=browser, config=config)
+
+    if paginaRaiz is None:
+        raise Exception("Incapaz de descargar %s" % URL_BASE)
+
+    raizData = paginaRaiz['data']
+    divLogos = raizData.find('div', {'class': 'contenedor_logos_equipos'})
+
+    for eqLink in divLogos.find_all('a', {'class': 'equipo_logo'}):
+        urlLink = eqLink['href']
+        urlFull = MergeURL(browser.get_url(), urlLink)
+
+        idEq = getObjID(objURL=urlFull, clave='id')
+        result[idEq] = PlantillaACB.fromURL(urlFull, browser=browser, config=config)
+
+    return result

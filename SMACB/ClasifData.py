@@ -1,6 +1,9 @@
+import re
 from time import gmtime
 
 from babel.numbers import parse_decimal
+
+PATvalores = r'(?P<valor>\d+([,.]\d+)?)'
 
 
 class ClasifData(object):
@@ -19,7 +22,14 @@ class ClasifData(object):
             entry = {}
             entry['team'] = cells[1].get_text()
             entry['socio'] = cells[2].get_text()
-            entry['value'] = parse_decimal(cells[3].get_text(), locale="de")
+            valueCell = cells[3].get_text()
+
+            REvalor = re.match(PATvalores, valueCell)
+            if REvalor:
+                valorAincluir = REvalor['valor']
+            else:
+                raise ValueError("Valor '%s' no casa RE '%s'" % (valueCell, PATvalores))
+            entry['value'] = parse_decimal(valorAincluir, locale="de")
             result[entry['team']] = entry
         return result
 

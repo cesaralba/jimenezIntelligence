@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from argparse import Namespace
 from collections import Iterable, defaultdict
 from copy import copy, deepcopy
 from pickle import dump, load
@@ -11,6 +12,7 @@ from babel.numbers import decimal
 from bs4 import BeautifulSoup
 from mechanicalsoup import LinkNotFoundError
 
+from Utils.Web import creaBrowser
 from .ClasifData import ClasifData, manipulaSocio
 from .LigaSM import LigaSM
 from .ManageSMDataframes import datosPosMerc, datosProxPartidoMerc
@@ -59,13 +61,16 @@ class SuperManagerACB(object):
         self.ultimoMercado = None
         self.jornadasForzadas = set()
 
-    def Connect(self, url=None, browser=None, config={}, datosACB=None):
+    def Connect(self, url=None, browser=None, config=Namespace(), datosACB=None):
         """ Se conecta al SuperManager con las credenciales suministradas,
             descarga el mercado y se introduce en la liga privada indicada
             o la única.
             """
         if url:
             self.url = url
+
+        if browser is None:
+            browser = creaBrowser(config)
 
         try:
             self.loginSM(browser=browser, config=config)
@@ -76,10 +81,13 @@ class SuperManagerACB(object):
             print(logerror)
             exit(1)
 
+        self.actualizaTraducciones(datosACB)
+
         # Pequeño rodeo para ver si hay mercado nuevo.
         here = browser.get_url()
-        self.getMercados(browser, datosACB)
+        self.getMercados(browser)
         # Vuelta al sendero
+
         browser.open(here)
         ligasExistentes = None
 
@@ -162,10 +170,11 @@ class SuperManagerACB(object):
                                 content=bs4Jornada)
         return jorResults
 
-    def getMercados(self, browser, datosACB=None):
+    def getMercados(self, browser):
         """ Descarga la hoja de mercado y la almacena si ha habido cambios """
         lastMercado = None
-        newMercado = getMercado(browser, datosACB)
+        newMercado = self.getMercado(browser)
+
         newMercadoID = newMercado.timestampKey()
 
         if hasattr(self, "ultimoMercado"):
@@ -378,8 +387,7 @@ class SuperManagerACB(object):
             listaMercs.sort()
             jornadaIDX = listaMercs.index(self.mercadoJornada[jornada])
             mercJor = (self.mercado[listaMercs[jornadaIDX]]).PlayerData
-            if jornadaIDX > 0:
-                mercAnt = (self.mercado[listaMercs[jornadaIDX - 1]]).PlayerData
+            mercAnt = (self.mercado[listaMercs[jornadaIDX - 1]]).PlayerData if jornadaIDX > 0 else {}
 
             for j in mercAnt:
                 aux = dict()
@@ -397,6 +405,63 @@ class SuperManagerACB(object):
                 result[j] = aux
 
         return result
+
+    def actualizaTraducciones(self, datosACB=None):
+        if datosACB is None:
+            return
+
+        if not hasattr(self, "traducciones"):
+            self.traducciones = {'equipos': {'n2c': defaultdict(set), 'c2n': defaultdict(set), 'n2i': defaultdict(set),
+                                             'i2n': defaultdict(set), 'i2c': defaultdict(set), 'c2i': defaultdict(set)},
+                                 'jugadores': {'j2c': defaultdict(set), 'c2j': defaultdict(set)}}
+
+        # for codigo, nombres in datosACB.tradJugadores['id2nombres'].items():
+        #     self.addTraduccionJugador(codigo, nombres)
+
+        for codigo, nombres in datosACB.Calendario.tradEquipos['c2n'].items():
+            if (codigo not in self.traducciones['equipos']['c2n']):
+                self.changed = True
+            for nombre in nombres:
+                if (nombre not in self.traducciones['equipos']['c2n'][codigo]):
+                    self.changed = True
+                self.traducciones['equipos']['n2c'][nombre].add(codigo)
+                self.traducciones['equipos']['c2n'][codigo].add(nombre)
+
+        for id, codigos in datosACB.Calendario.tradEquipos['i2c'].items():
+            if (id not in self.traducciones['equipos']['i2c']):
+                self.changed = True
+            for codigo in codigos:
+                if (codigo not in self.traducciones['equipos']['i2c'][id]):
+                    self.changed = True
+                self.traducciones['equipos']['i2c'][id].add(codigo)
+                self.traducciones['equipos']['c2i'][codigo].add(id)
+
+        for id, nombres in datosACB.Calendario.tradEquipos['i2n'].items():
+            if (id not in self.traducciones['equipos']['i2n']):
+                self.changed = True
+            for nombre in nombres:
+                if (nombre not in self.traducciones['equipos']['i2n'][id]):
+                    self.changed = True
+                self.traducciones['equipos']['i2n'][id].add(nombre)
+                self.traducciones['equipos']['n2i'][nombre].add(id)
+
+    # def addTraduccionJugador(self, codigo, nombres):
+    #     listNombres = listize(nombres)
+    #
+    #     for nombre in listNombres:
+    #         if (nombre not in self.traducciones['jugadores']['j2c']) or (
+    #                 codigo not in self.traducciones['jugadores']['j2c'][nombre]) or (
+    #                 codigo not in self.traducciones['jugadores']['c2j']) or (
+    #                 nombre not in self.traducciones['jugadores']['c2j'][codigo]):
+    #             self.changed = True
+    #         self.traducciones['jugadores']['j2c'][nombre].add(codigo)
+    #         self.traducciones['jugadores']['c2j'][codigo].add(nombre)
+
+    def getMercado(self, browser):
+        browser.follow_link("mercado")
+
+        mercadoData = MercadoPageContent({'source': browser.get_url(), 'data': browser.get_current_page()}, self)
+        return mercadoData
 
 
 class ResultadosJornadas(object):
@@ -553,9 +618,3 @@ def getClasif(categ, browser, liga):
                             source=browser.get_url(),
                             content=bs4Jornada)
     return jorResults
-
-
-def getMercado(browser, datosACB=None):
-    browser.follow_link("mercado")
-    mercadoData = MercadoPageContent({'source': browser.get_url(), 'data': browser.get_current_page()}, datosACB)
-    return mercadoData

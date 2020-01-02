@@ -23,6 +23,7 @@ class LigaSM(object):
             self.descargaJornada[ultJornada] = ahoraKey
             return True
         else:
+            #TODO: hacer que el != sea de verdad
             if datos != self.descargas[self.ultDescarga]:
                 currJornadas = set(self.descargas[self.ultDescarga]['jornadas'].keys())
                 datosJornadas = set(datos['jornadas'].keys())
@@ -37,3 +38,8 @@ class LigaSM(object):
                 return True
 
         return False
+
+    def getListaJornadas(self):
+        ultDatos = self.descargas[self.ultDescarga]
+
+        return list(ultDatos.get('jornadas', {}).keys())
