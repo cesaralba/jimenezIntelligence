@@ -243,8 +243,7 @@ class MercadoPageContent():
         self.PlayerData = {}
         self.PlayerByPos = defaultdict(list)
         self.Team2Player = defaultdict(set)
-
-        jugadoresPendientes = []
+        self.noKiaLink = []
 
         if (type(textPage['data']) is str):
             soup = BeautifulSoup(textPage['data'], "html.parser")
@@ -339,7 +338,14 @@ class MercadoPageContent():
                             classCel = "enEquipos%"
                         result[classCel] = parse_decimal(auxval, locale="de")
 
-                codJugador = result['kiaLink']
+                try:
+                    codJugador = result['kiaLink']
+                except KeyError:
+                    print("Problemas con jugador '%s' (%s): no tiene kiaLink (?)" % (
+                        result.get('nombre', "Nombre desc"), result.get('equipo', "Equipo desc")))
+                    self.noKiaLink.append(result)
+                    continue
+
                 self.PlayerData[codJugador] = result
                 self.PlayerByPos[position].append(codJugador)
                 self.Team2Player[result['equipo']].add(codJugador)
@@ -509,6 +515,12 @@ class MercadoPageContent():
                 newPendientes.append(jug)
 
         self.pendientes = newPendientes
+
+    def __repr__(self):
+        result = "Mercado SM. Fuente '%s'. Timestamp: %s" % (self.source, strftime("%Y-%m-%d %H:%M", self.timestamp))
+        return result
+
+    __str__ = __repr__
 
 
 class NoSuchPlayerException(Exception):

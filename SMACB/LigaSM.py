@@ -37,3 +37,8 @@ class LigaSM(object):
                 return True
 
         return False
+
+    def getListaJornadas(self):
+        ultDatos = self.descargas[self.ultDescarga]
+
+        return list(ultDatos.get('jornadas', {}).keys())

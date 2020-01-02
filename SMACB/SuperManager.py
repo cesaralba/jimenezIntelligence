@@ -12,7 +12,6 @@ from babel.numbers import decimal
 from bs4 import BeautifulSoup
 from mechanicalsoup import LinkNotFoundError
 
-from Utils.Misc import listize
 from Utils.Web import creaBrowser
 from .ClasifData import ClasifData, manipulaSocio
 from .LigaSM import LigaSM
@@ -61,9 +60,6 @@ class SuperManagerACB(object):
         self.mercadoJornada = {}
         self.ultimoMercado = None
         self.jornadasForzadas = set()
-        self.traducciones = {'equipos': {'n2c': defaultdict(set), 'c2n': defaultdict(set), 'n2i': defaultdict(set),
-                                         'i2n': defaultdict(set), 'i2c': defaultdict(set), 'c2i': defaultdict(set)},
-                             'jugadores': {'j2c': defaultdict(set), 'c2j': defaultdict(set)}}
 
     def Connect(self, url=None, browser=None, config=Namespace(), datosACB=None):
         """ Se conecta al SuperManager con las credenciales suministradas,
@@ -237,6 +233,7 @@ class SuperManagerACB(object):
                         'asistencias': {}}
 
             for j in jornadas:
+                print("Descargando liga %s. Jornada %s" % (lID, j))
                 estadoSM['jornadas'][j] = self.getJornada(ligaID=lID, idJornada=j, browser=browser)
 
             for compo in ["general", "broker", "puntos", "rebotes", "triples", "asistencias"]:
@@ -419,8 +416,8 @@ class SuperManagerACB(object):
                                              'i2n': defaultdict(set), 'i2c': defaultdict(set), 'c2i': defaultdict(set)},
                                  'jugadores': {'j2c': defaultdict(set), 'c2j': defaultdict(set)}}
 
-        for codigo, nombres in datosACB.tradJugadores['id2nombres'].items():
-            self.addTraduccionJugador(codigo, nombres)
+        # for codigo, nombres in datosACB.tradJugadores['id2nombres'].items():
+        #     self.addTraduccionJugador(codigo, nombres)
 
         for codigo, nombres in datosACB.Calendario.tradEquipos['c2n'].items():
             if (codigo not in self.traducciones['equipos']['c2n']):
@@ -449,17 +446,17 @@ class SuperManagerACB(object):
                 self.traducciones['equipos']['i2n'][id].add(nombre)
                 self.traducciones['equipos']['n2i'][nombre].add(id)
 
-    def addTraduccionJugador(self, codigo, nombres):
-        listNombres = listize(nombres)
-
-        for nombre in listNombres:
-            if (nombre not in self.traducciones['jugadores']['j2c']) or (
-                    codigo not in self.traducciones['jugadores']['j2c'][nombre]) or (
-                    codigo not in self.traducciones['jugadores']['c2j']) or (
-                    nombre not in self.traducciones['jugadores']['c2j'][codigo]):
-                self.changed = True
-            self.traducciones['jugadores']['j2c'][nombre].add(codigo)
-            self.traducciones['jugadores']['c2j'][codigo].add(nombre)
+    # def addTraduccionJugador(self, codigo, nombres):
+    #     listNombres = listize(nombres)
+    #
+    #     for nombre in listNombres:
+    #         if (nombre not in self.traducciones['jugadores']['j2c']) or (
+    #                 codigo not in self.traducciones['jugadores']['j2c'][nombre]) or (
+    #                 codigo not in self.traducciones['jugadores']['c2j']) or (
+    #                 nombre not in self.traducciones['jugadores']['c2j'][codigo]):
+    #             self.changed = True
+    #         self.traducciones['jugadores']['j2c'][nombre].add(codigo)
+    #         self.traducciones['jugadores']['c2j'][codigo].add(nombre)
 
     def getMercado(self, browser):
         browser.follow_link("mercado")

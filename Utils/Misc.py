@@ -1,3 +1,4 @@
+import gzip
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -36,9 +37,16 @@ def ExtractREGroups(cadena, regex="."):
 
 
 def ReadFile(filename):
-    with open(filename, "r") as handin:
-        read_data = handin.read()
-    return {'source': filename, 'data': ''.join(read_data), 'timestamp': gmtime()}
+    if filename.endswith(".gz"):
+        with gzip.open(filename, "rt") as handin:
+            read_data = handin.read()
+            resData = read_data
+    else:
+        with open(filename, "r") as handin:
+            read_data = handin.read()
+            resData = ''.join(read_data)
+
+    return {'source': filename, 'data': resData, 'timestamp': gmtime()}
 
 
 def CuentaClaves(x):
