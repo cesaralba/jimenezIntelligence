@@ -1,12 +1,36 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from collections import defaultdict
+
 from configargparse import ArgumentParser
 
 from SMACB.MercadoPage import MercadoPageContent
 from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.Misc import ReadFile
+
+from sys import exc_info
+from traceback import print_exception
+
+def cuentaFuera(mercado):
+    resultado = defaultdict(int)
+
+    for jug in mercado.PlayerData:
+        resultado[mercado.PlayerData[jug]['proxFuera']] += 1
+
+    return resultado
+
+
+def listaMercados(sm):
+    mercadoDatos = {x: "" for x in sm.mercado}
+    for j in sm.mercadoJornada:
+        mercadoDatos[sm.mercadoJornada[j]] = "<- J%i" % (j)
+    listaMercados = list(mercadoDatos.keys())
+    listaMercados.sort()
+    for j in listaMercados:
+        print(" %s %s" % (j, mercadoDatos[j]))
+
 
 if __name__ == '__main__':
     parser = ArgumentParser()
@@ -15,6 +39,8 @@ if __name__ == '__main__':
     parser.add('-o', dest='outfile', type=str, env_var='SM_OUTFILE', required=False)
     parser.add('-t', dest='temporada', type=str, env_var='SM_TEMPORADA', required=False)
     parser.add('-j', dest='jornada', action='append', required=False)
+    parser.add('-l', dest='list', action="store_true", required=False, default=False)
+
     parser.add_argument(dest='files', type=str, nargs='*')
 
     args = parser.parse_args()
@@ -24,68 +50,34 @@ if __name__ == '__main__':
     if 'infile' in args and args.infile:
         sm.loadData(args.infile)
 
+    if 'list' in args and args.list:
+        listaMercados(sm)
+        exit(0)
+
     temporada = None
     if 'temporada' in args and args.temporada:
         temporada = TemporadaACB()
         temporada.cargaTemporada(args.temporada)
 
-    # Convierte a clave STR el ultimoMercado
-    ultimoMercado = sm.ultimoMercado
-    print(ultimoMercado.__dict__.keys())
-
-    if ultimoMercado and type(ultimoMercado) is MercadoPageContent:
-        if hasattr(ultimoMercado, 'NoFoto2Nombre'):
-            NoFotoData = dict(zip(ultimoMercado.NoFoto2Nombre,
-                                  [ultimoMercado.PlayerData[x] for x in ultimoMercado.NoFoto2Nombre]))
-
-            ultimoMercado.arreglaNoFotos(datosACB=temporada,
-                                         NoFoto2Nombre=ultimoMercado.NoFoto2Nombre,
-                                         Nombre2NoFoto=ultimoMercado.Nombre2NoFoto,
-                                         NoFotoData=NoFotoData)
-            ultimoMercado.__delattr__('NoFoto2Nombre')
-            ultimoMercado.__delattr__('Nombre2NoFoto')
-            ultimoMercado.__delattr__('contadorNoFoto')
-        ultimoMercadoKey = ultimoMercado.timestampKey()
-        sm.ultimoMercado = None
-        sm.addMercado(ultimoMercado)
-        sm.ultimoMercado = ultimoMercadoKey
-        sm.changed = True
-
-    # Convierte a clave STR los mercados ya grabados en la estructura y mueve los que son de jornada a mercadoJornadas
-    mercadoKeys = list(sm.mercado.keys())
-    for clave in mercadoKeys:
-        mercadoClave = sm.mercado[clave]
-        if type(sm.mercado[clave]) is not str:
-            if hasattr(mercadoClave, 'NoFoto2Nombre'):
-                NoFotoData = dict(zip(mercadoClave.NoFoto2Nombre,
-                                  [mercadoClave.PlayerData[x] for x in mercadoClave.NoFoto2Nombre]))
-
-                mercadoClave.arreglaNoFotos(datosACB=temporada, NoFoto2Nombre=mercadoClave.NoFoto2Nombre,
-                                            Nombre2NoFoto=mercadoClave.Nombre2NoFoto,
-                                            NoFotoData=NoFotoData)
-                mercadoClave.__delattr__('NoFoto2Nombre')
-                mercadoClave.__delattr__('Nombre2NoFoto')
-                mercadoClave.__delattr__('contadorNoFoto')
-
-            sm.addMercado(mercadoClave)
-            sm.changed = True
-
-        if clave in sm.jornadas:
-            sm.mercado.pop(clave)
-            sm.mercadoJornada[clave] = mercadoClave.timestampKey()
-            sm.changed = True
-
     # Carga los ficheros nuevos
     orig = None
+    # print(sm.mercado.keys())
+    # print(sm.mercadoJornada)
+
     for mercadoFile in args.files:
 
         Mfile = ReadFile(mercadoFile)
-        mf = MercadoPageContent(Mfile, datosSM=temporada)
+        try:
+            mf = MercadoPageContent(Mfile, datosSM=sm)
+        except BaseException as exc:
+            print("Problemas leyendo fichero '%s': %s" % (mercadoFile,exc_info()))
+            print_exception(*exc_info())
+            raise Exception("Terminando")
+
         mf.setTimestampFromStr(mf.source)
 
         if orig is None:
             orig = mf
-            print("Añadido mercado de fichero '%s'. Clave: %s " % (mercadoFile, mf.timestampKey()))
 
             existe = False
             for existMercado in sm.mercado.values():
@@ -124,6 +116,36 @@ if __name__ == '__main__':
         else:
             print("Ignorando fichero '%s'. Clave: %s" % (mercadoFile, mf.timestampKey()))
 
+    idJornadas = set()
+    for l in sm.ligas:
+        idJornadas = idJornadas.union(set(map(str,sm.ligas[l].getListaJornadas())))
+
+    if 'jornada' in args and args.jornada:
+        for clave in args.jornada:
+            pair = clave.split(":", 2)
+            if len(pair) != 2:
+                print("Clave suministrada '%s' no valida. Formato: J:ClaveMercado" % clave)
+                continue
+
+            idJor = pair[0]
+            idMercado = pair[1]
+
+            ok = True
+            if (idJor not in idJornadas) and not (idJor == "0"):
+                print("Clave suministrada '%s' no valida. Jornada '%s' desconocida." % (clave, idJor))
+                ok = False
+
+            if idMercado not in sm.mercado:
+                print("Clave suministrada '%s' no valida. Mercado '%s' desconocido." % (clave, idMercado))
+                ok = False
+
+            if not ok:
+                print("Clave suministrada '%s' con problemas. Ignorando." % clave)
+                continue
+
+            sm.mercadoJornada[int(idJor)] = idMercado
+            sm.changed = True
+
     # Compara los ficheros registrados para detectar cambio de jornada
     orig = None
     time2jornada = dict()
@@ -144,9 +166,11 @@ if __name__ == '__main__':
 
             # print(Mfile['source'], "There were changes:\n", diffs)
             if diffs.cambioJornada:
+                fueras = cuentaFuera(mf)
+
                 print("J", merc,
                       "Cambio de jornada", mf.timestampKey(),
-                      "J: ", jornada)
+                      "J: ", jornada, fueras)
             else:
                 print("C", merc)
             # print(diffs)
@@ -155,34 +179,6 @@ if __name__ == '__main__':
             print(" ", merc)
 
         orig = mf
-
-    idJornadas = [str(x) for x in sm.jornadas]
-    for clave in args.jornada:
-        pair = clave.split(":", 2)
-        if len(pair) != 2:
-            print("Clave suministrada '%s' no valida. Formato: J:ClaveMercado" % clave)
-            continue
-
-        idJor = pair[0]
-        idMercado = pair[1]
-
-        ok = True
-        if idJor not in idJornadas:
-            print("Clave suministrada '%s' no valida. Jornada '%s' desconocida." % (clave, idJor))
-            ok = False
-
-        if idMercado not in sm.mercado:
-            print("Clave suministrada '%s' no valida. Mercado '%s' desconocido." % (clave, idMercado))
-            ok = False
-
-        if not ok:
-            print("Clave suministrada '%s' con problemas. Ignorando." % clave)
-            continue
-
-        sm.mercadoJornada[int(idJor)] = idMercado
-        sm.changed = True
-
-    print(sm.mercadoJornada)
 
     if sm.changed and ('outfile' in args) and args.outfile:
         print("There were changes!")

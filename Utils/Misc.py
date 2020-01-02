@@ -1,8 +1,8 @@
+import gzip
 import re
 from collections import defaultdict
 from pathlib import Path
 from time import gmtime
-from unicodedata import normalize
 
 ####################################################################################################################
 
@@ -37,19 +37,16 @@ def ExtractREGroups(cadena, regex="."):
 
 
 def ReadFile(filename):
-    with open(filename, "r") as handin:
-        read_data = handin.read()
-    return {'source': filename, 'data': ''.join(read_data), 'timestamp': gmtime()}
+    if filename.endswith(".gz"):
+        with gzip.open(filename, "rt") as handin:
+            read_data = handin.read()
+            resData = read_data
+    else:
+        with open(filename, "r") as handin:
+            read_data = handin.read()
+            resData = ''.join(read_data)
 
-
-def CompareBagsOfWords(x, y):
-    # ['NFC', 'NFKC', 'NFD', 'NFKD']
-    NORMA = 'NFKD'
-
-    bogx = set(normalize(NORMA, x).encode('ascii', 'ignore').lower().split())
-    bogy = set(normalize(NORMA, y).encode('ascii', 'ignore').lower().split())
-
-    return len(bogx.intersection(bogy))
+    return {'source': filename, 'data': resData, 'timestamp': gmtime()}
 
 
 def CuentaClaves(x):
@@ -166,3 +163,21 @@ def normalize_data_structs(data, **kwargs):
         return {k: normalize_data_structs(data[k], **kwargs) for k in sorted(data.keys())}
     else:
         return data
+
+
+def listize(param):
+    """
+    Convierte un parámetro en un iterable (list, set, tuple) si no lo es ya
+    :param param:
+    :return:
+    """
+    return param if isinstance(param, (list, set, tuple)) else [param]
+
+
+def onlySetElement(myset):
+    """
+    Returns only element of set or full set
+    :param myset: a set
+    :return:
+    """
+    return list(myset.copy())[0] if isinstance(myset, (set, list)) and len(myset) == 1 else myset

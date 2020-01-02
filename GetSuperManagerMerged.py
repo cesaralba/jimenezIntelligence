@@ -41,9 +41,8 @@ if __name__ == '__main__':
         sm.loadData(args.infile)
 
     temporada = None
-    if 'temporada' in args and args.temporada:
-        temporada = TemporadaACB()
-        temporada.cargaTemporada(args.temporada)
+    temporada = TemporadaACB()
+    temporada.cargaTemporada(args.temporada)
 
     mercadoRef = None
     if 'diffUltJornada' in args and args.diffUltJornada and sm.mercadoJornada:
