@@ -233,7 +233,6 @@ class SuperManagerACB(object):
                         'asistencias': {}}
 
             for j in jornadas:
-                print("Descargando liga %s. Jornada %s" % (lID, j))
                 estadoSM['jornadas'][j] = self.getJornada(ligaID=lID, idJornada=j, browser=browser)
 
             for compo in ["general", "broker", "puntos", "rebotes", "triples", "asistencias"]:
