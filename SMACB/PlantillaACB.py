@@ -5,6 +5,7 @@ from Utils.BoWtraductor import (CompareBagsOfWords, CreaBoW, NormalizaCadena,
                                 RetocaNombreJugador, comparaFrases)
 from Utils.Misc import onlySetElement
 from Utils.Web import DescargaPagina, MergeURL, creaBrowser, getObjID
+
 from .SMconstants import URL_BASE
 
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
@@ -19,8 +20,9 @@ class PlantillaACB(object):
         home = kwargs.get('home', None)
         browser = kwargs.get('browser', None)
         config = kwargs.get('config', Namespace())
+        extraTrads = kwargs.get('otrosNombres', None)
 
-        data = descargaURLplantilla(self.URL, home, browser, config)
+        data = descargaURLplantilla(self.URL, home, browser, config, otrosNombres=extraTrads)
         self.timestamp = data.get('timestamp', gmtime())
 
         self.club = data.get('club', {})
@@ -43,13 +45,13 @@ class PlantillaACB(object):
         return result
 
     @staticmethod
-    def fromURL(urlPlantilla, home=None, browser=None, config=Namespace()):
+    def fromURL(urlPlantilla, home=None, browser=None, config=Namespace(), otrosNombres=None):
         if browser is None:
             browser = creaBrowser(config)
 
         probEd = getObjID(urlPlantilla, 'year', None)
         params = {'id': getObjID(urlPlantilla, 'id'), 'edicion': probEd, 'home': home, 'browser': browser,
-                  'config': config}
+                  'config': config, 'otrosNombres': otrosNombres}
 
         return PlantillaACB(**params)
 
@@ -65,6 +67,7 @@ class PlantillaACB(object):
         if esJugador:
             targetDict = self.jugadores
         elif esTecnico:
+            dorsal = None
             targetDict = self.tecnicos
         else:  # Ni jugador ni tecnico???
             raise ValueError("Jugador '%s' (%s) no es ni jugador ni técnico" % (
@@ -85,7 +88,7 @@ class PlantillaACB(object):
             else:  # Sin dorsal no es suficiente sólo con apellidos (apellidos o nombres muy comunes)
                 for jNombre in jData['nombre']:
                     dsSet = CreaBoW(NormalizaCadena(RetocaNombreJugador(jNombre)))
-                    if CompareBagsOfWords(setNombre, dsSet) > umbral:
+                    if CompareBagsOfWords(setNombre, dsSet) > 0:
                         resultSet.add(jCode)
 
         if not resultSet:  # Ni siquiera candidatos => nada que hacer
@@ -105,13 +108,13 @@ class PlantillaACB(object):
         return onlySetElement(codeList)
 
 
-def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=Namespace()):
+def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=Namespace(), otrosNombres=None):
     if browser is None:
         browser = creaBrowser(config)
     try:
         pagPlant = DescargaPagina(urlPlantilla, home=home, browser=browser, config=config)
 
-        result = procesaPlantillaDescargada(pagPlant)
+        result = procesaPlantillaDescargada(pagPlant, otrosNombres=otrosNombres)
         result['URL'] = browser.get_url()
         result['timestamp'] = gmtime()
         result['edicion'] = encuentraUltEdicion(pagPlant)
@@ -123,7 +126,16 @@ def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=Namespace
     return result
 
 
-def procesaPlantillaDescargada(plantDesc):
+def procesaPlantillaDescargada(plantDesc, otrosNombres=None):
+    """
+    Procesa el contenido de una página de plantilla
+
+    :param plantDesc: bs4 contenido de la página de la plantilla
+    :param otrosNombres: diccionario ID->set de nombres
+    :return:
+    """
+    auxTraducciones = otrosNombres if otrosNombres else dict()
+
     result = dict()
 
     result['jugadores'] = dict()
@@ -137,7 +149,12 @@ def procesaPlantillaDescargada(plantDesc):
     for bloqueDiv in cosasUtiles.find_all('div', {"class": "grid_plantilla"}):
         for jugArt in bloqueDiv.find_all("article"):
             data = dict()
-            data['nombre'] = set()
+
+            link = jugArt.find("a").attrs['href']
+            data['id'] = getObjID(link, 'ver')
+
+            # Carga con los nombres de una potencial traducción existente
+            data['nombre'] = set().union(auxTraducciones.get(data['id'], set()))
 
             if 'caja_jugador_medio_cuerpo' in jugArt.attrs['class'] or 'caja_jugador_cara' in jugArt.attrs['class']:
                 destClass = 'jugadores'
@@ -157,10 +174,8 @@ def procesaPlantillaDescargada(plantDesc):
 
             data['dorsal'] = jugArt.find("div", {"class": "dorsal"}).get_text().strip()
 
-            link = jugArt.find("a").attrs['href']
             data['URL'] = MergeURL(URL_BASE, link)
             data['URLimg'] = jugArt.find("img").attrs['src']
-            data['id'] = getObjID(link, 'ver')
 
             result[destClass][data['id']] = data
 
@@ -172,14 +187,15 @@ def procesaPlantillaDescargada(plantDesc):
             tds = list(row.find_all("td"))
 
             data = dict()
-            data['nombre'] = set()
-            data['dorsal'] = row.find("td", {"class": "dorsal"}).get_text().strip()
-            for sp in row.find("td", {"class": "jugador"}).find_all("span"):
-                data['nombre'].add(sp.get_text().strip())
 
             link = tds[1].find("a").attrs['href']
             data['URL'] = MergeURL(URL_BASE, link)
             data['id'] = getObjID(link, 'ver')
+
+            data['nombre'] = set().union(auxTraducciones.get(data['id'], set()))
+            data['dorsal'] = row.find("td", {"class": "dorsal"}).get_text().strip()
+            for sp in row.find("td", {"class": "jugador"}).find_all("span"):
+                data['nombre'].add(sp.get_text().strip())
 
             posics = {tds[2].find("span").get_text().strip()}
 
@@ -214,7 +230,7 @@ def encuentraUltEdicion(plantDesc):
     return result
 
 
-def descargaPlantillasCabecera(browser=None, config=Namespace()):
+def descargaPlantillasCabecera(browser=None, config=Namespace(), jugId2nombre=None):
     result = dict()
     if browser is None:
         browser = creaBrowser(config)
@@ -232,6 +248,6 @@ def descargaPlantillasCabecera(browser=None, config=Namespace()):
         urlFull = MergeURL(browser.get_url(), urlLink)
 
         idEq = getObjID(objURL=urlFull, clave='id')
-        result[idEq] = PlantillaACB.fromURL(urlFull, browser=browser, config=config)
+        result[idEq] = PlantillaACB.fromURL(urlFull, browser=browser, config=config, otrosNombres=jugId2nombre)
 
     return result
