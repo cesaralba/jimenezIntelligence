@@ -9,6 +9,7 @@ from babel.numbers import decimal, parse_decimal
 from bs4 import BeautifulSoup
 
 from Utils.Misc import FORMATOtimestamp, onlySetElement
+
 from .ManageSMDataframes import datosPosMerc, datosProxPartidoMerc
 from .PlantillaACB import descargaPlantillasCabecera
 from .SMconstants import CUPOCORTO, CUPOS, POSICIONCORTA, POSICIONES, bool2esp
@@ -332,11 +333,17 @@ class MercadoPageContent():
                         continue
                     else:
                         auxval = data.get_text().strip()
-                        classCel = classes[0]
-                        if '%' in auxval and classCel == 'precio':
+                        classOrig = classes[0]
+
+                        for auxClass in fieldTrads[classOrig]:
+                            if auxClass not in result:
+                                classCel = auxClass
+                                break
+                        if '%' in auxval and classCel == 'enEquipos%':
                             auxval = auxval.replace("%", "")
-                            classCel = "enEquipos%"
                         result[classCel] = parse_decimal(auxval, locale="de")
+
+                        # print("CAP", classes, classOrig, "->", classCel)
 
                 try:
                     codJugador = result['kiaLink']
