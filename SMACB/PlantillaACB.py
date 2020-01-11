@@ -5,6 +5,7 @@ from Utils.BoWtraductor import (CompareBagsOfWords, CreaBoW, NormalizaCadena,
                                 RetocaNombreJugador, comparaNombresPersonas)
 from Utils.Misc import onlySetElement
 from Utils.Web import DescargaPagina, MergeURL, creaBrowser, getObjID
+
 from .SMconstants import URL_BASE
 
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
