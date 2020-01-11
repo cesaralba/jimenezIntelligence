@@ -109,10 +109,11 @@ class PartidoACB(object):
                 for datosJug in self.pendientes[l]:
                     if datosJug['nombre'] == '':
                         print("Datos insuficientes para encontrar ID. Partido: %s. %s" % (self, datosJug))
-                        newPendientes.append(datosJug)
-                        if datosJug['esJugador']:
-                            # Admitimos la pifia para entrenador pero no para jugadores
-                            raiser = True
+                        continue
+                        # newPendientes.append(datosJug)
+                        # if datosJug['esJugador']:
+                        #     # Admitimos la pifia para entrenador pero no para jugadores
+                        #     raiser = True
                     else:
                         if cachedTeam is None:
                             cachedTeam = PlantillaACB(id=datosJug['IDequipo'], edicion=datosJug['temporada'])
