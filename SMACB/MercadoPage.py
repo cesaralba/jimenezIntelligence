@@ -9,6 +9,7 @@ from babel.numbers import decimal, parse_decimal
 from bs4 import BeautifulSoup
 
 from Utils.Misc import FORMATOtimestamp, onlySetElement
+
 from .ManageSMDataframes import datosPosMerc, datosProxPartidoMerc
 from .PlantillaACB import descargaPlantillasCabecera
 from .SMconstants import CUPOCORTO, CUPOS, POSICIONCORTA, POSICIONES, bool2esp
@@ -332,10 +333,14 @@ class MercadoPageContent():
                         continue
                     else:
                         auxval = data.get_text().strip()
-                        classCel = classes[0]
-                        if '%' in auxval and classCel == 'precio':
+                        classOrig = classes[0]
+
+                        for auxClass in fieldTrads[classOrig]:
+                            if auxClass not in result:
+                                classCel = auxClass
+                                break
+                        if '%' in auxval and classCel == 'enEquipos%':
                             auxval = auxval.replace("%", "")
-                            classCel = "enEquipos%"
                         result[classCel] = parse_decimal(auxval, locale="de")
 
                 try:
@@ -463,14 +468,14 @@ class MercadoPageContent():
 
     def mercado2dataFrame(self):
         renombraCampos = {'codJugador': 'codigo'}
-        colTypes = {'CODequipo': 'category', 'CODrival': 'category', 'codigo': 'category', 'cupo': 'category',
+        # 'codigo': 'category',
+        colTypes = {'CODequipo': 'category', 'CODrival': 'category', 'cupo': 'category',
                     'equipo': 'category', 'lesion': 'category', 'pos': 'category', 'precio': 'int64',
                     'prom3Jornadas': 'float64', 'promVal': 'float64', 'proxFuera': 'bool', 'rival': 'category',
                     'esLocal': 'bool'}
 
         def jugador2dataframe(jugador):
             dictJugador = dict()
-
             for dato in jugador:
                 if dato in ['enEquipos%', 'sube15%', 'seMantiene', 'baja15%', 'foto', 'kiaLink', ]:
                     continue
@@ -480,7 +485,8 @@ class MercadoPageContent():
                                                                                               axis='columns')
             return (dfresult)
 
-        dfJugs = [jugador2dataframe(jugador) for jugador in self.PlayerData.values()]
+        dfJugs = [jugador2dataframe(jugador) for jugador in self.PlayerData.values()] + [jugador2dataframe(jugador) for
+                                                                                         jugador in self.noKiaLink]
         dfResult = pd.concat(dfJugs, axis=0, ignore_index=True, sort=True)
         dfResult['esLocal'] = ~(dfResult['proxFuera'].astype('bool'))
         dfResult['ProxPartido'] = dfResult.apply(datosProxPartidoMerc, axis=1)

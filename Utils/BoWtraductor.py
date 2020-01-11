@@ -1,9 +1,8 @@
 import re
+from _collections import defaultdict
 from unicodedata import normalize
 
-from _collections import defaultdict
-
-from .Misc import listize, onlySetElement
+from .Misc import listize, onlySetElement, cosaLarga, cosaCorta
 
 NORMADEFECTO = 'NFKD'
 
@@ -164,32 +163,36 @@ def RetocaNombreJugador(x):
         # raise ValueError("Jugador '%s' no casa RE '%s'" % (x, PATjug))
 
 
-def comparaFrases(fr1, fr2, umbral=1):
-    def comparaPrefijos(pref1, pref2):
+def comparaNombresPersonas(fr1, fr2, umbral=1):
+    def comparaPrefijos(pref1, pref2, result=0):
+        if pref1 is None or pref2 is None:
+            return result
+        # print("CAP compPref",pref1,type(pref1),pref2,type(pref2))
         if pref1 == pref2:
-            return True
+            return result + len(pref1)
         elif len(pref1) == 0 or len(pref2) == 0:
-            return True
+            return result
 
-        prefLargo = pref2 if len(pref2) > len(pref1) else pref1
-        prefCorto = pref1 if len(pref2) > len(pref1) else pref2
+        prefLargo = cosaLarga(pref1, pref2)
+        prefCorto = cosaCorta(pref1, pref2)
 
         for wl in prefLargo:
             for wc in prefCorto:
-                if esSigla(wl) or esSigla(wc):
+                if esSigla(wl) or esSigla(wc):  # Pedro vs P.
                     if hazSigla(wl) == hazSigla(wc):
-                        print("Siglas!", wl, wc, hazSigla(wl), hazSigla(wc), hazSigla(wl) == hazSigla(wc))
-                        return comparaPrefijos(prefLargo.remove(wl), prefCorto.remove(wc))
-                cadLarga = wl if len(wl) > len(wc) else wc
-                cadCorta = wc if len(wl) > len(wc) else wl
+                        # print("Siglas!", wl, wc, hazSigla(wl), hazSigla(wc), hazSigla(wl) == hazSigla(wc))
+                        return comparaPrefijos(prefLargo.remove(wl), prefCorto.remove(wc), result + 1)
 
+                # Javier vs Javi
+                cadLarga = cosaLarga(wl, wc)
+                cadCorta = cosaCorta(wl, wc)
                 if cadLarga.startswith(cadCorta):
-                    return comparaPrefijos(prefLargo.remove(wl), prefCorto.remove(wc))
+                    return comparaPrefijos(prefLargo.remove(wl), prefCorto.remove(wc), result + 1)
 
         # TODO: Traducciones conocidas jose -> pepe, josep -> pep, ignacio -> nacho
         # TODO: Nombre compuesto -> siglas juntas   DJ Seeley  <-> Dennis Jerome Seeley (también KC Rivers)
 
-        return False
+        return result
 
     if fr1 == fr2:
         return True
@@ -202,12 +205,13 @@ def comparaFrases(fr1, fr2, umbral=1):
 
     enAmbas = set1.intersection(set2)
 
-    result = False
-
     if not enAmbas:
         return False
-    elif len(enAmbas) > umbral:  # Mas de umbral coincidencia's es prometedor
-        result |= True
+
+    acum = len(enAmbas)
+
+    if acum > umbral:  # Mas de umbral coincidencia's es prometedor
+        return True
 
     subsets1 = getSubsets(fr1, enAmbas)
     subsets2 = getSubsets(fr2, enAmbas)
@@ -216,15 +220,15 @@ def comparaFrases(fr1, fr2, umbral=1):
         return True  # Una de las cadenas es la otra más cosas
 
     if len(subsets1['pref']) > 0 and len(subsets2['pref']) > 0:
-        result |= comparaPrefijos(subsets1['pref'], subsets2['pref'])
+        acum += comparaPrefijos(subsets1['pref'], subsets2['pref'], result=0)
 
     if len(subsets1['medio']) > 0 and len(subsets2['medio']) > 0:
-        print("En compMedios", fr1, "(", subsets1['medio'], ") <-> ", fr2, "(", subsets2['medio'], ")")
+        acum += len(set(subsets1['medio']).intersection(set(subsets2['medio'])))
 
     if len(subsets1['resto']) > 0 and len(subsets2['resto']) > 0:
-        print("En compResto", fr1, "(", subsets1['resto'], ") <-> ", fr2, "(", subsets2['resto'], ")")
+        acum += len(set(subsets1['resto']).intersection(set(subsets2['resto'])))
 
-    return result
+    return acum > umbral
 
 
 def esSigla(cadena):
@@ -242,7 +246,7 @@ def hazSigla(cadena):
 def getSubsets(cadenaNorm, elemClave):
     """
     A partir de una cadena y una serie de palabras "clave" dentro de la cadena, devuelve serie de grupos interesantes
-    para usar en comparaFrases. La cadena NO se toca más allá de dividirla en fragmentos
+    para usar en comparaNombresPersonas. La cadena NO se toca más allá de dividirla en fragmentos
     :param cadenaNorm:
     :param elemClave:
     :return:

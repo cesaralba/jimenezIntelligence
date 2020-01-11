@@ -181,3 +181,11 @@ def onlySetElement(myset):
     :return:
     """
     return list(myset.copy())[0] if isinstance(myset, (set, list)) and len(myset) == 1 else myset
+
+
+def cosaCorta(c1, c2):
+    return (c1 if len(c2) > len(c1) else c2)
+
+
+def cosaLarga(c1, c2):
+    return (c2 if len(c2) > len(c1) else c1)
