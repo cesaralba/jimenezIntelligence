@@ -12,11 +12,14 @@ from babel.numbers import decimal
 from bs4 import BeautifulSoup
 from mechanicalsoup import LinkNotFoundError
 
+from Utils.BoWtraductor import RetocaNombreJugador, comparaNombresPersonas, NormalizaCadena
+from Utils.Misc import onlySetElement
 from Utils.Web import creaBrowser
 from .ClasifData import ClasifData, manipulaSocio
 from .LigaSM import LigaSM
 from .ManageSMDataframes import datosPosMerc, datosProxPartidoMerc
 from .MercadoPage import MercadoPageContent
+from .PlantillaACB import descargaPlantillasCabecera
 from .SMconstants import bool2esp
 
 URL_SUPERMANAGER = "http://supermanager.acb.com/index/identificar"
@@ -265,10 +268,24 @@ class SuperManagerACB(object):
                 continue
             self.__setattr__(key, aux.__getattribute__(key))
 
-    def extraeDatosJugadoresMercado(self):
+    def extraeDatosJugadoresMercado(self, nombresJugadores=None, infoPlants=None):
+
+        keysJugDatos = ['lesion', 'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'CODequipo']
+        keysJugInfo = ['nombre', 'codJugador', 'cupo', 'pos', 'equipo', 'proxFuera', 'rival', 'activo', 'lesion',
+                       'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'sube15%', 'seMantiene', 'baja15%', 'rival',
+                       'CODequipo', 'CODrival', 'info']
+
+        dataPlants = descargaPlantillasCabecera(jugId2nombre=nombresJugadores) if infoPlants is None else infoPlants
+
+        cacheLinks = dict()
+        cacheEqNom = defaultdict(dict)
+        codigosUsados = set()
+
+        pendienteLinks = defaultdict(list)
+        pendienteEqNom = defaultdict(lambda: defaultdict(list))
 
         resultado = dict()
-        maxJornada = max(self.jornadas.keys())
+        maxJornada = max(self.getJornadasJugadas())
 
         def listaDatos():
             return [None] * (maxJornada + 1)
@@ -290,14 +307,20 @@ class SuperManagerACB(object):
 
             return resultado
 
-        mercadosAMirar = [None] * (maxJornada + 1)
+        def actualizaResultado(resultado, codigo, jor, jugadorData):
+            jugadorData['codJugador'] = codigo
+
+            for key in jugadorData:
+                if key in keysJugDatos:
+                    resultado[key][codigo][jor] = jugadorData[key]
+                if key in keysJugInfo:
+                    resultado['I-' + key][codigo] = jugadorData[key]
+
         # ['proxFuera', 'lesion', 'cupo', 'pos', 'foto', 'nombre', 'codJugador', 'temp', 'kiaLink', 'equipo',
         # 'promVal', 'precio', 'enEquipos%', 'valJornada', 'prom3Jornadas', 'sube15%', 'seMantiene', 'baja15%',
         # 'rival', 'CODequipo', 'CODrival', 'info']
-        keysJugDatos = ['lesion', 'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'CODequipo']
-        keysJugInfo = ['nombre', 'codJugador', 'cupo', 'pos', 'equipo', 'proxFuera', 'rival', 'activo', 'lesion',
-                       'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'sube15%', 'seMantiene', 'baja15%', 'rival',
-                       'CODequipo', 'CODrival', 'info']
+
+        mercadosAMirar = [None] * (maxJornada + 1)
 
         for key in keysJugDatos:
             resultado[key] = defaultdict(listaDatos)
@@ -308,6 +331,10 @@ class SuperManagerACB(object):
             mercadosAMirar[jornada] = self.mercadoJornada[jornada]
         ultMercado = self.mercado[self.ultimoMercado]
 
+        if ultMercado != self.mercado[mercadosAMirar[-1]]:
+            maxJornada += 1
+            mercadosAMirar.append(self.ultimoMercado)
+
         for i in range(len(mercadosAMirar)):
             mercadoID = mercadosAMirar[i]
             if not mercadoID:
@@ -317,28 +344,85 @@ class SuperManagerACB(object):
 
             for jugSM in mercado.PlayerData:
                 jugadorData = mercado.PlayerData[jugSM]
-                codJugador = jugadorData['codJugador']
 
-                # print("J: ",jugadorData.keys())
+                IDjugador = cacheLinks.get(jugadorData['kiaLink'], dataPlants[jugadorData['IDequipo']].getCode(
+                    nombre=RetocaNombreJugador(jugadorData['nombre']), esJugador=True, umbral=1))
+                if isinstance(IDjugador, str):
+                    cacheLinks[jugadorData['kiaLink']] = IDjugador
+                    cacheEqNom[jugadorData['IDequipo']][jugadorData['nombre']] = IDjugador
+                    codJugador = IDjugador
+                else:
+                    pendienteLinks[jugadorData['kiaLink']].append((i, jugadorData))
+                    print("Incapaz de encontrar ID para '%s' (%s,%s): %s" % (
+                        jugadorData['kiaLink'], jugadorData['nombre'], jugadorData['equipo'], IDjugador))
+                    continue
 
-                for key in jugadorData:
-                    if key in keysJugDatos:
-                        resultado[key][codJugador][i] = jugadorData[key]
-                    if key in keysJugInfo:
-                        resultado['I-' + key][codJugador] = jugadorData[key]
+                actualizaResultado(resultado, codJugador, i, jugadorData)
+                codigosUsados.add(codJugador)
+
+            for jugadorData in mercado.noKiaLink:
+                IDjugador = cacheEqNom[jugadorData['IDequipo']].get(jugadorData['nombre'],
+                                                                    dataPlants[jugadorData['IDequipo']].getCode(
+                                                                        nombre=RetocaNombreJugador(
+                                                                            jugadorData['nombre']), esJugador=True,
+                                                                        umbral=1))
+                if isinstance(IDjugador, str):
+                    cacheEqNom[jugadorData['IDequipo']][jugadorData['nombre']] = IDjugador
+                    codJugador = IDjugador
+                else:
+                    pendienteEqNom[jugadorData['IDequipo']][jugadorData['nombre']].append((i, jugadorData))
+                    print("Incapaz de encontrar ID para %s (%s): %s" % (
+                        jugadorData['nombre'], jugadorData['equipo'], IDjugador))
+                    continue
+
+                actualizaResultado(resultado, codJugador, i, jugadorData)
+                codigosUsados.add(codJugador)
+
+        contNocode = 1
+        for kiaLink, listaMercs in pendienteLinks.items():
+            nombresL = {i['nombre'] for j, i in listaMercs}
+            codeSet = set()
+
+            for codJug, nameSet in nombresJugadores.items():
+                if codJug in codigosUsados:
+                    continue
+
+                for auxNombre in nombresL:
+                    auxRet = NormalizaCadena(RetocaNombreJugador(auxNombre))
+
+                    for nomTest in nameSet:
+                        auxTest = NormalizaCadena(RetocaNombreJugador(nomTest))
+
+                        if comparaNombresPersonas(auxRet, auxTest):
+                            codeSet.add(codJug)
+                            break
+
+            IDjugador = onlySetElement(codeSet)
+            if isinstance(IDjugador, str):
+                codJugador = IDjugador
+            else:
+                codJugador = "NOCODE%03i" % contNocode
+                contNocode += 1
+
+            for i, jugadorData in listaMercs:
+                actualizaResultado(resultado, codJugador, i, jugadorData)
 
         for jugSM in resultado['lesion']:
             resultado['I-activo'][jugSM] = (jugSM in ultMercado.PlayerData)
 
-        return (resultado)
+            # print("CAP", k, len(l), {x[0] for x in l})
+        # print("PendNombre", pendienteEqNom)
+        # print("PendLinks",pendienteLinks)
 
-    def superManager2dataframe(self):
+        return resultado
+
+    def superManager2dataframe(self, nombresJugadores=None, infoPlants=None):
         """ Extrae un dataframe con los últimos datos de todos los jugadores que han jugado en la temporada.
         """
         DFcolNewNames = {'I-codJugador': 'codigo', 'I-cupo': 'cupo', 'I-pos': 'pos', 'I-CODrival': 'CODrival'}
 
         keys2remove = ['I-codJugador']
-        datos = self.extraeDatosJugadoresMercado()
+        datos = self.extraeDatosJugadoresMercado(nombresJugadores=nombresJugadores, infoPlants=infoPlants)
 
         targKeys = [x for x in datos.keys() if 'I-' in x]
         map(lambda x: targKeys.remove(x), keys2remove)
@@ -462,6 +546,13 @@ class SuperManagerACB(object):
 
         mercadoData = MercadoPageContent({'source': browser.get_url(), 'data': browser.get_current_page()}, self)
         return mercadoData
+
+    def getJornadasJugadas(self):
+        result = set()
+        for l in self.ligas:
+            result = result.union(set(self.ligas[l].getListaJornadas()))
+
+        return result
 
 
 class ResultadosJornadas(object):

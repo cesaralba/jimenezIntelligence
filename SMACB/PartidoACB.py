@@ -13,8 +13,10 @@ import pandas as pd
 from babel.numbers import parse_number
 from bs4 import Tag
 
+from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams, getObjID
+
 from .PlantillaACB import PlantillaACB
 from .SMconstants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp,
                           titular2esp)
@@ -107,16 +109,21 @@ class PartidoACB(object):
                 for datosJug in self.pendientes[l]:
                     if datosJug['nombre'] == '':
                         print("Datos insuficientes para encontrar ID. Partido: %s. %s" % (self, datosJug))
-                        newPendientes.append(datosJug)
-                        if datosJug['esJugador']:
-                            # Admitimos la pifia para entrenador pero no para jugadores
-                            raiser = True
+                        continue
+                        # newPendientes.append(datosJug)
+                        # if datosJug['esJugador']:
+                        #     # Admitimos la pifia para entrenador pero no para jugadores
+                        #     raiser = True
                     else:
                         if cachedTeam is None:
                             cachedTeam = PlantillaACB(id=datosJug['IDequipo'], edicion=datosJug['temporada'])
 
-                        newCode = cachedTeam.getCode(datosJug['nombre'], datosJug['dorsal'], datosJug['entrenador'],
-                                                     datosJug['esJugador'])
+                        nombreRetoc = RetocaNombreJugador(
+                            datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug['nombre']
+
+                        newCode = cachedTeam.getCode(nombre=nombreRetoc, dorsal=datosJug['dorsal'],
+                                                     esTecnico=datosJug['entrenador'],
+                                                     esJugador=datosJug['esJugador'], umbral=1)
                         if newCode is not None:
                             datosJug['codigo'] = newCode
 
