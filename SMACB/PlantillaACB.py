@@ -2,10 +2,9 @@ from argparse import Namespace
 from time import gmtime
 
 from Utils.BoWtraductor import (CompareBagsOfWords, CreaBoW, NormalizaCadena,
-                                RetocaNombreJugador, comparaFrases)
+                                RetocaNombreJugador, comparaNombresPersonas)
 from Utils.Misc import onlySetElement
 from Utils.Web import DescargaPagina, MergeURL, creaBrowser, getObjID
-
 from .SMconstants import URL_BASE
 
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
@@ -102,7 +101,7 @@ class PlantillaACB(object):
             jData = targetDict[jCode]
             for jNombre in jData['nombre']:
                 dsNormaliz = NormalizaCadena(RetocaNombreJugador(jNombre))
-                if comparaFrases(dsNormaliz, nombreNormaliz, umbral=umbral):
+                if comparaNombresPersonas(dsNormaliz, nombreNormaliz, umbral=umbral):
                     codeList.add(jCode)
 
         return onlySetElement(codeList)

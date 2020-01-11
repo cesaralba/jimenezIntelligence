@@ -9,7 +9,6 @@ from babel.numbers import decimal, parse_decimal
 from bs4 import BeautifulSoup
 
 from Utils.Misc import FORMATOtimestamp, onlySetElement
-
 from .ManageSMDataframes import datosPosMerc, datosProxPartidoMerc
 from .PlantillaACB import descargaPlantillasCabecera
 from .SMconstants import CUPOCORTO, CUPOS, POSICIONCORTA, POSICIONES, bool2esp
@@ -343,8 +342,6 @@ class MercadoPageContent():
                             auxval = auxval.replace("%", "")
                         result[classCel] = parse_decimal(auxval, locale="de")
 
-                        # print("CAP", classes, classOrig, "->", classCel)
-
                 try:
                     codJugador = result['kiaLink']
                 except KeyError:
@@ -470,14 +467,14 @@ class MercadoPageContent():
 
     def mercado2dataFrame(self):
         renombraCampos = {'codJugador': 'codigo'}
-        colTypes = {'CODequipo': 'category', 'CODrival': 'category', 'codigo': 'category', 'cupo': 'category',
+        # 'codigo': 'category',
+        colTypes = {'CODequipo': 'category', 'CODrival': 'category', 'cupo': 'category',
                     'equipo': 'category', 'lesion': 'category', 'pos': 'category', 'precio': 'int64',
                     'prom3Jornadas': 'float64', 'promVal': 'float64', 'proxFuera': 'bool', 'rival': 'category',
                     'esLocal': 'bool'}
 
         def jugador2dataframe(jugador):
             dictJugador = dict()
-
             for dato in jugador:
                 if dato in ['enEquipos%', 'sube15%', 'seMantiene', 'baja15%', 'foto', 'kiaLink', ]:
                     continue
@@ -487,7 +484,8 @@ class MercadoPageContent():
                                                                                               axis='columns')
             return (dfresult)
 
-        dfJugs = [jugador2dataframe(jugador) for jugador in self.PlayerData.values()]
+        dfJugs = [jugador2dataframe(jugador) for jugador in self.PlayerData.values()] + [jugador2dataframe(jugador) for
+                                                                                         jugador in self.noKiaLink]
         dfResult = pd.concat(dfJugs, axis=0, ignore_index=True, sort=True)
         dfResult['esLocal'] = ~(dfResult['proxFuera'].astype('bool'))
         dfResult['ProxPartido'] = dfResult.apply(datosProxPartidoMerc, axis=1)
