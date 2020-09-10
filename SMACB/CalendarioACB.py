@@ -238,14 +238,19 @@ def procesaCab(cab):
     resultado = dict()
     cadL = cab.find('div', {"class": "float-left"}).text
     cadR = cab.find('div', {"class": "fechas"}).text
+    resultado['nombreJornada'] = cadL
+    resultado['fechasJornada'] = cadR
 
-    patronL = r'(?P<comp>.*) (?P<yini>\d{4})-(?P<yfin>\d{4}) - JORNADA (?P<jornada>\d+)'
+    patronL = r'(?P<comp>.*) (?P<yini>\d{4})-(?P<yfin>\d{4})\s+(:?-\s+(?P<extraComp>.*)\s+)?- JORNADA (?P<jornada>\d+)'
 
     patL = re.match(patronL, cadL)
-
-    resultado.update(patL.groupdict())
-
-    resultado['auxFechas'] = procesaFechasJornada(cadR)
+    if patL:
+        dictFound= patL.groupdict()
+        print("CAP ",dictFound)
+        resultado.update(dictFound)
+        resultado['auxFechas'] = procesaFechasJornada(cadR)
+    else:
+        raise ValueError("procesaCab: valor '%s' no casa RE '%s'",cadL,patronL)
 
     return resultado
 
