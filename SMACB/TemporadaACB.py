@@ -217,9 +217,9 @@ class TemporadaACB(object):
         result['Lfav'] = list()
         result['Lcon'] = list()
 
-        partidosAcontar = [(p, self.Partidos[p['url']]) for p in juCal if self.Partidos[p['url']].FechaHora < fecha]
+        partidosAcontar = [p for p in juCal if self.Partidos[p['url']].FechaHora < fecha]
 
-        for datosCal, fichaPart in partidosAcontar:
+        for datosCal in partidosAcontar:
             abrevUsada = abrevsEq.intersection(datosCal['participantes']).pop()
             locEq = datosCal['abrev2loc'][abrevUsada]
             locRival = OtherTeam(locEq)
