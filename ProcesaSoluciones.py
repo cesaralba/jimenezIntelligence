@@ -19,7 +19,7 @@ from SMACB.SMconstants import CLAVESCSV
 from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.combinatorics import prod
-from Utils.Misc import FORMATOtimestamp, creaPath
+from Utils.Misc import creaPath, FORMATOtimestamp
 
 NJOBS = 4
 LOCATIONCACHE = '/var/tmp/joblibCache'
@@ -37,7 +37,7 @@ ch.setLevel(logging.DEBUG)
 
 # create formatter
 formatter = logging.Formatter(
-    '%(asctime)s [%(process)d:%(threadName)10s@%(name)s %(levelname)s %(relativeCreated)14dms]: %(message)s')
+        '%(asctime)s [%(process)d:%(threadName)10s@%(name)s %(levelname)s %(relativeCreated)14dms]: %(message)s')
 
 # add formatter to ch
 ch.setFormatter(formatter)

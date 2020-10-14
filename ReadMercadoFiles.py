@@ -3,8 +3,8 @@
 
 
 import argparse
-
 from _collections import defaultdict
+
 from SMACB.MercadoPage import MercadoPageContent
 from Utils.Misc import ReadFile
 

@@ -5,8 +5,7 @@ from copy import deepcopy
 from time import gmtime, strptime
 
 from Utils.Misc import FORMATOtimestamp
-from Utils.Web import DescargaPagina, MergeURL, getObjID
-
+from Utils.Web import DescargaPagina, getObjID, MergeURL
 from .SMconstants import URL_BASE
 
 calendario_URLBASE = "http://www.acb.com/calendario"
@@ -94,7 +93,7 @@ class CalendarioACB(object):
                                    divTemporadas.find_all('div', {"class": "elemento"})}
                 if self.edicion not in listaTemporadas:
                     raise KeyError("Temporada solicitada {year} no está entre las disponibles ({listaYears})".format(
-                        year=self.edicion, listaYears=", ".join(listaTemporadas.keys())))
+                            year=self.edicion, listaYears=", ".join(listaTemporadas.keys())))
 
                 pagYear = DescargaPagina(urlYear, home=None, browser=browser, config=config)
 
@@ -110,7 +109,7 @@ class CalendarioACB(object):
                 listaComposTxt = ["{k} = '{label}'".format(k=x, label=listaCompos[compoClaves[x]]) for x in
                                   compoClaves]
                 raise KeyError("Compo solicitada {compo} no disponible. Disponibles: {listaCompos}".format(
-                    compo=self.competicion, listaCompos=", ".join(listaComposTxt)))
+                        compo=self.competicion, listaCompos=", ".join(listaComposTxt)))
 
             self.url = template_CALENDARIOFULL.format(year=self.edicion, compoID=compoClaves[self.competicion])
 
@@ -163,13 +162,16 @@ class CalendarioACB(object):
                                               codigo=infoEq['abrev'], id=None)
 
         resultado['equipos'] = datosPartEqs
+        resultado['loc2abrev'] = {x: datosPartEqs[x]['abrev'] for x in datosPartEqs}
+        resultado['abrev2loc'] = {datosPartEqs[x]['abrev']: x for x in datosPartEqs}
+
+        resultado['participantes'] = {datosPartEqs[x]['abrev'] for x in datosPartEqs}
 
         if 'enlace' in datosPartEqs['Local']:
             resultado['pendiente'] = False
             linkGame = datosPartEqs['Local']['enlace']
             resultado['url'] = MergeURL(self.url, linkGame)
             resultado['resultado'] = {x: datosPartEqs[x]['puntos'] for x in datosPartEqs}
-            resultado['codigos'] = {x: datosPartEqs[x]['abrev'] for x in datosPartEqs}
             resultado['partido'] = getObjID(linkGame)
 
         else:
@@ -182,6 +184,30 @@ class CalendarioACB(object):
                 resultado['fecha'] = procesaFechaHoraPartido(cadFecha.strip(), cadHora.strip(), datosJornada)
 
         return resultado
+
+    def partidosEquipo(self, abrEq):
+        targAbrevs = self.abrevsEquipo(abrEq)
+
+        jugados = [p for p in self.Partidos.values() if targAbrevs.intersection(p['participantes']) and not p['pendiente']]
+        pendientes = []
+        for j, dataJor in self.Jornadas.items():
+            auxPendientes = [p for p in dataJor['pendientes'] if targAbrevs.intersection(p['participantes']) and p['pendiente']]
+            pendientes.extend(auxPendientes)
+
+        return jugados, pendientes
+
+    def abrevsEquipo(self, abrEq):
+        if abrEq not in self.tradEquipos['c2n']:
+            trad2str = " - ".join([f"'{k}': {','.join(sorted(self.tradEquipos['c2n'][k]))}" for k in sorted(self.tradEquipos['c2n'])])
+            raise KeyError(f"partidosEquipo: abreviatura pedida '{abrEq}' no existe: {trad2str}")
+
+        # Consigue las abreviaturas para el equipo
+        targAbrevs = set()
+        iAbrev = self.tradEquipos['c2i'][abrEq]
+        for i in iAbrev:
+            targAbrevs.update(self.tradEquipos['i2c'][i])
+
+        return targAbrevs
 
 
 def BuscaCalendario(url=URL_BASE, home=None, browser=None, config={}):
@@ -245,12 +271,12 @@ def procesaCab(cab):
 
     patL = re.match(patronL, cadL)
     if patL:
-        dictFound= patL.groupdict()
-        print("CAP ",dictFound)
+        dictFound = patL.groupdict()
+        print("CAP ", dictFound)
         resultado.update(dictFound)
         resultado['auxFechas'] = procesaFechasJornada(cadR)
     else:
-        raise ValueError("procesaCab: valor '%s' no casa RE '%s'",cadL,patronL)
+        raise ValueError("procesaCab: valor '%s' no casa RE '%s'", cadL, patronL)
 
     return resultado
 

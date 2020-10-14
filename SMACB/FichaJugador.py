@@ -2,7 +2,7 @@ import re
 from argparse import Namespace
 from time import gmtime, strftime, strptime
 
-from Utils.Web import DescargaPagina, getObjID, creaBrowser
+from Utils.Web import creaBrowser, DescargaPagina, getObjID
 
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
 
@@ -100,10 +100,10 @@ class FichaJugador(object):
     def __repr__(self):
 
         return "%s (%s) %s P:[%i] %s -> %s (%i)" % (
-            self.nombre, self.id, strftime("%Y-%m-%d", self.fechaNac), len(self.partidos),
-            strftime("%Y-%m-%d", self.primPartidoT),
-            strftime("%Y-%m-%d", self.ultPartidoT),
-            len(self.equipos)
+                self.nombre, self.id, strftime("%Y-%m-%d", self.fechaNac), len(self.partidos),
+                strftime("%Y-%m-%d", self.primPartidoT),
+                strftime("%Y-%m-%d", self.ultPartidoT),
+                len(self.equipos)
         )
 
     def limpiaPartidos(self):

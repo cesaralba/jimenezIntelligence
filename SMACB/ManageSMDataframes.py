@@ -85,7 +85,7 @@ def calculaDFprecedentes(dfTemp, dfMerc, clave, filtroFechas=None):
                  'haJugado', 'enActa', 'nombre', 'esLocal', clave]
 
     dfResult = (datosMrc[['codigo', 'CODequipo', 'CODrival', 'esLocal']].merge(datosWrk[listaCats]).merge(
-        calculaTempStats(datosWrk, clave)))
+            calculaTempStats(datosWrk, clave)))
 
     if dfResult.empty:
         return dfResult
@@ -97,7 +97,7 @@ def calculaDFprecedentes(dfTemp, dfMerc, clave, filtroFechas=None):
             (dfResult[clave] - dfResult[clave + '-mean']) * (1.0 / dfResult[clave + '-std']))
 
     return (dfResult[['codigo', 'Precedente', clave, 'D-' + clave + '-prec', 'Z-' + clave + '-prec']].rename(
-        columns={clave: clave + '-prec'}))
+            columns={clave: clave + '-prec'}))
 
 
 def datosProxPartidoMerc(dfrow):

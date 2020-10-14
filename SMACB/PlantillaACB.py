@@ -1,11 +1,9 @@
 from argparse import Namespace
 from time import gmtime
 
-from Utils.BoWtraductor import (CompareBagsOfWords, CreaBoW, NormalizaCadena,
-                                RetocaNombreJugador, comparaNombresPersonas)
+from Utils.BoWtraductor import (comparaNombresPersonas, CompareBagsOfWords, CreaBoW, NormalizaCadena, RetocaNombreJugador)
 from Utils.Misc import onlySetElement
-from Utils.Web import DescargaPagina, MergeURL, creaBrowser, getObjID
-
+from Utils.Web import creaBrowser, DescargaPagina, getObjID, MergeURL
 from .SMconstants import URL_BASE
 
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
@@ -57,7 +55,7 @@ class PlantillaACB(object):
 
     def __str__(self):
         result = "%s [%s] Year: %s Jugadores conocidos: %i Entrenadores conocidos: %i" % (
-            self.club.get('nombreActual', "TBD"), self.id, self.edicion, len(self.jugadores), len(self.tecnicos))
+                self.club.get('nombreActual', "TBD"), self.id, self.edicion, len(self.jugadores), len(self.tecnicos))
         return result
 
     __repr__ = __str__
@@ -71,7 +69,7 @@ class PlantillaACB(object):
             targetDict = self.tecnicos
         else:  # Ni jugador ni tecnico???
             raise ValueError("Jugador '%s' (%s) no es ni jugador ni técnico" % (
-                nombre, dorsal if dorsal is not None else "Sin dorsal"))
+                    nombre, dorsal if dorsal is not None else "Sin dorsal"))
 
         resultSet = set()
 

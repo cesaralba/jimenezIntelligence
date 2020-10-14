@@ -9,10 +9,9 @@ from babel.numbers import decimal, parse_decimal
 from bs4 import BeautifulSoup
 
 from Utils.Misc import FORMATOtimestamp, onlySetElement
-
 from .ManageSMDataframes import datosPosMerc, datosProxPartidoMerc
 from .PlantillaACB import descargaPlantillasCabecera
-from .SMconstants import CUPOCORTO, CUPOS, POSICIONCORTA, POSICIONES, bool2esp
+from .SMconstants import bool2esp, CUPOCORTO, CUPOS, POSICIONCORTA, POSICIONES
 
 INCLUDEPLAYERDATA = False
 
@@ -347,7 +346,7 @@ class MercadoPageContent():
                     codJugador = result['kiaLink']
                 except KeyError:
                     print("Problemas con jugador '%s' (%s): no tiene kiaLink (?)" % (
-                        result.get('nombre', "Nombre desc"), result.get('equipo', "Equipo desc")))
+                            result.get('nombre', "Nombre desc"), result.get('equipo', "Equipo desc")))
                     self.noKiaLink.append(result)
                     continue
 
@@ -572,7 +571,7 @@ class GroupPlayer(object):
                 self.IncludePlayer(mercado.PlayerData[p])
             else:
                 raise NoSuchPlayerException("Unable find player [{}] in mercado from {}@{}".format(
-                    p, mercado.source, mercado.timestamp))
+                        p, mercado.source, mercado.timestamp))
 
     def IncludePlayer(self, playerInfo):
         cod = playerInfo['codJugador']
@@ -594,7 +593,7 @@ class GroupPlayer(object):
                 raise BaseException("Can't add a {} to a GroupPlayer".format(type(other)))
             if (self.mercado != other.mercado) or (self.timestamp != other.timestamp):
                 raise BaseException("Can't merge players from different mercado data {}@{} and {}@{}".format(
-                    self.source, self.timestamp, other.source, other.timestamp))
+                        self.source, self.timestamp, other.source, other.timestamp))
             totalLength += len(other.players)
 
         result = GroupPlayer()

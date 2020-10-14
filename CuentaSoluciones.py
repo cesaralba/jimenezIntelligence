@@ -24,7 +24,7 @@ from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.CombinacionesConCupos import GeneraCombinaciones
 from Utils.combinatorics import n_choose_m, prod
-from Utils.Misc import FORMATOtimestamp, creaPath
+from Utils.Misc import creaPath, FORMATOtimestamp
 from Utils.pysize import get_size
 
 NJOBS = 2
@@ -40,7 +40,7 @@ ch.setLevel(logging.DEBUG)
 
 # create formatter
 formatter = logging.Formatter(
-    '%(asctime)s [%(process)d:%(threadName)10s@%(name)s %(levelname)s %(relativeCreated)14dms]: %(message)s')
+        '%(asctime)s [%(process)d:%(threadName)10s@%(name)s %(levelname)s %(relativeCreated)14dms]: %(message)s')
 
 # add formatter to ch
 ch.setFormatter(formatter)
@@ -219,10 +219,10 @@ if __name__ == '__main__':
     logger.info("Cargando grupos de jornada %d" % (jornada))
 
     nombreFichCuentaValoresGrupos = varname2fichname(jornada=jornada, varname="-".join([
-        indexGroup2Key(indexGroups), "cuentaValGrupos"]), basedir=destdir)
+            indexGroup2Key(indexGroups), "cuentaValGrupos"]), basedir=destdir)
 
     nombreFichCuentaValoresEquipos = varname2fichname(jornada=jornada, varname="-".join([
-        indexGroup2Key(indexGroups), "cuentaSoluciones"]), basedir=destdir)
+            indexGroup2Key(indexGroups), "cuentaSoluciones"]), basedir=destdir)
 
     nombreFichGruposJugs = varname2fichname(jornada=jornada,
                                             varname="-".join([indexGroup2Key(indexGroups), "grupoJugs"]),
@@ -340,6 +340,6 @@ if __name__ == '__main__':
     configParallel['prefer'] = args.joblibmode
 
     result = joblib.Parallel(**configParallel)(
-        joblib.delayed(calculaCuentaResultados)(**plan) for plan in planesAcorrer)
+            joblib.delayed(calculaCuentaResultados)(**plan) for plan in planesAcorrer)
 
     logger.info("Terminando ejecución")

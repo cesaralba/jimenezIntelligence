@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from collections import defaultdict
+from sys import exc_info
+from traceback import print_exception
 
 from configargparse import ArgumentParser
 
@@ -10,8 +12,6 @@ from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.Misc import ReadFile
 
-from sys import exc_info
-from traceback import print_exception
 
 def cuentaFuera(mercado):
     resultado = defaultdict(int)
@@ -70,7 +70,7 @@ if __name__ == '__main__':
         try:
             mf = MercadoPageContent(Mfile, datosSM=sm)
         except BaseException as exc:
-            print("Problemas leyendo fichero '%s': %s" % (mercadoFile,exc_info()))
+            print("Problemas leyendo fichero '%s': %s" % (mercadoFile, exc_info()))
             print_exception(*exc_info())
             raise Exception("Terminando")
 
@@ -118,7 +118,7 @@ if __name__ == '__main__':
 
     idJornadas = set()
     for l in sm.ligas:
-        idJornadas = idJornadas.union(set(map(str,sm.ligas[l].getListaJornadas())))
+        idJornadas = idJornadas.union(set(map(str, sm.ligas[l].getListaJornadas())))
 
     if 'jornada' in args and args.jornada:
         for clave in args.jornada:

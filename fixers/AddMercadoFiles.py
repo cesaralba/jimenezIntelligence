@@ -58,7 +58,7 @@ if __name__ == '__main__':
         if type(sm.mercado[clave]) is not str:
             if hasattr(mercadoClave, 'NoFoto2Nombre'):
                 NoFotoData = dict(zip(mercadoClave.NoFoto2Nombre,
-                                  [mercadoClave.PlayerData[x] for x in mercadoClave.NoFoto2Nombre]))
+                                      [mercadoClave.PlayerData[x] for x in mercadoClave.NoFoto2Nombre]))
 
                 mercadoClave.arreglaNoFotos(datosACB=temporada, NoFoto2Nombre=mercadoClave.NoFoto2Nombre,
                                             Nombre2NoFoto=mercadoClave.Nombre2NoFoto,
