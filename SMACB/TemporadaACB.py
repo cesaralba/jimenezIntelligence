@@ -210,14 +210,14 @@ class TemporadaACB(object):
 
         return sigPart, (abrEq, abrRival), juTem, peOrd, juRivTem, peRivOrd
 
-    def clasifEquipo(self, abrEq, fecha):
+    def clasifEquipo(self, abrEq, fecha=None):
         abrevsEq = self.Calendario.abrevsEquipo(abrEq)
         juCal, _ = self.Calendario.partidosEquipo(abrEq)
         result = defaultdict(int)
         result['Lfav'] = list()
         result['Lcon'] = list()
 
-        partidosAcontar = [p for p in juCal if self.Partidos[p['url']].FechaHora < fecha]
+        partidosAcontar = [p for p in juCal if self.Partidos[p['url']].FechaHora < fecha] if fecha else juCal
 
         for datosCal in partidosAcontar:
             abrevUsada = abrevsEq.intersection(datosCal['participantes']).pop()
