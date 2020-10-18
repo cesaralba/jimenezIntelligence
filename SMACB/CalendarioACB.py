@@ -272,7 +272,7 @@ def procesaCab(cab):
     patL = re.match(patronL, cadL)
     if patL:
         dictFound = patL.groupdict()
-        print("CAP ", dictFound)
+        #print("CAP ", dictFound)
         resultado.update(dictFound)
         resultado['auxFechas'] = procesaFechasJornada(cadR)
     else:
