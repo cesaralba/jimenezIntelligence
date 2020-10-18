@@ -8,6 +8,7 @@ from SMACB.TemporadaACB import TemporadaACB
 
 
 def partidoTrayectoria(partido, abrevs, datosTemp):
+    #Cadena de información del partido
     strFecha = strftime("%d-%m", partido.FechaHora)
     abrEq = list(abrevs.intersection(partido.DatosSuministrados['participantes']))[0]
     abrRival = list(partido.DatosSuministrados['participantes'].difference(abrevs))[0]
@@ -19,6 +20,8 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
     clasifStr = "(%i-%i)" % (clasifAux.get('V', 0), clasifAux.get('D', 0))
     strRival = f"{strFecha}: {prefLoc} {nomRival} {clasifStr}"
 
+    # Cadena del resultado del partido
+    # TODO: Esto debería ir en HTML o Markup correspondiente
     prefV = {loc: '*' if partido.DatosSuministrados['equipos'][loc]['haGanado'] else '' for loc in LocalVisitante}
     prefMe = {loc: '_' if (loc == locEq) else '' for loc in LocalVisitante}
     resAux = [f"{prefV[loc]}{prefMe[loc]}{partido.DatosSuministrados['resultado'][loc]}{prefMe[loc]}{prefV[loc]}" for loc in LocalVisitante]
