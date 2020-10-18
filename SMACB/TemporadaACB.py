@@ -235,6 +235,17 @@ class TemporadaACB(object):
             result['Pcon'] += datosRival['puntos']
             result['Lcon'].append(datosRival['puntos'])
 
+        result['idEq'] = self.Calendario.tradEquipos['c2i'][abrEq]
+        result['nombresEq'] = self.Calendario.tradEquipos['c2n'][abrEq]
+        result['abrevsEq'] = abrevsEq
+
+        return result
+
+    def clasifLiga(self, fecha=None):
+        result = sorted([self.clasifEquipo(list(cSet)[0], fecha=fecha)
+                         for cSet in self.Calendario.tradEquipos['i2c'].values()],
+                        key=lambda x: entradaClas2k(x), reverse=True)
+
         return result
 
 
@@ -308,5 +319,22 @@ def calculaVars(temporada, clave, useStd=True, filtroFechas=None):
                 result[comb]["-".join([comb, clZ, clave, 'mean'])] - result[comb]["-".join([comb, clZ, clave, 'std'])])
         result[comb]["-".join([comb, clave, (clZ.lower() + "Max")])] = (
                 result[comb]["-".join([comb, clZ, clave, 'mean'])] + result[comb]["-".join([comb, clZ, clave, 'std'])])
+
+    return result
+
+
+def entradaClas2k(ent):
+    """
+    Dado un resultado de Temporada.getClasifEquipo)
+
+    :param listaClas: lista de equipos (resultado de Temporada.getClasifEquipo)
+    :return: tupla (ratio Vict/Jugados, Vict, Ventaja/Jugados, Pfavor)
+    """
+
+    ratioV = ent.get('V', 0) / ent.get('Jug') if ent.get('Jug', 0) else 0.0
+    ratioVent = ((ent.get('Pfav', 0) - ent.get('Pcon', 0)) / ent.get('Jug')) if ent.get('Jug', 0) else 0.0
+
+    result = (ratioV, ent.get('V', 0), ratioVent, ent.get('Pfav', 0))
+    print(ent, result)
 
     return result
