@@ -8,7 +8,7 @@ from SMACB.TemporadaACB import TemporadaACB
 
 
 def partidoTrayectoria(partido, abrevs, datosTemp):
-    #Cadena de información del partido
+    # Cadena de información del partido
     strFecha = strftime("%d-%m", partido.FechaHora)
     abrEq = list(abrevs.intersection(partido.DatosSuministrados['participantes']))[0]
     abrRival = list(partido.DatosSuministrados['participantes'].difference(abrevs))[0]
@@ -85,8 +85,8 @@ def cargaTemporada(fname):
 def listaEquipos(tempData):
     print("Abreviatura -> nombre(s) equipo")
     for abr in sorted(tempData.Calendario.tradEquipos['c2n']):
-        listaEquipos = sorted(tempData.Calendario.tradEquipos['c2n'][abr], key=lambda x: (len(x), x), reverse=True)
-        listaEquiposStr = ",".join(listaEquipos)
+        listaEquiposAux = sorted(tempData.Calendario.tradEquipos['c2n'][abr], key=lambda x: (len(x), x), reverse=True)
+        listaEquiposStr = ",".join(listaEquiposAux)
         print(f'{abr}: {listaEquiposStr}')
     sys.exit(0)
 
@@ -94,7 +94,7 @@ def listaEquipos(tempData):
 def parse_arguments():
     descriptionTXT = "Merges POIs with the geographical entities used by Smart Steps"
 
-    parser = argparse.ArgumentParser(description=descriptionTXT, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(description=descriptionTXT)
     parser.add_argument("-t", "--acbfile", dest="acbfile", action="store", required=True, help="Nombre del ficheros de temporada", )
     parser.add_argument("-l", "--listaequipos", dest='listaEquipos', action="store_true", required=False, help="Lista siglas para equipos", )
 
