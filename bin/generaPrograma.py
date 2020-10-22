@@ -101,9 +101,9 @@ def parse_arguments():
     parser.add_argument("-e", "--equipo", dest="equipo", action="store", required=False, help="Abreviatura del equipo deseado (usar -l para obtener lista)", )
     parser.add_argument("-o", "--outfile", dest="outfile", action="store", help="Fichero PDF generado", required=False, )
 
-    args = parser.parse_args()
+    result = parser.parse_args()
 
-    return args
+    return result
 
 
 def main(args):

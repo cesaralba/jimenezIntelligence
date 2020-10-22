@@ -178,10 +178,13 @@ class CalendarioACB(object):
             divTiempo = divPartido.find('div', {"class": "info"})
 
             if divTiempo:
-                cadFecha = divTiempo.find('span', {"class": "fecha"}).next.lower()
-                cadHora = divTiempo.find('span', {"class": "hora"}).get_text()
+                auxFecha = divTiempo.find('span', {"class": "fecha"}).next
+                auxHora = divTiempo.find('span', {"class": "hora"}).get_text()
+                if isinstance(auxFecha,str) and auxFecha != '' and auxHora:
+                    cadFecha = auxFecha.lower()  #divTiempo.find('span', {"class": "fecha"}).next
+                    cadHora = divTiempo.find('span', {"class": "hora"}).get_text()
 
-                resultado['fecha'] = procesaFechaHoraPartido(cadFecha.strip(), cadHora.strip(), datosJornada)
+                    resultado['fecha'] = procesaFechaHoraPartido(cadFecha.strip(), cadHora.strip(), datosJornada)
 
         return resultado
 
