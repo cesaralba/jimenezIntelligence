@@ -15,6 +15,8 @@ template_URLFICHA = "http://www.acb.com/fichas/%s%i%03i.php"
 template_CALENDARIOYEAR = "http://www.acb.com/calendario/index/temporada_id/{year}"
 template_CALENDARIOFULL = "http://www.acb.com/calendario/index/temporada_id/{year}/edicion_id/{compoID}"
 
+NEVER = strptime("2030-12-31 00:00", FORMATOtimestamp)
+
 UMBRALbusquedaDistancia = 1  # La comparación debe ser >
 
 
@@ -147,7 +149,7 @@ class CalendarioACB(object):
         # TODO: incluir datos de competicion
         resultado = dict()
         resultado['pendiente'] = True
-        resultado['fecha'] = None
+        resultado['fecha'] = NEVER
         resultado['jornada'] = datosJornada['jornada']
 
         resultado['cod_competicion'] = self.competicion
@@ -180,8 +182,8 @@ class CalendarioACB(object):
             if divTiempo:
                 auxFecha = divTiempo.find('span', {"class": "fecha"}).next
                 auxHora = divTiempo.find('span', {"class": "hora"}).get_text()
-                if isinstance(auxFecha,str) and auxFecha != '' and auxHora:
-                    cadFecha = auxFecha.lower()  #divTiempo.find('span', {"class": "fecha"}).next
+                if isinstance(auxFecha, str) and auxFecha != '' and auxHora:
+                    cadFecha = auxFecha.lower()  # divTiempo.find('span', {"class": "fecha"}).next
                     cadHora = divTiempo.find('span', {"class": "hora"}).get_text()
 
                     resultado['fecha'] = procesaFechaHoraPartido(cadFecha.strip(), cadHora.strip(), datosJornada)
@@ -275,7 +277,7 @@ def procesaCab(cab):
     patL = re.match(patronL, cadL)
     if patL:
         dictFound = patL.groupdict()
-        #print("CAP ", dictFound)
+        # print("CAP ", dictFound)
         resultado.update(dictFound)
         resultado['auxFechas'] = procesaFechasJornada(cadR)
     else:
@@ -332,7 +334,7 @@ def procesaDivsEquipo(divList):
 
 
 def procesaFechaHoraPartido(cadFecha, cadHora, datosCab):
-    resultado = None
+    resultado = NEVER
     diaSem2n = {'lun': 0, 'mar': 1, 'mié': 2, 'jue': 3, 'vie': 4, 'sáb': 5, 'dom': 6}
     patronDiaPartido = r'^(?P<diasem>\w+)\s(?P<diames>\d{1,2})$'
 
@@ -355,7 +357,8 @@ def procesaFechaHoraPartido(cadFecha, cadHora, datosCab):
                 resultado = fechaPart
             except ValueError:
                 print("procesaFechaHoraPartido: '%s' no casa RE '%s'" % (cadFechaFin, FORMATOtimestamp))
-                resultado = None
+                resultado = NEVER
+
     else:
         raise ValueError("RE: '%s' no casa patrón '%s'" % (cadFecha, patronDiaPartido))
 

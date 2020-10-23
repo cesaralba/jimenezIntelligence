@@ -124,8 +124,6 @@ def main(args):
         print(f"Equipo desconocido '{args.equipo}': {exc}")
         sys.exit(1)
 
-    print(sigPartido)
-
     raise Exception("Bye")
 
 
