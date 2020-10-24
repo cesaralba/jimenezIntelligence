@@ -118,30 +118,25 @@ class PartidoACB(object):
                         if cachedTeam is None:
                             cachedTeam = PlantillaACB(id=datosJug['IDequipo'], edicion=datosJug['temporada'])
 
-<<<<<<< HEAD
-                        nombreRetoc = RetocaNombreJugador(
-                                datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug['nombre']
-=======
-                        nombreRetoc = RetocaNombreJugador(datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug['nombre']
->>>>>>> master
+                nombreRetoc = RetocaNombreJugador(datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug['nombre']
 
-                        newCode = cachedTeam.getCode(nombre=nombreRetoc, dorsal=datosJug['dorsal'],
-                                                     esTecnico=datosJug['entrenador'],
-                                                     esJugador=datosJug['esJugador'], umbral=1)
-                        if newCode is not None:
-                            datosJug['codigo'] = newCode
+                newCode = cachedTeam.getCode(nombre=nombreRetoc, dorsal=datosJug['dorsal'],
+                                             esTecnico=datosJug['entrenador'],
+                                             esJugador=datosJug['esJugador'], umbral=1)
+                if newCode is not None:
+                    datosJug['codigo'] = newCode
 
-                            if datosJug['esJugador']:
-                                self.Jugadores[datosJug['codigo']] = datosJug
-                                (self.Equipos[l]['Jugadores']).append(datosJug['codigo'])
-                            elif datosJug.get('entrenador', False):
-                                self.Entrenadores[datosJug['codigo']] = datosJug
-                                self.Equipos[l]['Entrenador'] = datosJug['codigo']
-                            self.aprendidos[l].append(newCode)
-                        else:
-                            print("Imposible encontrar ID. Partido: %s. %s" % (self, datosJug))
-                            newPendientes.append(datosJug)
-                            raiser = True
+                    if datosJug['esJugador']:
+                        self.Jugadores[datosJug['codigo']] = datosJug
+                        (self.Equipos[l]['Jugadores']).append(datosJug['codigo'])
+                    elif datosJug.get('entrenador', False):
+                        self.Entrenadores[datosJug['codigo']] = datosJug
+                        self.Equipos[l]['Entrenador'] = datosJug['codigo']
+                    self.aprendidos[l].append(newCode)
+                else:
+                    print("Imposible encontrar ID. Partido: %s. %s" % (self, datosJug))
+                    newPendientes.append(datosJug)
+                    raiser = True
 
                 self.pendientes[l] = newPendientes
             if raiser:
