@@ -306,7 +306,6 @@ try:
 except ImportError:
     pass
 
-
 # Define `fact` as a shorthand name for the `factorial` function:
 fact = math.factorial
 
@@ -473,11 +472,11 @@ def m_way_ordered_combinations(items, ks):
 
     return _m_way_ordered_combinations(items, ks)
 
+
 # end def m_way_ordered_combinations
 
 
 def _m_way_ordered_combinations(items, ks):
-
     if len(ks) == 1:
         for c in itertools.combinations(items, ks[0]):
             yield (c,)
@@ -491,6 +490,7 @@ def _m_way_ordered_combinations(items, ks):
 
             for c_other in _m_way_ordered_combinations(items_remaining, ks[1:]):
                 yield (c_first,) + c_other
+
 
 # end def _m_way_ordered_combinations(items, ns)
 
@@ -564,6 +564,7 @@ def m_way_unordered_combinations(items, ks):
     # `items` so that the equivalence test (see comment below) will work.
     return _m_way_unordered_combinations(sorted(items), ks)
 
+
 # end def m_way_unordered_combinations
 
 
@@ -599,6 +600,7 @@ def _m_way_unordered_combinations(items, ks):
                 # and should therefore be skipped.
                 if len(c_first) != len(c_other[0]) or c_first < c_other[0]:
                     yield (c_first,) + c_other
+
 
 # end def _m_way_unordered_combinations(items, ns)
 
@@ -686,6 +688,7 @@ def _unlabeled_balls_in_labeled_boxes(balls, box_sizes):
 
     # end three alternative blocks
 
+
 # end def _unlabeled_balls_in_labeled_boxes(balls, box_sizes)
 
 
@@ -745,6 +748,7 @@ def unlabeled_balls_in_unlabeled_boxes(balls, box_sizes):
 
     return _unlabeled_balls_in_unlabeled_boxes(balls, box_sizes)
 
+
 # def unlabeled_balls_in_unlabeled_boxes(balls, box_sizes)
 
 
@@ -785,6 +789,7 @@ def _unlabeled_balls_in_unlabeled_boxes(balls, box_sizes):
                     yield (balls_in_first_box,) + distribution_other
 
     # end three alternative blocks
+
 
 # def _unlabeled_balls_in_unlabeled_boxes(balls, box_sizes)
 
@@ -833,7 +838,7 @@ def labeled_balls_in_unlabeled_boxes(balls, box_sizes):
         if not isinstance(size, int):
             raise TypeError("box_sizes must contain only positive integers.")
         if size < 1:
-                raise ValueError("box_sizes must contain only positive integers.")
+            raise ValueError("box_sizes must contain only positive integers.")
         capacity += size
 
     if capacity < balls:
@@ -843,6 +848,7 @@ def labeled_balls_in_unlabeled_boxes(balls, box_sizes):
     for unlabeled_dist in unlabeled_balls_in_unlabeled_boxes(balls, box_sizes):
         for labeled_dist in m_way_unordered_combinations(balls, unlabeled_dist):
             yield labeled_dist
+
 
 # end def labeled_balls_in_unlabeled_boxes(balls, box_sizes)
 
@@ -907,6 +913,7 @@ def labeled_balls_in_labeled_boxes(balls, box_sizes):
     for unlabeled_dist in unlabeled_balls_in_labeled_boxes(balls, box_sizes):
         for labeled_dist in m_way_ordered_combinations(balls, unlabeled_dist):
             yield labeled_dist
+
 
 # end def labeled_balls_in_labeled_boxes(balls, box_sizes)
 

@@ -109,8 +109,7 @@ def preparaDatosComunes(datosMezclados):
     return resultado
 
 
-def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
-
+def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
     jugSM = supermanager.extraeDatosJugadores()
     jugTM = temporada.extraeDatosJugadores()
     jugData = mezclaJugadores(jugTM, jugSM)

@@ -8,13 +8,11 @@ from time import gmtime, mktime, strftime, time
 from configargparse import ArgumentParser
 from pandas import DataFrame, ExcelWriter
 
-from SMACB.ManageSMDataframes import (CATMERCADOFINAL, COLSPREC,
-                                      calculaDFcategACB, calculaDFconVars,
-                                      calculaDFprecedentes)
+from SMACB.ManageSMDataframes import (calculaDFcategACB, calculaDFconVars, calculaDFprecedentes, CATMERCADOFINAL, COLSPREC)
 from SMACB.PartidoACB import PartidoACB
 from SMACB.SMconstants import MINPRECIO, POSICIONES, PRECIOpunto
 from SMACB.SuperManager import SuperManagerACB
-from SMACB.TemporadaACB import TemporadaACB, calculaVars, calculaZ
+from SMACB.TemporadaACB import calculaVars, calculaZ, TemporadaACB
 from Utils.Misc import FORMATOtimestamp, SubSet
 
 
@@ -115,7 +113,7 @@ def preparaDatosComunes(datosMezclados):
 
 def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx"):
     dfSuperManager = supermanager.superManager2dataframe(
-        nombresJugadores=temporada.tradJugadores['id2nombres'])  # Needed to get player position from all players
+            nombresJugadores=temporada.tradJugadores['id2nombres'])  # Needed to get player position from all players
     dfTemporada = temporada.extraeDataframeJugadores().merge(dfSuperManager[['codigo', 'pos']], how='left')
     # All data fall playrs
     dfUltMerc = supermanager.mercado[supermanager.ultimoMercado].mercado2dataFrame()
@@ -165,7 +163,7 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx"):
 
     def preparaHojaMercado(excelwriter, supermanager, temporada, listaformatos):
         dfSuperManager = supermanager.superManager2dataframe(
-            nombresJugadores=temporada.tradJugadores['id2nombres'], )  # Needed to get player position from all players
+                nombresJugadores=temporada.tradJugadores['id2nombres'], )  # Needed to get player position from all players
         dfTemporada = temporada.extraeDataframeJugadores().merge(dfSuperManager[['codigo', 'pos']], how='left')
         # All data fall playrs
         dfUltMerc = supermanager.mercado[supermanager.ultimoMercado].mercado2dataFrame()
@@ -185,7 +183,7 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx"):
         else:
             antecColumns = CATMERCADOFINAL + COLSDIFPRECIO + COLSPREC
             df2show = dfUltMerc.merge(dfPrecV, how='left').merge(dfPrecVsm, how='left')[antecColumns].set_index(
-                'codigo')
+                    'codigo')
 
         creaHoja(writer, 'Mercado', df2show, formatos, colsToFreeze=len(CATMERCADOFINAL) - 1)
 

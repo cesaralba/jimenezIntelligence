@@ -33,7 +33,7 @@ local2esp = {True: "L", False: "V"}
 
 def calculaValSuperManager(valoracion, haGanado=False):
     return round(
-        decimal.Decimal.from_float(float(valoracion) * (BONUSVICTORIA if (haGanado and (valoracion > 0)) else 1.0)), 2)
+            decimal.Decimal.from_float(float(valoracion) * (BONUSVICTORIA if (haGanado and (valoracion > 0)) else 1.0)), 2)
 
 
 def buildPosCupoIndex():

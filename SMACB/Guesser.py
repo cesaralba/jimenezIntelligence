@@ -6,9 +6,7 @@ from os.path import join
 import joblib
 
 from Utils.Misc import creaPath
-
-from .SMconstants import (CUPOS, POSICIONES, SEQCLAVES, buildPosCupoIndex,
-                          calculaValSuperManager)
+from .SMconstants import (buildPosCupoIndex, calculaValSuperManager, CUPOS, POSICIONES, SEQCLAVES)
 
 id2key = {'t': 'triples', 'a': 'asistencias', 'r': 'rebotes', 'p': 'puntos', 'v': 'valJornada', 'b': 'broker'}
 key2id = {v: k for k, v in id2key.items()}
@@ -120,7 +118,7 @@ def getPlayersByPosAndCupoJornada(jornada, supermanager, temporada):
                 aux['valJornada'] = 0
             else:
                 raise KeyError("Clave '%s' (%s) inexistente en mercadoFin y jugo partido" % (
-                    j, mercadoIni.PlayerData[j]['nombre']))
+                        j, mercadoIni.PlayerData[j]['nombre']))
         else:
             aux['precioFin'] = mercadoFin.PlayerData[j]['precio']
             aux['valJornada'] = mercadoFin.PlayerData[j]['valJornada']
@@ -195,13 +193,13 @@ def keySearchOrderParameter(param):
         result = [id2key[k.lower()] for k in param]
     except KeyError as exc:
         raise ValueError(
-            "keySearchOrderParameter: There was a problem with parameter '%s': bad key %s. Bye." % (param, exc))
+                "keySearchOrderParameter: There was a problem with parameter '%s': bad key %s. Bye." % (param, exc))
 
     if len(result) != len(id2key):
         missing = ["%s(%s)" % (k, key2id[k]) for k in key2id if k not in result]
 
         raise ValueError("keySearchOrderParameter: There was a problem with parameter '%s': missing keys : %s. Bye." % (
-            param, ", ".join(missing)))
+                param, ", ".join(missing)))
 
     return result
 

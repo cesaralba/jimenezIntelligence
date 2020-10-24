@@ -2,7 +2,7 @@ import re
 from _collections import defaultdict
 from unicodedata import normalize
 
-from .Misc import listize, onlySetElement, cosaLarga, cosaCorta
+from .Misc import cosaCorta, cosaLarga, listize, onlySetElement
 
 NORMADEFECTO = 'NFKD'
 
@@ -138,7 +138,7 @@ def wordPosSet(wordList):
     """
 
     wrkList = wordList if isinstance(wordList, list) else (
-        wordList.split() if isinstance(wordList, (str, bytes)) else wordList)
+            wordList.split() if isinstance(wordList, (str, bytes)) else wordList)
     result = defaultdict(set)
     for w, o in zip(wrkList, range(len(wrkList))):
         result[w].add(o)

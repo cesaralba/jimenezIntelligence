@@ -1,9 +1,9 @@
-
 from copy import copy
 
 from SMACB.SMconstants import MAXIMOextranjeros, MINIMOnacionales
 
 jugPorPos = [3, 4, 4]
+
 
 # Posiciones //3 = 0 Bases, //3 = 1 Aleros, // = 2 Pivots
 # Cupos: % 3 = 0 Extra, %3 = 1 Nacionales, %3 = 2 Resto
