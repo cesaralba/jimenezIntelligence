@@ -9,6 +9,7 @@ from babel.numbers import decimal, parse_decimal
 from bs4 import BeautifulSoup
 
 from Utils.Misc import FORMATOtimestamp, onlySetElement
+
 from .ManageSMDataframes import datosPosMerc, datosProxPartidoMerc
 from .PlantillaACB import descargaPlantillasCabecera
 from .SMconstants import bool2esp, CUPOCORTO, CUPOS, POSICIONCORTA, POSICIONES

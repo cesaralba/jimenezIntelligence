@@ -16,6 +16,7 @@ from bs4 import Tag
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams, getObjID
+
 from .PlantillaACB import PlantillaACB
 from .SMconstants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp,
                           titular2esp)
@@ -117,8 +118,7 @@ class PartidoACB(object):
                         if cachedTeam is None:
                             cachedTeam = PlantillaACB(id=datosJug['IDequipo'], edicion=datosJug['temporada'])
 
-                        nombreRetoc = RetocaNombreJugador(
-                                datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug['nombre']
+                        nombreRetoc = RetocaNombreJugador(datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug['nombre']
 
                         newCode = cachedTeam.getCode(nombre=nombreRetoc, dorsal=datosJug['dorsal'],
                                                      esTecnico=datosJug['entrenador'],

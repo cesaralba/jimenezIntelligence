@@ -347,14 +347,14 @@ class SuperManagerACB(object):
 
                 IDjugador = cacheLinks.get(jugadorData['kiaLink'], dataPlants[jugadorData['IDequipo']].getCode(
                         nombre=RetocaNombreJugador(jugadorData['nombre']), esJugador=True, umbral=1))
+
                 if isinstance(IDjugador, str):
                     cacheLinks[jugadorData['kiaLink']] = IDjugador
                     cacheEqNom[jugadorData['IDequipo']][jugadorData['nombre']] = IDjugador
                     codJugador = IDjugador
                 else:
                     pendienteLinks[jugadorData['kiaLink']].append((i, jugadorData))
-                    print("Incapaz de encontrar ID para '%s' (%s,%s): %s" % (
-                            jugadorData['kiaLink'], jugadorData['nombre'], jugadorData['equipo'], IDjugador))
+                    print("Incapaz de encontrar ID para '%s' (%s,%s): %s" % (jugadorData['kiaLink'], jugadorData['nombre'], jugadorData['equipo'], IDjugador))
                     continue
 
                 actualizaResultado(resultado, codJugador, i, jugadorData)
@@ -366,13 +366,13 @@ class SuperManagerACB(object):
                                                                             nombre=RetocaNombreJugador(
                                                                                     jugadorData['nombre']), esJugador=True,
                                                                             umbral=1))
+
                 if isinstance(IDjugador, str):
                     cacheEqNom[jugadorData['IDequipo']][jugadorData['nombre']] = IDjugador
                     codJugador = IDjugador
                 else:
                     pendienteEqNom[jugadorData['IDequipo']][jugadorData['nombre']].append((i, jugadorData))
-                    print("Incapaz de encontrar ID para %s (%s): %s" % (
-                            jugadorData['nombre'], jugadorData['equipo'], IDjugador))
+                    print("Incapaz de encontrar ID para %s (%s): %s" % (jugadorData['nombre'], jugadorData['equipo'], IDjugador))
                     continue
 
                 actualizaResultado(resultado, codJugador, i, jugadorData)

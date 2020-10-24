@@ -194,6 +194,7 @@ class TemporadaACB(object):
 
         return (dfResult)
 
+
     def sigPartido(self, abrEq):
         juCal, peCal = self.Calendario.partidosEquipo(abrEq)
 
