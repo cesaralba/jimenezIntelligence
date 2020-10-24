@@ -8,13 +8,11 @@ from time import gmtime, mktime, strftime, time
 from configargparse import ArgumentParser
 from pandas import DataFrame, ExcelWriter
 
-from SMACB.ManageSMDataframes import (CATMERCADOFINAL, COLSPREC,
-                                      calculaDFcategACB, calculaDFconVars,
-                                      calculaDFprecedentes)
+from SMACB.ManageSMDataframes import (calculaDFcategACB, calculaDFconVars, calculaDFprecedentes, CATMERCADOFINAL, COLSPREC)
 from SMACB.PartidoACB import PartidoACB
 from SMACB.SMconstants import MINPRECIO, POSICIONES, PRECIOpunto
 from SMACB.SuperManager import SuperManagerACB
-from SMACB.TemporadaACB import TemporadaACB, calculaVars, calculaZ
+from SMACB.TemporadaACB import calculaVars, calculaZ, TemporadaACB
 from Utils.Misc import FORMATOtimestamp, SubSet
 
 
@@ -183,7 +181,7 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
         else:
             antecColumns = CATMERCADOFINAL + COLSDIFPRECIO + COLSPREC
             df2show = dfUltMerc.merge(dfPrecV, how='left').merge(dfPrecVsm, how='left')[antecColumns].set_index(
-                'codigo')
+                    'codigo')
 
         creaHoja(writer, 'Mercado', df2show, formatos, colsToFreeze=len(CATMERCADOFINAL) - 1)
 

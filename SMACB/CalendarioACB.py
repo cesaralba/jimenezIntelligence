@@ -5,8 +5,8 @@ from copy import deepcopy
 from time import gmtime, strptime
 
 from Utils.Misc import FORMATOtimestamp
-from Utils.Web import DescargaPagina, MergeURL, getObjID
 
+from Utils.Web import DescargaPagina, getObjID, MergeURL
 from .SMconstants import URL_BASE
 
 calendario_URLBASE = "http://www.acb.com/calendario"
@@ -15,6 +15,8 @@ template_URLFICHA = "http://www.acb.com/fichas/%s%i%03i.php"
 # http://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
 template_CALENDARIOYEAR = "http://www.acb.com/calendario/index/temporada_id/{year}"
 template_CALENDARIOFULL = "http://www.acb.com/calendario/index/temporada_id/{year}/edicion_id/{compoID}"
+
+NEVER = strptime("2030-12-31 00:00", FORMATOtimestamp)
 
 UMBRALbusquedaDistancia = 1  # La comparación debe ser >
 
@@ -94,7 +96,7 @@ class CalendarioACB(object):
                                    divTemporadas.find_all('div', {"class": "elemento"})}
                 if self.edicion not in listaTemporadas:
                     raise KeyError("Temporada solicitada {year} no está entre las disponibles ({listaYears})".format(
-                        year=self.edicion, listaYears=", ".join(listaTemporadas.keys())))
+                            year=self.edicion, listaYears=", ".join(listaTemporadas.keys())))
 
                 pagYear = DescargaPagina(urlYear, home=None, browser=browser, config=config)
 
@@ -110,7 +112,7 @@ class CalendarioACB(object):
                 listaComposTxt = ["{k} = '{label}'".format(k=x, label=listaCompos[compoClaves[x]]) for x in
                                   compoClaves]
                 raise KeyError("Compo solicitada {compo} no disponible. Disponibles: {listaCompos}".format(
-                    compo=self.competicion, listaCompos=", ".join(listaComposTxt)))
+                        compo=self.competicion, listaCompos=", ".join(listaComposTxt)))
 
             self.url = template_CALENDARIOFULL.format(year=self.edicion, compoID=compoClaves[self.competicion])
 
@@ -148,7 +150,7 @@ class CalendarioACB(object):
         # TODO: incluir datos de competicion
         resultado = dict()
         resultado['pendiente'] = True
-        resultado['fecha'] = None
+        resultado['fecha'] = NEVER
         resultado['jornada'] = datosJornada['jornada']
 
         resultado['cod_competicion'] = self.competicion
@@ -163,25 +165,55 @@ class CalendarioACB(object):
                                               codigo=infoEq['abrev'], id=None)
 
         resultado['equipos'] = datosPartEqs
+        resultado['loc2abrev'] = {x: datosPartEqs[x]['abrev'] for x in datosPartEqs}
+        resultado['abrev2loc'] = {datosPartEqs[x]['abrev']: x for x in datosPartEqs}
+
+        resultado['participantes'] = {datosPartEqs[x]['abrev'] for x in datosPartEqs}
 
         if 'enlace' in datosPartEqs['Local']:
             resultado['pendiente'] = False
             linkGame = datosPartEqs['Local']['enlace']
             resultado['url'] = MergeURL(self.url, linkGame)
             resultado['resultado'] = {x: datosPartEqs[x]['puntos'] for x in datosPartEqs}
-            resultado['codigos'] = {x: datosPartEqs[x]['abrev'] for x in datosPartEqs}
             resultado['partido'] = getObjID(linkGame)
 
         else:
             divTiempo = divPartido.find('div', {"class": "info"})
 
             if divTiempo:
-                cadFecha = divTiempo.find('span', {"class": "fecha"}).next.lower()
-                cadHora = divTiempo.find('span', {"class": "hora"}).get_text()
+                auxFecha = divTiempo.find('span', {"class": "fecha"}).next
+                auxHora = divTiempo.find('span', {"class": "hora"}).get_text()
+                if isinstance(auxFecha, str) and auxFecha != '' and auxHora:
+                    cadFecha = auxFecha.lower()  # divTiempo.find('span', {"class": "fecha"}).next
+                    cadHora = divTiempo.find('span', {"class": "hora"}).get_text()
 
-                resultado['fecha'] = procesaFechaHoraPartido(cadFecha.strip(), cadHora.strip(), datosJornada)
+                    resultado['fecha'] = procesaFechaHoraPartido(cadFecha.strip(), cadHora.strip(), datosJornada)
 
         return resultado
+
+    def partidosEquipo(self, abrEq):
+        targAbrevs = self.abrevsEquipo(abrEq)
+
+        jugados = [p for p in self.Partidos.values() if targAbrevs.intersection(p['participantes']) and not p['pendiente']]
+        pendientes = []
+        for j, dataJor in self.Jornadas.items():
+            auxPendientes = [p for p in dataJor['pendientes'] if targAbrevs.intersection(p['participantes']) and p['pendiente']]
+            pendientes.extend(auxPendientes)
+
+        return jugados, pendientes
+
+    def abrevsEquipo(self, abrEq):
+        if abrEq not in self.tradEquipos['c2n']:
+            trad2str = " - ".join([f"'{k}': {','.join(sorted(self.tradEquipos['c2n'][k]))}" for k in sorted(self.tradEquipos['c2n'])])
+            raise KeyError(f"partidosEquipo: abreviatura pedida '{abrEq}' no existe: {trad2str}")
+
+        # Consigue las abreviaturas para el equipo
+        targAbrevs = set()
+        iAbrev = self.tradEquipos['c2i'][abrEq]
+        for i in iAbrev:
+            targAbrevs.update(self.tradEquipos['i2c'][i])
+
+        return targAbrevs
 
 
 def BuscaCalendario(url=URL_BASE, home=None, browser=None, config={}):
@@ -238,14 +270,19 @@ def procesaCab(cab):
     resultado = dict()
     cadL = cab.find('div', {"class": "float-left"}).text
     cadR = cab.find('div', {"class": "fechas"}).text
+    resultado['nombreJornada'] = cadL
+    resultado['fechasJornada'] = cadR
 
-    patronL = r'(?P<comp>.*) (?P<yini>\d{4})-(?P<yfin>\d{4}) - JORNADA (?P<jornada>\d+)'
+    patronL = r'(?P<comp>.*) (?P<yini>\d{4})-(?P<yfin>\d{4})\s+(:?-\s+(?P<extraComp>.*)\s+)?- JORNADA (?P<jornada>\d+)'
 
     patL = re.match(patronL, cadL)
-
-    resultado.update(patL.groupdict())
-
-    resultado['auxFechas'] = procesaFechasJornada(cadR)
+    if patL:
+        dictFound = patL.groupdict()
+        # print("CAP ", dictFound)
+        resultado.update(dictFound)
+        resultado['auxFechas'] = procesaFechasJornada(cadR)
+    else:
+        raise ValueError("procesaCab: valor '%s' no casa RE '%s'", cadL, patronL)
 
     return resultado
 
@@ -298,7 +335,7 @@ def procesaDivsEquipo(divList):
 
 
 def procesaFechaHoraPartido(cadFecha, cadHora, datosCab):
-    resultado = None
+    resultado = NEVER
     diaSem2n = {'lun': 0, 'mar': 1, 'mié': 2, 'jue': 3, 'vie': 4, 'sáb': 5, 'dom': 6}
     patronDiaPartido = r'^(?P<diasem>\w+)\s(?P<diames>\d{1,2})$'
 
@@ -321,7 +358,8 @@ def procesaFechaHoraPartido(cadFecha, cadHora, datosCab):
                 resultado = fechaPart
             except ValueError:
                 print("procesaFechaHoraPartido: '%s' no casa RE '%s'" % (cadFechaFin, FORMATOtimestamp))
-                resultado = None
+                resultado = NEVER
+
     else:
         raise ValueError("RE: '%s' no casa patrón '%s'" % (cadFecha, patronDiaPartido))
 

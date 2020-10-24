@@ -14,9 +14,9 @@ from traceback import print_exception
 
 import pandas as pd
 
-from SMACB.CalendarioACB import URL_BASE, CalendarioACB, calendario_URLBASE
+from SMACB.CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
 from SMACB.FichaJugador import FichaJugador
-from SMACB.PartidoACB import PartidoACB
+from SMACB.PartidoACB import OtherTeam, PartidoACB
 from Utils.Pandas import combinaPDindexes
 from Utils.Web import creaBrowser
 
@@ -194,6 +194,62 @@ class TemporadaACB(object):
 
         return (dfResult)
 
+
+    def sigPartido(self, abrEq):
+        juCal, peCal = self.Calendario.partidosEquipo(abrEq)
+
+        peOrd = sorted([p for p in peCal], key=lambda x: x['fecha'])
+        juTem = sorted([self.Partidos[p['url']] for p in juCal], key=lambda x: x.FechaHora)
+
+        sigPart = peOrd.pop(0)
+        abrevsEq = self.Calendario.abrevsEquipo(abrEq)
+        abrRival = sigPart['participantes'].difference(abrevsEq).pop()
+        juRivCal, peRivCal = self.Calendario.partidosEquipo(abrRival)
+
+        peRivOrd = sorted([p for p in peRivCal if p['jornada'] != sigPart['jornada']], key=lambda x: x['fecha'])
+        juRivTem = sorted([self.Partidos[p['url']] for p in juRivCal], key=lambda x: x.FechaHora)
+
+        return sigPart, (abrEq, abrRival), juTem, peOrd, juRivTem, peRivOrd
+
+    def clasifEquipo(self, abrEq, fecha=None):
+        abrevsEq = self.Calendario.abrevsEquipo(abrEq)
+        juCal, _ = self.Calendario.partidosEquipo(abrEq)
+        result = defaultdict(int)
+        result['Lfav'] = list()
+        result['Lcon'] = list()
+
+        partidosAcontar = [p for p in juCal if self.Partidos[p['url']].FechaHora < fecha] if fecha else juCal
+
+        for datosCal in partidosAcontar:
+            abrevUsada = abrevsEq.intersection(datosCal['participantes']).pop()
+            locEq = datosCal['abrev2loc'][abrevUsada]
+            locRival = OtherTeam(locEq)
+            datosEq = datosCal['equipos'][locEq]
+            datosRival = datosCal['equipos'][locRival]
+
+            result['Jug'] += 1
+            result['V' if datosEq['haGanado'] else 'D'] += 1
+
+            result['Pfav'] += datosEq['puntos']
+            result['Lfav'].append(datosEq['puntos'])
+
+            result['Pcon'] += datosRival['puntos']
+            result['Lcon'].append(datosRival['puntos'])
+
+        result['idEq'] = self.Calendario.tradEquipos['c2i'][abrEq]
+        result['nombresEq'] = self.Calendario.tradEquipos['c2n'][abrEq]
+        result['abrevsEq'] = abrevsEq
+
+        return result
+
+    def clasifLiga(self, fecha=None):
+        result = sorted([self.clasifEquipo(list(cSet)[0], fecha=fecha)
+                         for cSet in self.Calendario.tradEquipos['i2c'].values()],
+                        key=lambda x: entradaClas2k(x), reverse=True)
+
+        return result
+
+
 def calculaTempStats(datos, clave, filtroFechas=None):
     if clave not in datos:
         raise (KeyError, "Clave '%s' no está en datos." % clave)
@@ -264,5 +320,22 @@ def calculaVars(temporada, clave, useStd=True, filtroFechas=None):
                 result[comb]["-".join([comb, clZ, clave, 'mean'])] - result[comb]["-".join([comb, clZ, clave, 'std'])])
         result[comb]["-".join([comb, clave, (clZ.lower() + "Max")])] = (
                 result[comb]["-".join([comb, clZ, clave, 'mean'])] + result[comb]["-".join([comb, clZ, clave, 'std'])])
+
+    return result
+
+
+def entradaClas2k(ent):
+    """
+    Dado un resultado de Temporada.getClasifEquipo)
+
+    :param listaClas: lista de equipos (resultado de Temporada.getClasifEquipo)
+    :return: tupla (ratio Vict/Jugados, Vict, Ventaja/Jugados, Pfavor)
+    """
+
+    ratioV = ent.get('V', 0) / ent.get('Jug') if ent.get('Jug', 0) else 0.0
+    ratioVent = ((ent.get('Pfav', 0) - ent.get('Pcon', 0)) / ent.get('Jug')) if ent.get('Jug', 0) else 0.0
+
+    result = (ratioV, ent.get('V', 0), ratioVent, ent.get('Pfav', 0))
+    print(ent, result)
 
     return result

@@ -110,8 +110,7 @@ def preparaDatosComunes(datosMezclados):
     return resultado
 
 
-def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
-
+def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx", ):
     jugSM = supermanager.extraeDatosJugadores()
     jugTM = temporada.extraeDatosJugadores()
     jugData = mezclaJugadores(jugTM, jugSM)
@@ -168,8 +167,8 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
         if clave not in clavesExistentes:
             print("Clave '%s' no existente.\nClaves disponibles: %s" % (clave,
                                                                         ", ".join(map(
-                                                                            lambda x: "'" + x + "'",
-                                                                            sorted(clavesExistentes.keys())))))
+                                                                                lambda x: "'" + x + "'",
+                                                                                sorted(clavesExistentes.keys())))))
             return
 
         seqDatos = list(range(numJornadas + (1 if claveSM else 0)))
@@ -231,7 +230,7 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx",):
                     else:
                         # haJugado[i + ot] is not None:
                         f = calculaFormato(victoria[i + ot], esLocal[i + ot], haJugado[i + ot], valorDecimal)
-                        valor = datosAmostrar[i]   # if haJugado[i + ot] else ""
+                        valor = datosAmostrar[i]  # if haJugado[i + ot] else ""
 
                     ws.write(fila, columna, valor, formatos[f])
                     columna += 1

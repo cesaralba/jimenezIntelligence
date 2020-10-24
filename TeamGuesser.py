@@ -18,18 +18,13 @@ from babel.numbers import parse_decimal
 from configargparse import ArgumentParser
 from dask.distributed import Client, LocalCluster
 
-from SMACB.Guesser import (GeneraCombinacionJugs, agregaJugadores,
-                           buildPosCupoIndex, comb2Key, dumpVar,
-                           getPlayersByPosAndCupoJornada, ig2posYcupo,
-                           indexGroup2Key, indexPosCupo2str,
-                           keySearchOrderParameter, loadVar, plan2filename,
-                           seq2name, varname2fichname)
+from SMACB.Guesser import (agregaJugadores, buildPosCupoIndex, comb2Key, dumpVar, GeneraCombinacionJugs, getPlayersByPosAndCupoJornada, ig2posYcupo, indexGroup2Key, indexPosCupo2str, keySearchOrderParameter, loadVar, plan2filename, seq2name, varname2fichname)
 from SMACB.SMconstants import CLAVESCSV, SEQCLAVES, solucion2clave
 from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.CombinacionesConCupos import GeneraCombinaciones
 from Utils.combinatorics import n_choose_m, prod
-from Utils.Misc import FORMATOtimestamp, creaPath, deepDict, deepDictSet
+from Utils.Misc import creaPath, deepDict, deepDictSet, FORMATOtimestamp
 from Utils.pysize import get_size
 
 NJOBS = 2
@@ -45,7 +40,7 @@ ch.setLevel(logging.DEBUG)
 
 # create formatter
 formatter = logging.Formatter(
-    '%(asctime)s [%(process)d:%(threadName)10s@%(name)s %(levelname)s %(relativeCreated)14dms]: %(message)s')
+        '%(asctime)s [%(process)d:%(threadName)10s@%(name)s %(levelname)s %(relativeCreated)14dms]: %(message)s')
 
 # add formatter to ch
 ch.setFormatter(formatter)
@@ -59,7 +54,6 @@ indexGroups = [[0, 1, 2, 3], [4, 5], [6, 7, 8]]
 # indexGroups = [[0, 1, 2], [3, 4, 5], [6, 7, 8]]
 
 LOCATIONCACHE = '/home/calba/devel/SuperManager/guesser'
-
 
 clavesParaNomFich = "+".join(SEQCLAVES)
 
@@ -304,7 +298,7 @@ if __name__ == '__main__':
     logger.info("Cargando grupos de jornada %d (secuencia: %s)" % (jornada, ", ".join(args.clavesSeq)))
 
     nombreFichCuentaGrupos = varname2fichname(jornada=jornada, varname="-".join([
-        indexGroup2Key(indexGroups), seq2name(args.clavesSeq), "cuentaGrupos"]), basedir=destdir)
+            indexGroup2Key(indexGroups), seq2name(args.clavesSeq), "cuentaGrupos"]), basedir=destdir)
 
     nombreFichGruposJugs = varname2fichname(jornada=jornada,
                                             varname="-".join([indexGroup2Key(indexGroups), "grupoJugs"]),
@@ -407,8 +401,8 @@ if __name__ == '__main__':
                             deepDict(newCuentaGrupos[comb]['valSets'], indexComb, int) + 1)
 
         logger.info(
-            "Generados %d grupos de combinaciones. Memory: %d. Grabando." % (len(newCuentaGrupos),
-                                                                             get_size(newCuentaGrupos)))
+                "Generados %d grupos de combinaciones. Memory: %d. Grabando." % (len(newCuentaGrupos),
+                                                                                 get_size(newCuentaGrupos)))
 
         resDump = dumpVar(nombreFichCuentaGrupos, newCuentaGrupos)
         cuentaGrupos = newCuentaGrupos
