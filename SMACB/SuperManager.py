@@ -347,12 +347,17 @@ class SuperManagerACB(object):
 
                 IDjugador = cacheLinks.get(jugadorData['kiaLink'], dataPlants[jugadorData['IDequipo']].getCode(
                         nombre=RetocaNombreJugador(jugadorData['nombre']), esJugador=True, umbral=1))
+<<<<<<< HEAD
+=======
+
+>>>>>>> master
                 if isinstance(IDjugador, str):
                     cacheLinks[jugadorData['kiaLink']] = IDjugador
                     cacheEqNom[jugadorData['IDequipo']][jugadorData['nombre']] = IDjugador
                     codJugador = IDjugador
                 else:
                     pendienteLinks[jugadorData['kiaLink']].append((i, jugadorData))
+<<<<<<< HEAD
                     print("Incapaz de encontrar ID para '%s' (%s,%s): %s" % (
                             jugadorData['kiaLink'], jugadorData['nombre'], jugadorData['equipo'], IDjugador))
                     continue
@@ -393,6 +398,47 @@ class SuperManagerACB(object):
                     for nomTest in nameSet:
                         auxTest = NormalizaCadena(RetocaNombreJugador(nomTest))
 
+=======
+                    print("Incapaz de encontrar ID para '%s' (%s,%s): %s" % (jugadorData['kiaLink'], jugadorData['nombre'], jugadorData['equipo'], IDjugador))
+                    continue
+
+                actualizaResultado(resultado, codJugador, i, jugadorData)
+                codigosUsados.add(codJugador)
+
+            for jugadorData in mercado.noKiaLink:
+                IDjugador = cacheEqNom[jugadorData['IDequipo']].get(jugadorData['nombre'],
+                                                                    dataPlants[jugadorData['IDequipo']].getCode(
+                                                                            nombre=RetocaNombreJugador(
+                                                                                    jugadorData['nombre']), esJugador=True,
+                                                                            umbral=1))
+
+                if isinstance(IDjugador, str):
+                    cacheEqNom[jugadorData['IDequipo']][jugadorData['nombre']] = IDjugador
+                    codJugador = IDjugador
+                else:
+                    pendienteEqNom[jugadorData['IDequipo']][jugadorData['nombre']].append((i, jugadorData))
+                    print("Incapaz de encontrar ID para %s (%s): %s" % (jugadorData['nombre'], jugadorData['equipo'], IDjugador))
+                    continue
+
+                actualizaResultado(resultado, codJugador, i, jugadorData)
+                codigosUsados.add(codJugador)
+
+        contNocode = 1
+        for kiaLink, listaMercs in pendienteLinks.items():
+            nombresL = {i['nombre'] for j, i in listaMercs}
+            codeSet = set()
+
+            for codJug, nameSet in nombresJugadores.items():
+                if codJug in codigosUsados:
+                    continue
+
+                for auxNombre in nombresL:
+                    auxRet = NormalizaCadena(RetocaNombreJugador(auxNombre))
+
+                    for nomTest in nameSet:
+                        auxTest = NormalizaCadena(RetocaNombreJugador(nomTest))
+
+>>>>>>> master
                         if comparaNombresPersonas(auxRet, auxTest):
                             codeSet.add(codJug)
                             break
@@ -413,9 +459,15 @@ class SuperManagerACB(object):
             # print("CAP", k, len(l), {x[0] for x in l})
         # print("PendNombre", pendienteEqNom)
         # print("PendLinks",pendienteLinks)
+<<<<<<< HEAD
 
         return resultado
 
+=======
+
+        return resultado
+
+>>>>>>> master
     def superManager2dataframe(self, nombresJugadores=None, infoPlants=None):
         """ Extrae un dataframe con los últimos datos de todos los jugadores que han jugado en la temporada.
         """
