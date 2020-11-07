@@ -294,8 +294,12 @@ def procesaFechasJornada(cadFechas):
 
     patronBloqueFechas = r'^(?P<dias>\d{1,2}(-\d{1,2})*)\s+(?P<mes>\w+)\s+(?P<year>\d{4})$'
 
+    bloques = list()
     cadWrk = cadFechas.lower().strip()
-    bloques = cadWrk.split(" y ")
+
+    for bY in cadWrk.split(' y '):
+        for b in bY.strip().split(','):
+            bloques.append(b.strip())
 
     for b in bloques:
         reFecha = re.match(patronBloqueFechas, b.strip())
@@ -309,7 +313,7 @@ def procesaFechasJornada(cadFechas):
                 else:
                     resultado[diaN] = {cadResult}
         else:
-            raise ValueError("RE: '%s' no casa patrón '%s'" % (b, patronBloqueFechas))
+            raise ValueError(f"procesaFechasJornada: {cadFechas} RE: '{b}' no casa patrón '{patronBloqueFechas}'")
 
     return resultado
 
