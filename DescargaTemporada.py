@@ -65,7 +65,7 @@ resultOS = 1  # No hubo cambios
 
 if nuevosPartidos or temporada.changed or args.saveanyway:
     if nuevosPartidos:
-        resumenPartidos = [str(temporada.Partidos[x]) for x in sorted(list(nuevosPartidos))]
+        resumenPartidos = [str(temporada.Partidos[x]) for x in sorted(list(nuevosPartidos),key=lambda p:(temporada.Partidos[p].FechaHora,temporada.Partidos[p].Jornada))]
         print("Nuevos partidos incorporados:\n%s" % ("\n".join(resumenPartidos)))
 
     sys.setrecursionlimit(50000)
