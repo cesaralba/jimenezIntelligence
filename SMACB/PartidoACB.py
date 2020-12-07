@@ -80,6 +80,8 @@ class PartidoACB(object):
 
         pagina = content['data']
         tablasPartido = pagina.find("section", {"class": "contenedora_estadisticas"})
+        if not tablasPartido:
+            print(f"CAP: {self.url} tablasPartidoNone",tablasPartido,pagina)
 
         # Encabezado de Tabla
         tabDatosGenerales = tablasPartido.find("header")

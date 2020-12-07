@@ -198,17 +198,21 @@ class TemporadaACB(object):
         juCal, peCal = self.Calendario.partidosEquipo(abrEq)
 
         peOrd = sorted([p for p in peCal], key=lambda x: x['fecha'])
-        juTem = sorted([self.Partidos[p['url']] for p in juCal], key=lambda x: x.FechaHora)
+        juOrdTem = sorted([self.Partidos[p['url']] for p in juCal], key=lambda x: x.FechaHora)
 
         sigPart = peOrd.pop(0)
         abrevsEq = self.Calendario.abrevsEquipo(abrEq)
         abrRival = sigPart['participantes'].difference(abrevsEq).pop()
         juRivCal, peRivCal = self.Calendario.partidosEquipo(abrRival)
-
         peRivOrd = sorted([p for p in peRivCal if p['jornada'] != sigPart['jornada']], key=lambda x: x['fecha'])
         juRivTem = sorted([self.Partidos[p['url']] for p in juRivCal], key=lambda x: x.FechaHora)
 
-        return sigPart, (abrEq, abrRival), juTem, peOrd, juRivTem, peRivOrd
+
+        eqIsLocal = sigPart['loc2abrev']['Local'] in abrevsEq
+        juIzda, peIzda, juDcha,peDcha = (juOrdTem, peOrd, juRivTem, peRivOrd) if eqIsLocal else (juRivTem, peRivOrd, juOrdTem, peOrd)
+
+
+        return sigPart, (abrEq, abrRival), juOrdTem, peOrd, juRivTem, peRivOrd
 
     def clasifEquipo(self, abrEq, fecha=None):
         abrevsEq = self.Calendario.abrevsEquipo(abrEq)

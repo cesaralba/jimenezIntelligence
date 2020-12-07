@@ -124,6 +124,12 @@ def main(args):
         print(f"Equipo desconocido '{args.equipo}': {exc}")
         sys.exit(1)
 
+    iSigLocal = list(tempData.Calendario.tradEquipos['c2i'][sigPartido['loc2abrev']['Local']])[0]
+    targLocal = args.equipo in tempData.Calendario.tradEquipos['i2c'][iSigLocal]
+    juIzda, juDcha = (juEq,juRiv) if targLocal else (juRiv,juEq)
+
+    print(targLocal)
+
     raise Exception("Bye")
 
 
