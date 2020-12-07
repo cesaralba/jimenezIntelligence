@@ -118,12 +118,8 @@ class PartidoACB(object):
                         if cachedTeam is None:
                             cachedTeam = PlantillaACB(id=datosJug['IDequipo'], edicion=datosJug['temporada'])
 
-<<<<<<< HEAD
                         nombreRetoc = RetocaNombreJugador(
                                 datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug['nombre']
-=======
-                        nombreRetoc = RetocaNombreJugador(datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug['nombre']
->>>>>>> master
 
                         newCode = cachedTeam.getCode(nombre=nombreRetoc, dorsal=datosJug['dorsal'],
                                                      esTecnico=datosJug['entrenador'],

@@ -4,13 +4,13 @@ from argparse import Namespace
 from collections import defaultdict, Iterable
 from copy import copy, deepcopy
 from pickle import dump, load
-from time import gmtime
 
 import mechanicalsoup
 import pandas as pd
 from babel.numbers import decimal
 from bs4 import BeautifulSoup
 from mechanicalsoup import LinkNotFoundError
+from time import gmtime
 
 from Utils.BoWtraductor import comparaNombresPersonas, NormalizaCadena, RetocaNombreJugador
 from Utils.Misc import onlySetElement
@@ -346,20 +346,16 @@ class SuperManagerACB(object):
                 jugadorData = mercado.PlayerData[jugSM]
 
                 IDjugador = cacheLinks.get(jugadorData['kiaLink'], dataPlants[jugadorData['IDequipo']].getCode(
-                        nombre=RetocaNombreJugador(jugadorData['nombre']), esJugador=True, umbral=1))
-<<<<<<< HEAD
-=======
-
->>>>>>> master
+                    nombre=RetocaNombreJugador(jugadorData['nombre']), esJugador=True, umbral=1))
                 if isinstance(IDjugador, str):
                     cacheLinks[jugadorData['kiaLink']] = IDjugador
                     cacheEqNom[jugadorData['IDequipo']][jugadorData['nombre']] = IDjugador
                     codJugador = IDjugador
                 else:
                     pendienteLinks[jugadorData['kiaLink']].append((i, jugadorData))
-<<<<<<< HEAD
+
                     print("Incapaz de encontrar ID para '%s' (%s,%s): %s" % (
-                            jugadorData['kiaLink'], jugadorData['nombre'], jugadorData['equipo'], IDjugador))
+                        jugadorData['kiaLink'], jugadorData['nombre'], jugadorData['equipo'], IDjugador))
                     continue
 
                 actualizaResultado(resultado, codJugador, i, jugadorData)
@@ -368,16 +364,16 @@ class SuperManagerACB(object):
             for jugadorData in mercado.noKiaLink:
                 IDjugador = cacheEqNom[jugadorData['IDequipo']].get(jugadorData['nombre'],
                                                                     dataPlants[jugadorData['IDequipo']].getCode(
-                                                                            nombre=RetocaNombreJugador(
-                                                                                    jugadorData['nombre']), esJugador=True,
-                                                                            umbral=1))
+                                                                        nombre=RetocaNombreJugador(
+                                                                            jugadorData['nombre']), esJugador=True,
+                                                                        umbral=1))
                 if isinstance(IDjugador, str):
                     cacheEqNom[jugadorData['IDequipo']][jugadorData['nombre']] = IDjugador
                     codJugador = IDjugador
                 else:
                     pendienteEqNom[jugadorData['IDequipo']][jugadorData['nombre']].append((i, jugadorData))
                     print("Incapaz de encontrar ID para %s (%s): %s" % (
-                            jugadorData['nombre'], jugadorData['equipo'], IDjugador))
+                        jugadorData['nombre'], jugadorData['equipo'], IDjugador))
                     continue
 
                 actualizaResultado(resultado, codJugador, i, jugadorData)
@@ -398,47 +394,6 @@ class SuperManagerACB(object):
                     for nomTest in nameSet:
                         auxTest = NormalizaCadena(RetocaNombreJugador(nomTest))
 
-=======
-                    print("Incapaz de encontrar ID para '%s' (%s,%s): %s" % (jugadorData['kiaLink'], jugadorData['nombre'], jugadorData['equipo'], IDjugador))
-                    continue
-
-                actualizaResultado(resultado, codJugador, i, jugadorData)
-                codigosUsados.add(codJugador)
-
-            for jugadorData in mercado.noKiaLink:
-                IDjugador = cacheEqNom[jugadorData['IDequipo']].get(jugadorData['nombre'],
-                                                                    dataPlants[jugadorData['IDequipo']].getCode(
-                                                                            nombre=RetocaNombreJugador(
-                                                                                    jugadorData['nombre']), esJugador=True,
-                                                                            umbral=1))
-
-                if isinstance(IDjugador, str):
-                    cacheEqNom[jugadorData['IDequipo']][jugadorData['nombre']] = IDjugador
-                    codJugador = IDjugador
-                else:
-                    pendienteEqNom[jugadorData['IDequipo']][jugadorData['nombre']].append((i, jugadorData))
-                    print("Incapaz de encontrar ID para %s (%s): %s" % (jugadorData['nombre'], jugadorData['equipo'], IDjugador))
-                    continue
-
-                actualizaResultado(resultado, codJugador, i, jugadorData)
-                codigosUsados.add(codJugador)
-
-        contNocode = 1
-        for kiaLink, listaMercs in pendienteLinks.items():
-            nombresL = {i['nombre'] for j, i in listaMercs}
-            codeSet = set()
-
-            for codJug, nameSet in nombresJugadores.items():
-                if codJug in codigosUsados:
-                    continue
-
-                for auxNombre in nombresL:
-                    auxRet = NormalizaCadena(RetocaNombreJugador(auxNombre))
-
-                    for nomTest in nameSet:
-                        auxTest = NormalizaCadena(RetocaNombreJugador(nomTest))
-
->>>>>>> master
                         if comparaNombresPersonas(auxRet, auxTest):
                             codeSet.add(codJug)
                             break
@@ -459,15 +414,9 @@ class SuperManagerACB(object):
             # print("CAP", k, len(l), {x[0] for x in l})
         # print("PendNombre", pendienteEqNom)
         # print("PendLinks",pendienteLinks)
-<<<<<<< HEAD
 
         return resultado
 
-=======
-
-        return resultado
-
->>>>>>> master
     def superManager2dataframe(self, nombresJugadores=None, infoPlants=None):
         """ Extrae un dataframe con los últimos datos de todos los jugadores que han jugado en la temporada.
         """
@@ -627,21 +576,21 @@ class ResultadosJornadas(object):
             self.equipo2socio[team] = socio
 
             self.resultados[socio]['valJornada'] = (self.types['valJornada'])(
-                    datosJor['value'])
+                datosJor['value'])
 
             if jornada in supermanager.__getattribute__('general'):
                 self.resultados[socio]['general'] = (self.types['valJornada'])(
-                        supermanager.general[jornada].data[team]['value'])
+                    supermanager.general[jornada].data[team]['value'])
 
             for comp in ['puntos', 'rebotes', 'triples', 'asistencias', 'broker']:
                 if jornada in supermanager.__getattribute__(comp):
                     if jornada == 1 or jornada - 1 in supermanager.__getattribute__(comp):
                         if comp == 'broker':
                             self.resultados[socio]['saldo'] = (self.types[comp])(
-                                    supermanager.__getattribute__(comp)[jornada].data[team]['value'])
+                                supermanager.__getattribute__(comp)[jornada].data[team]['value'])
 
                         self.resultados[socio][comp] = (self.types[comp])(
-                                supermanager.__getattribute__(comp)[jornada].data[team]['value'])
+                            supermanager.__getattribute__(comp)[jornada].data[team]['value'])
                         if jornada != 1:
                             self.resultados[socio][comp] -= \
                                 (self.types[comp])(supermanager.__getattribute__(comp)[jornada - 1].data[team]['value'])
