@@ -2,6 +2,7 @@ import re
 from argparse import Namespace
 from collections import defaultdict
 from copy import deepcopy
+
 from time import gmtime, strptime
 
 from Utils.Misc import FORMATOtimestamp
@@ -14,6 +15,8 @@ template_URLFICHA = "http://www.acb.com/fichas/%s%i%03i.php"
 # http://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
 template_CALENDARIOYEAR = "http://www.acb.com/calendario/index/temporada_id/{year}"
 template_CALENDARIOFULL = "http://www.acb.com/calendario/index/temporada_id/{year}/edicion_id/{compoID}"
+
+ETIQubiq = ['local', 'visitante']
 
 NEVER = strptime("2030-12-31 00:00", FORMATOtimestamp)
 
@@ -95,7 +98,7 @@ class CalendarioACB(object):
                                    divTemporadas.find_all('div', {"class": "elemento"})}
                 if self.edicion not in listaTemporadas:
                     raise KeyError("Temporada solicitada {year} no está entre las disponibles ({listaYears})".format(
-                            year=self.edicion, listaYears=", ".join(listaTemporadas.keys())))
+                        year=self.edicion, listaYears=", ".join(listaTemporadas.keys())))
 
                 pagYear = DescargaPagina(urlYear, home=None, browser=browser, config=config)
 
@@ -111,7 +114,7 @@ class CalendarioACB(object):
                 listaComposTxt = ["{k} = '{label}'".format(k=x, label=listaCompos[compoClaves[x]]) for x in
                                   compoClaves]
                 raise KeyError("Compo solicitada {compo} no disponible. Disponibles: {listaCompos}".format(
-                        compo=self.competicion, listaCompos=", ".join(listaComposTxt)))
+                    compo=self.competicion, listaCompos=", ".join(listaComposTxt)))
 
             self.url = template_CALENDARIOFULL.format(year=self.edicion, compoID=compoClaves[self.competicion])
 
@@ -156,12 +159,23 @@ class CalendarioACB(object):
         resultado['cod_edicion'] = self.edicion
 
         datosPartEqs = dict()
-        for eqUbic in ['local', 'visitante']:
+
+        for eqUbic, div in zip(ETIQubiq, divPartido.find_all("div", {"class": "logo_equipo"})):
+            auxDatos = datosPartEqs.get(eqUbic.capitalize(), {})
+            image = div.find("img")
+            imageURL = MergeURL(self.urlbase, image['src'])
+            imageALT = image['alt']
+            auxDatos.update({'icono': imageURL, 'imageTit': imageALT})
+            datosPartEqs[eqUbic.capitalize()] = auxDatos
+
+        for eqUbic in ETIQubiq:
+            auxDatos = datosPartEqs.get(eqUbic.capitalize(), {})
             divsEq = divPartido.find_all("div", {"class": eqUbic})
             infoEq = procesaDivsEquipo(divsEq)
-            datosPartEqs[eqUbic.capitalize()] = infoEq
+            auxDatos.update(infoEq)
             self.nuevaTraduccionEquipo2Codigo(equipos=[infoEq['nomblargo'], infoEq['nombcorto']],
                                               codigo=infoEq['abrev'], id=None)
+            datosPartEqs[eqUbic.capitalize()] = auxDatos
 
         resultado['equipos'] = datosPartEqs
         resultado['loc2abrev'] = {x: datosPartEqs[x]['abrev'] for x in datosPartEqs}
@@ -193,17 +207,20 @@ class CalendarioACB(object):
     def partidosEquipo(self, abrEq):
         targAbrevs = self.abrevsEquipo(abrEq)
 
-        jugados = [p for p in self.Partidos.values() if targAbrevs.intersection(p['participantes']) and not p['pendiente']]
+        jugados = [p for p in self.Partidos.values() if
+                   targAbrevs.intersection(p['participantes']) and not p['pendiente']]
         pendientes = []
         for j, dataJor in self.Jornadas.items():
-            auxPendientes = [p for p in dataJor['pendientes'] if targAbrevs.intersection(p['participantes']) and p['pendiente']]
+            auxPendientes = [p for p in dataJor['pendientes'] if
+                             targAbrevs.intersection(p['participantes']) and p['pendiente']]
             pendientes.extend(auxPendientes)
 
         return jugados, pendientes
 
     def abrevsEquipo(self, abrEq):
         if abrEq not in self.tradEquipos['c2n']:
-            trad2str = " - ".join([f"'{k}': {','.join(sorted(self.tradEquipos['c2n'][k]))}" for k in sorted(self.tradEquipos['c2n'])])
+            trad2str = " - ".join(
+                [f"'{k}': {','.join(sorted(self.tradEquipos['c2n'][k]))}" for k in sorted(self.tradEquipos['c2n'])])
             raise KeyError(f"partidosEquipo: abreviatura pedida '{abrEq}' no existe: {trad2str}")
 
         # Consigue las abreviaturas para el equipo
