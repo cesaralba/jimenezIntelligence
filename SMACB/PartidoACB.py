@@ -6,17 +6,16 @@ Created on Dec 31, 2017
 
 import re
 from argparse import Namespace
-from time import gmtime, mktime, strftime, strptime
 from traceback import print_exc
 
 import pandas as pd
 from babel.numbers import parse_number
 from bs4 import Tag
+from time import gmtime, mktime, strftime, strptime
 
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams, getObjID
-
 from .PlantillaACB import PlantillaACB
 from .SMconstants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp,
                           titular2esp)
@@ -81,7 +80,7 @@ class PartidoACB(object):
         pagina = content['data']
         tablasPartido = pagina.find("section", {"class": "contenedora_estadisticas"})
         if not tablasPartido:
-            print(f"CAP: {self.url} tablasPartidoNone",tablasPartido,pagina)
+            print(f"CAP: {self.url} tablasPartidoNone", tablasPartido, pagina)
 
         # Encabezado de Tabla
         tabDatosGenerales = tablasPartido.find("header")
@@ -120,7 +119,8 @@ class PartidoACB(object):
                         if cachedTeam is None:
                             cachedTeam = PlantillaACB(id=datosJug['IDequipo'], edicion=datosJug['temporada'])
 
-                nombreRetoc = RetocaNombreJugador(datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug['nombre']
+                nombreRetoc = RetocaNombreJugador(datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug[
+                    'nombre']
 
                 newCode = cachedTeam.getCode(nombre=nombreRetoc, dorsal=datosJug['dorsal'],
                                              esTecnico=datosJug['entrenador'],
@@ -143,7 +143,7 @@ class PartidoACB(object):
                 self.pendientes[l] = newPendientes
             if raiser:
                 raise ValueError("procesaPartido: Imposible encontrar (%i) código(s) para (%s) en partido '%s': %s" % (
-                        len(newPendientes), l, self.url, newPendientes))
+                    len(newPendientes), l, self.url, newPendientes))
 
         return divCabecera
 
@@ -414,11 +414,11 @@ class PartidoACB(object):
 
     def __str__(self):
         return "J %02i: [%s] %s (%s) %i - %i %s (%s)" % (
-                self.Jornada, strftime("%Y-%m-%d %H:%M", self.FechaHora),
-                self.EquiposCalendario['Local']['nomblargo'], self.CodigosCalendario['Local'],
-                self.ResultadoCalendario['Local'],
-                self.ResultadoCalendario['Visitante'], self.EquiposCalendario['Visitante']['nomblargo'],
-                self.CodigosCalendario['Visitante'])
+            self.Jornada, strftime("%Y-%m-%d %H:%M", self.FechaHora),
+            self.EquiposCalendario['Local']['nomblargo'], self.CodigosCalendario['Local'],
+            self.ResultadoCalendario['Local'],
+            self.ResultadoCalendario['Visitante'], self.EquiposCalendario['Visitante']['nomblargo'],
+            self.CodigosCalendario['Visitante'])
 
     __repr__ = __str__
 
