@@ -36,7 +36,7 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
         f"{prefV[loc][0]}{prefMe[loc][0]}{partido.DatosSuministrados['resultado'][loc]}{prefMe[loc][1]}{prefV[loc][1]}"
         for
         loc in LocalVisitante]
-    strResultado = "-".join(resAux)
+    strResultado = "-".join(resAux) + (" (V)" if partido.DatosSuministrados['equipos'][locEq]['haGanado'] else " (D)")
 
     return strRival, strResultado
 
@@ -162,7 +162,7 @@ def reportTrayectoria(listaTrayectoria):
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black)])
 
-    t = Table(data=filas, style=tStyle,colWidths=[20 * mm, 75 * mm, 10 * mm, 75 * mm, 20 * mm])
+    t = Table(data=filas, style=tStyle,colWidths=[23 * mm, 72 * mm, 10 * mm, 72 * mm, 23 * mm])
 
     return t
 
