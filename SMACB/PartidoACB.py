@@ -6,6 +6,7 @@ Created on Dec 31, 2017
 
 import re
 from argparse import Namespace
+from copy import copy
 from traceback import print_exc
 
 import pandas as pd
@@ -104,6 +105,7 @@ class PartidoACB(object):
         for l, tRes in zip(LocalVisitante, tablasPartido.find_all("section", {"class": "partido"})):
             colHeaders = extractPrefijosTablaEstads(tRes)
             self.extraeEstadsJugadores(tRes, l, colHeaders)
+
             cachedTeam = None
             newPendientes = list()
             if self.pendientes[l]:
@@ -119,26 +121,26 @@ class PartidoACB(object):
                         if cachedTeam is None:
                             cachedTeam = PlantillaACB(id=datosJug['IDequipo'], edicion=datosJug['temporada'])
 
-                nombreRetoc = RetocaNombreJugador(datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug[
-                    'nombre']
+                    nombreRetoc = RetocaNombreJugador(datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug[
+                        'nombre']
 
-                newCode = cachedTeam.getCode(nombre=nombreRetoc, dorsal=datosJug['dorsal'],
-                                             esTecnico=datosJug['entrenador'],
-                                             esJugador=datosJug['esJugador'], umbral=1)
-                if newCode is not None:
-                    datosJug['codigo'] = newCode
+                    newCode = cachedTeam.getCode(nombre=nombreRetoc, dorsal=datosJug['dorsal'],
+                                                 esTecnico=datosJug['entrenador'],
+                                                 esJugador=datosJug['esJugador'], umbral=1)
+                    if newCode is not None:
+                        datosJug['codigo'] = newCode
 
-                    if datosJug['esJugador']:
-                        self.Jugadores[datosJug['codigo']] = datosJug
-                        (self.Equipos[l]['Jugadores']).append(datosJug['codigo'])
-                    elif datosJug.get('entrenador', False):
-                        self.Entrenadores[datosJug['codigo']] = datosJug
-                        self.Equipos[l]['Entrenador'] = datosJug['codigo']
-                    self.aprendidos[l].append(newCode)
-                else:
-                    print("Imposible encontrar ID. Partido: %s. %s" % (self, datosJug))
-                    newPendientes.append(datosJug)
-                    raiser = True
+                        if datosJug['esJugador']:
+                            self.Jugadores[datosJug['codigo']] = datosJug
+                            (self.Equipos[l]['Jugadores']).append(datosJug['codigo'])
+                        elif datosJug.get('entrenador', False):
+                            self.Entrenadores[datosJug['codigo']] = datosJug
+                            self.Equipos[l]['Entrenador'] = datosJug['codigo']
+                        self.aprendidos[l].append(newCode)
+                    else:
+                        print("Imposible encontrar ID. Partido: %s. %s" % (self, datosJug))
+                        newPendientes.append(datosJug)
+                        raiser = True
 
                 self.pendientes[l] = newPendientes
             if raiser:
@@ -423,7 +425,7 @@ class PartidoACB(object):
     __repr__ = __str__
 
     def estadsPartido(self):
-        result = {loc: self.Equipos[loc]['estads'] for loc in LocalVisitante}
+        result = {loc: copy(self.Equipos[loc]['estads']) for loc in LocalVisitante}
 
         for loc in LocalVisitante:
             estads = result[loc]
@@ -435,23 +437,27 @@ class PartidoACB(object):
             avanzadas['OERpot'] = estads['P'] / (avanzadas['POS'] - estads['BP'])
             avanzadas['EffRebD'] = estads['R-D'] / (estads['R-D'] + other['R-O'])
             avanzadas['EffRebO'] = estads['R-O'] / (estads['R-O'] + other['R-D'])
-            avanzadas['t2/tc-I'] = estads['T2-I'] / (estads['T2-I'] + estads['T3-I'])
-            avanzadas['t3/tc-I'] = estads['T3-I'] / (estads['T2-I'] + estads['T3-I'])
-            avanzadas['t2/tc-C'] = estads['T2-C'] / (estads['T2-C'] + estads['T3-C'])
-            avanzadas['t3/tc-C'] = estads['T3-C'] / (estads['T2-C'] + estads['T3-C'])
-            avanzadas['eff-t2'] = estads['T2-C'] * 2 / (estads['T2-C'] * 2 + estads['T3-C'] * 3)
-            avanzadas['eff-t3'] = estads['T3-C'] * 3 / (estads['T2-C'] * 2 + estads['T3-C'] * 3)
             avanzadas['TC-I'] = (estads['T2-I'] + estads['T3-I'])
             avanzadas['TC-C'] = (estads['T2-C'] + estads['T3-C'])
-            avanzadas['TC%'] = avanzadas['TC-C'] / avanzadas['TC-I']
-            avanzadas['A/TC-C'] = estads['A']  / avanzadas['TC-C'] * 100.0
+            avanzadas['TC%'] = avanzadas['TC-C'] / avanzadas['TC-I'] * 100.0
+            avanzadas['t2/tc-I'] = estads['T2-I'] / estads['TC-I']
+            avanzadas['t3/tc-I'] = estads['T3-I'] / estads['TC-I']
+            avanzadas['t2/tc-C'] = estads['T2-C'] / estads['TC-C']
+            avanzadas['t3/tc-C'] = estads['T3-C'] / estads['TC-C']
+            avanzadas['eff-t2'] = estads['T2-C'] * 2 / (estads['T2-C'] * 2 + estads['T3-C'] * 3)
+            avanzadas['eff-t3'] = estads['T3-C'] * 3 / (estads['T2-C'] * 2 + estads['T3-C'] * 3)
+            avanzadas['A/TC-C'] = estads['A'] / avanzadas['TC-C'] * 100.0
             avanzadas['A/BP'] = estads['A'] / estads['BP']
             avanzadas['RO/TC-F'] = estads['R-O'] / (avanzadas['TC-I'] - avanzadas['TC-C'])
+
+            print(loc, estads['Segs'])
+            avanzadas['Segs'] = estads['Segs'] / 5
 
             estads.update(avanzadas)
             result[loc] = estads
 
         return result
+
 
 def GeneraURLpartido(link):
     def CheckParameters(dictParams):

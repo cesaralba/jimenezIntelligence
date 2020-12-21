@@ -8,11 +8,12 @@ from argparse import Namespace
 from collections import defaultdict
 from copy import copy
 from pickle import dump, load
-from sys import exc_info, setrecursionlimit
-from time import gmtime
+from statistics import mean
 from traceback import print_exception
 
 import pandas as pd
+from sys import exc_info, setrecursionlimit
+from time import gmtime
 
 from SMACB.CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
 from SMACB.FichaJugador import FichaJugador
@@ -207,10 +208,9 @@ class TemporadaACB(object):
         peRivOrd = sorted([p for p in peRivCal if p['jornada'] != sigPart['jornada']], key=lambda x: x['fecha'])
         juRivTem = sorted([self.Partidos[p['url']] for p in juRivCal], key=lambda x: x.FechaHora)
 
-
         eqIsLocal = sigPart['loc2abrev']['Local'] in abrevsEq
-        juIzda, peIzda, juDcha,peDcha = (juOrdTem, peOrd, juRivTem, peRivOrd) if eqIsLocal else (juRivTem, peRivOrd, juOrdTem, peOrd)
-
+        juIzda, peIzda, juDcha, peDcha = (juOrdTem, peOrd, juRivTem, peRivOrd) if eqIsLocal else (
+            juRivTem, peRivOrd, juOrdTem, peOrd)
 
         return sigPart, (abrEq, abrRival), juOrdTem, peOrd, juRivTem, peRivOrd
 
@@ -251,6 +251,84 @@ class TemporadaACB(object):
                         key=lambda x: entradaClas2k(x), reverse=True)
 
         return result
+
+    def precalcEstadsEquipo(self, abrEq, fecha=None):
+        abrevsEq = self.Calendario.abrevsEquipo(abrEq)
+        juCal, _ = self.Calendario.partidosEquipo(abrEq)
+        auxEstads = defaultdict(lambda: defaultdict(list))
+
+        partidosAcontar = [p for p in juCal if self.Partidos[p['url']].FechaHora < fecha] if fecha else juCal
+
+        for datosCal in partidosAcontar:
+            abrevUsada = abrevsEq.intersection(datosCal['participantes']).pop()
+            locEq = datosCal['abrev2loc'][abrevUsada]
+            locRival = OtherTeam(locEq)
+            # datosEq = datosCal['equipos'][locEq]
+            datosRival = datosCal['equipos'][locRival]
+            abrevRival = datosRival['abrev']
+
+            datosPartido = self.Partidos[datosCal['url']]
+            estads = datosPartido.estadsPartido()
+            estadsEq = estads[locEq]
+            estadsEq['fecha'] = datosCal['fecha']
+            estadsEq['rival'] = abrevRival
+            estadsRival = estads[locRival]
+            estadsRival['abrev'] = abrevRival
+            estadsRival['fecha'] = datosCal['fecha']
+
+            for k, v in estadsEq.items():
+                auxEstads['eq'][k].append(v)
+            for k, v in estadsRival.items():
+                auxEstads['rival'][k].append(v)
+
+        return auxEstads
+
+    def estadsEquipo(self, abrEq, fecha=None):
+        result = defaultdict(dict)
+
+        auxEstads = self.precalcEstadsEquipo(abrEq, fecha)
+
+        for k in ['POS', 'Segs', 'P', 'OER', 'OERpot', 'T1-I', 'T3-C', 'T1%', 'T2%', 'T3%', 'TC%', 't2/tc-I', 't3/tc-I',
+                  't2/tc-C', 't3/tc-C', 'eff-t2', 'eff-t3',
+                  'R-D', 'R-O', 'REB-T', 'RO/TC-F', 'EffRebD', 'EffRebO',
+                  'A', 'BP', 'BR', 'A/BP', 'A/TC-C', 'FP-F', 'TAP-F']:
+            for l in ['eq', 'rival']:
+                result[l][k] = mean(auxEstads[l][k])
+
+        for k in '123C':
+            kI = f'T{k}-I'
+            kC = f'T{k}-C'
+            kRes = f'T{k}%-calc'
+            for l in ['eq', 'rival']:
+                result[l][kRes] = sum(auxEstads[l][kC]) / sum(auxEstads[l][kI]) * 100.0
+
+        for l in ['eq', 'rival']:
+            result[l]['t2/tc-I-calc'] = sum(auxEstads[l]['T2-I']) / sum(auxEstads[l]['TC-I'])
+            result[l]['t3/tc-I-calc'] = sum(auxEstads[l]['T3-I']) / sum(auxEstads[l]['TC-I'])
+            result[l]['t2/tc-C-calc'] = sum(auxEstads[l]['T2-C']) / sum(auxEstads[l]['TC-C'])
+            result[l]['t3/tc-C-calc'] = sum(auxEstads[l]['T3-C']) / sum(auxEstads[l]['TC-C'])
+            result[l]['eff-t2-calc'] = sum(auxEstads[l]['T2-C']) * 2 / (
+                    sum(auxEstads[l]['T2-C']) * 2 + sum(auxEstads[l]['T3-C']) * 3)
+            result[l]['eff-t3-calc'] = sum(auxEstads[l]['T3-C']) * 3 / (
+                    sum(auxEstads[l]['T2-C']) * 2 + sum(auxEstads[l]['T3-C']) * 3)
+            result[l]['A/TC-C-calc'] = sum(auxEstads[l]['A']) / sum(auxEstads[l]['TC-C']) * 100.0
+            result[l]['A/BP-calc'] = sum(auxEstads[l]['A']) / sum(auxEstads[l]['BP'])
+            result[l]['RO/TC-F-calc'] = sum(auxEstads[l]['R-O']) / (
+                    sum(auxEstads[l]['TC-I']) - sum(auxEstads[l]['TC-C']))
+
+        return result
+
+        for k in ['POS', 'Segs', 'P', 'OER', 'OERpot',
+                  'T1-C', 'T1-I', 'T1%', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-C', 'TC-I', 'TC%', 't2/tc-C',
+                  't2/tc-I', 't3/tc-C', 't3/tc-I', 'eff-t2', 'eff-t3',
+                  'R-D', 'R-O', 'REB-T', 'RO/TC-F', 'EffRebD', 'EffRebO',
+                  'A', 'BP', 'BR', 'A/BP', 'A/TC-C', 'FP-F', 'TAP-F']:
+            pass
+
+        return result
+        # K eq ['Segs', 'P', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'T1-C', 'T1-I', 'T1%', 'REB-T', 'R-D', 'R-O', 'A', 'BR', 'BP', 'C', 'TAP-F', 'TAP-C', 'M', 'FP-F', 'FP-C', '+/-', 'V', 'Vict', 'POS', 'OER', 'OERpot', 'EffRebD', 'EffRebO', 't2/tc-I', 't3/tc-I', 't2/tc-C', 't3/tc-C', 'eff-t2', 'eff-t3', 'TC-I', 'TC-C', 'TC%', 'A/TC-C', 'A/BP', 'RO/TC-F', 'fecha', 'rival']
+
+        # K rival ['Segs', 'P', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'T1-C', 'T1-I', 'T1%', 'REB-T', 'R-D', 'R-O', 'A', 'BR', 'BP', 'C', 'TAP-F', 'TAP-C', 'M', 'FP-F', 'FP-C', '+/-', 'V', 'Vict', 'POS', 'OER', 'OERpot', 'EffRebD', 'EffRebO', 't2/tc-I', 't3/tc-I', 't2/tc-C', 't3/tc-C', 'eff-t2', 'eff-t3', 'TC-I', 'TC-C', 'TC%', 'A/TC-C', 'A/BP', 'RO/TC-F', 'abrev', 'fecha']
 
 
 def calculaTempStats(datos, clave, filtroFechas=None):
