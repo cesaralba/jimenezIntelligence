@@ -440,10 +440,10 @@ class PartidoACB(object):
             avanzadas['TC-I'] = (estads['T2-I'] + estads['T3-I'])
             avanzadas['TC-C'] = (estads['T2-C'] + estads['T3-C'])
             avanzadas['TC%'] = avanzadas['TC-C'] / avanzadas['TC-I'] * 100.0
-            avanzadas['t2/tc-I'] = estads['T2-I'] / estads['TC-I']
-            avanzadas['t3/tc-I'] = estads['T3-I'] / estads['TC-I']
-            avanzadas['t2/tc-C'] = estads['T2-C'] / estads['TC-C']
-            avanzadas['t3/tc-C'] = estads['T3-C'] / estads['TC-C']
+            avanzadas['t2/tc-I'] = estads['T2-I'] / avanzadas['TC-I']
+            avanzadas['t3/tc-I'] = estads['T3-I'] / avanzadas['TC-I']
+            avanzadas['t2/tc-C'] = estads['T2-C'] / avanzadas['TC-C']
+            avanzadas['t3/tc-C'] = estads['T3-C'] / avanzadas['TC-C']
             avanzadas['eff-t2'] = estads['T2-C'] * 2 / (estads['T2-C'] * 2 + estads['T3-C'] * 3)
             avanzadas['eff-t3'] = estads['T3-C'] * 3 / (estads['T2-C'] * 2 + estads['T3-C'] * 3)
             avanzadas['A/TC-C'] = estads['A'] / avanzadas['TC-C'] * 100.0
