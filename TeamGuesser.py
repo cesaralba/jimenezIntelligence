@@ -3,28 +3,30 @@
 
 import bz2
 import csv
-import errno
-import gc
 import logging
 from argparse import Namespace
 from collections import defaultdict
-from itertools import chain, product
 from os import makedirs
 from os.path import isfile, join
-from time import strftime, time
 
+import errno
+import gc
 import joblib
 from babel.numbers import parse_decimal
 from configargparse import ArgumentParser
 from dask.distributed import Client, LocalCluster
+from itertools import chain, product
+from time import strftime, time
 
-from SMACB.Guesser import (agregaJugadores, buildPosCupoIndex, comb2Key, dumpVar, GeneraCombinacionJugs, getPlayersByPosAndCupoJornada, ig2posYcupo, indexGroup2Key, indexPosCupo2str, keySearchOrderParameter, loadVar, plan2filename, seq2name, varname2fichname)
+from SMACB.Guesser import (agregaJugadores, buildPosCupoIndex, comb2Key, dumpVar, GeneraCombinacionJugs,
+                           getPlayersByPosAndCupoJornada, ig2posYcupo, indexGroup2Key, indexPosCupo2str,
+                           keySearchOrderParameter, loadVar, plan2filename, seq2name, varname2fichname)
 from SMACB.SMconstants import CLAVESCSV, SEQCLAVES, solucion2clave
 from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.CombinacionesConCupos import GeneraCombinaciones
-from Utils.combinatorics import n_choose_m, prod
 from Utils.Misc import creaPath, deepDict, deepDictSet, FORMATOtimestamp
+from Utils.combinatorics import n_choose_m, prod
 from Utils.pysize import get_size
 
 NJOBS = 2
