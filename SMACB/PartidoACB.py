@@ -431,8 +431,12 @@ class PartidoACB(object):
             estads = result[loc]
             other = result[OtherTeam(loc)]
             avanzadas = dict()
+            avanzadas['Priv'] = other['P']
+            avanzadas['Ptot'] = estads['P'] + other['P']
             avanzadas['Vict'] = estads['P'] > other['P']
             avanzadas['POS'] = estads['T2-I'] + estads['T3-I'] + (estads['T1-I'] * 0.44) + estads['BP'] - estads['R-O']
+            avanzadas['POStot'] = avanzadas['POS'] + (
+                        other['T2-I'] + other['T3-I'] + (other['T1-I'] * 0.44) + other['BP'] - other['R-O'])
             avanzadas['OER'] = estads['P'] / avanzadas['POS']
             avanzadas['OERpot'] = estads['P'] / (avanzadas['POS'] - estads['BP'])
             avanzadas['EffRebD'] = estads['R-D'] / (estads['R-D'] + other['R-O'])
@@ -450,7 +454,6 @@ class PartidoACB(object):
             avanzadas['A/BP'] = estads['A'] / estads['BP']
             avanzadas['RO/TC-F'] = estads['R-O'] / (avanzadas['TC-I'] - avanzadas['TC-C'])
 
-            print(loc, estads['Segs'])
             avanzadas['Segs'] = estads['Segs'] / 5
 
             estads.update(avanzadas)
