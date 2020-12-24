@@ -8,10 +8,11 @@ from argparse import Namespace
 from collections import defaultdict
 from copy import copy
 from pickle import dump, load
-from statistics import mean
+from statistics import mean, median, stdev
 from traceback import print_exception
 
 import pandas as pd
+from itertools import product
 from sys import exc_info, setrecursionlimit
 from time import gmtime
 
@@ -252,29 +253,46 @@ class TemporadaACB(object):
 
         return result
 
-    def precalcEstadsEquipo(self, abrEq, fecha=None):
-        abrevsEq = self.Calendario.abrevsEquipo(abrEq)
-        juCal, _ = self.Calendario.partidosEquipo(abrEq)
+    def precalcEstadsEquipo(self, abrEq=None, fecha=None):
+
         auxEstads = defaultdict(lambda: defaultdict(list))
 
-        partidosAcontar = [p for p in juCal if self.Partidos[p['url']].FechaHora < fecha] if fecha else juCal
+        if abrEq:
+            juCal, _ = self.Calendario.partidosEquipo(abrEq)
+            listaPartidos = juCal
+            partidosAcontar = [p for p in listaPartidos if
+                               self.Partidos[p['url']].FechaHora < fecha] if fecha else listaPartidos
+        else:
+            listaPartidos = []
+            for auxAbr in self.Calendario.tradEquipos['i2c'].values():
+                ab = list(auxAbr)[0]
+                juCal, _ = self.Calendario.partidosEquipo(ab)
+                listaPartidos.extend(list(product([ab], juCal)))
+            partidosAcontar = [p for p in listaPartidos if
+                               self.Partidos[p[1]['url']].FechaHora < fecha] if fecha else listaPartidos
 
         for datosCal in partidosAcontar:
-            abrevUsada = abrevsEq.intersection(datosCal['participantes']).pop()
-            locEq = datosCal['abrev2loc'][abrevUsada]
+            if abrEq:
+                abrevsEq = self.Calendario.abrevsEquipo(abrEq)
+                partCal = datosCal
+                abrevUsada = abrevsEq.intersection(datosCal['participantes']).pop()
+            else:
+                ab, partCal = datosCal
+                abrevsEq = self.Calendario.abrevsEquipo(ab)
+                abrevUsada = abrevsEq.intersection(partCal['participantes']).pop()
+
+            locEq = partCal['abrev2loc'][abrevUsada]
             locRival = OtherTeam(locEq)
             # datosEq = datosCal['equipos'][locEq]
-            datosRival = datosCal['equipos'][locRival]
+            datosRival = partCal['equipos'][locRival]
             abrevRival = datosRival['abrev']
 
-            datosPartido = self.Partidos[datosCal['url']]
+            datosPartido = self.Partidos[partCal['url']]
             estads = datosPartido.estadsPartido()
             estadsEq = estads[locEq]
-            estadsEq['fecha'] = datosCal['fecha']
-            estadsEq['rival'] = abrevRival
+            estadsEq['fecha'] = partCal['fecha']
             estadsRival = estads[locRival]
-            estadsRival['abrev'] = abrevRival
-            estadsRival['fecha'] = datosCal['fecha']
+            estadsRival['fecha'] = partCal['fecha']
 
             for k, v in estadsEq.items():
                 auxEstads['eq'][k].append(v)
@@ -283,17 +301,20 @@ class TemporadaACB(object):
 
         return auxEstads
 
-    def estadsEquipo(self, abrEq, fecha=None):
+    def estadsEquipo(self, abrEq=None, fecha=None):
         result = defaultdict(dict)
 
         auxEstads = self.precalcEstadsEquipo(abrEq, fecha)
 
-        for k in ['POS', 'Segs', 'P', 'OER', 'OERpot', 'T1-I', 'T3-C', 'T1%', 'T2%', 'T3%', 'TC%', 't2/tc-I', 't3/tc-I',
-                  't2/tc-C', 't3/tc-C', 'eff-t2', 'eff-t3',
-                  'R-D', 'R-O', 'REB-T', 'RO/TC-F', 'EffRebD', 'EffRebO',
-                  'A', 'BP', 'BR', 'A/BP', 'A/TC-C', 'FP-F', 'TAP-F']:
+        for k in ['POS', 'POStot', 'Segs', 'P', 'Priv', 'Ptot', 'OER', 'OERpot', 'T1-C', 'T1-I', 'T2-C', 'T2-I', 'T3-C',
+                  'T3-I', 'TC-C', 'TC-I', 'T1%', 'T2%', 'T3%', 'TC%', 't2/tc-I',
+                  't3/tc-I', 't2/tc-C', 't3/tc-C', 'eff-t2', 'eff-t3', 'ppTC', 'R-D', 'R-O', 'REB-T', 'RO/TC-F',
+                  'EffRebD',
+                  'EffRebO', 'A', 'BP', 'BR', 'A/BP', 'A/TC-C', 'FP-F', 'TAP-F']:
             for l in ['eq', 'rival']:
-                result[l][k] = mean(auxEstads[l][k])
+                result[l][k] = (
+                    mean(auxEstads[l][k]), median(auxEstads[l][k]), stdev(auxEstads[l][k]), max(auxEstads[l][k]),
+                    min(auxEstads[l][k]))
 
         for k in '123C':
             kI = f'T{k}-I'
@@ -303,6 +324,7 @@ class TemporadaACB(object):
                 result[l][kRes] = sum(auxEstads[l][kC]) / sum(auxEstads[l][kI]) * 100.0
 
         for l in ['eq', 'rival']:
+            result[l]['Parts'] = len(auxEstads[l]['P'])
             result[l]['t2/tc-I-calc'] = sum(auxEstads[l]['T2-I']) / sum(auxEstads[l]['TC-I'])
             result[l]['t3/tc-I-calc'] = sum(auxEstads[l]['T3-I']) / sum(auxEstads[l]['TC-I'])
             result[l]['t2/tc-C-calc'] = sum(auxEstads[l]['T2-C']) / sum(auxEstads[l]['TC-C'])
@@ -329,6 +351,15 @@ class TemporadaACB(object):
         # K eq ['Segs', 'P', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'T1-C', 'T1-I', 'T1%', 'REB-T', 'R-D', 'R-O', 'A', 'BR', 'BP', 'C', 'TAP-F', 'TAP-C', 'M', 'FP-F', 'FP-C', '+/-', 'V', 'Vict', 'POS', 'OER', 'OERpot', 'EffRebD', 'EffRebO', 't2/tc-I', 't3/tc-I', 't2/tc-C', 't3/tc-C', 'eff-t2', 'eff-t3', 'TC-I', 'TC-C', 'TC%', 'A/TC-C', 'A/BP', 'RO/TC-F', 'fecha', 'rival']
 
         # K rival ['Segs', 'P', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'T1-C', 'T1-I', 'T1%', 'REB-T', 'R-D', 'R-O', 'A', 'BR', 'BP', 'C', 'TAP-F', 'TAP-C', 'M', 'FP-F', 'FP-C', '+/-', 'V', 'Vict', 'POS', 'OER', 'OERpot', 'EffRebD', 'EffRebO', 't2/tc-I', 't3/tc-I', 't2/tc-C', 't3/tc-C', 'eff-t2', 'eff-t3', 'TC-I', 'TC-C', 'TC%', 'A/TC-C', 'A/BP', 'RO/TC-F', 'abrev', 'fecha']
+
+    def estadsLiga(self, fecha=None):
+        result = dict()
+
+        for auxAbr in self.Calendario.tradEquipos['i2c'].values():
+            ab = list(auxAbr)[0]
+            result[ab] = self.estadsEquipo(ab, fecha)
+
+        return result
 
 
 def calculaTempStats(datos, clave, filtroFechas=None):
@@ -420,3 +451,27 @@ def entradaClas2k(ent):
     print(ent, result)
 
     return result
+
+
+def ordenEstadsLiga(estads: dict, abr: str, eq: str = 'eq', clave: str = 'P', subclave=0, decrec: bool = True) -> int:
+    if abr not in estads:
+        valCorrectos = ", ".join(sorted(estads.keys()))
+        raise KeyError(f"ordenEstadsLiga: equipo (abr) '{abr}' desconocido. Equipos validos: {valCorrectos}")
+    targEquipo = estads[abr]
+    if eq not in targEquipo:
+        valCorrectos = ", ".join(sorted(targEquipo.keys()))
+        raise KeyError(f"ordenEstadsLiga: ref (eq) '{eq}' desconocido. Referencias válidas: {valCorrectos}")
+    targValores = targEquipo[eq]
+    if clave not in targValores:
+        valCorrectos = ", ".join(sorted(targValores.keys()))
+        raise KeyError(f"ordenEstadsLiga: clave '{clave}' desconocida. Claves válidas: {valCorrectos}")
+
+    auxRef = targValores[clave][subclave] if isinstance(targValores[clave], tuple) else targValores[clave]
+
+    valAcomp = [estads[e][eq][clave] for e in estads.keys()]
+
+    keyGetter = (lambda v, subclave: v[subclave]) if isinstance(targValores[clave], tuple) else (lambda v, subclave: v)
+
+    comparaValores = (lambda x, auxref: x > auxref) if decrec else (lambda x, auxref: x < auxref)
+
+    return sum([comparaValores(keyGetter(v, subclave), auxRef) for v in valAcomp]) + 1
