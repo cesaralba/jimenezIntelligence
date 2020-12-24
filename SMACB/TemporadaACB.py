@@ -196,7 +196,19 @@ class TemporadaACB(object):
 
         return (dfResult)
 
-    def sigPartido(self, abrEq):
+    def sigPartido(self, abrEq) -> (dict,tuple,list,list,list,list,bool):
+        """
+        Devuelve el siguiente partido de un equipo y los anteriores y siguientes del equipo y su próximo rival
+        :param abrEq: abreviatura del equipo objetivo
+        :return: tupla con los siguientes valores
+        * Información del siguiente partido
+        * Tupla con las abrevs del equipo local y visit del siguiente
+        * Partidos pasados del eq local
+        * Partidos futuros del eq local
+        * Partidos pasados del eq visitante
+        * Partidos futuros del eq visitante
+        * Si la abrev objetivo es local (True) o visit (False)
+        """
         juCal, peCal = self.Calendario.partidosEquipo(abrEq)
 
         peOrd = sorted([p for p in peCal], key=lambda x: x['fecha'])
@@ -212,8 +224,9 @@ class TemporadaACB(object):
         eqIsLocal = sigPart['loc2abrev']['Local'] in abrevsEq
         juIzda, peIzda, juDcha, peDcha = (juOrdTem, peOrd, juRivTem, peRivOrd) if eqIsLocal else (
             juRivTem, peRivOrd, juOrdTem, peOrd)
+        resAbrevs = (abrEq, abrRival) if eqIsLocal else (abrRival,abrEq)
 
-        return sigPart, (abrEq, abrRival), juOrdTem, peOrd, juRivTem, peRivOrd
+        return sigPart, resAbrevs, juIzda, peIzda, juDcha, peDcha, eqIsLocal
 
     def clasifEquipo(self, abrEq, fecha=None):
         abrevsEq = self.Calendario.abrevsEquipo(abrEq)
