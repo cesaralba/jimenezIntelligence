@@ -196,7 +196,7 @@ class TemporadaACB(object):
 
         return (dfResult)
 
-    def sigPartido(self, abrEq) -> (dict,tuple,list,list,list,list,bool):
+    def sigPartido(self, abrEq) -> (dict, tuple, list, list, list, list, bool):
         """
         Devuelve el siguiente partido de un equipo y los anteriores y siguientes del equipo y su próximo rival
         :param abrEq: abreviatura del equipo objetivo
@@ -224,7 +224,7 @@ class TemporadaACB(object):
         eqIsLocal = sigPart['loc2abrev']['Local'] in abrevsEq
         juIzda, peIzda, juDcha, peDcha = (juOrdTem, peOrd, juRivTem, peRivOrd) if eqIsLocal else (
             juRivTem, peRivOrd, juOrdTem, peOrd)
-        resAbrevs = (abrEq, abrRival) if eqIsLocal else (abrRival,abrEq)
+        resAbrevs = (abrEq, abrRival) if eqIsLocal else (abrRival, abrEq)
 
         return sigPart, resAbrevs, juIzda, peIzda, juDcha, peDcha, eqIsLocal
 
@@ -234,6 +234,7 @@ class TemporadaACB(object):
         result = defaultdict(int)
         result['Lfav'] = list()
         result['Lcon'] = list()
+        result['CasaFuera']= {'Local': defaultdict(int), 'Visitante': defaultdict(int)}
 
         partidosAcontar = [p for p in juCal if self.Partidos[p['url']].FechaHora < fecha] if fecha else juCal
 
@@ -241,11 +242,14 @@ class TemporadaACB(object):
             abrevUsada = abrevsEq.intersection(datosCal['participantes']).pop()
             locEq = datosCal['abrev2loc'][abrevUsada]
             locRival = OtherTeam(locEq)
+
             datosEq = datosCal['equipos'][locEq]
             datosRival = datosCal['equipos'][locRival]
+            claveRes = 'V' if datosEq['haGanado'] else 'D'
 
             result['Jug'] += 1
-            result['V' if datosEq['haGanado'] else 'D'] += 1
+            result[claveRes] += 1
+            result['CasaFuera'][locEq][claveRes] += 1
 
             result['Pfav'] += datosEq['puntos']
             result['Lfav'].append(datosEq['puntos'])
@@ -461,7 +465,6 @@ def entradaClas2k(ent):
     ratioVent = ((ent.get('Pfav', 0) - ent.get('Pcon', 0)) / ent.get('Jug')) if ent.get('Jug', 0) else 0.0
 
     result = (ratioV, ent.get('V', 0), ratioVent, ent.get('Pfav', 0))
-    print(ent, result)
 
     return result
 
@@ -489,6 +492,7 @@ def ordenEstadsLiga(estads: dict, abr: str, eq: str = 'eq', clave: str = 'P', su
 
     return sum([comparaValores(keyGetter(v, subclave), auxRef) for v in valAcomp]) + 1
 
+
 def extraeCampoYorden(estads: dict, abr: str, eq: str = 'eq', clave: str = 'P', subclave=0, decrec: bool = True):
     if abr not in estads:
         valCorrectos = ", ".join(sorted(estads.keys()))
@@ -505,4 +509,4 @@ def extraeCampoYorden(estads: dict, abr: str, eq: str = 'eq', clave: str = 'P', 
     valor = targValores[clave][subclave] if isinstance(targValores[clave], tuple) else targValores[clave]
     orden = ordenEstadsLiga(estads, abr, eq, clave, subclave, decrec)
 
-    return valor,orden
+    return valor, orden
