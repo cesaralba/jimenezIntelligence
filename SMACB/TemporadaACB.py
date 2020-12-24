@@ -475,3 +475,21 @@ def ordenEstadsLiga(estads: dict, abr: str, eq: str = 'eq', clave: str = 'P', su
     comparaValores = (lambda x, auxref: x > auxref) if decrec else (lambda x, auxref: x < auxref)
 
     return sum([comparaValores(keyGetter(v, subclave), auxRef) for v in valAcomp]) + 1
+
+def extraeCampoYorden(estads: dict, abr: str, eq: str = 'eq', clave: str = 'P', subclave=0, decrec: bool = True):
+    if abr not in estads:
+        valCorrectos = ", ".join(sorted(estads.keys()))
+        raise KeyError(f"ordenEstadsLiga: equipo (abr) '{abr}' desconocido. Equipos validos: {valCorrectos}")
+    targEquipo = estads[abr]
+    if eq not in targEquipo:
+        valCorrectos = ", ".join(sorted(targEquipo.keys()))
+        raise KeyError(f"ordenEstadsLiga: ref (eq) '{eq}' desconocido. Referencias válidas: {valCorrectos}")
+    targValores = targEquipo[eq]
+    if clave not in targValores:
+        valCorrectos = ", ".join(sorted(targValores.keys()))
+        raise KeyError(f"ordenEstadsLiga: clave '{clave}' desconocida. Claves válidas: {valCorrectos}")
+
+    valor = targValores[clave][subclave] if isinstance(targValores[clave], tuple) else targValores[clave]
+    orden = ordenEstadsLiga(estads, abr, eq, clave, subclave, decrec)
+
+    return valor,orden
