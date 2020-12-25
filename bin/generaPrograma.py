@@ -4,10 +4,12 @@ from copy import copy
 import reportlab.lib.colors as colors
 import sys
 from configargparse import ArgumentParser
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
-from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, Spacer
+from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, Spacer, NextPageTemplate, PageTemplate, \
+    Frame, PageBreak
 from time import strftime
 
 from SMACB.CalendarioACB import NEVER
@@ -16,7 +18,17 @@ from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden
 from Utils.FechaHora import Time2Str
 
 estadGlobales = None
-ESTAD = 0  # 0 media, 1 mediana, 2 stdev, 3 max, 4 min
+ESTADISTICO = 0  # 0 media, 1 mediana, 2 stdev, 3 max, 4 min
+
+ESTILOS = getSampleStyleSheet()
+
+
+def auxCalculaBalanceStr(record):
+    victorias = record.get('V', 0)
+    derrotas = record.get('D', 0)
+    texto = f"<b>{victorias} - {derrotas}</b>"
+
+    return texto
 
 
 def cabeceraPortada(partido, tempData):
@@ -71,69 +83,69 @@ def datosEstadsEquipoPortada(tempData: TemporadaACB, eq: str):
 
     targAbrev = list(tempData.Calendario.abrevsEquipo(eq).intersection(estadGlobales.keys()))[0]
 
-    pFav, pFavOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'P', ESTAD)
-    pCon, pConOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'Priv', ESTAD, False)
+    pFav, pFavOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'P', ESTADISTICO)
+    pCon, pConOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'Priv', ESTADISTICO, False)
 
-    pos, posOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'POS', ESTAD)
-    OER, OEROrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'OER', ESTAD)
-    OERpot, OERpotOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'OERpot', ESTAD)
-    DER, DEROrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'OER', ESTAD, False)
+    pos, posOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'POS', ESTADISTICO)
+    OER, OEROrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'OER', ESTADISTICO)
+    OERpot, OERpotOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'OERpot', ESTADISTICO)
+    DER, DEROrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'OER', ESTADISTICO, False)
 
-    T2C, T2COrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T2-C', ESTAD)
-    T2I, T2IOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T2-I', ESTAD)
-    T2pc, T2pcOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T2%', ESTAD)
-    T3C, T3COrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T3-C', ESTAD)
-    T3I, T3IOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T3-I', ESTAD)
-    T3pc, T3pcOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T3%', ESTAD)
-    TCC, TCCOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'TC-C', ESTAD)
-    TCI, TCIOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'TC-I', ESTAD)
-    TCpc, TCpcOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'TC%', ESTAD)
-    ppTC, ppTCOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'ppTC', ESTAD)
-    ratT3, ratT3Ord = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 't3/tc-I', ESTAD)
-    Fcom, FcomOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'FP-F', ESTAD, False)
-    Frec, FrecOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'FP-F', ESTAD, True)
-    T1C, T1COrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T1-C', ESTAD)
-    T1I, T1IOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T1-I', ESTAD)
-    T1pc, T1pcOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T1%', ESTAD)
+    T2C, T2COrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T2-C', ESTADISTICO)
+    T2I, T2IOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T2-I', ESTADISTICO)
+    T2pc, T2pcOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T2%', ESTADISTICO)
+    T3C, T3COrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T3-C', ESTADISTICO)
+    T3I, T3IOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T3-I', ESTADISTICO)
+    T3pc, T3pcOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T3%', ESTADISTICO)
+    TCC, TCCOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'TC-C', ESTADISTICO)
+    TCI, TCIOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'TC-I', ESTADISTICO)
+    TCpc, TCpcOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'TC%', ESTADISTICO)
+    ppTC, ppTCOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'ppTC', ESTADISTICO)
+    ratT3, ratT3Ord = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 't3/tc-I', ESTADISTICO)
+    Fcom, FcomOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'FP-F', ESTADISTICO, False)
+    Frec, FrecOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'FP-F', ESTADISTICO, True)
+    T1C, T1COrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T1-C', ESTADISTICO)
+    T1I, T1IOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T1-I', ESTADISTICO)
+    T1pc, T1pcOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'T1%', ESTADISTICO)
 
-    RebD, RebDOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'R-D', ESTAD, True)
-    RebO, RebOOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'R-O', ESTAD, True)
-    RebT, RebTOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'REB-T', ESTAD, True)
-    EffRebD, EffRebDOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'EffRebD', ESTAD, True)
-    EffRebO, EffRebOOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'EffRebO', ESTAD, True)
+    RebD, RebDOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'R-D', ESTADISTICO, True)
+    RebO, RebOOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'R-O', ESTADISTICO, True)
+    RebT, RebTOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'REB-T', ESTADISTICO, True)
+    EffRebD, EffRebDOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'EffRebD', ESTADISTICO, True)
+    EffRebO, EffRebOOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'EffRebO', ESTADISTICO, True)
 
-    A, AOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'A', ESTAD, True)
-    BP, BPOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'BP', ESTAD, False)
-    BR, BROrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'BR', ESTAD, True)
-    ApBP, ApBPOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'A/BP', ESTAD, True)
-    ApTCC, ApTCCOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'A/TC-C', ESTAD, True)
+    A, AOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'A', ESTADISTICO, True)
+    BP, BPOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'BP', ESTADISTICO, False)
+    BR, BROrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'BR', ESTADISTICO, True)
+    ApBP, ApBPOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'A/BP', ESTADISTICO, True)
+    ApTCC, ApTCCOrd = extraeCampoYorden(estadGlobales, targAbrev, 'eq', 'A/TC-C', ESTADISTICO, True)
 
     ###
 
-    rT2C, rT2COrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T2-C', ESTAD)
-    rT2I, rT2IOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T2-I', ESTAD)
-    rT2pc, rT2pcOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T2%', ESTAD)
-    rT3C, rT3COrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T3-C', ESTAD)
-    rT3I, rT3IOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T3-I', ESTAD)
-    rT3pc, rT3pcOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T3%', ESTAD)
-    rTCC, rTCCOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'TC-C', ESTAD)
-    rTCI, rTCIOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'TC-I', ESTAD)
-    rTCpc, rTCpcOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'TC%', ESTAD)
-    rppTC, rppTCOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'ppTC', ESTAD)
-    rratT3, rratT3Ord = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 't3/tc-I', ESTAD)
-    rT1C, rT1COrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T1-C', ESTAD)
-    rT1I, rT1IOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T1-I', ESTAD)
-    rT1pc, rT1pcOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T1%', ESTAD)
+    rT2C, rT2COrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T2-C', ESTADISTICO)
+    rT2I, rT2IOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T2-I', ESTADISTICO)
+    rT2pc, rT2pcOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T2%', ESTADISTICO)
+    rT3C, rT3COrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T3-C', ESTADISTICO)
+    rT3I, rT3IOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T3-I', ESTADISTICO)
+    rT3pc, rT3pcOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T3%', ESTADISTICO)
+    rTCC, rTCCOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'TC-C', ESTADISTICO)
+    rTCI, rTCIOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'TC-I', ESTADISTICO)
+    rTCpc, rTCpcOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'TC%', ESTADISTICO)
+    rppTC, rppTCOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'ppTC', ESTADISTICO)
+    rratT3, rratT3Ord = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 't3/tc-I', ESTADISTICO)
+    rT1C, rT1COrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T1-C', ESTADISTICO)
+    rT1I, rT1IOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T1-I', ESTADISTICO)
+    rT1pc, rT1pcOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'T1%', ESTADISTICO)
 
-    rRebD, rRebDOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'R-D', ESTAD, True)
-    rRebO, rRebOOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'R-O', ESTAD, True)
-    rRebT, rRebTOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'REB-T', ESTAD, True)
+    rRebD, rRebDOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'R-D', ESTADISTICO, True)
+    rRebO, rRebOOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'R-O', ESTADISTICO, True)
+    rRebT, rRebTOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'REB-T', ESTADISTICO, True)
 
-    rA, rAOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'A', ESTAD, True)
-    rBP, rBPOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'BP', ESTAD, False)
-    rBR, rBROrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'BR', ESTAD, True)
-    rApBP, rApBPOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'A/BP', ESTAD, True)
-    rApTCC, rApTCCOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'A/TC-C', ESTAD, True)
+    rA, rAOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'A', ESTADISTICO, True)
+    rBP, rBPOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'BP', ESTADISTICO, False)
+    rBR, rBROrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'BR', ESTADISTICO, True)
+    rApBP, rApBPOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'A/BP', ESTADISTICO, True)
+    rApTCC, rApTCCOrd = extraeCampoYorden(estadGlobales, targAbrev, 'rival', 'A/TC-C', ESTADISTICO, True)
 
     ###
 
@@ -173,8 +185,15 @@ def estadsEquipoPortada(tempData: TemporadaACB, abrevs: list):
 
 
 def datosTablaLiga(tempData: TemporadaACB):
+    FONTSIZE = 10
+    CELLPAD = 3 * mm
+
+    estCelda = ParagraphStyle('celTabLiga', ESTILOS.get('Normal'), fontSize=FONTSIZE, leading=FONTSIZE,
+                              alignment=TA_CENTER, borderPadding=CELLPAD, spaceAfter=CELLPAD, spaceBefore=CELLPAD)
+    ESTILOS.add(estCelda)
+
+    # Precalcula el contenido de la tabla
     auxTabla = defaultdict(dict)
-    datosTabla = []
     for jId, jDatos in tempData.Calendario.Jornadas.items():
         for part in jDatos['partidos']:
             idLocal = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Local']['abrev']])[0]
@@ -185,49 +204,45 @@ def datosTablaLiga(tempData: TemporadaACB):
             idVisitante = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Visitante']['abrev']])[0]
             auxTabla[idLocal][idVisitante] = part
 
+    # En la clasificación está el contenido de los márgenes, de las diagonales y el orden de presentación
+    # de los equipos
     clasif = tempData.clasifLiga()
     seqIDs = [(pos, list(clasif[pos]['idEq'])[0]) for pos in range(len(clasif))]
 
-    cabFila = ['Casa/Fuera'] + [list(clasif[pos]['abrevsEq'])[0] for pos, _ in seqIDs] + ['Bal Local']
+    datosTabla = []
+    cabFila = [Paragraph('<b>Casa/Fuera</b>', style=estCelda)] + [
+        Paragraph('<b>' + list(clasif[pos]['abrevsEq'])[0] + '</b>', style=estCelda) for pos, _ in seqIDs] + [
+                  Paragraph('<b>Como local</b>', style=estCelda)]
     datosTabla.append(cabFila)
     for pos, idLocal in seqIDs:
         fila = []
         nombreCorto = sorted(clasif[pos]['nombresEq'], key=lambda n: len(n))[0]
         abrev = list(clasif[pos]['abrevsEq'])[0]
-        fila.append(f"{nombreCorto} ({abrev})")
+        fila.append(Paragraph(f"<b>{nombreCorto} ({abrev})</b>", style=estCelda))
         for _, idVisit in seqIDs:
             if idLocal != idVisit:
                 part = auxTabla[idLocal][idVisit]
                 fecha = strftime("%d-%m", part['fecha']) if (('fecha' in part) and (part['fecha'] != NEVER)) else 'TBD'
                 jornada = part['jornada']
 
-                print("CAP", fecha, part['fecha'])
-                texto = f"J:{jornada} {fecha}"
+                texto = f"J:{jornada}<br/>@{fecha}"
                 if not part['pendiente']:
                     pURL = part['url']
                     pTempFecha = tempData.Partidos[pURL].FechaHora
                     fecha = strftime("%d-%m", pTempFecha)
                     pLocal = part['equipos']['Local']['puntos']
                     pVisit = part['equipos']['Visitante']['puntos']
-                    texto = f"J:{jornada} {fecha}<br/><b>{pLocal}-{pVisit}</b>"
+                    texto = f"J:{jornada}<br/><b>{pLocal}-{pVisit}</b>"  #:@{fecha}
             else:
-                victorias = clasif[pos].get('V', 0)
-                derrotas = clasif[pos].get('D', 0)
-                texto = f"{victorias} - {derrotas}"
-            fila.append(texto)
+                texto = auxCalculaBalanceStr(clasif[pos])
+            fila.append(Paragraph(texto, style=estCelda))
 
-        victorias = clasif[pos]['CasaFuera']['Local'].get('V', 0)
-        derrotas = clasif[pos]['CasaFuera']['Local'].get('D', 0)
-        texto = f"{victorias} - {derrotas}"
-        fila.append(texto)
+        fila.append(Paragraph(auxCalculaBalanceStr(clasif[pos]['CasaFuera']['Local']), style=estCelda))
         datosTabla.append(fila)
 
-    filaBalFuera = ['Bal Visit']
+    filaBalFuera = [Paragraph('<b>Como visitante</b>', style=estCelda)]
     for pos, idLocal in seqIDs:
-        victorias = clasif[pos]['CasaFuera']['Visitante'].get('V', 0)
-        derrotas = clasif[pos]['CasaFuera']['Visitante'].get('D', 0)
-        texto = f"{victorias} - {derrotas}"
-        filaBalFuera.append(texto)
+        filaBalFuera.append(Paragraph(auxCalculaBalanceStr(clasif[pos]['CasaFuera']['Visitante']), style=estCelda))
     filaBalFuera.append([])
     datosTabla.append(filaBalFuera)
 
@@ -315,50 +330,6 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
     return strRival, strResultado
 
 
-def preparaLibro(outfile, tempData, datosSig):
-    doc = SimpleDocTemplate(filename=outfile, pagesize=A4, bottomup=0, verbosity=4, initialFontName='Helvetica',
-                            initialLeading=5 * mm,
-                            leftMargin=5 * mm,
-                            rightMargin=5 * mm,
-                            topMargin=5 * mm,
-                            bottomMargin=5 * mm)
-    # pdfFile = canvas.Canvas(filename=outfile, pagesize=A4, bottomup=0, verbosity=4, initialFontName='Helvetica',                            initialLeading=0.5 * mm)
-    story = []
-
-    (sigPartido, abrEqs, juIzda, peEq, juDcha, peRiv, targLocal) = datosSig
-
-    antecedentes = {p.url for p in juIzda}.intersection({p.url for p in juDcha})
-
-    mezParts = mezclaPartJugados(tempData, abrEqs, juIzda, juDcha)
-
-    story.append(cabeceraPortada(sigPartido, tempData))
-
-    story.append(Spacer(width=120 * mm, height=2 * mm))
-    story.append(estadsEquipoPortada(tempData, abrEqs))
-
-    if antecedentes:
-        print("Antecedentes!")
-    else:
-        story.append(Spacer(width=120 * mm, height=3 * mm))
-        story.append(Paragraph("Sin antecedentes esta temporada"))
-
-    if mezParts:
-        story.append(Spacer(width=120 * mm, height=3 * mm))
-        trayectoria = reportTrayectoria(mezParts)
-        story.append(trayectoria)
-
-    doc.build(story)
-
-    # print(sigPartido)
-    # print("-------")
-    # print(targLocal)
-    # print("-------")
-    # print(juIzda)
-    # print("-------")
-    # print(juDcha)
-    # print("-------")
-
-
 def reportTrayectoria(listaTrayectoria):
     filas = []
 
@@ -384,6 +355,85 @@ def reportTrayectoria(listaTrayectoria):
     t = Table(data=filas, style=tStyle, colWidths=[23 * mm, 72 * mm, 10 * mm, 72 * mm, 23 * mm])
 
     return t
+
+
+def tablaLiga(tempData: TemporadaACB):
+    CELLPAD = 0.3 * mm
+    FONTSIZE = 10
+
+    tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                         ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
+                         ('LEADING', (0, 0), (-1, -1), FONTSIZE), ('LEFTPADDING', (0, 0), (-1, -1), CELLPAD),
+                         ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD), ('TOPPADDING', (0, 0), (-1, -1), CELLPAD),
+                         ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD), ])
+    datosAux = datosTablaLiga(tempData)
+
+    t = Table(datosAux, style=tStyle)
+
+    return t
+
+
+def preparaLibro(outfile, tempData, datosSig):
+    MARGENFRAME = 2 * mm
+    frameNormal = Frame(x1=MARGENFRAME, y1=MARGENFRAME, width=A4[0] - 2 * MARGENFRAME, height=A4[1] - 2 * MARGENFRAME,
+                        leftPadding=MARGENFRAME,
+                        bottomPadding=MARGENFRAME, rightPadding=MARGENFRAME, topPadding=MARGENFRAME)
+    frameApaisado = Frame(x1=MARGENFRAME, y1=MARGENFRAME, width=A4[1] - 2 * MARGENFRAME, height=A4[0] - 2 * MARGENFRAME,
+                          leftPadding=MARGENFRAME,
+                          bottomPadding=MARGENFRAME, rightPadding=MARGENFRAME, topPadding=MARGENFRAME)
+    pagNormal = PageTemplate('normal', pagesize=A4, frames=[frameNormal], autoNextPageTemplate='normal')
+    pagApaisada = PageTemplate('apaisada', pagesize=landscape(A4), frames=[frameApaisado],
+                               autoNextPageTemplate='apaisada')
+
+    doc = SimpleDocTemplate(filename=outfile, pagesize=A4, bottomup=0, verbosity=4, initialFontName='Helvetica',
+                            initialLeading=5 * mm,
+                            leftMargin=5 * mm,
+                            rightMargin=5 * mm,
+                            topMargin=5 * mm,
+                            bottomMargin=5 * mm, )
+    doc.addPageTemplates([pagNormal, pagApaisada])
+
+    # pagNormal = PageTemplate('normal', frames=[frameApaisado], pagesize=A4, autoNextPageTemplate='normal')
+    #
+    # doc.addPageTemplates(pagNormal)
+    # pagApaisada = PageTemplate('apaisada', frames=[frameNormal], pagesize=landscape(A4),
+    #                            autoNextPageTemplate='apaisada')
+
+    # doc.addPageTemplates(pagApaisada)
+
+    # pdfFile = canvas.Canvas(filename=outfile, pagesize=A4, bottomup=0, verbosity=4, initialFontName='Helvetica',                            initialLeading=0.5 * mm)
+    story = []
+
+    (sigPartido, abrEqs, juIzda, peEq, juDcha, peRiv, targLocal) = datosSig
+
+    antecedentes = {p.url for p in juIzda}.intersection({p.url for p in juDcha})
+
+    mezParts = mezclaPartJugados(tempData, abrEqs, juIzda, juDcha)
+
+    story.append(cabeceraPortada(sigPartido, tempData))
+
+    story.append(Spacer(width=120 * mm, height=2 * mm))
+    story.append(estadsEquipoPortada(tempData, abrEqs))
+
+    if antecedentes:
+        print("Antecedentes!")
+    else:
+        story.append(Spacer(width=120 * mm, height=3 * mm))
+        story.append(Paragraph("Sin antecedentes esta temporada"))
+
+    if mezParts:
+        story.append(Spacer(width=120 * mm, height=3 * mm))
+        trayectoria = reportTrayectoria(mezParts)
+        story.append(trayectoria)
+
+    story.append(NextPageTemplate('apaisada'))
+    story.append(PageBreak())
+    story.append(tablaLiga(tempData))
+
+    #   story.append(NextPageTemplate('apaisada'))
+
+    doc.build(story)
 
 
 def parse_arguments():
