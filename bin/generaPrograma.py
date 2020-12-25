@@ -26,7 +26,7 @@ ESTILOS = getSampleStyleSheet()
 def auxCalculaBalanceStr(record):
     victorias = record.get('V', 0)
     derrotas = record.get('D', 0)
-    texto = f"<b>{victorias} - {derrotas}</b>"
+    texto = f"{victorias}-{derrotas}"
 
     return texto
 
@@ -68,9 +68,9 @@ def datosCabEquipo(datosEq, tempData, fecha):
 
     if tempData:
         clasifAux = tempData.clasifEquipo(datosEq['abrev'], fecha)
-        clasifStr = "(%i-%i)" % (clasifAux.get('V', 0), clasifAux.get('D', 0))
+        clasifStr = auxCalculaBalanceStr(clasifAux)
 
-    result = [Paragraph(f"<para align='center' fontSize='16' leading='17'>{nombre}</para>"),
+    result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b></para>"),
               Paragraph(f"<para align='center' fontSize='14'>{clasifStr}</para>")]
 
     return result
@@ -218,7 +218,7 @@ def datosTablaLiga(tempData: TemporadaACB):
         fila = []
         nombreCorto = sorted(clasif[pos]['nombresEq'], key=lambda n: len(n))[0]
         abrev = list(clasif[pos]['abrevsEq'])[0]
-        fila.append(Paragraph(f"<b>{nombreCorto} ({abrev})</b>", style=estCelda))
+        fila.append(Paragraph(f"{nombreCorto} (<b>{abrev}</b>)", style=estCelda))
         for _, idVisit in seqIDs:
             if idLocal != idVisit:
                 part = auxTabla[idLocal][idVisit]
@@ -234,7 +234,8 @@ def datosTablaLiga(tempData: TemporadaACB):
                     pVisit = part['equipos']['Visitante']['puntos']
                     texto = f"J:{jornada}<br/><b>{pLocal}-{pVisit}</b>"  #:@{fecha}
             else:
-                texto = auxCalculaBalanceStr(clasif[pos])
+                auxTexto = auxCalculaBalanceStr(clasif[pos])
+                texto=f"<b>{auxTexto}</b>"
             fila.append(Paragraph(texto, style=estCelda))
 
         fila.append(Paragraph(auxCalculaBalanceStr(clasif[pos]['CasaFuera']['Local']), style=estCelda))
@@ -313,7 +314,7 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
     prefLoc = "vs" if locEq == "Local" else "@"
     nomRival = partido.DatosSuministrados['equipos'][locRival]['nombcorto']
     clasifAux = datosTemp.clasifEquipo(abrRival, partido.FechaHora)
-    clasifStr = "(%i-%i)" % (clasifAux.get('V', 0), clasifAux.get('D', 0))
+    clasifStr = auxCalculaBalanceStr(clasifAux)
     strRival = f"{strFecha}: {prefLoc} {nomRival} {clasifStr}"
 
     # Cadena del resultado del partido
