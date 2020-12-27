@@ -12,7 +12,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, Spacer, NextPageTemplate, PageTemplate, \
     Frame, PageBreak
-from time import strftime
+from time import strftime, struct_time
 
 from SMACB.CalendarioACB import NEVER
 from SMACB.PartidoACB import LocalVisitante, OtherTeam
@@ -31,10 +31,91 @@ ESTAD_SUMA = 6
 ESTADISTICOEQ = ESTAD_MEDIA
 ESTADISTICOJUG = ESTAD_MEDIA
 
-COLS_IDENTIFIC_JUG = ['CODequipo', 'IDequipo', 'codigo', 'competicion', 'dorsal', 'nombre', 'temporada']
+COLS_IDENTIFIC_JUG = ['competicion', 'temporada', 'CODequipo', 'IDequipo', 'codigo', 'dorsal', 'nombre']
 
 LOCALNAMES = {'Local', 'L', 'local'}
 VISITNAME = {'Visitante', 'V', 'visitante'}
+
+
+def GENERADORETTIRO(*kargs, **kwargs):
+    return lambda f: auxEtiqTiros(f, *kargs, **kwargs)
+
+
+def GENERADORETREBOTE(*kargs, **kwargs):
+    return lambda f: auxEtiqRebotes(f, *kargs, **kwargs)
+
+
+def GENERADORFECHA(*kargs, **kwargs):
+    return lambda f: auxEtFecha(f, *kargs, **kwargs)
+
+
+def GENERADORTIEMPO(*kargs, **kwargs):
+    return lambda f: auxEtiqTiempo(f, *kargs, **kwargs)
+
+
+FORMATOCAMPOS = {'entero': {'numero': '{:3.0f}'}, 'float': {'numero': '{:4.2f}'}, }
+
+INFOTABLAJUGS = {
+    ('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
+    ('Jugador', 'nombre'): {'etiq': 'Nombre', 'ancho': 22, 'alignment': 'LEFT'},
+    ('Trayectoria', 'Acta'): {'etiq': 'Cv', 'ancho': 3},
+    ('Trayectoria', 'Jugados'): {'etiq': 'Ju', 'ancho': 3},
+    ('Trayectoria', 'Titular'): {'etiq': 'Tt', 'ancho': 3},
+    ('Trayectoria', 'Vict'): {'etiq': 'Vc', 'ancho': 3},
+
+    ('Promedios', 'etSegs'): {'etiq': 'Min', 'ancho': 7, 'generador': GENERADORTIEMPO(col='Segs')},
+    ('Promedios', 'P'): {'etiq': 'P', 'ancho': 7, 'formato': 'float'},
+    ('Promedios', 'etiqT2'): {'etiq': 'T2', 'ancho': 19, 'generador': GENERADORETTIRO('2', entero=False)},
+    ('Promedios', 'etiqT3'): {'etiq': 'T3', 'ancho': 19, 'generador': GENERADORETTIRO(tiro='3', entero=False)},
+    ('Promedios', 'etiqTC'): {'etiq': 'TC', 'ancho': 19, 'generador': GENERADORETTIRO('C', False)},
+    ('Promedios', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
+    ('Promedios', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'float'},
+    ('Promedios', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'float'},
+    ('Promedios', 'etiqT1'): {'etiq': 'TL', 'ancho': 19, 'generador': GENERADORETTIRO('1', False)},
+    ('Promedios', 'etRebs'): {'etiq': 'Rebs', 'ancho': 18, 'generador': GENERADORETREBOTE(entero=False)},
+    ('Promedios', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'float'},
+    ('Promedios', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'float'},
+    ('Promedios', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'float'},
+    ('Promedios', 'TAP-F'): {'etiq': 'Tap', 'ancho': 6, 'formato': 'float'},
+    ('Promedios', 'TAP-C'): {'etiq': 'Tp R', 'ancho': 6, 'formato': 'float'},
+
+    ('Totales', 'etSegs'): {'etiq': 'Min', 'ancho': 8, 'generador': GENERADORTIEMPO(col='Segs')},
+    ('Totales', 'P'): {'etiq': 'P', 'ancho': 6, 'formato': 'entero'},
+    ('Totales', 'etiqT2'): {'etiq': 'T2', 'ancho': 19, 'generador': GENERADORETTIRO('2', entero=True)},
+    ('Totales', 'etiqT3'): {'etiq': 'T3', 'ancho': 19, 'generador': GENERADORETTIRO('3', entero=True)},
+    ('Totales', 'etiqTC'): {'etiq': 'TC', 'ancho': 19, 'generador': GENERADORETTIRO('C', entero=True)},
+    ('Totales', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
+    ('Totales', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'entero'},
+    ('Totales', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'entero'},
+    ('Totales', 'etiqT1'): {'etiq': 'TL', 'ancho': 19, 'generador': GENERADORETTIRO('1', entero=True)},
+    ('Totales', 'etRebs'): {'etiq': 'Rebs', 'ancho': 18, 'generador': GENERADORETREBOTE(entero=True)},
+    ('Totales', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'entero'},
+    ('Totales', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'entero'},
+    ('Totales', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'entero'},
+    ('Totales', 'TAP-F'): {'etiq': 'Tap', 'ancho': 6, 'formato': 'entero'},
+    ('Totales', 'TAP-C'): {'etiq': 'Tp R', 'ancho': 6, 'formato': 'entero'},
+
+    ('UltimoPart', 'etFecha'): {'etiq': 'Fecha', 'ancho': 6, 'generador': GENERADORFECHA(col='Fecha'),
+                                'alignment': 'CENTER'},
+    ('UltimoPart', 'Partido'): {'etiq': 'Rival', 'ancho': 22, 'alignment': 'LEFT'},
+    ('UltimoPart', 'resultado'): {'etiq': 'Vc', 'ancho': 5, 'alignment': 'CENTER'},
+    ('UltimoPart', 'titular'): {'etiq': 'Tt', 'ancho': 5, 'alignment': 'CENTER'},
+    ('UltimoPart', 'etSegs'): {'etiq': 'Min', 'ancho': 8, 'generador': GENERADORTIEMPO(col='Segs')},
+    ('UltimoPart', 'P'): {'etiq': 'P', 'ancho': 6, 'formato': 'entero'},
+    ('UltimoPart', 'etiqT2'): {'etiq': 'T2', 'ancho': 15, 'generador': GENERADORETTIRO('2', entero=True)},
+    ('UltimoPart', 'etiqT3'): {'etiq': 'T3', 'ancho': 15, 'generador': GENERADORETTIRO('3', entero=True)},
+    ('UltimoPart', 'etiqTC'): {'etiq': 'TC', 'ancho': 15, 'generador': GENERADORETTIRO('C', entero=True)},
+    ('UltimoPart', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
+    ('UltimoPart', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'entero'},
+    ('UltimoPart', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'entero'},
+    ('UltimoPart', 'etiqT1'): {'etiq': 'TL', 'ancho': 15, 'generador': GENERADORETTIRO('1', entero=True)},
+    ('UltimoPart', 'etRebs'): {'etiq': 'Rebs', 'ancho': 14, 'generador': GENERADORETREBOTE(entero=True)},
+    ('UltimoPart', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'entero'},
+    ('UltimoPart', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'entero'},
+    ('UltimoPart', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'entero'},
+    ('UltimoPart', 'TAP-C'): {'etiq': 'Tap', 'ancho': 6, 'formato': 'entero'},
+    ('UltimoPart', 'TAP-F'): {'etiq': 'Tp R', 'ancho': 6, 'formato': 'entero'},
+}
 
 ESTILOS = getSampleStyleSheet()
 
@@ -64,16 +145,21 @@ def auxEtiqPartido(tempData: TemporadaACB, rivalAbr, esLocal=None, locEq=None, u
     return result
 
 
-def auxEtiqRebotes(df):
+def auxEtiqRebotes(df, entero: bool = True) -> str:
     if isnan(df['R-D']):
         return "-"
 
-    result = f"{df['R-D']:.2f}+{df['R-O']:.2f} {df['REB-T']:.2f}"
+    formato = "{:3}+{:3} {:3}" if entero else "{:6.2f}+{:6.2f} {:6.2f}"
+
+    valores = [int(v) if entero else v for v in [df['R-D'], df['R-O'], df['REB-T']]]
+
+    result = formato.format(*valores)
 
     return result
 
 
-def auxEtiqTiempo(t):
+def auxEtiqTiempo(df, col='Segs'):
+    t = df[col]
     if isnan(t):
         return "-"
 
@@ -85,7 +171,9 @@ def auxEtiqTiempo(t):
     return result
 
 
-def auxEtiqTiros(df, tiro):
+def auxEtiqTiros(df, tiro, entero=True):
+    formato = "{:3}/{:3} {:6.2f}%" if entero else "{:6.2f}/{:6.2f} {:6.2f}%"
+
     etTC = f"T{tiro}-C"
     etTI = f"T{tiro}-I"
     etTpc = f"T{tiro}%"
@@ -93,18 +181,65 @@ def auxEtiqTiros(df, tiro):
     if df[etTI] == 0.0 or isnan(df[etTI]):
         return "-"
 
-    result = f'{df[etTC]:.2f}/{df[etTI]:.2f} {df[etTpc]:.2f}%'
+    valores = [int(v) if entero else v for v in [df[etTC], df[etTI]]] + [df[etTpc]]
+
+    result = formato.format(*valores)
 
     return result
 
 
-def auxEtFecha(f, formato="%d-%m"):
+def auxEtFecha(f, col, formato="%d-%m"):
     if f is None:
         return "-"
 
-    result = strftime(formato, f)
+    dato = f[col]
+    valor = dato if isinstance(dato, struct_time) else dato.timetuple()
+    result = strftime(formato, valor)
 
     return result
+
+
+def auxGeneraTabla(dfDatos, collist, colSpecs, estiloTablaBaseOps, formatos=None, charWidth=10):
+    dfColList = []
+    filaCab = []
+    anchoCols = []
+    tStyle = TableStyle(estiloTablaBaseOps)
+
+    if formatos is None:
+        formatos = dict()
+
+    for i, colkey in enumerate(collist):
+        level, etiq = colkey
+        colSpec = colSpecs.get(colkey, {})
+        newCol = dfDatos[level].apply(colSpec['generador'], axis=1) if 'generador' in colSpec else dfDatos[[colkey]]
+
+        if 'formato' in colSpec:
+            etiqFormato = colSpec['formato']
+            if colSpec['formato'] not in formatos:
+                raise KeyError(
+                    f"auxGeneraTabla: columna '{colkey}': formato '{etiqFormato}' desconocido. Formatos conocidos: {formatos}")
+            formatSpec = formatos[etiqFormato]
+
+            if 'numero' in formatSpec:
+                newCol = newCol.apply(lambda c: c.map(formatSpec['numero'].format))
+
+        newEtiq = colSpec.get('etiq', etiq)
+        newAncho = colSpec.get('ancho', 10) * charWidth
+
+        dfColList.append(newCol)
+        filaCab.append(newEtiq)
+        anchoCols.append(newAncho)
+        if 'alignment' in colSpec:
+            newCmdStyle = ["ALIGN", (i, 1), (i, -1), colSpec['alignment']]
+            tStyle.add(*newCmdStyle)
+
+    datosAux = pd.concat(dfColList, axis=1, join='outer', names=filaCab)
+
+    datosTabla = [filaCab] + datosAux.to_records(index=False, column_dtypes='object').tolist()
+
+    t = Table(datosTabla, style=tStyle, colWidths=anchoCols)
+
+    return t
 
 
 def cabeceraPortada(partido, tempData):
@@ -363,7 +498,7 @@ def datosTablaLiga(tempData: TemporadaACB):
     # En la clasificación está el contenido de los márgenes, de las diagonales y el orden de presentación
     # de los equipos
     clasif = tempData.clasifLiga()
-    seqIDs = [(pos, list(clasif[pos]['idEq'])[0]) for pos in range(len(clasif))]
+    seqIDs = [(pos, list(equipo['idEq'])[0]) for pos, equipo in enumerate(clasif)]
 
     datosTabla = []
     cabFila = [Paragraph('<b>Casa/Fuera</b>', style=estCelda)] + [
@@ -470,7 +605,7 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
         for t in tablasJugadIzda:
-            result.append(Spacer(100 * mm, 3 * mm))
+            result.append(Spacer(100 * mm, 1 * mm))
             result.append(t)
 
     if len(juDcha):
@@ -480,7 +615,7 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
         for t in tablasJugadIzda:
-            result.append(Spacer(100 * mm, 3 * mm))
+            result.append(Spacer(100 * mm, 1 * mm))
             result.append(t)
 
     return result
@@ -543,8 +678,9 @@ def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha):
 def tablaJugadoresEquipo(jugDF):
     result = []
 
-    CELLPAD = 0.3 * mm
+    CELLPAD = 0.2 * mm
     FONTSIZE = 8
+    ANCHOLETRA = FONTSIZE * 0.5
 
     COLSIDENT = [('Jugador', 'dorsal'),
                  ('Jugador', 'nombre'),
@@ -553,6 +689,10 @@ def tablaJugadoresEquipo(jugDF):
                  ('Trayectoria', 'Titular'),
                  ('Trayectoria', 'Vict')
                  ]
+    COLSIDENT_UP = [('Jugador', 'dorsal'),
+                    ('Jugador', 'nombre'),
+                    ]
+
     COLS_PROMED = [('Promedios', 'etSegs'),
                    ('Promedios', 'P'),
                    ('Promedios', 'etiqT2'),
@@ -566,9 +706,9 @@ def tablaJugadoresEquipo(jugDF):
                    ('Promedios', 'A'),
                    ('Promedios', 'BP'),
                    ('Promedios', 'BR'),
+                   ('Promedios', 'TAP-F'),
                    ('Promedios', 'TAP-C'),
-                   ('Promedios', 'TAP-F'), ]
-
+                   ]
     COLS_TOTALES = [
         ('Totales', 'etSegs'),
         ('Totales', 'P'),
@@ -583,9 +723,8 @@ def tablaJugadoresEquipo(jugDF):
         ('Totales', 'A'),
         ('Totales', 'BP'),
         ('Totales', 'BR'),
-        ('Totales', 'TAP-C'),
         ('Totales', 'TAP-F'),
-
+        ('Totales', 'TAP-C'),
     ]
     COLS_ULTP = [('UltimoPart', 'etFecha'),
                  ('UltimoPart', 'Partido'),
@@ -608,33 +747,18 @@ def tablaJugadoresEquipo(jugDF):
                  ('UltimoPart', 'TAP-C'),
                  ]
 
+    baseOPS = [('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+               ('ALIGN', (0, 0), (-1, 0), 'CENTER'), ('ALIGN', (0, 1), (-1, -1), 'RIGHT'),
+               ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
+               ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1), ('LEFTPADDING', (0, 0), (-1, -1), CELLPAD),
+               ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD), ('TOPPADDING', (0, 0), (-1, -1), CELLPAD),
+               ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD), ]
+
     auxDF = jugDF.copy()
-    # Calcula columnas auxiliares
-    for level in ['Promedios', 'Totales', 'UltimoPart']:
-        for t in '123C':
-            etTiro = f"etiqT{t}"
-            auxDF[(level, etTiro)] = auxDF[level].apply(lambda r: auxEtiqTiros(r, t), axis=1)
-            auxDF[(level, "etSegs")] = auxDF[(level, 'Segs')].apply(lambda s: auxEtiqTiempo(s))
-            auxDF[(level, "etRebs")] = auxDF[level].apply(lambda r: auxEtiqRebotes(r), axis=1)
-    auxDF[('UltimoPart', "etFecha")] = auxDF[('UltimoPart', "Fecha")].apply(
-        lambda f: auxEtFecha(f.timetuple(), "%d-%m-%Y"))
 
-    tSeries = auxDF.dtypes
-    cols2format = tSeries.loc[tSeries == 'float64'].index
-    auxDF[cols2format] = auxDF[cols2format].apply(lambda c: c.map('{:,.2f}'.format))
-
-    datosAux = auxDF[COLSIDENT + COLS_PROMED + COLS_TOTALES + COLS_ULTP].to_records().tolist()
-
-    tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                         ('ALIGN', (0, 0), (-1, -1), 'RIGHT'),
-                         ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
-                         ('LEADING', (0, 0), (-1, -1), FONTSIZE), ('LEFTPADDING', (0, 0), (-1, -1), CELLPAD),
-                         ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD), ('TOPPADDING', (0, 0), (-1, -1), CELLPAD),
-                         ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD), ])
-
-    for subt in [COLS_PROMED, COLS_TOTALES, COLS_ULTP]:
-        datosAux = auxDF[COLSIDENT + subt].to_records(index=False).tolist()
-        t = Table(datosAux, style=tStyle)
+    for colList in [(COLSIDENT + COLS_PROMED), (COLSIDENT + COLS_TOTALES),
+                    (COLSIDENT_UP + COLS_ULTP)]:  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
+        t = auxGeneraTabla(auxDF, colList, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA)
 
         result.append(t)
 
@@ -678,15 +802,6 @@ def preparaLibro(outfile, tempData, datosSig):
                             bottomMargin=5 * mm, )
     doc.addPageTemplates([pagNormal, pagApaisada])
 
-    # pagNormal = PageTemplate('normal', frames=[frameApaisado], pagesize=A4, autoNextPageTemplate='normal')
-    #
-    # doc.addPageTemplates(pagNormal)
-    # pagApaisada = PageTemplate('apaisada', frames=[frameNormal], pagesize=landscape(A4),
-    #                            autoNextPageTemplate='apaisada')
-
-    # doc.addPageTemplates(pagApaisada)
-
-    # pdfFile = canvas.Canvas(filename=outfile, pagesize=A4, bottomup=0, verbosity=4, initialFontName='Helvetica',                            initialLeading=0.5 * mm)
     story = []
 
     (sigPartido, abrEqs, juIzda, peEq, juDcha, peRiv, targLocal) = datosSig
@@ -709,15 +824,13 @@ def preparaLibro(outfile, tempData, datosSig):
         story.append(Spacer(width=120 * mm, height=3 * mm))
         story.append(trayectoria)
 
-    if (len(juIzda) or len(juDcha)):
-        infoJugadores = paginasJugadores(tempData, abrEqs, juIzda, juDcha)
-        story.extend(infoJugadores)
-
     story.append(NextPageTemplate('apaisada'))
     story.append(PageBreak())
     story.append(tablaLiga(tempData))
 
-    #   story.append(NextPageTemplate('apaisada'))
+    if (len(juIzda) or len(juDcha)):
+        infoJugadores = paginasJugadores(tempData, abrEqs, juIzda, juDcha)
+        story.extend(infoJugadores)
 
     doc.build(story)
 
