@@ -107,9 +107,9 @@ class FichaJugador(object):
     def __repr__(self):
 
         return "%s (%s) %s P:[%i] %s -> %s (%i)" % (
-            self.nombre, self.id, strftime("%Y-%m-%d", self.fechaNac), len(self.partidos),
-            strftime("%Y-%m-%d", self.primPartidoT),
-            strftime("%Y-%m-%d", self.ultPartidoT),
+            self.nombre, self.id, self.fechaNac.strftime("%Y-%m-%d"), len(self.partidos),
+            self.primPartidoT.strftime("%Y-%m-%d"),
+            self.ultPartidoTstrftime("%Y-%m-%d"),
             len(self.equipos)
         )
 

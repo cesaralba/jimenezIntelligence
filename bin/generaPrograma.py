@@ -194,8 +194,7 @@ def auxEtFecha(f, col, formato="%d-%m"):
         return "-"
 
     dato = f[col]
-    valor = dato if isinstance(dato, struct_time) else dato.timetuple()
-    result = strftime(formato, valor)
+    result = dato.strftime(formato)
 
     return result
 
@@ -518,14 +517,14 @@ def datosTablaLiga(tempData: TemporadaACB):
         for _, idVisit in seqIDs:
             if idLocal != idVisit:
                 part = auxTabla[idLocal][idVisit]
-                fecha = strftime("%d-%m", part['fecha']) if (('fecha' in part) and (part['fecha'] != NEVER)) else 'TBD'
+                fecha = part['fecha'].strftime("%d-%m") if (('fecha' in part) and (part['fecha'] != NEVER)) else 'TBD'
                 jornada = part['jornada']
 
                 texto = f"J:{jornada}<br/>@{fecha}"
                 if not part['pendiente']:
                     pURL = part['url']
                     pTempFecha = tempData.Partidos[pURL].fechaPartido
-                    fecha = strftime("%d-%m", pTempFecha)
+                    fecha =  pTempFecha.strftime("%d-%m")
                     pLocal = part['equipos']['Local']['puntos']
                     pVisit = part['equipos']['Visitante']['puntos']
                     texto = f"J:{jornada}<br/><b>{pLocal}-{pVisit}</b>"
@@ -628,7 +627,7 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
 
 def partidoTrayectoria(partido, abrevs, datosTemp):
     # Cadena de información del partido
-    strFecha = strftime("%d-%m", partido.fechaPartido)
+    strFecha = partido.fechaPartido.strftime("%d-%m")
     abrEq = list(abrevs.intersection(partido.DatosSuministrados['participantes']))[0]
     abrRival = list(partido.DatosSuministrados['participantes'].difference(abrevs))[0]
     locEq = partido.DatosSuministrados['abrev2loc'][abrEq]

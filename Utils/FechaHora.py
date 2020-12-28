@@ -11,16 +11,16 @@ NEVER = pd.to_datetime("2030-12-31 00:00")
 Edad = namedtuple('Edad', ['delta', 'years', 'meses', 'dias', 'doys'])
 
 
-def Time2Str(timeref: struct_time):
+def Time2Str(timeref):
     """
     Vuelca estructura de fecha con hora (si es distinta de 0:00). Ok, no es genérica pero aún no hay partidos ACB a
     media noche
     :param timeref:
     :return:
     """
-    format = "%d-%m-%Y" if (timeref.tm_hour == 0 and timeref.tm_min == 0) else "%d-%m-%Y %H:%M"
+    format = "%d-%m-%Y" if (timeref.hour == 0 and timeref.min == 0) else "%d-%m-%Y %H:%M"
 
-    result = strftime(format, timeref)
+    result = timeref.strftime(format)
 
     return result
 
