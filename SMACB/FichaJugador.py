@@ -1,10 +1,14 @@
 import re
 from argparse import Namespace
+
 from time import gmtime, strftime, strptime
 
 from Utils.Web import creaBrowser, DescargaPagina, getObjID
 
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
+
+CLAVESDICT = ['id', 'URL', 'alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia',
+              'primPartidoT', 'ultPartidoT', 'ultPartidoP']
 
 
 class FichaJugador(object):
@@ -100,10 +104,10 @@ class FichaJugador(object):
     def __repr__(self):
 
         return "%s (%s) %s P:[%i] %s -> %s (%i)" % (
-                self.nombre, self.id, strftime("%Y-%m-%d", self.fechaNac), len(self.partidos),
-                strftime("%Y-%m-%d", self.primPartidoT),
-                strftime("%Y-%m-%d", self.ultPartidoT),
-                len(self.equipos)
+            self.nombre, self.id, strftime("%Y-%m-%d", self.fechaNac), len(self.partidos),
+            strftime("%Y-%m-%d", self.primPartidoT),
+            strftime("%Y-%m-%d", self.ultPartidoT),
+            len(self.equipos)
         )
 
     def limpiaPartidos(self):
@@ -133,6 +137,13 @@ class FichaJugador(object):
             elif newer and self.__getattribute__(k) != other.__getattribute__(k):
                 self.__setattr__(k, other.__getattribute__(k))
                 changes = True
+
+    def dictDatosJugador(self):
+        result = {k: self.__getattribute__(k) for k in CLAVESDICT}
+        result['numEquipos'] = len(self.equipos)
+        result['numPartidos'] = len(self.partidos)
+
+        return result
 
 
 def descargaURLficha(urlFicha, home=None, browser=None, config=Namespace()):

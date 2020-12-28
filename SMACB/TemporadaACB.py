@@ -234,7 +234,7 @@ class TemporadaACB(object):
         result = defaultdict(int)
         result['Lfav'] = list()
         result['Lcon'] = list()
-        result['CasaFuera']= {'Local': defaultdict(int), 'Visitante': defaultdict(int)}
+        result['CasaFuera'] = {'Local': defaultdict(int), 'Visitante': defaultdict(int)}
 
         partidosAcontar = [p for p in juCal if self.Partidos[p['url']].FechaHora < fecha] if fecha else juCal
 
@@ -357,24 +357,25 @@ class TemporadaACB(object):
 
         return result
 
-        for k in ['POS', 'Segs', 'P', 'OER', 'OERpot',
-                  'T1-C', 'T1-I', 'T1%', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-C', 'TC-I', 'TC%', 't2/tc-C',
-                  't2/tc-I', 't3/tc-C', 't3/tc-I', 'eff-t2', 'eff-t3',
-                  'R-D', 'R-O', 'REB-T', 'RO/TC-F', 'EffRebD', 'EffRebO',
-                  'A', 'BP', 'BR', 'A/BP', 'A/TC-C', 'FP-F', 'TAP-F']:
-            pass
-
-        return result
-        # K eq ['Segs', 'P', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'T1-C', 'T1-I', 'T1%', 'REB-T', 'R-D', 'R-O', 'A', 'BR', 'BP', 'C', 'TAP-F', 'TAP-C', 'M', 'FP-F', 'FP-C', '+/-', 'V', 'Vict', 'POS', 'OER', 'OERpot', 'EffRebD', 'EffRebO', 't2/tc-I', 't3/tc-I', 't2/tc-C', 't3/tc-C', 'eff-t2', 'eff-t3', 'TC-I', 'TC-C', 'TC%', 'A/TC-C', 'A/BP', 'RO/TC-F', 'fecha', 'rival']
-
-        # K rival ['Segs', 'P', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'T1-C', 'T1-I', 'T1%', 'REB-T', 'R-D', 'R-O', 'A', 'BR', 'BP', 'C', 'TAP-F', 'TAP-C', 'M', 'FP-F', 'FP-C', '+/-', 'V', 'Vict', 'POS', 'OER', 'OERpot', 'EffRebD', 'EffRebO', 't2/tc-I', 't3/tc-I', 't2/tc-C', 't3/tc-C', 'eff-t2', 'eff-t3', 'TC-I', 'TC-C', 'TC%', 'A/TC-C', 'A/BP', 'RO/TC-F', 'abrev', 'fecha']
-
     def estadsLiga(self, fecha=None):
         result = dict()
 
         for auxAbr in self.Calendario.tradEquipos['i2c'].values():
             ab = list(auxAbr)[0]
             result[ab] = self.estadsEquipo(ab, fecha)
+
+        return result
+
+    def dataFrameFichasJugadores(self):
+        auxdict = {id: ficha.dictDatosJugador() for id, ficha in self.fichaJugadores.items()}
+
+        for id, ficha in auxdict.items():
+            partido = self.Partidos[ficha['ultPartidoP']]
+            entradaJug = partido.Jugadores[id]
+            auxdict[id]['ultEquipo'] = entradaJug['equipo']
+            auxdict[id]['ultEquipoAbr'] = entradaJug['CODequipo']
+
+        result = pd.DataFrame.from_dict(auxdict, orient='index')
 
         return result
 
@@ -453,11 +454,11 @@ def calculaVars(temporada, clave, useStd=True, filtroFechas=None):
     return result
 
 
-def entradaClas2k(ent):
+def entradaClas2k(ent: dict) -> tuple:
     """
     Dado un resultado de Temporada.getClasifEquipo)
 
-    :param listaClas: lista de equipos (resultado de Temporada.getClasifEquipo)
+    :param ent: lista de equipos (resultado de Temporada.getClasifEquipo)
     :return: tupla (ratio Vict/Jugados, Vict, Ventaja/Jugados, Pfavor)
     """
 
