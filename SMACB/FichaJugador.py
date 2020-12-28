@@ -1,7 +1,8 @@
 import re
 from argparse import Namespace
 
-from time import gmtime, strftime, strptime
+import pandas as pd
+from time import gmtime, strftime
 
 from Utils.Web import creaBrowser, DescargaPagina, getObjID
 
@@ -10,6 +11,7 @@ CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 
 CLAVESDICT = ['id', 'URL', 'alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia',
               'primPartidoT', 'ultPartidoT', 'ultPartidoP']
 
+TRADPOSICION = {'Alero': 'A', 'Escolta': 'E', 'Base': 'B', 'Pívot': 'P', 'Ala-pívot': 'AP', '': '?'}
 
 class FichaJugador(object):
     def __init__(self, **kwargs):
@@ -142,6 +144,7 @@ class FichaJugador(object):
         result = {k: self.__getattribute__(k) for k in CLAVESDICT}
         result['numEquipos'] = len(self.equipos)
         result['numPartidos'] = len(self.partidos)
+        result['pos'] = TRADPOSICION.get(self.posicion, '**')
 
         return result
 
@@ -189,7 +192,7 @@ def descargaURLficha(urlFicha, home=None, browser=None, config=Namespace()):
                 REfechaNac = r'^(?P<fechanac>\d{2}/\d{2}/\d{4})\s*.*'
                 reProc = re.match(REfechaNac, valor)
                 if reProc:
-                    result['fechaNac'] = strptime(reProc['fechanac'], "%d/%m/%Y")
+                    result['fechaNac'] = pd.to_datetime(reProc['fechanac'])
                 else:
                     print("FECHANAC no casa RE", valor, REfechaNac)
             elif 'nacionalidad' in classDiv:
