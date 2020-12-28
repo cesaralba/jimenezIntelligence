@@ -4,6 +4,7 @@ from argparse import Namespace
 import pandas as pd
 from time import gmtime, strftime
 
+from Utils.FechaHora import PATRONFECHA
 from Utils.Web import creaBrowser, DescargaPagina, getObjID
 
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
@@ -192,7 +193,7 @@ def descargaURLficha(urlFicha, home=None, browser=None, config=Namespace()):
                 REfechaNac = r'^(?P<fechanac>\d{2}/\d{2}/\d{4})\s*.*'
                 reProc = re.match(REfechaNac, valor)
                 if reProc:
-                    result['fechaNac'] = pd.to_datetime(reProc['fechanac'])
+                    result['fechaNac'] = pd.to_datetime(reProc['fechanac'], format=PATRONFECHA)
                 else:
                     print("FECHANAC no casa RE", valor, REfechaNac)
             elif 'nacionalidad' in classDiv:

@@ -1,9 +1,3 @@
-'''
-Created on Dec 31, 2017
-
-@author: calba
-'''
-
 import re
 from argparse import Namespace
 from copy import copy
@@ -15,6 +9,7 @@ from bs4 import Tag
 from time import gmtime
 
 from Utils.BoWtraductor import RetocaNombreJugador
+from Utils.FechaHora import PATRONFECHAHORA, PATRONFECHA
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams, getObjID
 from .PlantillaACB import PlantillaACB
@@ -158,8 +153,8 @@ class PartidoACB(object):
         cadTiempo = espTiempo[0] + " " + espTiempo[1]
         PATRONdmyhm = r'^\s*(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})?$'
         REhora = re.match(PATRONdmyhm, cadTiempo)
-        patronH = "%d/%m/%Y %H:%M" if REhora.group(2) else "%d/%m/%Y "
-        self.FechaHora = pd.to_datetime(cadTiempo)
+        patronH = PATRONFECHAHORA if REhora.group(2) else PATRONFECHA
+        self.FechaHora = pd.to_datetime(cadTiempo, format=patronH)
 
         spanPabellon = divFecha.find("span", {"class": "clase_mostrar1280"})
         self.Pabellon = spanPabellon.get_text().strip()
@@ -204,6 +199,7 @@ class PartidoACB(object):
         result['rival'] = self.Equipos[OtherTeam(estado)]['Nombre']
         result['CODrival'] = self.Equipos[OtherTeam(estado)]['abrev']
         result['IDrival'] = self.Equipos[OtherTeam(estado)]['id']
+        result['url'] = self.url
         result['estado'] = estado
         result['esLocal'] = (estado == "Local")
         result['haGanado'] = self.ResultadoCalendario[estado] > self.ResultadoCalendario[OtherTeam(estado)]
@@ -439,7 +435,7 @@ class PartidoACB(object):
             avanzadas['Vict'] = estads['P'] > other['P']
             avanzadas['POS'] = estads['T2-I'] + estads['T3-I'] + (estads['T1-I'] * 0.44) + estads['BP'] - estads['R-O']
             avanzadas['POStot'] = avanzadas['POS'] + (
-                        other['T2-I'] + other['T3-I'] + (other['T1-I'] * 0.44) + other['BP'] - other['R-O'])
+                    other['T2-I'] + other['T3-I'] + (other['T1-I'] * 0.44) + other['BP'] - other['R-O'])
             avanzadas['OER'] = estads['P'] / avanzadas['POS']
             avanzadas['OERpot'] = estads['P'] / (avanzadas['POS'] - estads['BP'])
             avanzadas['EffRebD'] = estads['R-D'] / (estads['R-D'] + other['R-O'])

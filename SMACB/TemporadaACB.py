@@ -375,9 +375,11 @@ class TemporadaACB(object):
             auxdict[id]['ultEquipo'] = entradaJug['equipo']
             auxdict[id]['ultEquipoAbr'] = entradaJug['CODequipo']
 
-        result = pd.DataFrame.from_dict(auxdict, orient='index')
+        auxDF = pd.DataFrame.from_dict(auxdict, orient='index')
+        for col in ['fechaNac', 'primPartidoT', 'ultPartidoT']:
+            auxDF[col] = auxDF[col]
 
-        return result
+        return auxDF
 
 
 def calculaTempStats(datos, clave, filtroFechas=None):

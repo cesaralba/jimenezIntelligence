@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 from time import struct_time, strftime
 
+PATRONFECHAHORA = "%d/%m/%Y %H:%M"
+PATRONFECHA = "%d/%m/%Y"
 NEVER = pd.to_datetime("2030-12-31 00:00")
 
 Edad = namedtuple('Edad', ['delta', 'years', 'meses', 'dias', 'doys'])
