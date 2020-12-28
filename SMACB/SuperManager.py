@@ -346,7 +346,7 @@ class SuperManagerACB(object):
                 jugadorData = mercado.PlayerData[jugSM]
 
                 IDjugador = cacheLinks.get(jugadorData['kiaLink'], dataPlants[jugadorData['IDequipo']].getCode(
-                nombre=RetocaNombreJugador(jugadorData['nombre']), esJugador=True, umbral=1))
+                    nombre=RetocaNombreJugador(jugadorData['nombre']), esJugador=True, umbral=1))
 
                 if isinstance(IDjugador, str):
                     cacheLinks[jugadorData['kiaLink']] = IDjugador
@@ -354,9 +354,10 @@ class SuperManagerACB(object):
                     codJugador = IDjugador
                 else:
                     pendienteLinks[jugadorData['kiaLink']].append((i, jugadorData))
-                    print("Incapaz de encontrar ID para '%s' (%s,%s): %s" % (jugadorData['kiaLink'], jugadorData['nombre'], jugadorData['equipo'], IDjugador))
-                    continue
 
+                    print("Incapaz de encontrar ID para '%s' (%s,%s): %s" % (
+                        jugadorData['kiaLink'], jugadorData['nombre'], jugadorData['equipo'], IDjugador))
+                    continue
 
                 actualizaResultado(resultado, codJugador, i, jugadorData)
                 codigosUsados.add(codJugador)

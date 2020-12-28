@@ -93,7 +93,7 @@ class BoWTraductor(object):
 def NormalizaCadena(x, NORMA=NORMADEFECTO):
     """
     Normaliza una cadena. Incluye Unicode -> encode ASCII -> minusculas
-    :param x: Cadena.  
+    :param x: Cadena.
     :param NORMA: Norma Unicode a la que normalizar
                   (ver https://docs.python.org/3.7/library/unicodedata.html#unicodedata.normalize)
     :return: cadena normalizada
@@ -140,7 +140,7 @@ def wordPosSet(wordList):
     wrkList = wordList if isinstance(wordList, list) else (
             wordList.split() if isinstance(wordList, (str, bytes)) else wordList)
     result = defaultdict(set)
-    for w, o in zip(wrkList, range(len(wrkList))):
+    for o,w in enumerate(wrkList):
         result[w].add(o)
 
     return result
