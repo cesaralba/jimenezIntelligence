@@ -12,7 +12,6 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, Spacer, NextPageTemplate, PageTemplate, \
     Frame, PageBreak
-from time import strftime, struct_time
 
 from SMACB.CalendarioACB import NEVER
 from SMACB.FichaJugador import TRADPOSICION
@@ -59,6 +58,9 @@ FORMATOCAMPOS = {'entero': {'numero': '{:3.0f}'}, 'float': {'numero': '{:4.2f}'}
 INFOTABLAJUGS = {
     ('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
     ('Jugador', 'nombre'): {'etiq': 'Nombre', 'ancho': 22, 'alignment': 'LEFT'},
+    ('Jugador', 'pos'): {'etiq': 'Pos', 'ancho': 4, 'alignment': 'CENTER'},
+    ('Jugador', 'altura'): {'etiq': 'Alt', 'ancho': 5},
+    ('Jugador', 'licencia'): {'etiq': 'Lic', 'ancho': 5, 'alignment': 'CENTER'},
     ('Trayectoria', 'Acta'): {'etiq': 'Cv', 'ancho': 3},
     ('Trayectoria', 'Jugados'): {'etiq': 'Ju', 'ancho': 3},
     ('Trayectoria', 'Titular'): {'etiq': 'Tt', 'ancho': 3},
@@ -73,7 +75,7 @@ INFOTABLAJUGS = {
     ('Promedios', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'float'},
     ('Promedios', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'float'},
     ('Promedios', 'etiqT1'): {'etiq': 'TL', 'ancho': 19, 'generador': GENERADORETTIRO('1', False)},
-    ('Promedios', 'etRebs'): {'etiq': 'Rebs', 'ancho': 18, 'generador': GENERADORETREBOTE(entero=False)},
+    ('Promedios', 'etRebs'): {'etiq': 'Rebs', 'ancho': 17, 'generador': GENERADORETREBOTE(entero=False)},
     ('Promedios', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'float'},
     ('Promedios', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'float'},
     ('Promedios', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'float'},
@@ -89,7 +91,7 @@ INFOTABLAJUGS = {
     ('Totales', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'entero'},
     ('Totales', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'entero'},
     ('Totales', 'etiqT1'): {'etiq': 'TL', 'ancho': 19, 'generador': GENERADORETTIRO('1', entero=True)},
-    ('Totales', 'etRebs'): {'etiq': 'Rebs', 'ancho': 18, 'generador': GENERADORETREBOTE(entero=True)},
+    ('Totales', 'etRebs'): {'etiq': 'Rebs', 'ancho': 17, 'generador': GENERADORETREBOTE(entero=True)},
     ('Totales', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'entero'},
     ('Totales', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'entero'},
     ('Totales', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'entero'},
@@ -99,23 +101,23 @@ INFOTABLAJUGS = {
     ('UltimoPart', 'etFecha'): {'etiq': 'Fecha', 'ancho': 6, 'generador': GENERADORFECHA(col='Fecha'),
                                 'alignment': 'CENTER'},
     ('UltimoPart', 'Partido'): {'etiq': 'Rival', 'ancho': 22, 'alignment': 'LEFT'},
-    ('UltimoPart', 'resultado'): {'etiq': 'Vc', 'ancho': 5, 'alignment': 'CENTER'},
-    ('UltimoPart', 'titular'): {'etiq': 'Tt', 'ancho': 5, 'alignment': 'CENTER'},
-    ('UltimoPart', 'etSegs'): {'etiq': 'Min', 'ancho': 8, 'generador': GENERADORTIEMPO(col='Segs')},
-    ('UltimoPart', 'P'): {'etiq': 'P', 'ancho': 6, 'formato': 'entero'},
-    ('UltimoPart', 'etiqT2'): {'etiq': 'T2', 'ancho': 15, 'generador': GENERADORETTIRO('2', entero=True)},
-    ('UltimoPart', 'etiqT3'): {'etiq': 'T3', 'ancho': 15, 'generador': GENERADORETTIRO('3', entero=True)},
-    ('UltimoPart', 'etiqTC'): {'etiq': 'TC', 'ancho': 15, 'generador': GENERADORETTIRO('C', entero=True)},
+    ('UltimoPart', 'resultado'): {'etiq': 'Vc', 'ancho': 3, 'alignment': 'CENTER'},
+    ('UltimoPart', 'titular'): {'etiq': 'Tt', 'ancho': 3, 'alignment': 'CENTER'},
+    ('UltimoPart', 'etSegs'): {'etiq': 'Min', 'ancho': 6, 'generador': GENERADORTIEMPO(col='Segs')},
+    ('UltimoPart', 'P'): {'etiq': 'P', 'ancho': 4, 'formato': 'entero'},
+    ('UltimoPart', 'etiqT2'): {'etiq': 'T2', 'ancho': 14, 'generador': GENERADORETTIRO('2', entero=True)},
+    ('UltimoPart', 'etiqT3'): {'etiq': 'T3', 'ancho': 14, 'generador': GENERADORETTIRO('3', entero=True)},
+    ('UltimoPart', 'etiqTC'): {'etiq': 'TC', 'ancho': 14, 'generador': GENERADORETTIRO('C', entero=True)},
     ('UltimoPart', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
     ('UltimoPart', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'entero'},
     ('UltimoPart', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'entero'},
-    ('UltimoPart', 'etiqT1'): {'etiq': 'TL', 'ancho': 15, 'generador': GENERADORETTIRO('1', entero=True)},
-    ('UltimoPart', 'etRebs'): {'etiq': 'Rebs', 'ancho': 14, 'generador': GENERADORETREBOTE(entero=True)},
-    ('UltimoPart', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'entero'},
-    ('UltimoPart', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'entero'},
-    ('UltimoPart', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'entero'},
-    ('UltimoPart', 'TAP-C'): {'etiq': 'Tap', 'ancho': 6, 'formato': 'entero'},
-    ('UltimoPart', 'TAP-F'): {'etiq': 'Tp R', 'ancho': 6, 'formato': 'entero'},
+    ('UltimoPart', 'etiqT1'): {'etiq': 'TL', 'ancho': 14, 'generador': GENERADORETTIRO('1', entero=True)},
+    ('UltimoPart', 'etRebs'): {'etiq': 'Rebs', 'ancho': 10, 'generador': GENERADORETREBOTE(entero=True)},
+    ('UltimoPart', 'A'): {'etiq': 'A', 'ancho': 4, 'formato': 'entero'},
+    ('UltimoPart', 'BP'): {'etiq': 'BP', 'ancho': 4, 'formato': 'entero'},
+    ('UltimoPart', 'BR'): {'etiq': 'BR', 'ancho': 4, 'formato': 'entero'},
+    ('UltimoPart', 'TAP-C'): {'etiq': 'Tap', 'ancho': 4, 'formato': 'entero'},
+    ('UltimoPart', 'TAP-F'): {'etiq': 'Tp R', 'ancho': 4, 'formato': 'entero'},
 }
 
 ESTILOS = getSampleStyleSheet()
@@ -449,7 +451,7 @@ def datosUltimoPartidoJug(tempData: TemporadaACB, df, colTime='Fecha'):
 
 def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     COLS_TRAYECT_TEMP = ['Acta', 'Jugados', 'Titular', 'Vict']
-    COLS_FICHA = ['id', 'alias', 'posicion', 'altura', 'licencia']
+    COLS_FICHA = ['id', 'alias', 'pos', 'altura', 'licencia']
     abrevsEq = tempData.Calendario.abrevsEquipo(abrEq)
     keyDorsal = lambda d: -1 if d == '00' else int(d)
 
@@ -524,7 +526,7 @@ def datosTablaLiga(tempData: TemporadaACB):
                 if not part['pendiente']:
                     pURL = part['url']
                     pTempFecha = tempData.Partidos[pURL].fechaPartido
-                    fecha =  pTempFecha.strftime("%d-%m")
+                    fecha = pTempFecha.strftime("%d-%m")
                     pLocal = part['equipos']['Local']['puntos']
                     pVisit = part['equipos']['Visitante']['puntos']
                     texto = f"J:{jornada}<br/><b>{pLocal}-{pVisit}</b>"
@@ -688,6 +690,9 @@ def tablaJugadoresEquipo(jugDF):
 
     COLSIDENT = [('Jugador', 'dorsal'),
                  ('Jugador', 'nombre'),
+                 ('Jugador', 'pos'),
+                 ('Jugador', 'altura'),
+                 ('Jugador', 'licencia'),
                  ('Trayectoria', 'Acta'),
                  ('Trayectoria', 'Jugados'),
                  ('Trayectoria', 'Titular'),
