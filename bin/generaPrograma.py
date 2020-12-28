@@ -611,7 +611,7 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
         for t in tablasJugadIzda:
-            result.append(Spacer(100 * mm, 1 * mm))
+            result.append(Spacer(100 * mm, 2 * mm))
             result.append(t)
 
     if len(juDcha):
@@ -621,7 +621,7 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
         for t in tablasJugadIzda:
-            result.append(Spacer(100 * mm, 1 * mm))
+            result.append(Spacer(100 * mm, 2 * mm))
             result.append(t)
 
     return result
@@ -757,7 +757,7 @@ def tablaJugadoresEquipo(jugDF):
                  ]
 
     baseOPS = [('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-               ('ALIGN', (0, 0), (-1, 0), 'CENTER'), ('ALIGN', (0, 1), (-1, -1), 'RIGHT'),
+               ('ALIGN', (0, 0), (-1, 0), 'CENTER'),('FONT', (0, 0), (-1, 0), 'Helvetica-Bold'), ('ALIGN', (0, 1), (-1, -1), 'RIGHT'),
                ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
                ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1), ('LEFTPADDING', (0, 0), (-1, -1), CELLPAD),
                ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD), ('TOPPADDING', (0, 0), (-1, -1), CELLPAD),
