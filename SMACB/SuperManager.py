@@ -359,6 +359,7 @@ class SuperManagerACB(object):
                         jugadorData['kiaLink'], jugadorData['nombre'], jugadorData['equipo'], IDjugador))
                     continue
 
+
                 actualizaResultado(resultado, codJugador, i, jugadorData)
                 codigosUsados.add(codJugador)
 
