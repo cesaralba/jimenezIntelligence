@@ -2,10 +2,10 @@ from collections import defaultdict
 from copy import copy
 
 import pandas as pd
-import reportlab.lib.colors as colors
 import sys
 from configargparse import ArgumentParser
 from math import isnan
+from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -757,7 +757,8 @@ def tablaJugadoresEquipo(jugDF):
                  ]
 
     baseOPS = [('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-               ('ALIGN', (0, 0), (-1, 0), 'CENTER'),('FONT', (0, 0), (-1, 0), 'Helvetica-Bold'), ('ALIGN', (0, 1), (-1, -1), 'RIGHT'),
+               ('ALIGN', (0, 0), (-1, 0), 'CENTER'), ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold'),
+               ('ALIGN', (0, 1), (-1, -1), 'RIGHT'),
                ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
                ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1), ('LEFTPADDING', (0, 0), (-1, -1), CELLPAD),
                ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD), ('TOPPADDING', (0, 0), (-1, -1), CELLPAD),
@@ -783,10 +784,16 @@ def tablaLiga(tempData: TemporadaACB):
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
                          ('LEADING', (0, 0), (-1, -1), FONTSIZE), ('LEFTPADDING', (0, 0), (-1, -1), CELLPAD),
                          ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD), ('TOPPADDING', (0, 0), (-1, -1), CELLPAD),
-                         ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD), ])
+                         ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD),
+                         ("BACKGROUND", (-1, 1), (-1, -2), colors.lightgrey),
+                         ("BACKGROUND", (1, -1), (-2, -1), colors.lightgrey)])
     datosAux = datosTablaLiga(tempData)
+    alturas = [20] + [28] * (len(datosAux) - 2) + [20]
+    anchos = [58] + [38] * (len(datosAux) - 2) + [40]
+    for i in range(1, len(datosAux) - 1):
+        tStyle.add("BACKGROUND", (i, i), (i, i), colors.lightgrey)
 
-    t = Table(datosAux, style=tStyle)
+    t = Table(datosAux, style=tStyle, rowHeights=alturas, colWidths=anchos)
 
     return t
 
