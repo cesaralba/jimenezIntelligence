@@ -25,7 +25,7 @@ class PartidoACB(object):
 
     def __init__(self, **kwargs):
         self.Jornada = None
-        self.FechaHora = None
+        self.fechaPartido = None
         self.Pabellon = None
         self.Asistencia = None
         self.Arbitros = []
@@ -154,7 +154,7 @@ class PartidoACB(object):
         PATRONdmyhm = r'^\s*(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})?$'
         REhora = re.match(PATRONdmyhm, cadTiempo)
         patronH = PATRONFECHAHORA if REhora.group(2) else PATRONFECHA
-        self.FechaHora = pd.to_datetime(cadTiempo, format=patronH)
+        self.fechaPartido = pd.to_datetime(cadTiempo, format=patronH)
 
         spanPabellon = divFecha.find("span", {"class": "clase_mostrar1280"})
         self.Pabellon = spanPabellon.get_text().strip()
@@ -371,7 +371,7 @@ class PartidoACB(object):
                 typesDF['V'] = 'float64'
 
             dfresult = pd.DataFrame.from_dict(dictJugador, orient='index').transpose()
-            dfresult['Fecha'] = self.FechaHora
+            dfresult['Fecha'] = self.fechaPartido
             dfresult['local'] = dfresult['esLocal'].map(local2esp)
             dfresult['titular'] = dfresult['titular'].map(titular2esp)
             dfresult['resultado'] = dfresult['haGanado'].map(haGanado2esp)
@@ -412,7 +412,7 @@ class PartidoACB(object):
 
     def __str__(self):
         return "J %02i: [%s] %s (%s) %i - %i %s (%s)" % (
-            self.Jornada, self.FechaHora,
+            self.Jornada, self.fechaPartido,
             self.EquiposCalendario['Local']['nomblargo'], self.CodigosCalendario['Local'],
             self.ResultadoCalendario['Local'],
             self.ResultadoCalendario['Visitante'], self.EquiposCalendario['Visitante']['nomblargo'],

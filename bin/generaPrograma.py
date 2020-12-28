@@ -15,6 +15,7 @@ from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, 
 from time import strftime, struct_time
 
 from SMACB.CalendarioACB import NEVER
+from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import LocalVisitante, OtherTeam
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden
 from Utils.FechaHora import Time2Str
@@ -449,11 +450,15 @@ def datosUltimoPartidoJug(tempData: TemporadaACB, df, colTime='Fecha'):
 
 def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     COLS_TRAYECT_TEMP = ['Acta', 'Jugados', 'Titular', 'Vict']
+    COLS_FICHA = ['id', 'alias', 'posicion', 'altura', 'licencia']
     abrevsEq = tempData.Calendario.abrevsEquipo(abrEq)
     keyDorsal = lambda d: -1 if d == '00' else int(d)
 
     auxDF = pd.concat([p.jugadoresAdataframe() for p in partJug])
     jugDF = auxDF.loc[auxDF['CODequipo'].isin(abrevsEq)]
+
+    fichasJugadores = tempData.dataFrameFichasJugadores()
+    fichasJugadores.posicion = fichasJugadores.posicion.map(TRADPOSICION)
 
     estadsMedia = jugDF.groupby('codigo').apply(
         lambda c: calcEstadisticasJugador(c, campoAMostrar=ESTADISTICOJUG)).droplevel(1, axis=0)
@@ -463,7 +468,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     estadsTotales = calcEstadAdicionalesTC(estadsTotales)
     datosUltPart = jugDF.groupby('codigo').apply(lambda c: datosUltimoPartidoJug(tempData, c)).droplevel(1, axis=0)
 
-    identifJug = estadsTotales[COLS_IDENTIFIC_JUG]
+    identifJug = pd.concat([estadsTotales[COLS_IDENTIFIC_JUG], fichasJugadores[COLS_FICHA]], axis=1, join="inner")
     trayectTemp = estadsTotales[COLS_TRAYECT_TEMP]
 
     dataFramesAJuntar = {'Jugador': identifJug, 'Trayectoria': trayectTemp,
@@ -519,7 +524,7 @@ def datosTablaLiga(tempData: TemporadaACB):
                 texto = f"J:{jornada}<br/>@{fecha}"
                 if not part['pendiente']:
                     pURL = part['url']
-                    pTempFecha = tempData.Partidos[pURL].FechaHora
+                    pTempFecha = tempData.Partidos[pURL].fechaPartido
                     fecha = strftime("%d-%m", pTempFecha)
                     pLocal = part['equipos']['Local']['puntos']
                     pVisit = part['equipos']['Visitante']['puntos']
@@ -583,7 +588,7 @@ def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
             bloque['izda'] = partidoTrayectoria(partsIzdaAux.pop(0), abrevsIzda, tempData)
             bloque['dcha'] = partidoTrayectoria(partsDchaAux.pop(0), abrevsDcha, tempData)
         else:
-            if (priPartIzda.FechaHora, priPartIzda.Jornada) < (priPartDcha.FechaHora, priPartDcha.Jornada):
+            if (priPartIzda.fechaPartido, priPartIzda.Jornada) < (priPartDcha.fechaPartido, priPartDcha.Jornada):
                 bloque['J'] = priPartIzda.Jornada
                 bloque['izda'] = partidoTrayectoria(partsIzdaAux.pop(0), abrevsIzda, tempData)
             else:
@@ -623,13 +628,13 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
 
 def partidoTrayectoria(partido, abrevs, datosTemp):
     # Cadena de información del partido
-    strFecha = strftime("%d-%m", partido.FechaHora)
+    strFecha = strftime("%d-%m", partido.fechaPartido)
     abrEq = list(abrevs.intersection(partido.DatosSuministrados['participantes']))[0]
     abrRival = list(partido.DatosSuministrados['participantes'].difference(abrevs))[0]
     locEq = partido.DatosSuministrados['abrev2loc'][abrEq]
     locRival = OtherTeam(locEq)
     textRival = auxEtiqPartido(datosTemp, abrRival, locEq=locEq, usaLargo=False)
-    clasifAux = datosTemp.clasifEquipo(abrRival, partido.FechaHora)
+    clasifAux = datosTemp.clasifEquipo(abrRival, partido.fechaPartido)
     clasifStr = auxCalculaBalanceStr(clasifAux)
     strRival = f"{strFecha}: {textRival} ({clasifStr})"
 

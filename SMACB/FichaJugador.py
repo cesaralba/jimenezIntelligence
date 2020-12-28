@@ -89,19 +89,19 @@ class FichaJugador(object):
 
         if self.primPartidoT is None:
             self.primPartidoP = partido.url
-            self.primPartidoT = partido.FechaHora
+            self.primPartidoT = partido.fechaPartido
         else:
-            if partido.FechaHora < self.primPartidoT:
+            if partido.fechaPartido < self.primPartidoT:
                 self.primPartidoP = partido.url
-                self.primPartidoT = partido.FechaHora
+                self.primPartidoT = partido.fechaPartido
 
         if self.ultPartidoT is None:
             self.ultPartidoP = partido.url
-            self.ultPartidoT = partido.FechaHora
+            self.ultPartidoT = partido.fechaPartido
         else:
-            if partido.FechaHora > self.ultPartidoT:
+            if partido.fechaPartido > self.ultPartidoT:
                 self.ultPartidoP = partido.url
-                self.ultPartidoT = partido.FechaHora
+                self.ultPartidoT = partido.fechaPartido
         return True
 
     def __repr__(self):

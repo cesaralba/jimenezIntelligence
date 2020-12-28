@@ -212,14 +212,14 @@ class TemporadaACB(object):
         juCal, peCal = self.Calendario.partidosEquipo(abrEq)
 
         peOrd = sorted([p for p in peCal], key=lambda x: x['fecha'])
-        juOrdTem = sorted([self.Partidos[p['url']] for p in juCal], key=lambda x: x.FechaHora)
+        juOrdTem = sorted([self.Partidos[p['url']] for p in juCal], key=lambda x: x.fechaPartido)
 
         sigPart = peOrd.pop(0)
         abrevsEq = self.Calendario.abrevsEquipo(abrEq)
         abrRival = sigPart['participantes'].difference(abrevsEq).pop()
         juRivCal, peRivCal = self.Calendario.partidosEquipo(abrRival)
         peRivOrd = sorted([p for p in peRivCal if p['jornada'] != sigPart['jornada']], key=lambda x: x['fecha'])
-        juRivTem = sorted([self.Partidos[p['url']] for p in juRivCal], key=lambda x: x.FechaHora)
+        juRivTem = sorted([self.Partidos[p['url']] for p in juRivCal], key=lambda x: x.fechaPartido)
 
         eqIsLocal = sigPart['loc2abrev']['Local'] in abrevsEq
         juIzda, peIzda, juDcha, peDcha = (juOrdTem, peOrd, juRivTem, peRivOrd) if eqIsLocal else (
@@ -236,7 +236,7 @@ class TemporadaACB(object):
         result['Lcon'] = list()
         result['CasaFuera'] = {'Local': defaultdict(int), 'Visitante': defaultdict(int)}
 
-        partidosAcontar = [p for p in juCal if self.Partidos[p['url']].FechaHora < fecha] if fecha else juCal
+        partidosAcontar = [p for p in juCal if self.Partidos[p['url']].fechaPartido < fecha] if fecha else juCal
 
         for datosCal in partidosAcontar:
             abrevUsada = abrevsEq.intersection(datosCal['participantes']).pop()
@@ -278,7 +278,7 @@ class TemporadaACB(object):
             juCal, _ = self.Calendario.partidosEquipo(abrEq)
             listaPartidos = juCal
             partidosAcontar = [p for p in listaPartidos if
-                               self.Partidos[p['url']].FechaHora < fecha] if fecha else listaPartidos
+                               self.Partidos[p['url']].fechaPartido < fecha] if fecha else listaPartidos
         else:
             listaPartidos = []
             for auxAbr in self.Calendario.tradEquipos['i2c'].values():
@@ -286,7 +286,7 @@ class TemporadaACB(object):
                 juCal, _ = self.Calendario.partidosEquipo(ab)
                 listaPartidos.extend(list(product([ab], juCal)))
             partidosAcontar = [p for p in listaPartidos if
-                               self.Partidos[p[1]['url']].FechaHora < fecha] if fecha else listaPartidos
+                               self.Partidos[p[1]['url']].fechaPartido < fecha] if fecha else listaPartidos
 
         for datosCal in partidosAcontar:
             if abrEq:
