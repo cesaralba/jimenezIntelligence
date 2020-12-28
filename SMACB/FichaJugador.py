@@ -1,11 +1,18 @@
 import re
 from argparse import Namespace
-from time import gmtime, strftime, strptime
 
+import pandas as pd
+from time import gmtime, strftime
+
+from Utils.FechaHora import PATRONFECHA
 from Utils.Web import creaBrowser, DescargaPagina, getObjID
 
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
 
+CLAVESDICT = ['id', 'URL', 'alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia',
+              'primPartidoT', 'ultPartidoT', 'ultPartidoP']
+
+TRADPOSICION = {'Alero': 'A', 'Escolta': 'E', 'Base': 'B', 'Pívot': 'P', 'Ala-pívot': 'AP', '': '?'}
 
 class FichaJugador(object):
     def __init__(self, **kwargs):
@@ -82,28 +89,28 @@ class FichaJugador(object):
 
         if self.primPartidoT is None:
             self.primPartidoP = partido.url
-            self.primPartidoT = partido.FechaHora
+            self.primPartidoT = partido.fechaPartido
         else:
-            if partido.FechaHora < self.primPartidoT:
+            if partido.fechaPartido < self.primPartidoT:
                 self.primPartidoP = partido.url
-                self.primPartidoT = partido.FechaHora
+                self.primPartidoT = partido.fechaPartido
 
         if self.ultPartidoT is None:
             self.ultPartidoP = partido.url
-            self.ultPartidoT = partido.FechaHora
+            self.ultPartidoT = partido.fechaPartido
         else:
-            if partido.FechaHora > self.ultPartidoT:
+            if partido.fechaPartido > self.ultPartidoT:
                 self.ultPartidoP = partido.url
-                self.ultPartidoT = partido.FechaHora
+                self.ultPartidoT = partido.fechaPartido
         return True
 
     def __repr__(self):
 
         return "%s (%s) %s P:[%i] %s -> %s (%i)" % (
-                self.nombre, self.id, strftime("%Y-%m-%d", self.fechaNac), len(self.partidos),
-                strftime("%Y-%m-%d", self.primPartidoT),
-                strftime("%Y-%m-%d", self.ultPartidoT),
-                len(self.equipos)
+            self.nombre, self.id, self.fechaNac.strftime("%Y-%m-%d"), len(self.partidos),
+            self.primPartidoT.strftime("%Y-%m-%d"),
+            self.ultPartidoTstrftime("%Y-%m-%d"),
+            len(self.equipos)
         )
 
     def limpiaPartidos(self):
@@ -133,6 +140,14 @@ class FichaJugador(object):
             elif newer and self.__getattribute__(k) != other.__getattribute__(k):
                 self.__setattr__(k, other.__getattribute__(k))
                 changes = True
+
+    def dictDatosJugador(self):
+        result = {k: self.__getattribute__(k) for k in CLAVESDICT}
+        result['numEquipos'] = len(self.equipos)
+        result['numPartidos'] = len(self.partidos)
+        result['pos'] = TRADPOSICION.get(self.posicion, '**')
+
+        return result
 
 
 def descargaURLficha(urlFicha, home=None, browser=None, config=Namespace()):
@@ -178,7 +193,7 @@ def descargaURLficha(urlFicha, home=None, browser=None, config=Namespace()):
                 REfechaNac = r'^(?P<fechanac>\d{2}/\d{2}/\d{4})\s*.*'
                 reProc = re.match(REfechaNac, valor)
                 if reProc:
-                    result['fechaNac'] = strptime(reProc['fechanac'], "%d/%m/%Y")
+                    result['fechaNac'] = pd.to_datetime(reProc['fechanac'], format=PATRONFECHA)
                 else:
                     print("FECHANAC no casa RE", valor, REfechaNac)
             elif 'nacionalidad' in classDiv:

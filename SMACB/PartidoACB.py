@@ -1,22 +1,17 @@
-'''
-Created on Dec 31, 2017
-
-@author: calba
-'''
-
 import re
 from argparse import Namespace
-from time import gmtime, mktime, strftime, strptime
+from copy import copy
 from traceback import print_exc
 
 import pandas as pd
 from babel.numbers import parse_number
 from bs4 import Tag
+from time import gmtime
 
 from Utils.BoWtraductor import RetocaNombreJugador
+from Utils.FechaHora import PATRONFECHAHORA, PATRONFECHA
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams, getObjID
-
 from .PlantillaACB import PlantillaACB
 from .SMconstants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp,
                           titular2esp)
@@ -30,7 +25,7 @@ class PartidoACB(object):
 
     def __init__(self, **kwargs):
         self.Jornada = None
-        self.FechaHora = None
+        self.fechaPartido = None
         self.Pabellon = None
         self.Asistencia = None
         self.Arbitros = []
@@ -80,6 +75,8 @@ class PartidoACB(object):
 
         pagina = content['data']
         tablasPartido = pagina.find("section", {"class": "contenedora_estadisticas"})
+        if not tablasPartido:
+            print(f"CAP: {self.url} tablasPartidoNone", tablasPartido, pagina)
 
         # Encabezado de Tabla
         tabDatosGenerales = tablasPartido.find("header")
@@ -103,6 +100,7 @@ class PartidoACB(object):
         for l, tRes in zip(LocalVisitante, tablasPartido.find_all("section", {"class": "partido"})):
             colHeaders = extractPrefijosTablaEstads(tRes)
             self.extraeEstadsJugadores(tRes, l, colHeaders)
+
             cachedTeam = None
             newPendientes = list()
             if self.pendientes[l]:
@@ -118,31 +116,31 @@ class PartidoACB(object):
                         if cachedTeam is None:
                             cachedTeam = PlantillaACB(id=datosJug['IDequipo'], edicion=datosJug['temporada'])
 
-                        nombreRetoc = RetocaNombreJugador(
-                                datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug['nombre']
+                    nombreRetoc = RetocaNombreJugador(datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug[
+                        'nombre']
 
-                        newCode = cachedTeam.getCode(nombre=nombreRetoc, dorsal=datosJug['dorsal'],
-                                                     esTecnico=datosJug['entrenador'],
-                                                     esJugador=datosJug['esJugador'], umbral=1)
-                        if newCode is not None:
-                            datosJug['codigo'] = newCode
+                    newCode = cachedTeam.getCode(nombre=nombreRetoc, dorsal=datosJug['dorsal'],
+                                                 esTecnico=datosJug['entrenador'],
+                                                 esJugador=datosJug['esJugador'], umbral=1)
+                    if newCode is not None:
+                        datosJug['codigo'] = newCode
 
-                            if datosJug['esJugador']:
-                                self.Jugadores[datosJug['codigo']] = datosJug
-                                (self.Equipos[l]['Jugadores']).append(datosJug['codigo'])
-                            elif datosJug.get('entrenador', False):
-                                self.Entrenadores[datosJug['codigo']] = datosJug
-                                self.Equipos[l]['Entrenador'] = datosJug['codigo']
-                            self.aprendidos[l].append(newCode)
-                        else:
-                            print("Imposible encontrar ID. Partido: %s. %s" % (self, datosJug))
-                            newPendientes.append(datosJug)
-                            raiser = True
+                        if datosJug['esJugador']:
+                            self.Jugadores[datosJug['codigo']] = datosJug
+                            (self.Equipos[l]['Jugadores']).append(datosJug['codigo'])
+                        elif datosJug.get('entrenador', False):
+                            self.Entrenadores[datosJug['codigo']] = datosJug
+                            self.Equipos[l]['Entrenador'] = datosJug['codigo']
+                        self.aprendidos[l].append(newCode)
+                    else:
+                        print("Imposible encontrar ID. Partido: %s. %s" % (self, datosJug))
+                        newPendientes.append(datosJug)
+                        raiser = True
 
                 self.pendientes[l] = newPendientes
             if raiser:
                 raise ValueError("procesaPartido: Imposible encontrar (%i) código(s) para (%s) en partido '%s': %s" % (
-                        len(newPendientes), l, self.url, newPendientes))
+                    len(newPendientes), l, self.url, newPendientes))
 
         return divCabecera
 
@@ -155,8 +153,8 @@ class PartidoACB(object):
         cadTiempo = espTiempo[0] + " " + espTiempo[1]
         PATRONdmyhm = r'^\s*(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})?$'
         REhora = re.match(PATRONdmyhm, cadTiempo)
-        patronH = "%d/%m/%Y %H:%M" if REhora.group(2) else "%d/%m/%Y "
-        self.FechaHora = strptime(cadTiempo, patronH)
+        patronH = PATRONFECHAHORA if REhora.group(2) else PATRONFECHA
+        self.fechaPartido = pd.to_datetime(cadTiempo, format=patronH)
 
         spanPabellon = divFecha.find("span", {"class": "clase_mostrar1280"})
         self.Pabellon = spanPabellon.get_text().strip()
@@ -201,6 +199,7 @@ class PartidoACB(object):
         result['rival'] = self.Equipos[OtherTeam(estado)]['Nombre']
         result['CODrival'] = self.Equipos[OtherTeam(estado)]['abrev']
         result['IDrival'] = self.Equipos[OtherTeam(estado)]['id']
+        result['url'] = self.url
         result['estado'] = estado
         result['esLocal'] = (estado == "Local")
         result['haGanado'] = self.ResultadoCalendario[estado] > self.ResultadoCalendario[OtherTeam(estado)]
@@ -372,7 +371,7 @@ class PartidoACB(object):
                 typesDF['V'] = 'float64'
 
             dfresult = pd.DataFrame.from_dict(dictJugador, orient='index').transpose()
-            dfresult['Fecha'] = pd.to_datetime(mktime(self.FechaHora), unit='s')
+            dfresult['Fecha'] = self.fechaPartido
             dfresult['local'] = dfresult['esLocal'].map(local2esp)
             dfresult['titular'] = dfresult['titular'].map(titular2esp)
             dfresult['resultado'] = dfresult['haGanado'].map(haGanado2esp)
@@ -413,13 +412,54 @@ class PartidoACB(object):
 
     def __str__(self):
         return "J %02i: [%s] %s (%s) %i - %i %s (%s)" % (
-                self.Jornada, strftime("%Y-%m-%d %H:%M", self.FechaHora),
-                self.EquiposCalendario['Local']['nomblargo'], self.CodigosCalendario['Local'],
-                self.ResultadoCalendario['Local'],
-                self.ResultadoCalendario['Visitante'], self.EquiposCalendario['Visitante']['nomblargo'],
-                self.CodigosCalendario['Visitante'])
+            self.Jornada, self.fechaPartido,
+            self.EquiposCalendario['Local']['nomblargo'], self.CodigosCalendario['Local'],
+            self.ResultadoCalendario['Local'],
+            self.ResultadoCalendario['Visitante'], self.EquiposCalendario['Visitante']['nomblargo'],
+            self.CodigosCalendario['Visitante'])
 
     __repr__ = __str__
+
+    def estadsPartido(self):
+        result = {loc: copy(self.Equipos[loc]['estads']) for loc in LocalVisitante}
+
+        for loc in LocalVisitante:
+            estads = result[loc]
+            other = result[OtherTeam(loc)]
+            avanzadas = dict()
+
+            avanzadas['Abrev'] = self.Equipos[loc]['abrev']
+            avanzadas['Rival'] = self.Equipos[OtherTeam(loc)]['abrev']
+            avanzadas['Priv'] = other['P']
+            avanzadas['Ptot'] = estads['P'] + other['P']
+            avanzadas['Vict'] = estads['P'] > other['P']
+            avanzadas['POS'] = estads['T2-I'] + estads['T3-I'] + (estads['T1-I'] * 0.44) + estads['BP'] - estads['R-O']
+            avanzadas['POStot'] = avanzadas['POS'] + (
+                    other['T2-I'] + other['T3-I'] + (other['T1-I'] * 0.44) + other['BP'] - other['R-O'])
+            avanzadas['OER'] = estads['P'] / avanzadas['POS']
+            avanzadas['OERpot'] = estads['P'] / (avanzadas['POS'] - estads['BP'])
+            avanzadas['EffRebD'] = estads['R-D'] / (estads['R-D'] + other['R-O'])
+            avanzadas['EffRebO'] = estads['R-O'] / (estads['R-O'] + other['R-D'])
+            avanzadas['TC-I'] = (estads['T2-I'] + estads['T3-I'])
+            avanzadas['TC-C'] = (estads['T2-C'] + estads['T3-C'])
+            avanzadas['TC%'] = avanzadas['TC-C'] / avanzadas['TC-I'] * 100.0
+            avanzadas['t2/tc-I'] = estads['T2-I'] / avanzadas['TC-I'] * 100.0
+            avanzadas['t3/tc-I'] = estads['T3-I'] / avanzadas['TC-I'] * 100.0
+            avanzadas['t2/tc-C'] = estads['T2-C'] / avanzadas['TC-C'] * 100.0
+            avanzadas['t3/tc-C'] = estads['T3-C'] / avanzadas['TC-C'] * 100.0
+            avanzadas['eff-t2'] = estads['T2-C'] * 2 / (estads['T2-C'] * 2 + estads['T3-C'] * 3) * 100.0
+            avanzadas['eff-t3'] = estads['T3-C'] * 3 / (estads['T2-C'] * 2 + estads['T3-C'] * 3) * 100.0
+            avanzadas['ppTC'] = (estads['T2-C'] * 2 + estads['T3-C'] * 3) / avanzadas['TC-I']
+            avanzadas['A/TC-C'] = estads['A'] / avanzadas['TC-C'] * 100.0
+            avanzadas['A/BP'] = estads['A'] / estads['BP']
+            avanzadas['RO/TC-F'] = estads['R-O'] / (avanzadas['TC-I'] - avanzadas['TC-C'])
+
+            avanzadas['Segs'] = estads['Segs'] / 5
+
+            estads.update(avanzadas)
+            result[loc] = estads
+
+        return result
 
 
 def GeneraURLpartido(link):
