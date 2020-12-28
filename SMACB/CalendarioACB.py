@@ -3,8 +3,10 @@ from argparse import Namespace
 from collections import defaultdict
 from copy import deepcopy
 
-from time import gmtime, strptime
+import pandas as pd
+from time import gmtime
 
+from Utils.FechaHora import NEVER
 from Utils.Misc import FORMATOtimestamp
 from Utils.Web import DescargaPagina, getObjID, MergeURL
 from .SMconstants import URL_BASE
@@ -18,7 +20,6 @@ template_CALENDARIOFULL = "http://www.acb.com/calendario/index/temporada_id/{yea
 
 ETIQubiq = ['local', 'visitante']
 
-NEVER = strptime("2030-12-31 00:00", FORMATOtimestamp)
 
 UMBRALbusquedaDistancia = 1  # La comparación debe ser >
 
@@ -232,7 +233,9 @@ class CalendarioACB(object):
         return targAbrevs
 
 
-def BuscaCalendario(url=URL_BASE, home=None, browser=None, config={}):
+def BuscaCalendario(url=URL_BASE, home=None, browser=None, config=None):
+    if config is None:
+        config = dict()
     link = None
     indexPage = DescargaPagina(url, home, browser, config)
 
@@ -374,7 +377,7 @@ def procesaFechaHoraPartido(cadFecha, cadHora, datosCab):
             cadFechaFin = auxFechasN.pop()
             cadMezclada = "%s %s" % (cadFechaFin.strip(), cadHora.strip())
             try:
-                fechaPart = strptime(cadMezclada, FORMATOtimestamp)
+                fechaPart = pd.to_datetime(cadMezclada)
                 resultado = fechaPart
             except ValueError:
                 print("procesaFechaHoraPartido: '%s' no casa RE '%s'" % (cadFechaFin, FORMATOtimestamp))
