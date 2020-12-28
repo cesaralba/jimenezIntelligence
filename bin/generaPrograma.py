@@ -362,19 +362,19 @@ def datosEstadsEquipoPortada(tempData: TemporadaACB, eq: str):
     ###
 
     resultEq = f"""
-<b>PF</b>: {pFav:.2f}({pFavOrd}) <b>/</b> <b>PC</b>: {pCon:.2f}({pConOrd}) <b>/</b> 
-<b>Pos</b>: {pos:.2f}({posOrd}) <b>/</b> <b>OER</b>: {OER:.2f}({OEROrd}) <b>/</b> <b>DER</b>: {DER:.2f}({DEROrd}) <b>/</b>
-<b>T2</b>: {T2C:.2f}({T2IOrd})/{T2I:.2f}({T2IOrd}) {T2pc:.2f}%({T2pcOrd}) <b>/</b> <b>T3</b>: {T3C:.2f}({T3IOrd})/{T3I:.2f}({T3IOrd}) {T3pc:.2f}%({T3pcOrd}) <b>/</b>
-<b>TC</b>: {TCC:.2f}({TCIOrd})/{TCI:.2f}({TCIOrd}) {TCpc:.2f}%({TCpcOrd}) <b>/</b> <b>P por TC-I</b>: {ppTC:.2f}({ppTCOrd}) T3-I/TC-I {ratT3:.2f}%({ratT3Ord}) <b>/</b>
-<b>F com</b>: {Fcom:.2f}({FcomOrd})  <b>/</b> <b>F rec</b>: {Frec:.2f}({FrecOrd})  <b>/</b> <b>TL</b>: {T1C:.2f}({T1COrd})/{T1I:.2f}({T1IOrd}) {T1pc:.2f}%({T1pcOrd}) <b>/</b>
-<b>Reb</b>: {RebD:.2f}({RebDOrd})+{RebO:.2f}({RebOOrd}) {RebT:.2f}({RebTOrd}) <b>/</b> <b>Eff D</b>: {EffRebD:.2f}({EffRebDOrd}) <b>Eff O</b>: {EffRebO:.2f}({EffRebOOrd}) <b>/</b>
-<b>A</b>: {A:.2f}({AOrd}) <b>/</b> <b>BP</b>: {BP:.2f}({BPOrd}) <b>/</b> <b>BR</b>: {BR:.2f}({BROrd}) <b>/</b> <b>A/BP</b>: {ApBP:.2f}({ApBPOrd}) <b>/</b> <b>A/Can</b>: {ApTCC:.2f}({ApTCCOrd})<br/>
+<b>PF</b>:&nbsp;{pFav:.2f}({pFavOrd}) <b>/</b> <b>PC</b>:&nbsp;{pCon:.2f}({pConOrd}) <b>/</b>
+<b>Pos</b>:&nbsp;{pos:.2f}({posOrd}) <b>/</b> <b>OER</b>:&nbsp;{OER:.2f}({OEROrd}) <b>/</b> <b>DER</b>:&nbsp;{DER:.2f}({DEROrd}) <b>/</b>
+<b>T2</b>:&nbsp;{T2C:.2f}({T2IOrd})/{T2I:.2f}({T2IOrd})&nbsp;{T2pc:.2f}%({T2pcOrd}) <b>/</b> <b>T3</b>:&nbsp;{T3C:.2f}({T3IOrd})/{T3I:.2f}({T3IOrd})&nbsp;{T3pc:.2f}%({T3pcOrd}) <b>/</b>
+<b>TC</b>:&nbsp;{TCC:.2f}({TCIOrd})/{TCI:.2f}({TCIOrd})&nbsp;{TCpc:.2f}%({TCpcOrd})&nbsp;<b>/</b> <b>P&nbsp;por&nbsp;TC-I</b>:&nbsp;{ppTC:.2f}({ppTCOrd}) <b>T3-I/TC-I</b>&nbsp;{ratT3:.2f}%({ratT3Ord}) <b>/</b>
+<b>F&nbsp;com</b>:&nbsp;{Fcom:.2f}({FcomOrd})  <b>/</b> <b>F&nbsp;rec</b>:&nbsp;{Frec:.2f}({FrecOrd})  <b>/</b> <b>TL</b>:&nbsp;{T1C:.2f}({T1COrd})/{T1I:.2f}({T1IOrd})&nbsp;{T1pc:.2f}%({T1pcOrd}) <b>/</b>
+<b>Reb</b>:&nbsp;{RebD:.2f}({RebDOrd})+{RebO:.2f}({RebOOrd}) {RebT:.2f}({RebTOrd}) <b>/</b> <b>EffRD</b>:&nbsp;{EffRebD:.2f}({EffRebDOrd}) <b>EffRO</b>:&nbsp;{EffRebO:.2f}({EffRebOOrd}) <b>/</b>
+<b>A</b>:&nbsp;{A:.2f}({AOrd}) <b>/</b> <b>BP</b>:&nbsp;{BP:.2f}({BPOrd}) <b>/</b> <b>BR</b>:&nbsp;{BR:.2f}({BROrd}) <b>/</b> <b>A/BP</b>:&nbsp;{ApBP:.2f}({ApBPOrd}) <b>/</b> <b>A/Can</b>:&nbsp;{ApTCC:.2f}({ApTCCOrd})<br/>
 
 <B>RIVAL</B><br/>
-<b>T2</b>: {rT2C:.2f}({rT2IOrd})/{rT2I:.2f}({rT2IOrd}) {rT2pc:.2f}%({rT2pcOrd}) <b>/</b> <b>T3</b>: {rT3C:.2f}({rT3IOrd})/{rT3I:.2f}({rT3IOrd}) {rT3pc:.2f}%({rT3pcOrd}) <b>/</b>
-<b>TC</b>: {rTCC:.2f}({rTCIOrd})/{rTCI:.2f}({rTCIOrd}) {rTCpc:.2f}%({rTCpcOrd}) <b>/</b> <b>P por TC-I</b>: {rppTC:.2f}({rppTCOrd}) T3-I/TC-I  {rratT3:.2f}%({rratT3Ord}) <b>/</b>
-<b>TL</b>: {rT1C:.2f}({rT1COrd})/{rT1I:.2f}({rT1IOrd}) {rT1pc:.2f}%({rT1pcOrd}) <b>/</b> <b>Reb</b>: {rRebD:.2f}({rRebDOrd})+{rRebO:.2f}({rRebOOrd}) {rRebT:.2f}({rRebTOrd}) <b>/</b>
-<b>A</b>: {rA:.2f}({rAOrd}) <b>/</b> <b>BP</b>: {rBP:.2f}({rBPOrd}) <b>/</b> <b>BR</b>: {rBR:.2f}({rBROrd}) <b>/</b> <b>A/BP</b>: {rApBP:.2f}({rApBPOrd}) <b>/</b> <b>A/Can</b>: {rApTCC:.2f}({rApTCCOrd})
+<b>T2</b>:&nbsp;{rT2C:.2f}({rT2IOrd})/{rT2I:.2f}({rT2IOrd})&nbsp;{rT2pc:.2f}%({rT2pcOrd}) <b>/</b> <b>T3</b>:&nbsp;{rT3C:.2f}({rT3IOrd})/{rT3I:.2f}({rT3IOrd})&nbsp;{rT3pc:.2f}%({rT3pcOrd}) <b>/</b>
+<b>TC</b>:&nbsp;{rTCC:.2f}({rTCIOrd})/{rTCI:.2f}({rTCIOrd})&nbsp;{rTCpc:.2f}%({rTCpcOrd}) <b>/</b> <b>P&nbsp;por&nbsp;TC-I</b>:&nbsp;{rppTC:.2f}({rppTCOrd}) <b>T3-I/TC-I</b>&nbsp;{rratT3:.2f}%({rratT3Ord}) <b>/</b>
+<b>TL</b>:&nbsp;{rT1C:.2f}({rT1COrd})/{rT1I:.2f}({rT1IOrd})&nbsp;{rT1pc:.2f}%({rT1pcOrd}) <b>/</b> <b>Reb</b>:&nbsp;{rRebD:.2f}({rRebDOrd})+{rRebO:.2f}({rRebOOrd})&nbsp;{rRebT:.2f}({rRebTOrd}) <b>/</b>
+<b>A</b>:&nbsp;{rA:.2f}({rAOrd}) <b>/</b> <b>BP</b>:&nbsp;{rBP:.2f}({rBPOrd}) <b>/</b> <b>BR</b>:&nbsp;{rBR:.2f}({rBROrd}) <b>/</b> <b>A/BP</b>:&nbsp;{rApBP:.2f}({rApBPOrd}) <b>/</b> <b>A/Can</b>:&nbsp;{rApTCC:.2f}({rApTCCOrd})
 """
 
     return resultEq
