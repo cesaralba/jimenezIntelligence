@@ -1,12 +1,12 @@
 import re
 from argparse import Namespace
 from collections import defaultdict
-from copy import deepcopy
+from copy import deepcopy, copy
 
 import pandas as pd
 from time import gmtime
 
-from Utils.FechaHora import NEVER
+from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA
 from Utils.Misc import FORMATOtimestamp
 from Utils.Web import DescargaPagina, getObjID, MergeURL
 from .SMconstants import URL_BASE
@@ -17,12 +17,12 @@ template_URLFICHA = "http://www.acb.com/fichas/%s%i%03i.php"
 # http://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
 template_CALENDARIOYEAR = "http://www.acb.com/calendario/index/temporada_id/{year}"
 template_CALENDARIOFULL = "http://www.acb.com/calendario/index/temporada_id/{year}/edicion_id/{compoID}"
+template_PARTIDOSEQUIPO = "http://www.acb.com/club/partidos/id/{idequipo}"
 
 ETIQubiq = ['local', 'visitante']
 
 UMBRALbusquedaDistancia = 1  # La comparación debe ser >
 
-PARTIDOSnever = []
 CALENDARIOEQUIPOS = dict()
 
 
@@ -43,9 +43,9 @@ class CalendarioACB(object):
     def actualizaCalendario(self, home=None, browser=None, config=Namespace()):
         calendarioPage = self.descargaCalendario(home=home, browser=browser, config=config)
 
-        return self.procesaCalendario(calendarioPage)  # CAP:
+        return self.procesaCalendario(calendarioPage, home=self.url, browser=browser, config=config)
 
-    def procesaCalendario(self, content):
+    def procesaCalendario(self, content, **kwargs):
         if 'timestamp' in content:
             self.timestamp = content['timestamp']
         if 'source' in content:
@@ -59,9 +59,9 @@ class CalendarioACB(object):
 
             divPartidos = divJ.find_next_sibling("div", {"class": "listado_partidos"})
 
-            self.Jornadas[currJornada] = self.procesaBloqueJornada(divPartidos, datosCab)
+            self.Jornadas[currJornada] = self.procesaBloqueJornada(divPartidos, datosCab, **kwargs)
 
-        return content  # CAP
+        return content
 
     def nuevaTraduccionEquipo2Codigo(self, equipos, codigo, id=None):
         result = False
@@ -130,7 +130,7 @@ class CalendarioACB(object):
 
         return result
 
-    def procesaBloqueJornada(self, divDatos, dictCab):
+    def procesaBloqueJornada(self, divDatos, dictCab, **kwargs):
         # TODO: incluir datos de competicion
         result = dict()
         result['nombre'] = dictCab['comp']
@@ -146,7 +146,9 @@ class CalendarioACB(object):
 
             if datosPart['pendiente']:
                 if datosPart['fecha'] == NEVER:
-                    print("\n procesaBloqueJornada we have a NEVER!", datosPart)
+                    nuevaFecha = self.recuperaFechaAmbigua(datosPart, **kwargs)
+                    if nuevaFecha:
+                        datosPart['fecha'] = nuevaFecha
                 result['pendientes'].append(datosPart)
             else:
                 self.Partidos[datosPart['url']] = datosPart
@@ -207,11 +209,23 @@ class CalendarioACB(object):
                     cadHora = auxHora.strip() if auxHora else None
 
                     resultado['fecha'] = procesaFechaHoraPartido(cadFecha.strip(), cadHora, datosJornada)
-                if resultado['fecha'] == NEVER:
-                    PARTIDOSnever.append(resultado)
 
-                    print("\nCAP: procesaBloquePartido NEVER ", auxFecha, auxHora)
         return resultado
+
+    def recuperaFechaAmbigua(self, infoPart, **kwargs):
+        result = None
+
+        for abrev in infoPart['participantes']:
+            idEquipo = self.tradEquipos['c2i'].get(abrev, None)
+            if idEquipo:  # Necesitamos el ID para descargar partidos. El id se aprende a partir de pags de resultados
+                valID = copy(idEquipo).pop()
+                calendarioEquipo = recuperaPartidosEquipo(valID, **kwargs)
+                if calendarioEquipo:
+                    CALENDARIOEQUIPOS[valID] = calendarioEquipo
+                    result = calendarioEquipo['jornadas'].get(infoPart['jornada'], None)
+                    return result
+
+        return result
 
     def partidosEquipo(self, abrEq):
         targAbrevs = self.abrevsEquipo(abrEq)
@@ -305,7 +319,6 @@ def procesaCab(cab):
     patL = re.match(patronL, cadL)
     if patL:
         dictFound = patL.groupdict()
-        # print("CAP ", dictFound)
         resultado.update(dictFound)
         resultado['auxFechas'] = procesaFechasJornada(cadR)
     else:
@@ -381,9 +394,7 @@ def procesaFechaHoraPartido(cadFecha, cadHora, datosCab):
         auxFechasN = deepcopy(datosCab['auxFechas'])[diaMesN]
 
         if len(auxFechasN) > 1:
-            print("CAP en fechas dobles", datosCab, cadFecha, cadHora)
-            # TODO Magic para procesar dias repetidos (cuando suceda)
-            pass
+            pass  # Caso tratado en destino
         else:
             cadFechaFin = auxFechasN.pop()
             cadMezclada = "%s %s" % (cadFechaFin.strip(), cadHora.strip())
@@ -398,3 +409,66 @@ def procesaFechaHoraPartido(cadFecha, cadHora, datosCab):
         raise ValueError("RE: '%s' no casa patrón '%s'" % (cadFecha, patronDiaPartido))
 
     return resultado
+
+
+def recuperaPartidosEquipo(idEquipo, home=None, browser=None, config=Namespace()):
+    if idEquipo in CALENDARIOEQUIPOS:
+        return CALENDARIOEQUIPOS[idEquipo]
+
+    urlDest = template_PARTIDOSEQUIPO.format(idequipo=idEquipo)
+
+    partidosPage = DescargaPagina(dest=urlDest, browser=browser, config=config)
+
+    if partidosPage is None:
+        return None
+
+    dataPartidos = procesaPaginaPartidosEquipo(partidosPage)
+    return dataPartidos
+
+
+def procesaPaginaPartidosEquipo(content):
+    result = dict()
+    result['jornadas'] = dict()
+
+    if 'timestamp' in content:
+        result['timestamp'] = content['timestamp']
+    if 'source' in content:
+        result['source'] = content['source']
+
+    result['data'] = content['data']
+
+    pagData = result['data']
+
+    divTabla = pagData.find('div', {'class': 'todos_los_partidos'})
+
+    if divTabla is None:
+        return None
+
+    for fila in divTabla.findAll('tr'):
+        auxJornada = fila.find('td', {'class': 'jornada'})
+
+        if auxJornada is None:
+            continue
+
+        auxFecha = fila.find('td', {'class': 'fecha'}).get_text()
+        auxHora = fila.find('td', {'class': 'vod'}).get_text()
+
+        cadJornada = auxJornada.get_text()
+        if cadJornada is None:
+            return None
+
+        jornada = cadJornada.strip()
+        cadFechaFin = auxFecha.strip()
+        cadHora = auxHora.strip() if auxHora else None
+
+        formato = PATRONFECHAHORA if cadHora else PATRONFECHA
+        cadMezclada = "%s %s" % (cadFechaFin, cadHora.strip()) if cadHora else cadFechaFin
+        try:
+            fechaPart = pd.to_datetime(cadMezclada, format=formato)
+        except ValueError:
+            print("procesaPaginaPartidosEquipo: '%s' no casa RE '%s'" % (cadMezclada, fila))
+            return None
+
+        result['jornadas'][jornada] = fechaPart
+
+    return result
