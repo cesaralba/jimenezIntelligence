@@ -61,7 +61,6 @@ class CalendarioACB(object):
 
             self.Jornadas[currJornada] = self.procesaBloqueJornada(divPartidos, datosCab)
 
-
         return content  # CAP
 
     def nuevaTraduccionEquipo2Codigo(self, equipos, codigo, id=None):
@@ -147,7 +146,7 @@ class CalendarioACB(object):
 
             if datosPart['pendiente']:
                 if datosPart['fecha'] == NEVER:
-                    print("\n procesaBloqueJornada we have a NEVER!",datosPart)
+                    print("\n procesaBloqueJornada we have a NEVER!", datosPart)
                 result['pendientes'].append(datosPart)
             else:
                 self.Partidos[datosPart['url']] = datosPart
@@ -211,7 +210,7 @@ class CalendarioACB(object):
                 if resultado['fecha'] == NEVER:
                     PARTIDOSnever.append(resultado)
 
-                    print("\nCAP: procesaBloquePartido NEVER ",auxFecha,auxHora)
+                    print("\nCAP: procesaBloquePartido NEVER ", auxFecha, auxHora)
         return resultado
 
     def partidosEquipo(self, abrEq):
@@ -373,10 +372,9 @@ def procesaFechaHoraPartido(cadFecha, cadHora, datosCab):
 
     reFechaPart = re.match(patronDiaPartido, cadFecha.strip())
 
-
     if reFechaPart:
         if cadHora is None:
-            cadHora= "00:00"
+            cadHora = "00:00"
         diaSemN = diaSem2n[reFechaPart['diasem']]
         diaMesN = int(reFechaPart['diames'])
 
