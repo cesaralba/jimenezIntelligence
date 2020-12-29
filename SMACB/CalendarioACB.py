@@ -20,8 +20,10 @@ template_CALENDARIOFULL = "http://www.acb.com/calendario/index/temporada_id/{yea
 
 ETIQubiq = ['local', 'visitante']
 
-
 UMBRALbusquedaDistancia = 1  # La comparación debe ser >
+
+PARTIDOSnever = []
+CALENDARIOEQUIPOS = dict()
 
 
 class CalendarioACB(object):
@@ -58,6 +60,7 @@ class CalendarioACB(object):
             divPartidos = divJ.find_next_sibling("div", {"class": "listado_partidos"})
 
             self.Jornadas[currJornada] = self.procesaBloqueJornada(divPartidos, datosCab)
+
 
         return content  # CAP
 
@@ -141,7 +144,10 @@ class CalendarioACB(object):
         # print(divPartidos)
         for artP in divDatos.find_all("article", {"class": "partido"}):
             datosPart = self.procesaBloquePartido(dictCab, artP)
+
             if datosPart['pendiente']:
+                if datosPart['fecha'] == NEVER:
+                    print("\n procesaBloqueJornada we have a NEVER!",datosPart)
                 result['pendientes'].append(datosPart)
             else:
                 self.Partidos[datosPart['url']] = datosPart
@@ -197,12 +203,15 @@ class CalendarioACB(object):
             if divTiempo:
                 auxFecha = divTiempo.find('span', {"class": "fecha"}).next
                 auxHora = divTiempo.find('span', {"class": "hora"}).get_text()
-                if isinstance(auxFecha, str) and auxFecha != '' and auxHora:
+                if isinstance(auxFecha, str) and auxFecha != '': #  and auxHora:
                     cadFecha = auxFecha.lower()  # divTiempo.find('span', {"class": "fecha"}).next
-                    cadHora = divTiempo.find('span', {"class": "hora"}).get_text()
+                    cadHora = divTiempo.find('span', {"class": "hora"}).get_text().strip() if auxHora else None
 
-                    resultado['fecha'] = procesaFechaHoraPartido(cadFecha.strip(), cadHora.strip(), datosJornada)
+                    resultado['fecha'] = procesaFechaHoraPartido(cadFecha.strip(), cadHora, datosJornada)
+                if resultado['fecha'] == NEVER:
+                    PARTIDOSnever.append(resultado)
 
+                    print("\nCAP: procesaBloquePartido NEVER ",auxFecha,auxHora)
         return resultado
 
     def partidosEquipo(self, abrEq):
@@ -364,13 +373,17 @@ def procesaFechaHoraPartido(cadFecha, cadHora, datosCab):
 
     reFechaPart = re.match(patronDiaPartido, cadFecha.strip())
 
+
     if reFechaPart:
+        if cadHora is None:
+            cadHora= "00:00"
         diaSemN = diaSem2n[reFechaPart['diasem']]
         diaMesN = int(reFechaPart['diames'])
 
         auxFechasN = deepcopy(datosCab['auxFechas'])[diaMesN]
 
         if len(auxFechasN) > 1:
+            print("CAP en fechas dobles", datosCab, cadFecha, cadHora)
             # TODO Magic para procesar dias repetidos (cuando suceda)
             pass
         else:
