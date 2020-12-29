@@ -203,9 +203,9 @@ class CalendarioACB(object):
             if divTiempo:
                 auxFecha = divTiempo.find('span', {"class": "fecha"}).next
                 auxHora = divTiempo.find('span', {"class": "hora"}).get_text()
-                if isinstance(auxFecha, str) and auxFecha != '': #  and auxHora:
-                    cadFecha = auxFecha.lower()  # divTiempo.find('span', {"class": "fecha"}).next
-                    cadHora = divTiempo.find('span', {"class": "hora"}).get_text().strip() if auxHora else None
+                if isinstance(auxFecha, str) and auxFecha != '':
+                    cadFecha = auxFecha.lower()
+                    cadHora = auxHora.strip() if auxHora else None
 
                     resultado['fecha'] = procesaFechaHoraPartido(cadFecha.strip(), cadHora, datosJornada)
                 if resultado['fecha'] == NEVER:
