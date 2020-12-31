@@ -14,7 +14,7 @@ from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, 
     Frame, PageBreak
 
 from SMACB.CalendarioACB import NEVER
-from SMACB.Constants import LocalVisitante, OtherLoc
+from SMACB.Constants import LocalVisitante, OtherLoc, haGanado2esp
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden
 from Utils.FechaHora import Time2Str
@@ -276,7 +276,7 @@ def cargaTemporada(fname):
 
 
 def datosCabEquipo(datosEq, tempData, fecha):
-    # TODO: Imagen
+    # TODO: Imagen (descargar imagen de escudo y plantarla)
     nombre = datosEq['nombcorto']
 
     clasifAux = tempData.clasifEquipo(datosEq['abrev'], fecha)
@@ -641,14 +641,17 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
 
     # Cadena del resultado del partido
     # TODO: Esto debería ir en HTML o Markup correspondiente
-    prefV = {loc: ('<b>', '</b>') if partido.DatosSuministrados['equipos'][loc]['haGanado'] else ('', '') for loc in
-             LocalVisitante}
-    prefMe = {loc: ('<u>', '</u>') if (loc == locEq) else ('', '') for loc in LocalVisitante}
-    resAux = [
-        f"{prefV[loc][0]}{prefMe[loc][0]}{partido.DatosSuministrados['resultado'][loc]}{prefMe[loc][1]}{prefV[loc][1]}"
-        for
-        loc in LocalVisitante]
-    strResultado = "-".join(resAux) + (" (V)" if partido.DatosSuministrados['equipos'][locEq]['haGanado'] else " (D)")
+    marcador = {loc: str(partido.DatosSuministrados['resultado'][loc]) for loc in LocalVisitante}
+    for loc in LocalVisitante:
+        if partido.DatosSuministrados['equipos'][loc]['haGanado']:
+            marcador[loc] = "<b>{}</b>".format(marcador[loc])
+        if loc == locEq:
+            marcador[loc] = "<u>{}</u>".format(marcador[loc])
+
+    resAux = [marcador[loc] for loc in LocalVisitante]
+
+    strResultado = "{} ({})".format("-".join(resAux),
+                                    haGanado2esp[partido.DatosSuministrados['equipos'][locEq]['haGanado']])
 
     return strRival, strResultado
 
