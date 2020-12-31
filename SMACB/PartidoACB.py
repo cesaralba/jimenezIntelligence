@@ -13,12 +13,10 @@ from Utils.FechaHora import PATRONFECHAHORA, PATRONFECHA
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams, getObjID
 from .Constants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp,
-                        titular2esp)
+                        titular2esp, OtherTeam, LocalVisitante)
 from .PlantillaACB import PlantillaACB
 
 templateURLficha = "http://www.acb.com/fichas/%s%i%03i.php"
-
-LocalVisitante = ('Local', 'Visitante')
 
 
 class PartidoACB(object):
@@ -529,14 +527,6 @@ def GeneraURLpartido(link):
     return templateURLficha % (liurlcomps['cod_competicion'], int(liurlcomps['cod_edicion']),
                                int(liurlcomps['partido']))
 
-
-def OtherTeam(team):
-    if team == 'Local':
-        return 'Visitante'
-    elif team == 'Visitante':
-        return 'Local'
-    else:
-        raise BadParameters("OtherTeam: '%s' provided. It only accept 'Visitante' or 'Local'" % team)
 
 
 def extractPrefijosTablaEstads(tablaEstads):

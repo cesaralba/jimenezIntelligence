@@ -14,8 +14,8 @@ from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, 
     Frame, PageBreak
 
 from SMACB.CalendarioACB import NEVER
+from SMACB.Constants import LocalVisitante, OtherTeam
 from SMACB.FichaJugador import TRADPOSICION
-from SMACB.PartidoACB import LocalVisitante, OtherTeam
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden
 from Utils.FechaHora import Time2Str
 
