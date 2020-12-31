@@ -76,6 +76,9 @@ class TemporadaACB(object):
                     self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
                 self.actualizaTraduccionesJugador(nuevoPartido)
 
+            except KeyboardInterrupt:
+                print("actualizaTemporada: Ejecución terminada por el usuario")
+                break
             except BaseException:
                 print("actualizaTemporada: problemas descargando  partido '%s': %s" % (partido, exc_info()))
                 print_exception(*exc_info())
