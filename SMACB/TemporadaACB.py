@@ -382,6 +382,29 @@ class TemporadaACB(object):
 
         return auxDF
 
+    def dataFramePartidos(self, listaAbrevEquipos=None):
+        partidosAprocesar_url = list()
+        # Genera la lista de partidos a incluir
+        if listaAbrevEquipos:
+            # Recupera la lista de abreviaturas que de los equipos que puede cambiar (la abrev del equipo)
+            # a lo largo de la temporada
+            colAbrevList = [self.Calendario.abrevsEquipo(ab) for ab in listaAbrevEquipos]
+            colAbrevSet = set()
+            for abrSet in colAbrevList:
+                colAbrevSet.update(abrSet)
+
+            # Crea la lista de partidos de aquellos en los que están las abreviaturas
+            for pURL, pData in self.Partidos.items():
+                if colAbrevSet.intersection(pData.CodigosCalendario.values()):
+                    partidosAprocesar_url.append(pURL)
+        else:
+            partidosAprocesar_url = self.Partidos.keys()
+
+        partidos_DFlist = [self.Partidos[pURL].partidoAdataframe() for pURL in partidosAprocesar_url]
+
+        result = pd.concat(partidos_DFlist)
+        return result
+
 
 def calculaTempStats(datos, clave, filtroFechas=None):
     if clave not in datos:
