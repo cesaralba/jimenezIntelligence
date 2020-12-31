@@ -36,7 +36,6 @@ class TemporadaACB(object):
 
         self.timestamp = gmtime()
         self.Calendario = CalendarioACB(competicion=self.competicion, edicion=self.edicion, urlbase=self.urlbase)
-        self.PartidosDescargados = set()
         self.Partidos = dict()
         self.changed = False
         self.tradJugadores = {'id2nombres': defaultdict(set), 'nombre2ids': defaultdict(set)}
@@ -61,13 +60,12 @@ class TemporadaACB(object):
         partidosBajados = set()
 
         for partido in self.Calendario.Partidos:
-            if partido in self.PartidosDescargados:
+            if partido in self.Partidos:
                 continue
 
             try:
                 nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
                 nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
-                self.PartidosDescargados.add(partido)
                 self.Partidos[partido] = nuevoPartido
                 self.actualizaNombresEquipo(nuevoPartido)
                 partidosBajados.add(partido)
