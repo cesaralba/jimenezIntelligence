@@ -12,9 +12,9 @@ from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHAHORA, PATRONFECHA
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams, getObjID
+from .Constants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp,
+                        titular2esp)
 from .PlantillaACB import PlantillaACB
-from .SMconstants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp,
-                          titular2esp)
 
 templateURLficha = "http://www.acb.com/fichas/%s%i%03i.php"
 

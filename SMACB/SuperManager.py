@@ -16,11 +16,11 @@ from Utils.BoWtraductor import comparaNombresPersonas, NormalizaCadena, RetocaNo
 from Utils.Misc import onlySetElement
 from Utils.Web import creaBrowser
 from .ClasifData import ClasifData, manipulaSocio
+from .Constants import bool2esp
 from .LigaSM import LigaSM
 from .ManageSMDataframes import datosPosMerc, datosProxPartidoMerc
 from .MercadoPage import MercadoPageContent
 from .PlantillaACB import descargaPlantillasCabecera
-from .SMconstants import bool2esp
 
 URL_SUPERMANAGER = "http://supermanager.acb.com/index/identificar"
 

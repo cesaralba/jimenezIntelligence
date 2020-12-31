@@ -9,7 +9,7 @@ from time import gmtime
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA
 from Utils.Misc import FORMATOtimestamp
 from Utils.Web import DescargaPagina, getObjID, MergeURL
-from .SMconstants import URL_BASE
+from .Constants import URL_BASE
 
 calendario_URLBASE = "http://www.acb.com/calendario"
 template_URLFICHA = "http://www.acb.com/fichas/%s%i%03i.php"

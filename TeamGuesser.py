@@ -18,10 +18,10 @@ from dask.distributed import Client, LocalCluster
 from itertools import chain, product
 from time import strftime, time
 
+from SMACB.Constants import CLAVESCSV, SEQCLAVES, solucion2clave
 from SMACB.Guesser import (agregaJugadores, buildPosCupoIndex, comb2Key, dumpVar, GeneraCombinacionJugs,
                            getPlayersByPosAndCupoJornada, ig2posYcupo, indexGroup2Key, indexPosCupo2str,
                            keySearchOrderParameter, loadVar, plan2filename, seq2name, varname2fichname)
-from SMACB.SMconstants import CLAVESCSV, SEQCLAVES, solucion2clave
 from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.CombinacionesConCupos import GeneraCombinaciones
