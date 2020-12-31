@@ -32,6 +32,7 @@ class PartidoACB(object):
         self.ResultadosParciales = []
         self.prorrogas = 0
 
+        #TOFIX: El haGanado no se actualiza
         self.Equipos = {x: {'Jugadores': [], 'haGanado': False} for x in LocalVisitante}
 
         self.Jugadores = dict()
@@ -415,6 +416,37 @@ class PartidoACB(object):
             elif datos.get('entrenador', False):
                 self.Entrenadores[datos['codigo']] = datos
                 self.Equipos[estado]['Entrenador'] = datos['codigo']
+
+    def partidoAdataframe(self):
+        infoCols = ['Jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas','VictoriaLocal', 'url','competicion', 'temporada', 'idPartido']
+        equipoCols = ['id', 'Nombre', 'abrev']
+        typesDF = {'competicion': 'object', 'temporada': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
+                   'haJugado': 'bool', 'titular': 'category', 'haGanado': 'bool', 'enActa': 'bool', 'Vsm': 'float64'}
+
+        infoDict = {k:self.__getattribute__(k) for k in infoCols}
+        infoDF = pd.DataFrame.from_dict(data=[infoDict],orient='columns').reset_index(drop=True)
+
+        estadsDict = { loc:dict() for loc in self.Equipos}
+
+        for loc in LocalVisitante:
+            estadsDict[loc]['local'] = loc == 'Local'
+            for col in equipoCols:
+                estadsDict[loc][col] = self.Equipos[loc][col]
+            estadsDict[loc]['haGanado'] = self.DatosSuministrados['equipos'][loc]['haGanado']
+            estadsDict[loc]['convocados'] = len(self.Equipos[loc]['Jugadores'])
+            estadsDict[loc]['utilizados'] = len([j for j in self.Equipos[loc]['Jugadores'] if self.Jugadores[j]['haJugado']])
+            estadsDict[loc].update(self.Equipos[loc]['estads'])
+
+
+
+        estadsDF = pd.DataFrame.from_dict(data=estadsDict,orient='index')
+        localDF=estadsDF.loc[estadsDF['local']].reset_index(drop=True)
+        visitanteDF=estadsDF.loc[~estadsDF['local']].reset_index(drop=True)
+
+        result = pd.concat([infoDF,localDF,visitanteDF],axis=1,keys=['Info','Local','Visitante'])
+        result.index = result['Info','url']
+        result.index.name = 'url'
+        return result
 
     def __str__(self):
         return "J %02i: [%s] %s (%s) %i - %i %s (%s)" % (
