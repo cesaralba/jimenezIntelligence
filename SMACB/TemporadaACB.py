@@ -16,11 +16,12 @@ from itertools import product
 from sys import exc_info, setrecursionlimit
 from time import gmtime
 
-from SMACB.CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
-from SMACB.FichaJugador import FichaJugador
-from SMACB.PartidoACB import OtherTeam, PartidoACB
 from Utils.Pandas import combinaPDindexes
 from Utils.Web import creaBrowser
+from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
+from .Constants import OtherLoc
+from .FichaJugador import FichaJugador
+from .PartidoACB import PartidoACB
 
 
 class TemporadaACB(object):
@@ -242,7 +243,7 @@ class TemporadaACB(object):
         for datosCal in partidosAcontar:
             abrevUsada = abrevsEq.intersection(datosCal['participantes']).pop()
             locEq = datosCal['abrev2loc'][abrevUsada]
-            locRival = OtherTeam(locEq)
+            locRival = OtherLoc(locEq)
 
             datosEq = datosCal['equipos'][locEq]
             datosRival = datosCal['equipos'][locRival]
@@ -300,7 +301,7 @@ class TemporadaACB(object):
                 abrevUsada = abrevsEq.intersection(partCal['participantes']).pop()
 
             locEq = partCal['abrev2loc'][abrevUsada]
-            locRival = OtherTeam(locEq)
+            locRival = OtherLoc(locEq)
             # datosEq = datosCal['equipos'][locEq]
             datosRival = partCal['equipos'][locRival]
             abrevRival = datosRival['abrev']
@@ -319,7 +320,38 @@ class TemporadaACB(object):
 
         return auxEstads
 
+    def dfEstadsPartidosEquipo(self, abrEq, fecha=None):
+        COLSINFO = ['Jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'url', 'competicion', 'temporada',
+                    'idPartido', 'Ptot', 'POStot']
+
+        partidosDFaux = self.dataFramePartidos([abrEq])
+
+        if fecha is None:
+            partidosDF = partidosDFaux
+        else:
+            fechaFormatted = fecha if isinstance(fecha, pd.Timestamp) else pd.to_datetime(fecha)
+            partidosDF = partidosDFaux.loc[partidosDFaux['Info', 'fechaPartido'] < fechaFormatted]
+
+        idEq = list(self.Calendario.tradEquipos['c2i'][abrEq])[0]
+
+        finalDFlist = []
+        for esLocal in [True, False]:
+            tagEq, tagRival = ('Local', 'Visitante') if esLocal else ('Visitante', 'Local')
+
+            auxDFlocal = partidosDF.loc[(partidosDF['Local', 'id'] == idEq) == esLocal]
+            infoDF = auxDFlocal['Info'][COLSINFO]
+            eqDF = auxDFlocal[tagEq]
+            rivalDF = auxDFlocal[tagRival]
+
+            auxDF = pd.concat([infoDF, eqDF, rivalDF], axis=1, keys=['Info', 'Eq', 'Rival'])
+            finalDFlist.append(auxDF)
+
+        result = pd.concat(finalDFlist)
+
+        return result.sort_values(by=('Info', 'fechaPartido'))
+
     def estadsEquipo(self, abrEq=None, fecha=None):
+
         result = defaultdict(dict)
 
         auxEstads = self.precalcEstadsEquipo(abrEq, fecha)

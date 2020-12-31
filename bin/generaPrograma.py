@@ -14,7 +14,7 @@ from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, 
     Frame, PageBreak
 
 from SMACB.CalendarioACB import NEVER
-from SMACB.Constants import LocalVisitante, OtherTeam
+from SMACB.Constants import LocalVisitante, OtherLoc
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden
 from Utils.FechaHora import Time2Str
@@ -633,7 +633,7 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
     abrEq = list(abrevs.intersection(partido.DatosSuministrados['participantes']))[0]
     abrRival = list(partido.DatosSuministrados['participantes'].difference(abrevs))[0]
     locEq = partido.DatosSuministrados['abrev2loc'][abrEq]
-    locRival = OtherTeam(locEq)
+    locRival = OtherLoc(locEq)
     textRival = auxEtiqPartido(datosTemp, abrRival, locEq=locEq, usaLargo=False)
     clasifAux = datosTemp.clasifEquipo(abrRival, partido.fechaPartido)
     clasifStr = auxCalculaBalanceStr(clasifAux)

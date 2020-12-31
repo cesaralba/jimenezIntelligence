@@ -3,7 +3,7 @@
 
 from configargparse import ArgumentParser
 
-from SMACB.PartidoACB import OtherTeam
+from SMACB.Constants import OtherLoc
 # from SMACB.MercadoPage import MercadoPageContent
 from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
@@ -53,8 +53,8 @@ if __name__ == '__main__':
         for estado in partido.Equipos:
             nuevosDatos = {'equipo': partido.EquiposCalendario[estado],
                            'CODequipo': partido.CodigosCalendario[estado],
-                           'rival': partido.EquiposCalendario[OtherTeam(estado)],
-                           'CODrival': partido.CodigosCalendario[OtherTeam(estado)],
+                           'rival': partido.EquiposCalendario[OtherLoc(estado)],
+                           'CODrival': partido.CodigosCalendario[OtherLoc(estado)],
                            'estado': estado, 'esLocal': (estado == "Local")}
 
             for jugador in partido.Equipos[estado]['Jugadores']:

@@ -1,6 +1,6 @@
 from babel.numbers import decimal
 
-from Misc import BadParameters
+from Utils.Misc import BadParameters
 
 URL_BASE = "http://www.acb.com"
 
@@ -73,10 +73,19 @@ def solucion2clave(clave, sol, charsep="#"):
     return clave + "#" + (formatoTotal % tuple(valores))
 
 
-def OtherTeam(team):
+def OtherLoc(team):
     if team == 'Local':
         return 'Visitante'
     elif team == 'Visitante':
         return 'Local'
     else:
-        raise BadParameters("OtherTeam: '%s' provided. It only accept 'Visitante' or 'Local'" % team)
+        raise BadParameters("OtherLoc: '%s' provided. It only accept 'Visitante' or 'Local'" % team)
+
+
+def OtherTeam(team):
+    if team == 'Eq':
+        return 'Rival'
+    elif team == 'Rival':
+        return 'Eq'
+    else:
+        raise BadParameters("OtherTeam: '%s' provided. It only accept 'Eq' or 'Rival'" % team)

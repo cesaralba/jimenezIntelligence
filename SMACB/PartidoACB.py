@@ -13,7 +13,7 @@ from Utils.FechaHora import PATRONFECHAHORA, PATRONFECHA
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams, getObjID
 from .Constants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp,
-                        titular2esp, OtherTeam, LocalVisitante)
+                        titular2esp, OtherLoc, LocalVisitante)
 from .PlantillaACB import PlantillaACB
 
 templateURLficha = "http://www.acb.com/fichas/%s%i%03i.php"
@@ -52,7 +52,7 @@ class PartidoACB(object):
         self.idPartido = kwargs.get('partido', None)
 
         for loc in LocalVisitante:
-            self.Equipos[loc]['haGanado'] = self.ResultadoCalendario[loc] > self.ResultadoCalendario[OtherTeam(loc)]
+            self.Equipos[loc]['haGanado'] = self.ResultadoCalendario[loc] > self.ResultadoCalendario[OtherLoc(loc)]
 
     def descargaPartido(self, home=None, browser=None, config=Namespace()):
 
@@ -203,13 +203,13 @@ class PartidoACB(object):
         result['equipo'] = self.Equipos[estado]['Nombre']
         result['CODequipo'] = self.Equipos[estado]['abrev']
         result['IDequipo'] = self.Equipos[estado]['id']
-        result['rival'] = self.Equipos[OtherTeam(estado)]['Nombre']
-        result['CODrival'] = self.Equipos[OtherTeam(estado)]['abrev']
-        result['IDrival'] = self.Equipos[OtherTeam(estado)]['id']
+        result['rival'] = self.Equipos[OtherLoc(estado)]['Nombre']
+        result['CODrival'] = self.Equipos[OtherLoc(estado)]['abrev']
+        result['IDrival'] = self.Equipos[OtherLoc(estado)]['id']
         result['url'] = self.url
         result['estado'] = estado
         result['esLocal'] = (estado == "Local")
-        result['haGanado'] = self.ResultadoCalendario[estado] > self.ResultadoCalendario[OtherTeam(estado)]
+        result['haGanado'] = self.ResultadoCalendario[estado] > self.ResultadoCalendario[OtherLoc(estado)]
 
         filaClass = fila.attrs.get('class', '')
 
@@ -411,7 +411,7 @@ class PartidoACB(object):
                 self.prorrogas = datos['prorrogas']
                 if '+/-' in datos['estads'] and datos['estads']['+/-'] is None:
                     datos['estads']['+/-'] = (
-                            self.ResultadoCalendario[estado] - self.ResultadoCalendario[OtherTeam(estado)])
+                            self.ResultadoCalendario[estado] - self.ResultadoCalendario[OtherLoc(estado)])
                 self.Equipos[estado]['estads'] = datos['estads']
             elif datos.get('entrenador', False):
                 self.Entrenadores[datos['codigo']] = datos
@@ -423,7 +423,6 @@ class PartidoACB(object):
         equipoCols = ['id', 'Nombre', 'abrev']
 
         infoDict = {k: self.__getattribute__(k) for k in infoCols}
-        infoDF = pd.DataFrame.from_dict(data=[infoDict], orient='columns').reset_index(drop=True)
 
         estadsDict = {loc: dict() for loc in self.Equipos}
 
@@ -435,9 +434,51 @@ class PartidoACB(object):
             estadsDict[loc]['convocados'] = len(self.Equipos[loc]['Jugadores'])
             estadsDict[loc]['utilizados'] = len(
                 [j for j in self.Equipos[loc]['Jugadores'] if self.Jugadores[j]['haJugado']])
+
             estadsDict[loc].update(self.Equipos[loc]['estads'])
 
+            estadsDict[loc]['TC-I'] = self.Equipos[loc]['estads']['T2-I'] + self.Equipos[loc]['estads']['T3-I']
+            estadsDict[loc]['TC-C'] = self.Equipos[loc]['estads']['T2-C'] + self.Equipos[loc]['estads']['T3-C']
+
+            for k in '123C':
+                kI = f'T{k}-I'
+                kC = f'T{k}-C'
+                kRes = f'T{k}%'
+                estadsDict[loc][kRes] = estadsDict[loc][kC] / estadsDict[loc][kI] * 100.0
+
+            estadsDict[loc]['POS'] = self.Equipos[loc]['estads']['T2-I'] + self.Equipos[loc]['estads']['T3-I'] + (
+                    self.Equipos[loc]['estads']['T1-I'] * 0.44) + self.Equipos[loc]['estads']['BP'] - \
+                                     self.Equipos[loc]['estads']['R-O']
+            estadsDict[loc]['OER'] = self.Equipos[loc]['estads']['P'] / estadsDict[loc]['POS']
+            estadsDict[loc]['OERpot'] = self.Equipos[loc]['estads']['P'] / (
+                    estadsDict[loc]['POS'] - self.Equipos[loc]['estads']['BP'])
+            estadsDict[loc]['EffRebD'] = self.Equipos[loc]['estads']['R-D'] / (
+                    self.Equipos[loc]['estads']['R-D'] + self.Equipos[OtherLoc(loc)]['estads']['R-O'])
+            estadsDict[loc]['EffRebO'] = self.Equipos[loc]['estads']['R-O'] / (
+                    self.Equipos[loc]['estads']['R-O'] + self.Equipos[OtherLoc(loc)]['estads']['R-D'])
+            estadsDict[loc]['t2/tc-I'] = self.Equipos[loc]['estads']['T2-I'] / estadsDict[loc]['TC-I'] * 100.0
+            estadsDict[loc]['t3/tc-I'] = self.Equipos[loc]['estads']['T3-I'] / estadsDict[loc]['TC-I'] * 100.0
+            estadsDict[loc]['t2/tc-C'] = self.Equipos[loc]['estads']['T2-C'] / estadsDict[loc]['TC-C'] * 100.0
+            estadsDict[loc]['t3/tc-C'] = self.Equipos[loc]['estads']['T3-C'] / estadsDict[loc]['TC-C'] * 100.0
+            estadsDict[loc]['eff-t2'] = self.Equipos[loc]['estads']['T2-C'] * 2 / (
+                    self.Equipos[loc]['estads']['T2-C'] * 2 + self.Equipos[loc]['estads']['T3-C'] * 3) * 100.0
+            estadsDict[loc]['eff-t3'] = self.Equipos[loc]['estads']['T3-C'] * 3 / (
+                    self.Equipos[loc]['estads']['T2-C'] * 2 + self.Equipos[loc]['estads']['T3-C'] * 3) * 100.0
+            estadsDict[loc]['ppTC'] = (self.Equipos[loc]['estads']['T2-C'] * 2 + self.Equipos[loc]['estads'][
+                'T3-C'] * 3) / estadsDict[loc]['TC-I']
+            estadsDict[loc]['A/TC-C'] = self.Equipos[loc]['estads']['A'] / estadsDict[loc]['TC-C'] * 100.0
+            estadsDict[loc]['A/BP'] = self.Equipos[loc]['estads']['A'] / self.Equipos[loc]['estads']['BP']
+            estadsDict[loc]['RO/TC-F'] = self.Equipos[loc]['estads']['R-O'] / (
+                    estadsDict[loc]['TC-I'] - estadsDict[loc]['TC-C'])
+
+            estadsDict[loc]['Segs'] = self.Equipos[loc]['estads']['Segs'] / 5
+
+        infoDict['Ptot'] = estadsDict['Local']['P'] + estadsDict[OtherLoc('Local')]['P']
+        infoDict['POStot'] = estadsDict['Local']['POS'] + estadsDict[OtherLoc('Local')]['POS']
+
         estadsDF = pd.DataFrame.from_dict(data=estadsDict, orient='index')
+
+        infoDF = pd.DataFrame.from_dict(data=[infoDict], orient='columns').reset_index(drop=True)
         localDF = estadsDF.loc[estadsDF['local']].reset_index(drop=True)
         visitanteDF = estadsDF.loc[~estadsDF['local']].reset_index(drop=True)
 
@@ -461,11 +502,11 @@ class PartidoACB(object):
 
         for loc in LocalVisitante:
             estads = result[loc]
-            other = result[OtherTeam(loc)]
+            other = result[OtherLoc(loc)]
             avanzadas = dict()
 
             avanzadas['Abrev'] = self.Equipos[loc]['abrev']
-            avanzadas['Rival'] = self.Equipos[OtherTeam(loc)]['abrev']
+            avanzadas['Rival'] = self.Equipos[OtherLoc(loc)]['abrev']
             avanzadas['Priv'] = other['P']
             avanzadas['Ptot'] = estads['P'] + other['P']
             avanzadas['Vict'] = estads['P'] > other['P']
@@ -526,7 +567,6 @@ def GeneraURLpartido(link):
     CheckParameters(liurlcomps)
     return templateURLficha % (liurlcomps['cod_competicion'], int(liurlcomps['cod_edicion']),
                                int(liurlcomps['partido']))
-
 
 
 def extractPrefijosTablaEstads(tablaEstads):
