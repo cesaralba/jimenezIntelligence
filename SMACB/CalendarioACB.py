@@ -461,6 +461,8 @@ def procesaPaginaPartidosEquipo(content):
         cadFechaFin = auxFecha.strip()
         cadHora = auxHora.strip() if auxHora else None
 
+        print("CAP","|".join([jornada,cadFechaFin,cadHora]))
+
         formato = PATRONFECHAHORA if cadHora else PATRONFECHA
         cadMezclada = "%s %s" % (cadFechaFin, cadHora.strip()) if cadHora else cadFechaFin
         try:
