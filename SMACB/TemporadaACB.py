@@ -31,33 +31,33 @@ COLSESTADSASCENDING = [
     ('Info', 'prorrogas', 'sum'),
     ('Eq', 'BP', 'mean'),
     ('Eq', 'BP', 'min'),
-    ('Eq', 'BP', '50%'),
+    ('Eq', 'BP', 'median'),
     ('Eq', 'BP', 'max'),
     ('Eq', 'BP', 'sum'),
     ('Eq', 'TAP-C', 'mean'),
     ('Eq', 'TAP-C', 'min'),
-    ('Eq', 'TAP-C', '50%'),
+    ('Eq', 'TAP-C', 'median'),
     ('Eq', 'TAP-C', 'max'),
     ('Eq', 'TAP-C', 'sum'),
     ('Eq', 'FP-C', 'mean'),
     ('Eq', 'FP-C', 'min'),
-    ('Eq', 'FP-C', '50%'),
+    ('Eq', 'FP-C', 'median'),
     ('Eq', 'FP-C', 'max'),
     ('Eq', 'FP-C', 'sum'),
     ('Rival', 'P', 'mean'),
     ('Rival', 'P', 'std'),
     ('Rival', 'P', 'min'),
-    ('Rival', 'P', '50%'),
+    ('Rival', 'P', 'median'),
     ('Rival', 'P', 'max'),
     ('Rival', 'P', 'sum'),
     ('Rival', 'OER', 'mean'),
     ('Rival', 'OER', 'min'),
-    ('Rival', 'OER', '50%'),
+    ('Rival', 'OER', 'median'),
     ('Rival', 'OER', 'max'),
     ('Rival', 'OER', 'sum'),
     ('Rival', 'OERpot', 'mean'),
     ('Rival', 'OERpot', 'min'),
-    ('Rival', 'OERpot', '50%'),
+    ('Rival', 'OERpot', 'median'),
     ('Rival', 'OERpot', 'max'),
     ('Rival', 'OERpot', 'sum'),
 ]
@@ -513,7 +513,7 @@ class TemporadaACB(object):
         sumasDF = pd.DataFrame(sumas).T
         sumasDF.index = pd.Index(['sum'])
 
-        finalDF = pd.concat([auxEstadisticos, sumasDF]).drop(columns=COLDROPPER).rename(columns=COLRENAMER)
+        finalDF = pd.concat([auxEstadisticos, sumasDF]).drop(columns=COLDROPPER).rename(index=COLRENAMER)
 
         # Calculate sum field for ratios as the ratio of sum fields. Shooting percentages
         for k in '123C':
@@ -564,7 +564,7 @@ class TemporadaACB(object):
             dfEstadsAgrEq = self.dfEstadsEquipo(dfPartidosEq, abrEq=abrevEq)
             resultDict[abrevEq] = dfEstadsAgrEq
 
-        result = pd.DataFrame.from_dict(data=resultDict, orient='index')
+        result = pd.DataFrame.from_dict(data=resultDict, orient='index').sort_index()
 
         return result
 
@@ -715,5 +715,5 @@ def precalculaOrdenEstadsLiga(dfEstads: pd.DataFrame, listAscending=None):
         auxSerie = pd.Series(data=auxDict)
         resultDict[col] = auxSerie
 
-    result = pd.DataFrame.from_dict(resultDict, orient='columns')
+    result = pd.DataFrame.from_dict(resultDict, orient='columns').sort_index()
     return result
