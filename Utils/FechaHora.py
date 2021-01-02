@@ -55,3 +55,7 @@ def CalcEdad(fechanac, fecharef=None):
                'doys': int((dateref - cumple).days)}
 
     return Edad(**edadAux)
+
+def fechaParametro2pddatetime(fecha):
+    result = fecha if isinstance(fecha, pd.Timestamp) else pd.to_datetime(fecha)
+    return result

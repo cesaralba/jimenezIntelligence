@@ -10,16 +10,20 @@ from copy import copy
 from pickle import dump, load
 from statistics import mean, median, stdev
 from traceback import print_exception
+from typing import Iterable
+from itertools import chain
 
+import numpy as np
 import pandas as pd
 from itertools import product
 from sys import exc_info, setrecursionlimit
 from time import gmtime
 
+from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Pandas import combinaPDindexes
 from Utils.Web import creaBrowser
 from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
-from .Constants import OtherLoc
+from .Constants import OtherLoc, EqRival, OtherTeam, LocalVisitante
 from .FichaJugador import FichaJugador
 from .PartidoACB import PartidoACB
 
@@ -320,36 +324,6 @@ class TemporadaACB(object):
 
         return auxEstads
 
-    def dfEstadsPartidosEquipo(self, abrEq, fecha=None):
-        COLSINFO = ['Jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'url', 'competicion', 'temporada',
-                    'idPartido', 'Ptot', 'POStot']
-
-        partidosDFaux = self.dataFramePartidos([abrEq])
-
-        if fecha is None:
-            partidosDF = partidosDFaux
-        else:
-            fechaFormatted = fecha if isinstance(fecha, pd.Timestamp) else pd.to_datetime(fecha)
-            partidosDF = partidosDFaux.loc[partidosDFaux['Info', 'fechaPartido'] < fechaFormatted]
-
-        idEq = list(self.Calendario.tradEquipos['c2i'][abrEq])[0]
-
-        finalDFlist = []
-        for esLocal in [True, False]:
-            tagEq, tagRival = ('Local', 'Visitante') if esLocal else ('Visitante', 'Local')
-
-            auxDFlocal = partidosDF.loc[(partidosDF['Local', 'id'] == idEq) == esLocal]
-            infoDF = auxDFlocal['Info'][COLSINFO]
-            eqDF = auxDFlocal[tagEq]
-            rivalDF = auxDFlocal[tagRival]
-
-            auxDF = pd.concat([infoDF, eqDF, rivalDF], axis=1, keys=['Info', 'Eq', 'Rival'])
-            finalDFlist.append(auxDF)
-
-        result = pd.concat(finalDFlist)
-
-        return result.sort_values(by=('Info', 'fechaPartido'))
-
     def estadsEquipo(self, abrEq=None, fecha=None):
 
         result = defaultdict(dict)
@@ -414,7 +388,14 @@ class TemporadaACB(object):
 
         return auxDF
 
-    def dataFramePartidos(self, listaAbrevEquipos=None):
+    def dataFramePartidosLV(self, listaAbrevEquipos: Iterable[str] = None, fecha=None):
+        """
+        Genera un dataframe LV con los partidos de uno o más equipos hasta determinada fecha
+        :param listaAbrevEquipos: si None, son todos los partidos
+        :param fecha: si None son todos los partidos (límite duro < )
+        :return:
+        """
+
         partidosAprocesar_url = list()
         # Genera la lista de partidos a incluir
         if listaAbrevEquipos:
@@ -432,10 +413,118 @@ class TemporadaACB(object):
         else:
             partidosAprocesar_url = self.Partidos.keys()
 
-        partidos_DFlist = [self.Partidos[pURL].partidoAdataframe() for pURL in partidosAprocesar_url]
+        if fecha:
+            fecha_formatted = fechaParametro2pddatetime(fecha)
+            partidos_DFlist = [self.Partidos[pURL].partidoAdataframe() for pURL in partidosAprocesar_url if
+                               self.Partidos[pURL].fechaPartido < fecha_formatted]
+        else:
+            partidos_DFlist = [self.Partidos[pURL].partidoAdataframe() for pURL in partidosAprocesar_url]
 
         result = pd.concat(partidos_DFlist)
         return result
+
+    def dfPartidosLV2ER(self, partidos: pd.DataFrame, abrEq: str):
+        COLSINFO = ['Jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'url', 'competicion', 'temporada',
+                    'idPartido', 'Ptot', 'POStot']
+
+        partidos = self.dataFramePartidos([abrEq])
+
+        idEq = list(self.Calendario.tradEquipos['c2i'][abrEq])[0]
+
+        finalDFlist = []
+        for esLocal in [True, False]:
+            tagEq, tagRival = ('Local', 'Visitante') if esLocal else ('Visitante', 'Local')
+
+            auxDFlocal = partidos.loc[(partidos['Local', 'id'] == idEq) == esLocal]
+            infoDF = auxDFlocal['Info'][COLSINFO]
+            eqDF = auxDFlocal[tagEq]
+            rivalDF = auxDFlocal[tagRival]
+
+            auxDF = pd.concat([infoDF, eqDF, rivalDF], axis=1, keys=['Info', 'Eq', 'Rival'])
+            finalDFlist.append(auxDF)
+
+        result = pd.concat(finalDFlist)
+
+        return result.sort_values(by=('Info', 'fechaPartido'))
+
+    def estadsEquipoSerie(self, abrEq, fecha=None):
+        FILASESTADISTICOS = ['count', 'mean', 'std', 'min', '50%', 'max']
+        COLRENAMER = {'50%': 'median'}
+        COLDROPPER = [('Info', 'Jornada')]
+
+        estadPartidos = self.dfEstadsPartidosEquipo(abrEq, fecha)
+
+        estadisticosNumber = estadPartidos.describe(include=[np.number], percentiles=[.50])
+        # Necesario porque describe trata los bool como categóricos
+        estadisticosBool = estadPartidos.select_dtypes([np.bool]).astype(np.int64).apply(
+            lambda c: c.describe(percentiles=[.50]))
+
+        auxEstadisticos = pd.concat([estadisticosNumber, estadisticosBool], axis=1).T[FILASESTADISTICOS].T
+
+        # Hay determinados campos que no tiene sentido sumar. Así que sumamos todos y luego ponemos a nan los que no
+        # Para estos tengo dudas filosóficas de cómo calcular la media (¿media del valor de cada partido o calcular el
+        # ratio a partir de las sumas?
+        sumas = estadPartidos[auxEstadisticos.columns].select_dtypes([np.number, np.bool]).sum()
+
+        # Elimina valores que no tienen sentido y que no se van a recalculoar más tarde
+        for eq in EqRival:
+            for col in [(eq, 'convocados'), (eq, 'utilizados')]:
+                sumas[col] = np.nan
+        sumas[('Info', 'Jornada')] = np.nan
+
+        sumasDF = pd.DataFrame(sumas).T
+        sumasDF.index = pd.Index(['sum'])
+
+        finalDF = pd.concat([auxEstadisticos, sumasDF]).drop(columns=COLDROPPER).rename(columns=COLRENAMER)
+
+        # Calculate sum field for ratios as the ratio of sum fields. Shooting percentages
+        for k in '123C':
+            kI = f'T{k}-I'
+            kC = f'T{k}-C'
+            kRes = f'T{k}%'
+            for eq in EqRival:
+                finalDF[(eq, kRes)]['sum'] = finalDF[(eq, kC)]['sum'] / finalDF[(eq, kI)]['sum'] * 100.0
+
+        # Calculate sum field for ratios as the ratio of sum fields. Other ratios
+        for eq in EqRival:
+            for k in '23':
+                finalDF[(eq, f't{k}/tc-I')]['sum'] = finalDF[(eq, f'T{k}-I')]['sum'] / finalDF[(eq, 'TC-I')][
+                    'sum'] * 100.0
+                finalDF[(eq, f't{k}/tc-C')]['sum'] = finalDF[(eq, f'T{k}-C')]['sum'] / finalDF[(eq, 'TC-C')][
+                    'sum'] * 100.0
+                finalDF[(eq, f'eff-t{k}')]['sum'] = finalDF[(eq, f'T{k}-C')]['sum'] * int(k) / (
+                        finalDF[(eq, 'T2-C')]['sum'] * 2 + finalDF[(eq, 'T3-C')]['sum'] * 3) * 100.0
+            finalDF[(eq, 'A/TC-C')]['sum'] = finalDF[(eq, 'A')]['sum'] / finalDF[(eq, 'TC-C')]['sum'] * 100.0
+            finalDF[(eq, 'A/BP')]['sum'] = finalDF[(eq, 'A')]['sum'] / finalDF[(eq, 'BP')]['sum']
+            finalDF[(eq, 'RO/TC-F')]['sum'] = finalDF[(eq, 'R-O')]['sum'] / (
+                    finalDF[(eq, 'TC-I')]['sum'] - finalDF[(eq, 'TC-C')]['sum']) * 100.0
+            finalDF[(eq, 'ppTC')]['sum'] = (finalDF[(eq, 'T2-C')]['sum'] * 2 + finalDF[(eq, 'T3-C')]['sum'] * 3) / (
+                    finalDF[(eq, 'T2-I')]['sum'] + finalDF[(eq, 'T3-I')]['sum'])
+            finalDF[(eq, 'OER')]['sum'] = finalDF[(eq, 'P')]['sum'] / finalDF[(eq, 'POS')]['sum']
+            finalDF[(eq, 'OERpot')]['sum'] = finalDF[(eq, 'P')]['sum'] / (
+                    finalDF[(eq, 'POS')]['sum'] - finalDF[(eq, 'BP')]['sum'])
+            finalDF[(eq, 'EffRebD')]['sum'] = finalDF[(eq, 'R-D')]['sum'] / (
+                    finalDF[(eq, 'R-D')]['sum'] + finalDF[(OtherTeam(eq), 'R-O')]['sum'])
+            finalDF[(eq, 'EffRebO')]['sum'] = finalDF[(eq, 'R-O')]['sum'] / (
+                    finalDF[(eq, 'R-O')]['sum'] + finalDF[(OtherTeam(eq), 'R-D')]['sum'])
+
+        result = finalDF.unstack()
+        return result
+
+    def dfEstadsLiga(self, fecha=None):
+
+        #Todos los partidos de la liga hasta fecha
+        dfTodosPartidos = self.dataFramePartidosLV(fecha)
+
+        for idEq in self.Calendario.tradEquipos['i2c'].values():
+            abrevEq = next(iter(idEq))
+            dfPartidosEq = self.dfPartidosLV2ER(dfTodosPartidos,abrevEq)
+
+
+            continue
+            result[ab] = self.estadsEquipoSerie(ab, fecha)
+
+        return
 
 
 def calculaTempStats(datos, clave, filtroFechas=None):
