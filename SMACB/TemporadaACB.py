@@ -26,6 +26,42 @@ from .Constants import OtherLoc, EqRival, OtherTeam
 from .FichaJugador import FichaJugador
 from .PartidoACB import PartidoACB
 
+COLSESTADSASCENDING = [
+    ('Info', 'prorrogas', 'mean'),
+    ('Info', 'prorrogas', 'sum'),
+    ('Eq', 'BP', 'mean'),
+    ('Eq', 'BP', 'min'),
+    ('Eq', 'BP', '50%'),
+    ('Eq', 'BP', 'max'),
+    ('Eq', 'BP', 'sum'),
+    ('Eq', 'TAP-C', 'mean'),
+    ('Eq', 'TAP-C', 'min'),
+    ('Eq', 'TAP-C', '50%'),
+    ('Eq', 'TAP-C', 'max'),
+    ('Eq', 'TAP-C', 'sum'),
+    ('Eq', 'FP-C', 'mean'),
+    ('Eq', 'FP-C', 'min'),
+    ('Eq', 'FP-C', '50%'),
+    ('Eq', 'FP-C', 'max'),
+    ('Eq', 'FP-C', 'sum'),
+    ('Rival', 'P', 'mean'),
+    ('Rival', 'P', 'std'),
+    ('Rival', 'P', 'min'),
+    ('Rival', 'P', '50%'),
+    ('Rival', 'P', 'max'),
+    ('Rival', 'P', 'sum'),
+    ('Rival', 'OER', 'mean'),
+    ('Rival', 'OER', 'min'),
+    ('Rival', 'OER', '50%'),
+    ('Rival', 'OER', 'max'),
+    ('Rival', 'OER', 'sum'),
+    ('Rival', 'OERpot', 'mean'),
+    ('Rival', 'OERpot', 'min'),
+    ('Rival', 'OERpot', '50%'),
+    ('Rival', 'OERpot', 'max'),
+    ('Rival', 'OERpot', 'sum'),
+]
+
 
 class TemporadaACB(object):
     '''
@@ -664,3 +700,20 @@ def extraeCampoYorden(estads: dict, abr: str, eq: str = 'eq', clave: str = 'P', 
     orden = ordenEstadsLiga(estads, abr, eq, clave, subclave, decrec)
 
     return valor, orden
+
+
+def precalculaOrdenEstadsLiga(dfEstads: pd.DataFrame, listAscending=None):
+    resultDict = dict()
+
+    colsChangeMult = set(listAscending) if listAscending else {}
+
+    for col in dfEstads.columns:
+        multiplicador = 1 if col in colsChangeMult else -1  # En general queremos que sea descendente
+        colAusar = multiplicador * dfEstads[col]
+        ordenIDX = colAusar.index[colAusar.argsort()]
+        auxDict = {eq: pos for pos, eq in enumerate(ordenIDX, start=1)}
+        auxSerie = pd.Series(data=auxDict)
+        resultDict[col] = auxSerie
+
+    result = pd.DataFrame.from_dict(resultDict, orient='columns')
+    return result
