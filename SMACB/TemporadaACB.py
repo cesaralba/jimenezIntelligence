@@ -11,7 +11,6 @@ from pickle import dump, load
 from statistics import mean, median, stdev
 from traceback import print_exception
 from typing import Iterable
-from itertools import chain
 
 import numpy as np
 import pandas as pd
@@ -23,7 +22,7 @@ from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Pandas import combinaPDindexes
 from Utils.Web import creaBrowser
 from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
-from .Constants import OtherLoc, EqRival, OtherTeam, LocalVisitante
+from .Constants import OtherLoc, EqRival, OtherTeam
 from .FichaJugador import FichaJugador
 from .PartidoACB import PartidoACB
 
@@ -428,7 +427,7 @@ class TemporadaACB(object):
                     'idPartido', 'Ptot', 'POStot']
 
         idEq = list(self.Calendario.tradEquipos['c2i'][abrEq])[0]
-        partidosEq = partidos.loc[(partidos['Local', 'id'] == idEq) | (partidos['Visitante', 'id'] == idEq) ]
+        partidosEq = partidos.loc[(partidos['Local', 'id'] == idEq) | (partidos['Visitante', 'id'] == idEq)]
 
         finalDFlist = []
         for esLocal in [True, False]:
@@ -446,12 +445,14 @@ class TemporadaACB(object):
 
         return result.sort_values(by=('Info', 'fechaPartido'))
 
-    def estadsEquipoSerie(self, abrEq, fecha=None):
+    def dfEstadsEquipo(self, dfEstadsPartidosEq: pd.DataFrame, abrEq: str):
         FILASESTADISTICOS = ['count', 'mean', 'std', 'min', '50%', 'max']
         COLRENAMER = {'50%': 'median'}
         COLDROPPER = [('Info', 'Jornada')]
 
-        estadPartidos = self.dfEstadsPartidosEquipo(abrEq, fecha)
+        abrevsEq = self.Calendario.abrevsEquipo(abrEq)
+
+        estadPartidos = dfEstadsPartidosEq.loc[dfEstadsPartidosEq[('Eq', 'abrev')].isin(abrevsEq)]
 
         estadisticosNumber = estadPartidos.describe(include=[np.number], percentiles=[.50])
         # Necesario porque describe trata los bool como categóricos
@@ -459,6 +460,8 @@ class TemporadaACB(object):
             lambda c: c.describe(percentiles=[.50]))
 
         auxEstadisticos = pd.concat([estadisticosNumber, estadisticosBool], axis=1).T[FILASESTADISTICOS].T
+        auxEstadisticos[('Info', 'prorrogas')] = estadPartidos.loc[estadPartidos[('Info', 'prorrogas')] != 0][
+            ('Info', 'prorrogas')].describe()
 
         # Hay determinados campos que no tiene sentido sumar. Así que sumamos todos y luego ponemos a nan los que no
         # Para estos tengo dudas filosóficas de cómo calcular la media (¿media del valor de cada partido o calcular el
@@ -512,19 +515,22 @@ class TemporadaACB(object):
 
     def dfEstadsLiga(self, fecha=None):
 
-        #Todos los partidos de la liga hasta fecha
+        resultDict = dict()
+        # Todos los partidos de la liga hasta fecha
         dfTodosPartidos = self.dataFramePartidosLV(fecha)
 
-        for idEq in self.Calendario.tradEquipos['i2c'].values():
-            abrevEq = next(iter(idEq))
-            dfPartidosEq = self.dfPartidosLV2ER(dfTodosPartidos,abrevEq)
-            print("CAP",idEq,abrevEq,"\n",dfPartidosEq)
+        for idEq in self.Calendario.tradEquipos[
+            'i2c'].values():  # Se usa id porque es único para equipos y la abr puede cambiar
+            abrevEq = next(iter(idEq))  # Coge una abr cualquiera que corresponda al id. (se usa
+            # abrev porque esas son fáciles de asociar a equipos)
+            dfPartidosEq = self.dfPartidosLV2ER(dfTodosPartidos, abrevEq)
 
+            dfEstadsAgrEq = self.dfEstadsEquipo(dfPartidosEq, abrEq=abrevEq)
+            resultDict[abrevEq] = dfEstadsAgrEq
 
-            continue
-            result[ab] = self.estadsEquipoSerie(ab, fecha)
+        result = pd.DataFrame.from_dict(data=resultDict, orient='index')
 
-        return
+        return result
 
 
 def calculaTempStats(datos, clave, filtroFechas=None):
