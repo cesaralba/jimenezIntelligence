@@ -427,15 +427,14 @@ class TemporadaACB(object):
         COLSINFO = ['Jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'url', 'competicion', 'temporada',
                     'idPartido', 'Ptot', 'POStot']
 
-        partidos = self.dataFramePartidos([abrEq])
-
         idEq = list(self.Calendario.tradEquipos['c2i'][abrEq])[0]
+        partidosEq = partidos.loc[(partidos['Local', 'id'] == idEq) | (partidos['Visitante', 'id'] == idEq) ]
 
         finalDFlist = []
         for esLocal in [True, False]:
             tagEq, tagRival = ('Local', 'Visitante') if esLocal else ('Visitante', 'Local')
 
-            auxDFlocal = partidos.loc[(partidos['Local', 'id'] == idEq) == esLocal]
+            auxDFlocal = partidosEq.loc[(partidosEq['Local', 'id'] == idEq) == esLocal]
             infoDF = auxDFlocal['Info'][COLSINFO]
             eqDF = auxDFlocal[tagEq]
             rivalDF = auxDFlocal[tagRival]
@@ -519,6 +518,7 @@ class TemporadaACB(object):
         for idEq in self.Calendario.tradEquipos['i2c'].values():
             abrevEq = next(iter(idEq))
             dfPartidosEq = self.dfPartidosLV2ER(dfTodosPartidos,abrevEq)
+            print("CAP",idEq,abrevEq,"\n",dfPartidosEq)
 
 
             continue
