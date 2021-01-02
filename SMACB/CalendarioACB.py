@@ -461,15 +461,16 @@ def procesaPaginaPartidosEquipo(content):
         cadFechaFin = auxFecha.strip()
         cadHora = auxHora.strip() if auxHora else None
 
-        print("CAP","|".join([jornada,cadFechaFin,cadHora]))
-
-        formato = PATRONFECHAHORA if cadHora else PATRONFECHA
-        cadMezclada = "%s %s" % (cadFechaFin, cadHora.strip()) if cadHora else cadFechaFin
-        try:
-            fechaPart = pd.to_datetime(cadMezclada, format=formato)
-        except ValueError:
-            print("procesaPaginaPartidosEquipo: '%s' no casa RE '%s'" % (cadMezclada, fila))
-            return None
+        if cadFechaFin:
+            formato = PATRONFECHAHORA if cadHora else PATRONFECHA
+            cadMezclada = "%s %s" % (cadFechaFin, cadHora.strip()) if cadHora else cadFechaFin
+            try:
+                fechaPart = pd.to_datetime(cadMezclada, format=formato)
+            except ValueError:
+                print("procesaPaginaPartidosEquipo: '%s' no casa RE '%s'" % (cadMezclada, fila))
+                return None
+        else:
+            fechaPart = NEVER
 
         result['jornadas'][jornada] = fechaPart
 
