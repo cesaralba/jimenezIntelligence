@@ -35,6 +35,9 @@ local2esp = {True: "L", False: "V"}
 LocalVisitante = ('Local', 'Visitante')
 EqRival = ('Eq', 'Rival')
 
+LOCALNAMES = {'Local', 'L', 'local'}
+VISITNAMES = {'Visitante', 'V', 'visitante'}
+
 
 def calculaValSuperManager(valoracion, haGanado=False):
     return round(

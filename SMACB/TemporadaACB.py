@@ -22,7 +22,7 @@ from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Pandas import combinaPDindexes
 from Utils.Web import creaBrowser
 from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
-from .Constants import OtherLoc, EqRival, OtherTeam
+from .Constants import OtherLoc, EqRival, OtherTeam, LOCALNAMES
 from .FichaJugador import FichaJugador
 from .PartidoACB import PartidoACB
 
@@ -260,6 +260,7 @@ class TemporadaACB(object):
             kC = f'T{k}-C'
             kRes = f'T{k}%'
             auxEstadisticosDF[kRes, 'sum'] = auxEstadisticosDF[kC, 'sum'] / auxEstadisticosDF[kI, 'sum'] * 100.0
+        auxEstadisticosDF['ppTC', 'sum'] = auxEstadisticosDF['PTC', 'sum'] / auxEstadisticosDF['TC-I', 'sum']
 
         auxIdentsDF = estadsJugadoresEq[COLSIDENT].groupby('codigo').tail(n=1).set_index('codigo', drop=False)
         auxIdentsDF.columns = pd.MultiIndex.from_tuples([('Jugador', col) for col in auxIdentsDF.columns])
@@ -749,5 +750,22 @@ def auxCalculaEstadsSubDataframe(dfEntrada: pd.DataFrame):
     finalDF = pd.concat([auxEstadisticos, sumasDF]).rename(index=ROWRENAMER)
 
     result = finalDF.unstack()
+
+    return result
+
+
+def auxEtiqPartido(tempData: TemporadaACB, rivalAbr, esLocal=None, locEq=None, usaAbr=False, usaLargo=False):
+    if (esLocal is None) and (locEq is None):
+        raise ValueError("auxEtiqPartido: debe aportar o esLocal o locEq")
+
+    auxLoc = esLocal if (esLocal is not None) else (locEq in LOCALNAMES)
+    prefLoc = "vs " if auxLoc else "@"
+
+    ordenNombre = -1 if usaLargo else 0
+
+    nombre = rivalAbr if usaAbr else sorted(tempData.Calendario.tradEquipos['c2n'][rivalAbr], key=lambda n: len(n))[
+        ordenNombre]
+
+    result = f"{prefLoc}{nombre}"
 
     return result
