@@ -249,7 +249,7 @@ class PartidoACB(object):
 
                 if REdorsal:
                     result['dorsal'] = REdorsal['dorsal']
-                    result['titular'] = REdorsal['titular'] == '*'
+                    result['esTitular'] = REdorsal['titular'] == '*'
                 else:
                     raise ValueError("Texto dorsal '%s' no casa RE '%s'" % (textoDorsal, PATdorsal))
 
@@ -351,6 +351,7 @@ class PartidoACB(object):
 
     def jugadoresAdataframe(self):
         typesDF = {'competicion': 'object', 'temporada': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
+                   'esTitular': 'bool',
                    'haJugado': 'bool', 'titular': 'category', 'haGanado': 'bool', 'enActa': 'bool', 'Vsm': 'float64'}
 
         # 'equipo': 'object', 'CODequipo': 'object', 'rival': 'object', 'CODrival': 'object', 'dorsal': 'object'
@@ -396,7 +397,8 @@ class PartidoACB(object):
             dfresult = pd.DataFrame.from_dict(dictJugador, orient='index').transpose()
             dfresult['Fecha'] = self.fechaPartido
             dfresult['local'] = dfresult['esLocal'].map(local2esp)
-            dfresult['titular'] = dfresult['titular'].map(titular2esp)
+            dfresult['titular'] = dfresult['esTitular'].map(titular2esp)
+
             dfresult['resultado'] = dfresult['haGanado'].map(haGanado2esp)
             dfresult['jugado'] = dfresult['haJugado'].map(bool2esp)
 
