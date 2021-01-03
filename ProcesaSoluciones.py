@@ -6,20 +6,20 @@ import csv
 import logging
 import re
 from collections import defaultdict
-from itertools import chain, product
 from os import scandir
 from pathlib import Path
-from time import strftime
 
 from configargparse import ArgumentParser
+from itertools import chain, product
+from time import strftime
 
+from SMACB.Constants import CLAVESCSV
 from SMACB.Guesser import (buildPosCupoIndex, getPlayersByPosAndCupoJornada,
                            indexGroup2Key, loadVar, varname2fichname)
-from SMACB.SMconstants import CLAVESCSV
 from SMACB.SuperManager import ResultadosJornadas, SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
-from Utils.combinatorics import prod
 from Utils.Misc import creaPath, FORMATOtimestamp
+from Utils.combinatorics import prod
 
 NJOBS = 4
 LOCATIONCACHE = '/var/tmp/joblibCache'

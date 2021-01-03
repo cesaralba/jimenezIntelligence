@@ -3,28 +3,28 @@
 
 import bz2
 import csv
-import errno
-import gc
 import logging
 from collections import defaultdict
-from itertools import product
 from os import makedirs
 from os.path import isfile, join
-from time import strftime, time
 
+import errno
+import gc
 import joblib
 from babel.numbers import parse_decimal
 from configargparse import ArgumentParser
+from itertools import product
+from time import strftime, time
 
+from SMACB.Constants import CLAVESCSV, SEQCLAVES
 from SMACB.Guesser import (buildPosCupoIndex, comb2Key, dumpVar,
                            getPlayersByPosAndCupoJornada, indexGroup2Key,
                            loadVar, plan2filename, varname2fichname)
-from SMACB.SMconstants import CLAVESCSV, SEQCLAVES
 from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.CombinacionesConCupos import GeneraCombinaciones
-from Utils.combinatorics import n_choose_m, prod
 from Utils.Misc import creaPath, FORMATOtimestamp
+from Utils.combinatorics import n_choose_m, prod
 from Utils.pysize import get_size
 
 NJOBS = 2

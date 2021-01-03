@@ -1,6 +1,6 @@
 from copy import copy
 
-from SMACB.SMconstants import MAXIMOextranjeros, MINIMOnacionales
+from SMACB.Constants import MAXIMOextranjeros, MINIMOnacionales
 
 jugPorPos = [3, 4, 4]
 

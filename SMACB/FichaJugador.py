@@ -2,7 +2,7 @@ import re
 from argparse import Namespace
 
 import pandas as pd
-from time import gmtime, strftime
+from time import gmtime
 
 from Utils.FechaHora import PATRONFECHA
 from Utils.Web import creaBrowser, DescargaPagina, getObjID
@@ -109,7 +109,7 @@ class FichaJugador(object):
         return "%s (%s) %s P:[%i] %s -> %s (%i)" % (
             self.nombre, self.id, self.fechaNac.strftime("%Y-%m-%d"), len(self.partidos),
             self.primPartidoT.strftime("%Y-%m-%d"),
-            self.ultPartidoTstrftime("%Y-%m-%d"),
+            self.ultPartidoT.strftime("%Y-%m-%d"),
             len(self.equipos)
         )
 

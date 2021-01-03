@@ -2,17 +2,16 @@
 
 import re
 from collections import defaultdict
-from time import gmtime, strftime, strptime
 
 import pandas as pd
 from babel.numbers import decimal, parse_decimal
 from bs4 import BeautifulSoup
+from time import gmtime, strftime, strptime
 
 from Utils.Misc import FORMATOtimestamp, onlySetElement
-
+from .Constants import bool2esp, CUPOCORTO, CUPOS, POSICIONCORTA, POSICIONES
 from .ManageSMDataframes import datosPosMerc, datosProxPartidoMerc
 from .PlantillaACB import descargaPlantillasCabecera
-from .SMconstants import bool2esp, CUPOCORTO, CUPOS, POSICIONCORTA, POSICIONES
 
 INCLUDEPLAYERDATA = False
 

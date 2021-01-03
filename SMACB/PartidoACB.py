@@ -1,8 +1,8 @@
 import re
 from argparse import Namespace
-from copy import copy
 from traceback import print_exc
 
+import numpy as np
 import pandas as pd
 from babel.numbers import parse_number
 from bs4 import Tag
@@ -12,13 +12,11 @@ from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHAHORA, PATRONFECHA
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams, getObjID
+from .Constants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp,
+                        titular2esp, OtherLoc, LocalVisitante)
 from .PlantillaACB import PlantillaACB
-from .SMconstants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp,
-                          titular2esp)
 
 templateURLficha = "http://www.acb.com/fichas/%s%i%03i.php"
-
-LocalVisitante = ('Local', 'Visitante')
 
 
 class PartidoACB(object):
@@ -32,7 +30,7 @@ class PartidoACB(object):
         self.ResultadosParciales = []
         self.prorrogas = 0
 
-        self.Equipos = {x: {'Jugadores': [], 'haGanado': False} for x in LocalVisitante}
+        self.Equipos = {x: {'Jugadores': []} for x in LocalVisitante}
 
         self.Jugadores = dict()
         self.Entrenadores = dict()
@@ -52,6 +50,9 @@ class PartidoACB(object):
         self.competicion = kwargs['cod_competicion']
         self.temporada = kwargs['cod_edicion']
         self.idPartido = kwargs.get('partido', None)
+
+        for loc in LocalVisitante:
+            self.Equipos[loc]['haGanado'] = self.ResultadoCalendario[loc] > self.ResultadoCalendario[OtherLoc(loc)]
 
     def descargaPartido(self, home=None, browser=None, config=Namespace()):
 
@@ -202,13 +203,13 @@ class PartidoACB(object):
         result['equipo'] = self.Equipos[estado]['Nombre']
         result['CODequipo'] = self.Equipos[estado]['abrev']
         result['IDequipo'] = self.Equipos[estado]['id']
-        result['rival'] = self.Equipos[OtherTeam(estado)]['Nombre']
-        result['CODrival'] = self.Equipos[OtherTeam(estado)]['abrev']
-        result['IDrival'] = self.Equipos[OtherTeam(estado)]['id']
+        result['rival'] = self.Equipos[OtherLoc(estado)]['Nombre']
+        result['CODrival'] = self.Equipos[OtherLoc(estado)]['abrev']
+        result['IDrival'] = self.Equipos[OtherLoc(estado)]['id']
         result['url'] = self.url
         result['estado'] = estado
         result['esLocal'] = (estado == "Local")
-        result['haGanado'] = self.ResultadoCalendario[estado] > self.ResultadoCalendario[OtherTeam(estado)]
+        result['haGanado'] = self.ResultadoCalendario[estado] > self.ResultadoCalendario[OtherLoc(estado)]
 
         filaClass = fila.attrs.get('class', '')
 
@@ -247,7 +248,7 @@ class PartidoACB(object):
 
                 if REdorsal:
                     result['dorsal'] = REdorsal['dorsal']
-                    result['titular'] = REdorsal['titular'] == '*'
+                    result['esTitular'] = REdorsal['titular'] == '*'
                 else:
                     raise ValueError("Texto dorsal '%s' no casa RE '%s'" % (textoDorsal, PATdorsal))
 
@@ -349,6 +350,7 @@ class PartidoACB(object):
 
     def jugadoresAdataframe(self):
         typesDF = {'competicion': 'object', 'temporada': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
+                   'esTitular': 'bool',
                    'haJugado': 'bool', 'titular': 'category', 'haGanado': 'bool', 'enActa': 'bool', 'Vsm': 'float64'}
 
         # 'equipo': 'object', 'CODequipo': 'object', 'rival': 'object', 'CODrival': 'object', 'dorsal': 'object'
@@ -359,18 +361,37 @@ class PartidoACB(object):
             dictJugador['enActa'] = True
             dictJugador['acta'] = 'S'
 
+            # Añade las estadísticas al resultado saltándose ciertas columnas no relevantes
             for dato in jugador:
                 if dato in ['esJugador', 'entrenador', 'estads', 'estado']:
                     continue
                 dictJugador[dato] = jugador[dato]
 
             if jugador['haJugado']:
+                # Añade campos sacados de la página ACB
                 for dato in jugador['estads']:
                     dictJugador[dato] = jugador['estads'][dato]
                     typesDF[dato] = 'float64'
-                dictJugador['Vsm'] = (jugador['estads']['V'] * (BONUSVICTORIA if (
-                        jugador['haGanado'] and (jugador['estads']['V'] > 0)) else 1.0)
-                                      )
+
+                # Añade campos derivados
+                dictJugador['TC-I'] = dictJugador['T2-I'] + dictJugador['T3-I']
+                dictJugador['TC-C'] = dictJugador['T2-C'] + dictJugador['T3-C']
+                dictJugador['PTC'] = 2 * dictJugador['T2-C'] + 3 * dictJugador['T3-C']
+                dictJugador['ppTC'] = dictJugador['P'] / dictJugador['TC-I'] if dictJugador['TC-I'] else np.nan
+                typesDF['ppTC'] = 'float64'
+                typesDF['PTC'] = 'float64'
+
+                for k in '123C':
+                    kI = f'T{k}-I'
+                    kC = f'T{k}-C'
+                    kRes = f'T{k}%'
+                    dictJugador[kRes] = (dictJugador[kC] / dictJugador[kI] * 100.0) if dictJugador[kI] else np.nan
+                    typesDF[kI] = 'float64'
+                    typesDF[kC] = 'float64'
+                    typesDF[kRes] = 'float64'
+
+                bonus = BONUSVICTORIA if (jugador['haGanado'] and (jugador['estads']['V'] > 0)) else 1.0
+                dictJugador['Vsm'] = jugador['estads']['V'] * bonus
             else:
                 dictJugador['V'] = 0.0
                 dictJugador['Vsm'] = 0.0
@@ -379,7 +400,8 @@ class PartidoACB(object):
             dfresult = pd.DataFrame.from_dict(dictJugador, orient='index').transpose()
             dfresult['Fecha'] = self.fechaPartido
             dfresult['local'] = dfresult['esLocal'].map(local2esp)
-            dfresult['titular'] = dfresult['titular'].map(titular2esp)
+            dfresult['titular'] = dfresult['esTitular'].map(titular2esp)
+
             dfresult['resultado'] = dfresult['haGanado'].map(haGanado2esp)
             dfresult['jugado'] = dfresult['haJugado'].map(bool2esp)
 
@@ -410,11 +432,81 @@ class PartidoACB(object):
                 self.prorrogas = datos['prorrogas']
                 if '+/-' in datos['estads'] and datos['estads']['+/-'] is None:
                     datos['estads']['+/-'] = (
-                            self.ResultadoCalendario[estado] - self.ResultadoCalendario[OtherTeam(estado)])
+                            self.ResultadoCalendario[estado] - self.ResultadoCalendario[OtherLoc(estado)])
                 self.Equipos[estado]['estads'] = datos['estads']
             elif datos.get('entrenador', False):
                 self.Entrenadores[datos['codigo']] = datos
                 self.Equipos[estado]['Entrenador'] = datos['codigo']
+
+    def partidoAdataframe(self):
+        infoCols = ['Jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'VictoriaLocal', 'url',
+                    'competicion', 'temporada', 'idPartido']
+        equipoCols = ['id', 'Nombre', 'abrev']
+
+        infoDict = {k: self.__getattribute__(k) for k in infoCols}
+
+        estadsDict = {loc: dict() for loc in self.Equipos}
+
+        for loc in LocalVisitante:
+            estadsDict[loc]['local'] = loc == 'Local'
+            for col in equipoCols:
+                estadsDict[loc][col] = self.Equipos[loc][col]
+            estadsDict[loc]['haGanado'] = self.DatosSuministrados['equipos'][loc]['haGanado']
+            estadsDict[loc]['convocados'] = len(self.Equipos[loc]['Jugadores'])
+            estadsDict[loc]['utilizados'] = len(
+                [j for j in self.Equipos[loc]['Jugadores'] if self.Jugadores[j]['haJugado']])
+
+            estadsDict[loc].update(self.Equipos[loc]['estads'])
+
+            estadsDict[loc]['TC-I'] = self.Equipos[loc]['estads']['T2-I'] + self.Equipos[loc]['estads']['T3-I']
+            estadsDict[loc]['TC-C'] = self.Equipos[loc]['estads']['T2-C'] + self.Equipos[loc]['estads']['T3-C']
+
+            for k in '123C':
+                kI = f'T{k}-I'
+                kC = f'T{k}-C'
+                kRes = f'T{k}%'
+                estadsDict[loc][kRes] = estadsDict[loc][kC] / estadsDict[loc][kI] * 100.0
+
+            estadsDict[loc]['POS'] = self.Equipos[loc]['estads']['T2-I'] + self.Equipos[loc]['estads']['T3-I'] + (
+                    self.Equipos[loc]['estads']['T1-I'] * 0.44) + self.Equipos[loc]['estads']['BP'] - \
+                                     self.Equipos[loc]['estads']['R-O']
+            estadsDict[loc]['OER'] = self.Equipos[loc]['estads']['P'] / estadsDict[loc]['POS']
+            estadsDict[loc]['OERpot'] = self.Equipos[loc]['estads']['P'] / (
+                    estadsDict[loc]['POS'] - self.Equipos[loc]['estads']['BP'])
+            estadsDict[loc]['EffRebD'] = self.Equipos[loc]['estads']['R-D'] / (
+                    self.Equipos[loc]['estads']['R-D'] + self.Equipos[OtherLoc(loc)]['estads']['R-O']) * 100.0
+            estadsDict[loc]['EffRebO'] = self.Equipos[loc]['estads']['R-O'] / (
+                    self.Equipos[loc]['estads']['R-O'] + self.Equipos[OtherLoc(loc)]['estads']['R-D']) * 100.0
+            estadsDict[loc]['t2/tc-I'] = self.Equipos[loc]['estads']['T2-I'] / estadsDict[loc]['TC-I'] * 100.0
+            estadsDict[loc]['t3/tc-I'] = self.Equipos[loc]['estads']['T3-I'] / estadsDict[loc]['TC-I'] * 100.0
+            estadsDict[loc]['t2/tc-C'] = self.Equipos[loc]['estads']['T2-C'] / estadsDict[loc]['TC-C'] * 100.0
+            estadsDict[loc]['t3/tc-C'] = self.Equipos[loc]['estads']['T3-C'] / estadsDict[loc]['TC-C'] * 100.0
+            estadsDict[loc]['eff-t2'] = self.Equipos[loc]['estads']['T2-C'] * 2 / (
+                    self.Equipos[loc]['estads']['T2-C'] * 2 + self.Equipos[loc]['estads']['T3-C'] * 3) * 100.0
+            estadsDict[loc]['eff-t3'] = self.Equipos[loc]['estads']['T3-C'] * 3 / (
+                    self.Equipos[loc]['estads']['T2-C'] * 2 + self.Equipos[loc]['estads']['T3-C'] * 3) * 100.0
+            estadsDict[loc]['ppTC'] = (self.Equipos[loc]['estads']['T2-C'] * 2 + self.Equipos[loc]['estads'][
+                'T3-C'] * 3) / estadsDict[loc]['TC-I']
+            estadsDict[loc]['A/TC-C'] = self.Equipos[loc]['estads']['A'] / estadsDict[loc]['TC-C'] * 100.0
+            estadsDict[loc]['A/BP'] = self.Equipos[loc]['estads']['A'] / self.Equipos[loc]['estads']['BP']
+            estadsDict[loc]['RO/TC-F'] = self.Equipos[loc]['estads']['R-O'] / (
+                    estadsDict[loc]['TC-I'] - estadsDict[loc]['TC-C'])
+
+            estadsDict[loc]['Segs'] = self.Equipos[loc]['estads']['Segs'] / 5
+
+        infoDict['Ptot'] = estadsDict['Local']['P'] + estadsDict[OtherLoc('Local')]['P']
+        infoDict['POStot'] = estadsDict['Local']['POS'] + estadsDict[OtherLoc('Local')]['POS']
+
+        estadsDF = pd.DataFrame.from_dict(data=estadsDict, orient='index')
+
+        infoDF = pd.DataFrame.from_dict(data=[infoDict], orient='columns').reset_index(drop=True)
+        localDF = estadsDF.loc[estadsDF['local']].reset_index(drop=True)
+        visitanteDF = estadsDF.loc[~estadsDF['local']].reset_index(drop=True)
+
+        result = pd.concat([infoDF, localDF, visitanteDF], axis=1, keys=['Info', 'Local', 'Visitante'])
+        result.index = result['Info', 'url']
+        result.index.name = 'url'
+        return result
 
     def __str__(self):
         return "J %02i: [%s] %s (%s) %i - %i %s (%s)" % (
@@ -425,47 +517,6 @@ class PartidoACB(object):
             self.CodigosCalendario['Visitante'])
 
     __repr__ = __str__
-
-    def estadsPartido(self):
-        result = {loc: copy(self.Equipos[loc]['estads']) for loc in LocalVisitante}
-
-        for loc in LocalVisitante:
-            estads = result[loc]
-            other = result[OtherTeam(loc)]
-            avanzadas = dict()
-
-            avanzadas['Abrev'] = self.Equipos[loc]['abrev']
-            avanzadas['Rival'] = self.Equipos[OtherTeam(loc)]['abrev']
-            avanzadas['Priv'] = other['P']
-            avanzadas['Ptot'] = estads['P'] + other['P']
-            avanzadas['Vict'] = estads['P'] > other['P']
-            avanzadas['POS'] = estads['T2-I'] + estads['T3-I'] + (estads['T1-I'] * 0.44) + estads['BP'] - estads['R-O']
-            avanzadas['POStot'] = avanzadas['POS'] + (
-                    other['T2-I'] + other['T3-I'] + (other['T1-I'] * 0.44) + other['BP'] - other['R-O'])
-            avanzadas['OER'] = estads['P'] / avanzadas['POS']
-            avanzadas['OERpot'] = estads['P'] / (avanzadas['POS'] - estads['BP'])
-            avanzadas['EffRebD'] = estads['R-D'] / (estads['R-D'] + other['R-O'])
-            avanzadas['EffRebO'] = estads['R-O'] / (estads['R-O'] + other['R-D'])
-            avanzadas['TC-I'] = (estads['T2-I'] + estads['T3-I'])
-            avanzadas['TC-C'] = (estads['T2-C'] + estads['T3-C'])
-            avanzadas['TC%'] = avanzadas['TC-C'] / avanzadas['TC-I'] * 100.0
-            avanzadas['t2/tc-I'] = estads['T2-I'] / avanzadas['TC-I'] * 100.0
-            avanzadas['t3/tc-I'] = estads['T3-I'] / avanzadas['TC-I'] * 100.0
-            avanzadas['t2/tc-C'] = estads['T2-C'] / avanzadas['TC-C'] * 100.0
-            avanzadas['t3/tc-C'] = estads['T3-C'] / avanzadas['TC-C'] * 100.0
-            avanzadas['eff-t2'] = estads['T2-C'] * 2 / (estads['T2-C'] * 2 + estads['T3-C'] * 3) * 100.0
-            avanzadas['eff-t3'] = estads['T3-C'] * 3 / (estads['T2-C'] * 2 + estads['T3-C'] * 3) * 100.0
-            avanzadas['ppTC'] = (estads['T2-C'] * 2 + estads['T3-C'] * 3) / avanzadas['TC-I']
-            avanzadas['A/TC-C'] = estads['A'] / avanzadas['TC-C'] * 100.0
-            avanzadas['A/BP'] = estads['A'] / estads['BP']
-            avanzadas['RO/TC-F'] = estads['R-O'] / (avanzadas['TC-I'] - avanzadas['TC-C'])
-
-            avanzadas['Segs'] = estads['Segs'] / 5
-
-            estads.update(avanzadas)
-            result[loc] = estads
-
-        return result
 
 
 def GeneraURLpartido(link):
@@ -496,15 +547,6 @@ def GeneraURLpartido(link):
     CheckParameters(liurlcomps)
     return templateURLficha % (liurlcomps['cod_competicion'], int(liurlcomps['cod_edicion']),
                                int(liurlcomps['partido']))
-
-
-def OtherTeam(team):
-    if team == 'Local':
-        return 'Visitante'
-    elif team == 'Visitante':
-        return 'Local'
-    else:
-        raise BadParameters("OtherTeam: '%s' provided. It only accept 'Visitante' or 'Local'" % team)
 
 
 def extractPrefijosTablaEstads(tablaEstads):

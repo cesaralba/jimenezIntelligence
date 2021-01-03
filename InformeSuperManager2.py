@@ -3,13 +3,13 @@
 
 from collections import defaultdict
 from statistics import mean, median, stdev
-from time import gmtime, mktime, strftime, time
 
 from configargparse import ArgumentParser
+from time import gmtime, mktime, strftime, time
 from xlsxwriter import Workbook
 
+from SMACB.Constants import POSICIONES
 from SMACB.PartidoACB import PartidoACB
-from SMACB.SMconstants import POSICIONES
 from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.Misc import CuentaClaves, FORMATOtimestamp, SubSet

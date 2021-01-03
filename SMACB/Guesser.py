@@ -1,12 +1,12 @@
 import logging
 from collections import defaultdict
-from itertools import combinations, product
 from os.path import join
 
 import joblib
+from itertools import combinations, product
 
 from Utils.Misc import creaPath
-from .SMconstants import (buildPosCupoIndex, calculaValSuperManager, CUPOS, POSICIONES, SEQCLAVES)
+from .Constants import (buildPosCupoIndex, calculaValSuperManager, CUPOS, POSICIONES, SEQCLAVES)
 
 id2key = {'t': 'triples', 'a': 'asistencias', 'r': 'rebotes', 'p': 'puntos', 'v': 'valJornada', 'b': 'broker'}
 key2id = {v: k for k, v in id2key.items()}
