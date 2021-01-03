@@ -377,6 +377,10 @@ class PartidoACB(object):
                 # Añade campos derivados
                 dictJugador['TC-I'] = dictJugador['T2-I'] + dictJugador['T3-I']
                 dictJugador['TC-C'] = dictJugador['T2-C'] + dictJugador['T3-C']
+                dictJugador['PTC'] = 2 * dictJugador['T2-C'] + 3 * dictJugador['T3-C']
+                dictJugador['ppTC'] = dictJugador['P'] / dictJugador['TC-I'] if dictJugador['TC-I'] else np.nan
+                typesDF['ppTC'] = 'float64'
+                typesDF['PTC'] = 'float64'
 
                 for k in '123C':
                     kI = f'T{k}-I'
@@ -471,9 +475,9 @@ class PartidoACB(object):
             estadsDict[loc]['OERpot'] = self.Equipos[loc]['estads']['P'] / (
                     estadsDict[loc]['POS'] - self.Equipos[loc]['estads']['BP'])
             estadsDict[loc]['EffRebD'] = self.Equipos[loc]['estads']['R-D'] / (
-                    self.Equipos[loc]['estads']['R-D'] + self.Equipos[OtherLoc(loc)]['estads']['R-O'])
+                    self.Equipos[loc]['estads']['R-D'] + self.Equipos[OtherLoc(loc)]['estads']['R-O']) * 100.0
             estadsDict[loc]['EffRebO'] = self.Equipos[loc]['estads']['R-O'] / (
-                    self.Equipos[loc]['estads']['R-O'] + self.Equipos[OtherLoc(loc)]['estads']['R-D'])
+                    self.Equipos[loc]['estads']['R-O'] + self.Equipos[OtherLoc(loc)]['estads']['R-D']) * 100.0
             estadsDict[loc]['t2/tc-I'] = self.Equipos[loc]['estads']['T2-I'] / estadsDict[loc]['TC-I'] * 100.0
             estadsDict[loc]['t3/tc-I'] = self.Equipos[loc]['estads']['T3-I'] / estadsDict[loc]['TC-I'] * 100.0
             estadsDict[loc]['t2/tc-C'] = self.Equipos[loc]['estads']['T2-C'] / estadsDict[loc]['TC-C'] * 100.0
