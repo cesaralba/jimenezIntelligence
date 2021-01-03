@@ -2,13 +2,13 @@
 # -*- coding: utf-8 -*-
 
 from collections import defaultdict
-from time import gmtime, strftime
 
 from configargparse import ArgumentParser
+from time import gmtime, strftime
 from xlsxwriter import Workbook
 
+from SMACB.Constants import POSICIONES
 from SMACB.PartidoACB import PartidoACB
-from SMACB.SMconstants import POSICIONES
 from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.Misc import CuentaClaves, FORMATOfecha, FORMATOtimestamp

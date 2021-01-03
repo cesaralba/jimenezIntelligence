@@ -1,10 +1,12 @@
 from argparse import Namespace
+
 from time import gmtime
 
-from Utils.BoWtraductor import (comparaNombresPersonas, CompareBagsOfWords, CreaBoW, NormalizaCadena, RetocaNombreJugador)
+from Utils.BoWtraductor import (comparaNombresPersonas, CompareBagsOfWords, CreaBoW, NormalizaCadena,
+                                RetocaNombreJugador)
 from Utils.Misc import onlySetElement
 from Utils.Web import creaBrowser, DescargaPagina, getObjID, MergeURL
-from .SMconstants import URL_BASE
+from .Constants import URL_BASE
 
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
 

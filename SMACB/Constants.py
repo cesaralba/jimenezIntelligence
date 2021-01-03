@@ -1,5 +1,7 @@
 from babel.numbers import decimal
 
+from Utils.Misc import BadParameters
+
 URL_BASE = "http://www.acb.com"
 
 MAXIMOextranjeros = 2
@@ -30,10 +32,16 @@ haGanado2esp = {True: "V", False: "D"}
 titular2esp = {True: "T", False: "B"}
 local2esp = {True: "L", False: "V"}
 
+LocalVisitante = ('Local', 'Visitante')
+EqRival = ('Eq', 'Rival')
+
+LOCALNAMES = {'Local', 'L', 'local'}
+VISITNAMES = {'Visitante', 'V', 'visitante'}
+
 
 def calculaValSuperManager(valoracion, haGanado=False):
     return round(
-            decimal.Decimal.from_float(float(valoracion) * (BONUSVICTORIA if (haGanado and (valoracion > 0)) else 1.0)), 2)
+        decimal.Decimal.from_float(float(valoracion) * (BONUSVICTORIA if (haGanado and (valoracion > 0)) else 1.0)), 2)
 
 
 def buildPosCupoIndex():
@@ -66,3 +74,21 @@ def solucion2clave(clave, sol, charsep="#"):
     valores = [sol[k] for k in CLAVESOL]
 
     return clave + "#" + (formatoTotal % tuple(valores))
+
+
+def OtherLoc(team):
+    if team == 'Local':
+        return 'Visitante'
+    elif team == 'Visitante':
+        return 'Local'
+    else:
+        raise BadParameters("OtherLoc: '%s' provided. It only accept 'Visitante' or 'Local'" % team)
+
+
+def OtherTeam(team):
+    if team == 'Eq':
+        return 'Rival'
+    elif team == 'Rival':
+        return 'Eq'
+    else:
+        raise BadParameters("OtherTeam: '%s' provided. It only accept 'Eq' or 'Rival'" % team)
