@@ -192,7 +192,7 @@ class TemporadaACB(object):
             self.tradJugadores['nombre2ids'][datosJug['nombre']].add(datosJug['codigo'])
             self.tradJugadores['id2nombres'][datosJug['codigo']].add(datosJug['nombre'])
 
-    def extraeDataframeJugadores(self):
+    def extraeDataframeJugadores(self, listaURLPartidos=None):
 
         def jorFech2periodo(dfTemp):
             periodoAct = 0
@@ -228,7 +228,10 @@ class TemporadaACB(object):
 
             return result
 
-        dfPartidos = [partido.jugadoresAdataframe() for partido in self.Partidos.values()]
+        listaURLs = self.Partidos.keys() if listaURLPartidos is None else listaURLPartidos
+
+        dfPartidos = [self.Partidos[pURL].jugadoresAdataframe() for pURL in listaURLs]
+
         dfResult = pd.concat(dfPartidos, axis=0, ignore_index=True, sort=True)
 
         periodos = jorFech2periodo(dfResult)
@@ -236,6 +239,33 @@ class TemporadaACB(object):
         dfResult['periodo'] = dfResult.apply(lambda r: periodos[r['jornada']][r['Fecha'].date()], axis=1)
 
         return (dfResult)
+
+    def dfEstadsJugadores(self, dfDatosPartidos: pd.DataFrame, abrEq: str = None):
+        COLDROPPER = ['jornada', 'temporada']
+        COLSIDENT = ['competicion', 'temporada', 'codigo', 'dorsal', 'nombre']
+
+        if abrEq:
+            abrevsEq = self.Calendario.abrevsEquipo(abrEq)
+
+            estadsJugadoresEq = dfDatosPartidos.loc[dfDatosPartidos['CODequipo'].isin(abrevsEq)]
+        else:
+            estadsJugadoresEq = dfDatosPartidos
+
+        auxEstadisticosDF = estadsJugadoresEq.drop(columns=COLDROPPER).groupby('codigo').apply(
+            auxCalculaEstadsSubDataframe)
+
+        # Ajusta la suma de los porcentajes a la media de las sumas
+        for k in '123C':
+            kI = f'T{k}-I'
+            kC = f'T{k}-C'
+            kRes = f'T{k}%'
+            auxEstadisticosDF[kRes, 'sum'] = auxEstadisticosDF[kC, 'sum'] / auxEstadisticosDF[kI, 'sum'] * 100.0
+
+        auxIdentsDF = estadsJugadoresEq[COLSIDENT].groupby('codigo').tail(n=1).set_index('codigo', drop=False)
+        auxIdentsDF.columns = pd.MultiIndex.from_tuples([('Jugador', col) for col in auxIdentsDF.columns])
+
+        result = pd.concat([auxIdentsDF, auxEstadisticosDF], axis=1)
+        return result
 
     def sigPartido(self, abrEq) -> (dict, tuple, list, list, list, list, bool):
         """
@@ -482,71 +512,52 @@ class TemporadaACB(object):
         return result.sort_values(by=('Info', 'fechaPartido'))
 
     def dfEstadsEquipo(self, dfEstadsPartidosEq: pd.DataFrame, abrEq: str):
-        FILASESTADISTICOS = ['count', 'mean', 'std', 'min', '50%', 'max']
-        COLRENAMER = {'50%': 'median'}
         COLDROPPER = [('Info', 'Jornada')]
 
         abrevsEq = self.Calendario.abrevsEquipo(abrEq)
 
         estadPartidos = dfEstadsPartidosEq.loc[dfEstadsPartidosEq[('Eq', 'abrev')].isin(abrevsEq)]
 
-        estadisticosNumber = estadPartidos.describe(include=[np.number], percentiles=[.50])
-        # Necesario porque describe trata los bool como categóricos
-        estadisticosBool = estadPartidos.select_dtypes([np.bool]).astype(np.int64).apply(
-            lambda c: c.describe(percentiles=[.50]))
+        result = auxCalculaEstadsSubDataframe(estadPartidos.drop(columns=COLDROPPER))
 
-        auxEstadisticos = pd.concat([estadisticosNumber, estadisticosBool], axis=1).T[FILASESTADISTICOS].T
-        auxEstadisticos[('Info', 'prorrogas')] = estadPartidos.loc[estadPartidos[('Info', 'prorrogas')] != 0][
+        # Sólo cuenta prórrogas de partidos donde ha habido
+        result[('Info', 'prorrogas')] = estadPartidos.loc[estadPartidos[('Info', 'prorrogas')] != 0][
             ('Info', 'prorrogas')].describe()
 
-        # Hay determinados campos que no tiene sentido sumar. Así que sumamos todos y luego ponemos a nan los que no
-        # Para estos tengo dudas filosóficas de cómo calcular la media (¿media del valor de cada partido o calcular el
-        # ratio a partir de las sumas?
-        sumas = estadPartidos[auxEstadisticos.columns].select_dtypes([np.number, np.bool]).sum()
-
-        # Elimina valores que no tienen sentido y que no se van a recalculoar más tarde
+        # No tiene sentido sumar convocados y usados.
+        # TODO: Podría tener sentido calcular jugadores únicos pero es trabajoso
         for eq in EqRival:
-            for col in [(eq, 'convocados'), (eq, 'utilizados')]:
-                sumas[col] = np.nan
-        sumas[('Info', 'Jornada')] = np.nan
-
-        sumasDF = pd.DataFrame(sumas).T
-        sumasDF.index = pd.Index(['sum'])
-
-        finalDF = pd.concat([auxEstadisticos, sumasDF]).drop(columns=COLDROPPER).rename(index=COLRENAMER)
-
+            for col in [(eq, 'convocados', 'sum'), (eq, 'utilizados', 'sum')]:
+                result[col] = np.nan
         # Calculate sum field for ratios as the ratio of sum fields. Shooting percentages
         for k in '123C':
             kI = f'T{k}-I'
             kC = f'T{k}-C'
             kRes = f'T{k}%'
             for eq in EqRival:
-                finalDF[(eq, kRes)]['sum'] = finalDF[(eq, kC)]['sum'] / finalDF[(eq, kI)]['sum'] * 100.0
-
+                result[(eq, kRes, 'sum')] = result[(eq, kC, 'sum')] / result[
+                    (eq, kI, 'sum')] * 100.0
         # Calculate sum field for ratios as the ratio of sum fields. Other ratios
         for eq in EqRival:
             for k in '23':
-                finalDF[(eq, f't{k}/tc-I')]['sum'] = finalDF[(eq, f'T{k}-I')]['sum'] / finalDF[(eq, 'TC-I')][
-                    'sum'] * 100.0
-                finalDF[(eq, f't{k}/tc-C')]['sum'] = finalDF[(eq, f'T{k}-C')]['sum'] / finalDF[(eq, 'TC-C')][
-                    'sum'] * 100.0
-                finalDF[(eq, f'eff-t{k}')]['sum'] = finalDF[(eq, f'T{k}-C')]['sum'] * int(k) / (
-                        finalDF[(eq, 'T2-C')]['sum'] * 2 + finalDF[(eq, 'T3-C')]['sum'] * 3) * 100.0
-            finalDF[(eq, 'A/TC-C')]['sum'] = finalDF[(eq, 'A')]['sum'] / finalDF[(eq, 'TC-C')]['sum'] * 100.0
-            finalDF[(eq, 'A/BP')]['sum'] = finalDF[(eq, 'A')]['sum'] / finalDF[(eq, 'BP')]['sum']
-            finalDF[(eq, 'RO/TC-F')]['sum'] = finalDF[(eq, 'R-O')]['sum'] / (
-                    finalDF[(eq, 'TC-I')]['sum'] - finalDF[(eq, 'TC-C')]['sum']) * 100.0
-            finalDF[(eq, 'ppTC')]['sum'] = (finalDF[(eq, 'T2-C')]['sum'] * 2 + finalDF[(eq, 'T3-C')]['sum'] * 3) / (
-                    finalDF[(eq, 'T2-I')]['sum'] + finalDF[(eq, 'T3-I')]['sum'])
-            finalDF[(eq, 'OER')]['sum'] = finalDF[(eq, 'P')]['sum'] / finalDF[(eq, 'POS')]['sum']
-            finalDF[(eq, 'OERpot')]['sum'] = finalDF[(eq, 'P')]['sum'] / (
-                    finalDF[(eq, 'POS')]['sum'] - finalDF[(eq, 'BP')]['sum'])
-            finalDF[(eq, 'EffRebD')]['sum'] = finalDF[(eq, 'R-D')]['sum'] / (
-                    finalDF[(eq, 'R-D')]['sum'] + finalDF[(OtherTeam(eq), 'R-O')]['sum'])
-            finalDF[(eq, 'EffRebO')]['sum'] = finalDF[(eq, 'R-O')]['sum'] / (
-                    finalDF[(eq, 'R-O')]['sum'] + finalDF[(OtherTeam(eq), 'R-D')]['sum'])
+                result[(eq, f't{k}/tc-I', 'sum')] = result[(eq, f'T{k}-I', 'sum')] / result[(eq, 'TC-I', 'sum')] * 100.0
+                result[(eq, f't{k}/tc-C', 'sum')] = result[(eq, f'T{k}-C', 'sum')] / result[(eq, 'TC-C', 'sum')] * 100.0
+                result[(eq, f'eff-t{k}', 'sum')] = result[(eq, f'T{k}-C', 'sum')] * int(k) / (
+                        result[(eq, 'T2-C', 'sum')] * 2 + result[(eq, 'T3-C', 'sum')] * 3) * 100.0
+            result[(eq, 'A/TC-C', 'sum')] = result[(eq, 'A', 'sum')] / result[(eq, 'TC-C', 'sum')] * 100.0
+            result[(eq, 'A/BP', 'sum')] = result[(eq, 'A', 'sum')] / result[(eq, 'BP', 'sum')]
+            result[(eq, 'RO/TC-F', 'sum')] = result[(eq, 'R-O', 'sum')] / (
+                    result[(eq, 'TC-I', 'sum')] - result[(eq, 'TC-C', 'sum')]) * 100.0
+            result[(eq, 'ppTC', 'sum')] = (result[(eq, 'T2-C', 'sum')] * 2 + result[(eq, 'T3-C', 'sum')] * 3) / (
+                    result[(eq, 'T2-I', 'sum')] + result[(eq, 'T3-I', 'sum')])
+            result[(eq, 'OER', 'sum')] = result[(eq, 'P', 'sum')] / result[(eq, 'POS', 'sum')]
+            result[(eq, 'OERpot', 'sum')] = result[(eq, 'P', 'sum')] / (
+                    result[(eq, 'POS', 'sum')] - result[(eq, 'BP', 'sum')])
+            result[(eq, 'EffRebD', 'sum')] = result[(eq, 'R-D', 'sum')] / (
+                    result[(eq, 'R-D', 'sum')] + result[(OtherTeam(eq), 'R-O', 'sum')])
+            result[(eq, 'EffRebO', 'sum')] = result[(eq, 'R-O', 'sum')] / (
+                    result[(eq, 'R-O', 'sum')] + result[(OtherTeam(eq), 'R-D', 'sum')])
 
-        result = finalDF.unstack()
         return result
 
     def dfEstadsLiga(self, fecha=None):
@@ -683,21 +694,17 @@ def ordenEstadsLiga(estads: dict, abr: str, eq: str = 'eq', clave: str = 'P', su
     return sum([comparaValores(keyGetter(v, subclave), auxRef) for v in valAcomp]) + 1
 
 
-def extraeCampoYorden(estads: dict, abr: str, eq: str = 'eq', clave: str = 'P', subclave=0, decrec: bool = True):
-    if abr not in estads:
-        valCorrectos = ", ".join(sorted(estads.keys()))
-        raise KeyError(f"ordenEstadsLiga: equipo (abr) '{abr}' desconocido. Equipos validos: {valCorrectos}")
-    targEquipo = estads[abr]
-    if eq not in targEquipo:
-        valCorrectos = ", ".join(sorted(targEquipo.keys()))
-        raise KeyError(f"ordenEstadsLiga: ref (eq) '{eq}' desconocido. Referencias válidas: {valCorrectos}")
-    targValores = targEquipo[eq]
-    if clave not in targValores:
-        valCorrectos = ", ".join(sorted(targValores.keys()))
-        raise KeyError(f"ordenEstadsLiga: clave '{clave}' desconocida. Claves válidas: {valCorrectos}")
+def extraeCampoYorden(estads: pd.DataFrame, estadsOrden: pd.DataFrame, eq: str = 'eq', clave: str = 'P',
+                      estadistico='mean'):
+    targetCol = (eq, clave, estadistico)
 
-    valor = targValores[clave][subclave] if isinstance(targValores[clave], tuple) else targValores[clave]
-    orden = ordenEstadsLiga(estads, abr, eq, clave, subclave, decrec)
+    if targetCol not in estads.index:
+        valCorrectos = ", ".join(sorted(estads.index).map(str))
+        raise KeyError(
+            f"extraeCampoYorden: parametros para dato '{targetCol}' desconocidos. Referencias válidas: {valCorrectos}")
+
+    valor = estads.loc[targetCol]
+    orden = estadsOrden.loc[targetCol]
 
     return valor, orden
 
@@ -716,4 +723,31 @@ def precalculaOrdenEstadsLiga(dfEstads: pd.DataFrame, listAscending=None):
         resultDict[col] = auxSerie
 
     result = pd.DataFrame.from_dict(resultDict, orient='columns').sort_index()
+    return result
+
+
+def auxCalculaEstadsSubDataframe(dfEntrada: pd.DataFrame):
+    FILASESTADISTICOS = ['count', 'mean', 'std', 'min', '50%', 'max']
+    ROWRENAMER = {'50%': 'median'}
+    COLDROPPER = []
+
+    estadisticosNumber = dfEntrada.describe(include=[np.number], percentiles=[.50])
+    # Necesario porque describe trata los bool como categóricos
+    estadisticosBool = dfEntrada.select_dtypes([np.bool]).astype(np.int64).apply(
+        lambda c: c.describe(percentiles=[.50]))
+
+    auxEstadisticos = pd.concat([estadisticosNumber, estadisticosBool], axis=1).T[FILASESTADISTICOS].T
+
+    # Hay determinados campos que no tiene sentido sumar. Así que sumamos todos y luego ponemos a nan los que no
+    # Para estos tengo dudas filosóficas de cómo calcular la media (¿media del valor de cada partido o calcular el
+    # ratio a partir de las sumas?
+    sumas = dfEntrada[auxEstadisticos.columns].select_dtypes([np.number, np.bool]).sum()
+
+    sumasDF = pd.DataFrame(sumas).T
+    sumasDF.index = pd.Index(['sum'])
+
+    finalDF = pd.concat([auxEstadisticos, sumasDF]).rename(index=ROWRENAMER)
+
+    result = finalDF.unstack()
+
     return result
