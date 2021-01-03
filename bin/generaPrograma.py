@@ -446,59 +446,6 @@ def estadsEquipoPortada_df(tempData: TemporadaACB, abrevs: list):
     return t
 
 
-def calcEstadAdicionalesTC(df: pd.DataFrame) -> pd.DataFrame:
-    # Genera tiros de Campo
-    df['TC-I'] = df['T2-I'] + df['T3-I']
-    df['TC-C'] = df['T2-C'] + df['T3-C']
-    # Recalcula porcentajes
-    for t in '123C':
-        df[f'T{t}%'] = df[f'T{t}-C'] / df[f'T{t}-I'] * 100.0
-    # Eficiencia de los tiros
-    df['PTC'] = (2 * df['T2-C'] + 3 * df['T3-C'])
-    df['ppTC'] = df['PTC'] / df['TC-I']
-
-    return df
-
-
-def calcEstadisticasJugador(df, campoAMostrar=ESTADISTICOJUG):
-    targColumn = ['A', 'BP', 'BR', 'FP-C', 'FP-F', 'P', 'ppTC', 'R-D', 'R-O', 'REB-T', 'Segs', 'T1-C', 'T1-I', 'T1%',
-                  'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-I', 'TC-C', 'TC%', 'PTC', 'TAP-C', 'TAP-F']
-    result = dict()
-
-    # Campos genéricos
-    for col in COLS_IDENTIFIC_JUG:
-        auxCount = df[col].value_counts()
-        result[col] = auxCount.index[0]
-
-    result['Acta'] = df['enActa'].sum()
-    result['Jugados'] = df['haJugado'].sum()
-    result['Titular'] = (df['titular'] == 'T').sum()
-    result['Vict'] = df['haGanado'].sum()
-
-    df = calcEstadAdicionalesTC(df)
-
-    for col in targColumn:
-        auxCol = df[col]
-
-        colAgr = (
-            auxCol.mean(), auxCol.median(), auxCol.std(ddof=0), auxCol.max(), auxCol.min(), auxCol.count(),
-            auxCol.sum())
-        result[col] = colAgr[campoAMostrar]
-
-    result = pd.DataFrame.from_records([result])
-
-    return result
-
-
-def datosUltimoPartidoJug(tempData: TemporadaACB, df, colTime='Fecha'):
-    df = calcEstadAdicionalesTC(df)
-    maxVal = df[colTime].max()
-
-    df['Partido'] = df.apply(lambda p: auxEtiqPartido(tempData, p['CODrival'], esLocal=p['esLocal']), axis=1)
-
-    return df.loc[df[colTime] == maxVal]
-
-
 def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     COLS_TRAYECT_TEMP_orig_names = ['enActa', 'haJugado', 'esTitular', 'haGanado', ]
     COLS_TRAYECT_TEMP_orig = [(col, 'sum') for col in COLS_TRAYECT_TEMP_orig_names]
