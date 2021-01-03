@@ -242,7 +242,7 @@ class TemporadaACB(object):
 
     def dfEstadsJugadores(self, dfDatosPartidos: pd.DataFrame, abrEq: str = None):
         COLDROPPER = ['jornada', 'temporada']
-        COLSIDENT = ['competicion', 'temporada', 'codigo', 'dorsal', 'nombre']
+        COLSIDENT = ['competicion', 'temporada', 'codigo', 'dorsal', 'nombre', 'CODequipo', 'IDequipo']
 
         if abrEq:
             abrevsEq = self.Calendario.abrevsEquipo(abrEq)
