@@ -418,6 +418,11 @@ def estadsEquipoPortada(tempData: TemporadaACB, abrevs: list):
     datLocal = datosEstadsEquipoPortada(tempData, abrevs[0])
     datVisitante = datosEstadsEquipoPortada(tempData, abrevs[1])
 
+
+def estadsEquipoPortada(tempData: TemporadaACB, abrevs: list):
+    datLocal = datosEstadsEquipoPortada(tempData, abrevs[0])
+    datVisitante = datosEstadsEquipoPortada(tempData, abrevs[1])
+
     style = ParagraphStyle('Normal', align='left', fontName='Helvetica', fontSize=10, leading=11, )
 
     parLocal = Paragraph(datLocal, style)

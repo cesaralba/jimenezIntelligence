@@ -518,6 +518,47 @@ class PartidoACB(object):
 
     __repr__ = __str__
 
+    def estadsPartido(self):
+        result = {loc: copy(self.Equipos[loc]['estads']) for loc in LocalVisitante}
+
+        for loc in LocalVisitante:
+            estads = result[loc]
+            other = result[OtherTeam(loc)]
+            avanzadas = dict()
+
+            avanzadas['Abrev'] = self.Equipos[loc]['abrev']
+            avanzadas['Rival'] = self.Equipos[OtherTeam(loc)]['abrev']
+            avanzadas['Priv'] = other['P']
+            avanzadas['Ptot'] = estads['P'] + other['P']
+            avanzadas['Vict'] = estads['P'] > other['P']
+            avanzadas['POS'] = estads['T2-I'] + estads['T3-I'] + (estads['T1-I'] * 0.44) + estads['BP'] - estads['R-O']
+            avanzadas['POStot'] = avanzadas['POS'] + (
+                    other['T2-I'] + other['T3-I'] + (other['T1-I'] * 0.44) + other['BP'] - other['R-O'])
+            avanzadas['OER'] = estads['P'] / avanzadas['POS']
+            avanzadas['OERpot'] = estads['P'] / (avanzadas['POS'] - estads['BP'])
+            avanzadas['EffRebD'] = estads['R-D'] / (estads['R-D'] + other['R-O'])
+            avanzadas['EffRebO'] = estads['R-O'] / (estads['R-O'] + other['R-D'])
+            avanzadas['TC-I'] = (estads['T2-I'] + estads['T3-I'])
+            avanzadas['TC-C'] = (estads['T2-C'] + estads['T3-C'])
+            avanzadas['TC%'] = avanzadas['TC-C'] / avanzadas['TC-I'] * 100.0
+            avanzadas['t2/tc-I'] = estads['T2-I'] / avanzadas['TC-I'] * 100.0
+            avanzadas['t3/tc-I'] = estads['T3-I'] / avanzadas['TC-I'] * 100.0
+            avanzadas['t2/tc-C'] = estads['T2-C'] / avanzadas['TC-C'] * 100.0
+            avanzadas['t3/tc-C'] = estads['T3-C'] / avanzadas['TC-C'] * 100.0
+            avanzadas['eff-t2'] = estads['T2-C'] * 2 / (estads['T2-C'] * 2 + estads['T3-C'] * 3) * 100.0
+            avanzadas['eff-t3'] = estads['T3-C'] * 3 / (estads['T2-C'] * 2 + estads['T3-C'] * 3) * 100.0
+            avanzadas['ppTC'] = (estads['T2-C'] * 2 + estads['T3-C'] * 3) / avanzadas['TC-I']
+            avanzadas['A/TC-C'] = estads['A'] / avanzadas['TC-C'] * 100.0
+            avanzadas['A/BP'] = estads['A'] / estads['BP']
+            avanzadas['RO/TC-F'] = estads['R-O'] / (avanzadas['TC-I'] - avanzadas['TC-C'])
+
+            avanzadas['Segs'] = estads['Segs'] / 5
+
+            estads.update(avanzadas)
+            result[loc] = estads
+
+        return result
+
 
 def GeneraURLpartido(link):
     def CheckParameters(dictParams):
