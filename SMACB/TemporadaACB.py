@@ -8,13 +8,11 @@ from argparse import Namespace
 from collections import defaultdict
 from copy import copy
 from pickle import dump, load
-from statistics import mean, median, stdev
 from traceback import print_exception
 from typing import Iterable
 
 import numpy as np
 import pandas as pd
-from itertools import product
 from sys import exc_info, setrecursionlimit
 from time import gmtime
 
@@ -339,103 +337,6 @@ class TemporadaACB(object):
         result = sorted([self.clasifEquipo(list(cSet)[0], fecha=fecha)
                          for cSet in self.Calendario.tradEquipos['i2c'].values()],
                         key=lambda x: entradaClas2k(x), reverse=True)
-
-        return result
-
-    def precalcEstadsEquipo(self, abrEq=None, fecha=None):
-
-        auxEstads = defaultdict(lambda: defaultdict(list))
-
-        if abrEq:
-            juCal, _ = self.Calendario.partidosEquipo(abrEq)
-            listaPartidos = juCal
-            partidosAcontar = [p for p in listaPartidos if
-                               self.Partidos[p['url']].fechaPartido < fecha] if fecha else listaPartidos
-        else:
-            listaPartidos = []
-            for auxAbr in self.Calendario.tradEquipos['i2c'].values():
-                ab = list(auxAbr)[0]
-                juCal, _ = self.Calendario.partidosEquipo(ab)
-                listaPartidos.extend(list(product([ab], juCal)))
-            partidosAcontar = [p for p in listaPartidos if
-                               self.Partidos[p[1]['url']].fechaPartido < fecha] if fecha else listaPartidos
-
-        for datosCal in partidosAcontar:
-            if abrEq:
-                abrevsEq = self.Calendario.abrevsEquipo(abrEq)
-                partCal = datosCal
-                abrevUsada = abrevsEq.intersection(datosCal['participantes']).pop()
-            else:
-                ab, partCal = datosCal
-                abrevsEq = self.Calendario.abrevsEquipo(ab)
-                abrevUsada = abrevsEq.intersection(partCal['participantes']).pop()
-
-            locEq = partCal['abrev2loc'][abrevUsada]
-            locRival = OtherLoc(locEq)
-            # datosEq = datosCal['equipos'][locEq]
-            datosRival = partCal['equipos'][locRival]
-            abrevRival = datosRival['abrev']
-
-            datosPartido = self.Partidos[partCal['url']]
-            estads = datosPartido.estadsPartido()
-            estadsEq = estads[locEq]
-            estadsEq['fecha'] = partCal['fecha']
-            estadsRival = estads[locRival]
-            estadsRival['fecha'] = partCal['fecha']
-
-            for k, v in estadsEq.items():
-                auxEstads['eq'][k].append(v)
-            for k, v in estadsRival.items():
-                auxEstads['rival'][k].append(v)
-
-        return auxEstads
-
-    def estadsEquipo(self, abrEq=None, fecha=None):
-
-        result = defaultdict(dict)
-
-        auxEstads = self.precalcEstadsEquipo(abrEq, fecha)
-
-        for k in ['POS', 'POStot', 'Segs', 'P', 'Priv', 'Ptot', 'OER', 'OERpot', 'T1-C', 'T1-I', 'T2-C', 'T2-I', 'T3-C',
-                  'T3-I', 'TC-C', 'TC-I', 'T1%', 'T2%', 'T3%', 'TC%', 't2/tc-I',
-                  't3/tc-I', 't2/tc-C', 't3/tc-C', 'eff-t2', 'eff-t3', 'ppTC', 'R-D', 'R-O', 'REB-T', 'RO/TC-F',
-                  'EffRebD',
-                  'EffRebO', 'A', 'BP', 'BR', 'A/BP', 'A/TC-C', 'FP-F', 'TAP-F']:
-            for l in ['eq', 'rival']:
-                result[l][k] = (
-                    mean(auxEstads[l][k]), median(auxEstads[l][k]), stdev(auxEstads[l][k]), max(auxEstads[l][k]),
-                    min(auxEstads[l][k]))
-
-        for k in '123C':
-            kI = f'T{k}-I'
-            kC = f'T{k}-C'
-            kRes = f'T{k}%-calc'
-            for l in ['eq', 'rival']:
-                result[l][kRes] = sum(auxEstads[l][kC]) / sum(auxEstads[l][kI]) * 100.0
-
-        for l in ['eq', 'rival']:
-            result[l]['Parts'] = len(auxEstads[l]['P'])
-            result[l]['t2/tc-I-calc'] = sum(auxEstads[l]['T2-I']) / sum(auxEstads[l]['TC-I'])
-            result[l]['t3/tc-I-calc'] = sum(auxEstads[l]['T3-I']) / sum(auxEstads[l]['TC-I'])
-            result[l]['t2/tc-C-calc'] = sum(auxEstads[l]['T2-C']) / sum(auxEstads[l]['TC-C'])
-            result[l]['t3/tc-C-calc'] = sum(auxEstads[l]['T3-C']) / sum(auxEstads[l]['TC-C'])
-            result[l]['eff-t2-calc'] = sum(auxEstads[l]['T2-C']) * 2 / (
-                    sum(auxEstads[l]['T2-C']) * 2 + sum(auxEstads[l]['T3-C']) * 3)
-            result[l]['eff-t3-calc'] = sum(auxEstads[l]['T3-C']) * 3 / (
-                    sum(auxEstads[l]['T2-C']) * 2 + sum(auxEstads[l]['T3-C']) * 3)
-            result[l]['A/TC-C-calc'] = sum(auxEstads[l]['A']) / sum(auxEstads[l]['TC-C']) * 100.0
-            result[l]['A/BP-calc'] = sum(auxEstads[l]['A']) / sum(auxEstads[l]['BP'])
-            result[l]['RO/TC-F-calc'] = sum(auxEstads[l]['R-O']) / (
-                    sum(auxEstads[l]['TC-I']) - sum(auxEstads[l]['TC-C']))
-
-        return result
-
-    def estadsLiga(self, fecha=None):
-        result = dict()
-
-        for auxAbr in self.Calendario.tradEquipos['i2c'].values():
-            ab = list(auxAbr)[0]
-            result[ab] = self.estadsEquipo(ab, fecha)
 
         return result
 
