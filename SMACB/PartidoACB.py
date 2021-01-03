@@ -3,6 +3,7 @@ from argparse import Namespace
 from copy import copy
 from traceback import print_exc
 
+import numpy as np
 import pandas as pd
 from babel.numbers import parse_number
 from bs4 import Tag
@@ -360,18 +361,33 @@ class PartidoACB(object):
             dictJugador['enActa'] = True
             dictJugador['acta'] = 'S'
 
+            # Añade las estadísticas al resultado saltándose ciertas columnas no relevantes
             for dato in jugador:
                 if dato in ['esJugador', 'entrenador', 'estads', 'estado']:
                     continue
                 dictJugador[dato] = jugador[dato]
 
             if jugador['haJugado']:
+                # Añade campos sacados de la página ACB
                 for dato in jugador['estads']:
                     dictJugador[dato] = jugador['estads'][dato]
                     typesDF[dato] = 'float64'
-                dictJugador['Vsm'] = (jugador['estads']['V'] * (BONUSVICTORIA if (
-                        jugador['haGanado'] and (jugador['estads']['V'] > 0)) else 1.0)
-                                      )
+
+                # Añade campos derivados
+                dictJugador['TC-I'] = dictJugador['T2-I'] + dictJugador['T3-I']
+                dictJugador['TC-C'] = dictJugador['T2-C'] + dictJugador['T3-C']
+
+                for k in '123C':
+                    kI = f'T{k}-I'
+                    kC = f'T{k}-C'
+                    kRes = f'T{k}%'
+                    dictJugador[kRes] = (dictJugador[kC] / dictJugador[kI] * 100.0) if dictJugador[kI] else np.nan
+                    typesDF[kI] = 'float64'
+                    typesDF[kC] = 'float64'
+                    typesDF[kRes] = 'float64'
+
+                bonus = BONUSVICTORIA if (jugador['haGanado'] and (jugador['estads']['V'] > 0)) else 1.0
+                dictJugador['Vsm'] = jugador['estads']['V'] * bonus
             else:
                 dictJugador['V'] = 0.0
                 dictJugador['Vsm'] = 0.0
