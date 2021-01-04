@@ -98,10 +98,10 @@ INFOTABLAJUGS = {
     ('Jugador', 'pos'): {'etiq': 'Pos', 'ancho': 4, 'alignment': 'CENTER'},
     ('Jugador', 'altura'): {'etiq': 'Alt', 'ancho': 5},
     ('Jugador', 'licencia'): {'etiq': 'Lic', 'ancho': 5, 'alignment': 'CENTER'},
-    ('Trayectoria', 'Acta'): {'etiq': 'Cv', 'ancho': 3},
-    ('Trayectoria', 'Jugados'): {'etiq': 'Ju', 'ancho': 3},
-    ('Trayectoria', 'Titular'): {'etiq': 'Tt', 'ancho': 3},
-    ('Trayectoria', 'Vict'): {'etiq': 'Vc', 'ancho': 3},
+    ('Trayectoria', 'Acta'): {'etiq': 'Cv', 'ancho': 3, 'formato': 'entero'},
+    ('Trayectoria', 'Jugados'): {'etiq': 'Ju', 'ancho': 3, 'formato': 'entero'},
+    ('Trayectoria', 'Titular'): {'etiq': 'Tt', 'ancho': 3, 'formato': 'entero'},
+    ('Trayectoria', 'Vict'): {'etiq': 'Vc', 'ancho': 3, 'formato': 'entero'},
 
     ('Promedios', 'etSegs'): {'etiq': 'Min', 'ancho': 7, 'generador': GENERADORTIEMPO(col='Segs')},
     ('Promedios', 'P'): {'etiq': 'P', 'ancho': 7, 'formato': 'float'},
@@ -221,7 +221,7 @@ def auxEtFecha(f, col, formato="%d-%m"):
     return result
 
 
-def auxGeneraTabla(dfDatos, collist, colSpecs, estiloTablaBaseOps, formatos=None, charWidth=10):
+def auxGeneraTabla(dfDatos, collist, colSpecs, estiloTablaBaseOps, formatos=None, charWidth=10.0):
     dfColList = []
     filaCab = []
     anchoCols = []

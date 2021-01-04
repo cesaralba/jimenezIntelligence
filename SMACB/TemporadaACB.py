@@ -414,17 +414,22 @@ class TemporadaACB(object):
         return result.sort_values(by=('Info', 'fechaPartido'))
 
     def dfEstadsEquipo(self, dfEstadsPartidosEq: pd.DataFrame, abrEq: str):
+        colProrrogas = ('Info', 'prorrogas')
         COLDROPPER = [('Info', 'Jornada')]
 
         abrevsEq = self.Calendario.abrevsEquipo(abrEq)
 
         estadPartidos = dfEstadsPartidosEq.loc[dfEstadsPartidosEq[('Eq', 'abrev')].isin(abrevsEq)]
 
-        result = auxCalculaEstadsSubDataframe(estadPartidos.drop(columns=COLDROPPER))
+        resultSinProrogas = auxCalculaEstadsSubDataframe(estadPartidos.drop(columns=(COLDROPPER + [colProrrogas])))
 
         # Sólo cuenta prórrogas de partidos donde ha habido
-        result[('Info', 'prorrogas')] = estadPartidos.loc[estadPartidos[('Info', 'prorrogas')] != 0][
-            ('Info', 'prorrogas')].describe()
+        if estadPartidos[colProrrogas].sum() != 0:
+            datosProrrogas = estadPartidos.loc[estadPartidos[colProrrogas] != 0][[colProrrogas]]
+            estadProrrogas = auxCalculaEstadsSubDataframe(datosProrrogas)
+            result = pd.concat([resultSinProrogas, estadProrrogas])
+        else:
+            result = resultSinProrogas
 
         # No tiene sentido sumar convocados y usados.
         # TODO: Podría tener sentido calcular jugadores únicos pero es trabajoso
@@ -473,10 +478,8 @@ class TemporadaACB(object):
             abrevEq = next(iter(idEq))  # Coge una abr cualquiera que corresponda al id. (se usa
             # abrev porque esas son fáciles de asociar a equipos)
             dfPartidosEq = self.dfPartidosLV2ER(dfTodosPartidos, abrevEq)
-
             dfEstadsAgrEq = self.dfEstadsEquipo(dfPartidosEq, abrEq=abrevEq)
             resultDict[abrevEq] = dfEstadsAgrEq
-
         result = pd.DataFrame.from_dict(data=resultDict, orient='index').sort_index()
 
         return result
