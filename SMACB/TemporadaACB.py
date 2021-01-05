@@ -391,7 +391,7 @@ class TemporadaACB(object):
         return result
 
     def dfPartidosLV2ER(self, partidos: pd.DataFrame, abrEq: str):
-        COLSINFO = ['Jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'url', 'competicion', 'temporada',
+        COLSINFO = ['jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'url', 'competicion', 'temporada',
                     'idPartido', 'Ptot', 'POStot']
 
         idEq = list(self.Calendario.tradEquipos['c2i'][abrEq])[0]
@@ -415,7 +415,7 @@ class TemporadaACB(object):
 
     def dfEstadsEquipo(self, dfEstadsPartidosEq: pd.DataFrame, abrEq: str):
         colProrrogas = ('Info', 'prorrogas')
-        COLDROPPER = [('Info', 'Jornada')]
+        COLDROPPER = [('Info', 'jornada')]
 
         abrevsEq = self.Calendario.abrevsEquipo(abrEq)
 

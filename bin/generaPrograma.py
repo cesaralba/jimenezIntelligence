@@ -584,32 +584,32 @@ def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
         try:
             priPartIzda = partsIzdaAux[0]
         except IndexError:
-            bloque['J'] = partsDchaAux[0].Jornada
+            bloque['J'] = partsDchaAux[0]['jornada']
             bloque['dcha'] = partidoTrayectoria(partsDchaAux.pop(0), abrevsDcha, tempData)
             lineas.append(bloque)
             continue
         try:
             priPartDcha = partsDchaAux[0]
         except IndexError:
-            bloque['J'] = priPartIzda.Jornada
+            bloque['J'] = priPartIzda['jornada']
             bloque['izda'] = partidoTrayectoria(partsIzdaAux.pop(0), abrevsIzda, tempData)
             lineas.append(bloque)
             continue
 
         bloque = dict()
-        if priPartIzda.Jornada == priPartDcha.Jornada:
-            bloque['J'] = priPartIzda.Jornada
+        if priPartIzda['jornada'] == priPartDcha['jornada']:
+            bloque['J'] = priPartIzda['jornada']
             bloque['izda'] = partidoTrayectoria(partsIzdaAux.pop(0), abrevsIzda, tempData)
             bloque['dcha'] = partidoTrayectoria(partsDchaAux.pop(0), abrevsDcha, tempData)
             if len(abrevsPartido.intersection(priPartIzda.CodigosCalendario.values())) == 2:
                 bloque['precedente'] = True
 
         else:
-            if (priPartIzda.fechaPartido, priPartIzda.Jornada) < (priPartDcha.fechaPartido, priPartDcha.Jornada):
-                bloque['J'] = priPartIzda.Jornada
+            if (priPartIzda.fechaPartido, priPartIzda['jornada']) < (priPartDcha.fechaPartido, priPartDcha['jornada']):
+                bloque['J'] = priPartIzda['jornada']
                 bloque['izda'] = partidoTrayectoria(partsIzdaAux.pop(0), abrevsIzda, tempData)
             else:
-                bloque['J'] = priPartDcha.Jornada
+                bloque['J'] = priPartDcha['jornada']
                 bloque['dcha'] = partidoTrayectoria(partsDchaAux.pop(0), abrevsDcha, tempData)
 
         lineas.append(bloque)
