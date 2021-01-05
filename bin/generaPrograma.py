@@ -576,6 +576,7 @@ def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
     abrIzda, abrDcha = abrevs
     abrevsIzda = tempData.Calendario.abrevsEquipo(abrIzda)
     abrevsDcha = tempData.Calendario.abrevsEquipo(abrDcha)
+    abrevsPartido = set().union(abrevsIzda).union(abrevsDcha)
 
     while (len(partsIzdaAux) > 0) or (len(partsDchaAux) > 0):
         bloque = dict()
@@ -600,6 +601,9 @@ def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
             bloque['J'] = priPartIzda.Jornada
             bloque['izda'] = partidoTrayectoria(partsIzdaAux.pop(0), abrevsIzda, tempData)
             bloque['dcha'] = partidoTrayectoria(partsDchaAux.pop(0), abrevsDcha, tempData)
+            if len(abrevsPartido.intersection(priPartIzda.CodigosCalendario.values())) == 2:
+                bloque['precedente'] = True
+
         else:
             if (priPartIzda.fechaPartido, priPartIzda.Jornada) < (priPartDcha.fechaPartido, priPartDcha.Jornada):
                 bloque['J'] = priPartIzda.Jornada
@@ -669,12 +673,15 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
 
 
 def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha):
+    CELLPAD = 0.3 * mm
+    FONTSIZE = 10
+
     listaTrayectoria = datosMezclaPartJugados(tempData, abrEqs, juIzda, juDcha)
     filas = []
 
-    resultStyle = ParagraphStyle('trayStyle', fontName='Helvetica', fontSize=12, align='center')
-    cellStyle = ParagraphStyle('trayStyle', fontName='Helvetica', fontSize=12)
-    jornStyle = ParagraphStyle('trayStyle', fontName='Helvetica-Bold', fontSize=13, align='right')
+    resultStyle = ParagraphStyle('trayStyle', fontName='Helvetica', fontSize=FONTSIZE, align='center')
+    cellStyle = ParagraphStyle('trayStyle', fontName='Helvetica', fontSize=FONTSIZE)
+    jornStyle = ParagraphStyle('trayStyle', fontName='Helvetica-Bold', fontSize=FONTSIZE + 1, align='right')
 
     for f in listaTrayectoria:
         datosIzda = f.get('izda', ['', ''])
@@ -691,7 +698,9 @@ def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha):
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black)])
 
-    t = Table(data=filas, style=tStyle, colWidths=[23 * mm, 72 * mm, 10 * mm, 72 * mm, 23 * mm])
+    t = Table(data=filas, style=tStyle,
+              colWidths=[FONTSIZE * 12 / 2, (FONTSIZE * 0.6) * 27, 4 * (FONTSIZE + 1) * 0.6, (FONTSIZE * 0.6) * 27,
+                         FONTSIZE * 12 / 2], rowHeights=FONTSIZE + 4)
 
     return t
 
