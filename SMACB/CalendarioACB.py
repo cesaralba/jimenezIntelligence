@@ -145,10 +145,10 @@ class CalendarioACB(object):
             datosPart = self.procesaBloquePartido(dictCab, artP)
 
             if datosPart['pendiente']:
-                if datosPart['fecha'] == NEVER:
+                if datosPart['fechaPartido'] == NEVER:
                     nuevaFecha = self.recuperaFechaAmbigua(datosPart, **kwargs)
                     if nuevaFecha:
-                        datosPart['fecha'] = nuevaFecha
+                        datosPart['fechaPartido'] = nuevaFecha
                 result['pendientes'].append(datosPart)
             else:
                 self.Partidos[datosPart['url']] = datosPart
@@ -160,7 +160,7 @@ class CalendarioACB(object):
         # TODO: incluir datos de competicion
         resultado = dict()
         resultado['pendiente'] = True
-        resultado['fecha'] = NEVER
+        resultado['fechaPartido'] = NEVER
         resultado['jornada'] = datosJornada['jornada']
 
         resultado['cod_competicion'] = self.competicion
@@ -208,7 +208,7 @@ class CalendarioACB(object):
                     cadFecha = auxFecha.lower()
                     cadHora = auxHora.strip() if auxHora else None
 
-                    resultado['fecha'] = procesaFechaHoraPartido(cadFecha.strip(), cadHora, datosJornada)
+                    resultado['fechaPartido'] = procesaFechaHoraPartido(cadFecha.strip(), cadHora, datosJornada)
 
         return resultado
 

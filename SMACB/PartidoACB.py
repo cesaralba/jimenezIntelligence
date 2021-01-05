@@ -398,7 +398,7 @@ class PartidoACB(object):
                 typesDF['V'] = 'float64'
 
             dfresult = pd.DataFrame.from_dict(dictJugador, orient='index').transpose()
-            dfresult['Fecha'] = self.fechaPartido
+            dfresult['fechaPartido'] = self.fechaPartido
             dfresult['local'] = dfresult['esLocal'].map(local2esp)
             dfresult['titular'] = dfresult['esTitular'].map(titular2esp)
 

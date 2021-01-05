@@ -16,6 +16,7 @@ from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, 
 from SMACB.CalendarioACB import NEVER
 from SMACB.Constants import LocalVisitante, OtherLoc, haGanado2esp
 from SMACB.FichaJugador import TRADPOSICION
+from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, precalculaOrdenEstadsLiga, COLSESTADSASCENDING, \
     auxEtiqPartido
 from Utils.FechaHora import Time2Str
@@ -135,7 +136,7 @@ INFOTABLAJUGS = {
     ('Totales', 'TAP-F'): {'etiq': 'Tap', 'ancho': 6, 'formato': 'entero'},
     ('Totales', 'TAP-C'): {'etiq': 'Tp R', 'ancho': 6, 'formato': 'entero'},
 
-    ('UltimoPart', 'etFecha'): {'etiq': 'Fecha', 'ancho': 6, 'generador': GENERADORFECHA(col='Fecha'),
+    ('UltimoPart', 'etFecha'): {'etiq': 'Fecha', 'ancho': 6, 'generador': GENERADORFECHA(col='fechaPartido'),
                                 'alignment': 'CENTER'},
     ('UltimoPart', 'Partido'): {'etiq': 'Rival', 'ancho': 22, 'alignment': 'LEFT'},
     ('UltimoPart', 'resultado'): {'etiq': 'Vc', 'ancho': 3, 'alignment': 'CENTER'},
@@ -270,7 +271,7 @@ def cabeceraPortada(partido, tempData):
     compo = partido['cod_competicion']
     edicion = partido['cod_edicion']
     j = partido['jornada']
-    fh = Time2Str(partido['fecha'])
+    fh = Time2Str(partido['fechaPartido'])
 
     style = ParagraphStyle('cabStyle', align='center', fontName='Helvetica', fontSize=20, leading=22, )
 
@@ -278,8 +279,8 @@ def cabeceraPortada(partido, tempData):
         f"<para align='center' fontName='Helvetica' fontSize=20 leading=22><b>{compo}</b> {edicion} - J: <b>{j}</b><br/>{fh}</para>",
         style)
 
-    cabLocal = datosCabEquipo(datosLocal, tempData, partido['fecha'])
-    cabVisit = datosCabEquipo(datosVisit, tempData, partido['fecha'])
+    cabLocal = datosCabEquipo(datosLocal, tempData, partido['fechaPartido'])
+    cabVisit = datosCabEquipo(datosVisit, tempData, partido['fechaPartido'])
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black)])
@@ -479,7 +480,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
 
     estadsPromedios = estadsJugDF[COLS_ESTAD_PROM].droplevel(1, axis=1)
     estadsTotales = estadsJugDF[COLS_ESTAD_TOTAL].droplevel(1, axis=1)
-    datosUltPart = jugDF.sort_values('Fecha').groupby('codigo').tail(n=1).set_index('codigo', drop=False)
+    datosUltPart = jugDF.sort_values('fechaPartido').groupby('codigo').tail(n=1).set_index('codigo', drop=False)
     datosUltPart['Partido'] = datosUltPart.apply(
         lambda p: auxEtiqPartido(tempData, p['CODrival'], esLocal=p['esLocal']), axis=1)
 
@@ -531,7 +532,8 @@ def datosTablaLiga(tempData: TemporadaACB):
         for _, idVisit in seqIDs:
             if idLocal != idVisit:
                 part = auxTabla[idLocal][idVisit]
-                fecha = part['fecha'].strftime("%d-%m") if (('fecha' in part) and (part['fecha'] != NEVER)) else 'TBD'
+                fecha = part['fechaPartido'].strftime("%d-%m") if (
+                        ('fechaPartido' in part) and (part['fechaPartido'] != NEVER)) else 'TBD'
                 jornada = part['jornada']
 
                 texto = f"J:{jornada}<br/>@{fecha}"
@@ -601,11 +603,15 @@ def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
             bloque['J'] = priPartIzda['jornada']
             bloque['izda'] = partidoTrayectoria(partsIzdaAux.pop(0), abrevsIzda, tempData)
             bloque['dcha'] = partidoTrayectoria(partsDchaAux.pop(0), abrevsDcha, tempData)
-            if len(abrevsPartido.intersection(priPartIzda.CodigosCalendario.values())) == 2:
+            abrevsPartIzda = priPartIzda.CodigosCalendario if isinstance(priPartIzda, PartidoACB) else priPartIzda[
+                'loc2abrev']
+
+            if len(abrevsPartido.intersection(abrevsPartIzda.values())) == 2:
                 bloque['precedente'] = True
 
         else:
-            if (priPartIzda.fechaPartido, priPartIzda['jornada']) < (priPartDcha.fechaPartido, priPartDcha['jornada']):
+            if (priPartIzda['fechaPartido'], priPartIzda['jornada']) < (
+                    priPartDcha['fechaPartido'], priPartDcha['jornada']):
                 bloque['J'] = priPartIzda['jornada']
                 bloque['izda'] = partidoTrayectoria(partsIzdaAux.pop(0), abrevsIzda, tempData)
             else:
@@ -645,29 +651,37 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
 
 def partidoTrayectoria(partido, abrevs, datosTemp):
     # Cadena de información del partido
-    strFecha = partido.fechaPartido.strftime("%d-%m")
-    abrEq = list(abrevs.intersection(partido.DatosSuministrados['participantes']))[0]
-    abrRival = list(partido.DatosSuministrados['participantes'].difference(abrevs))[0]
-    locEq = partido.DatosSuministrados['abrev2loc'][abrEq]
+
+    datosPartido = partido.DatosSuministrados if isinstance(partido, PartidoACB) else partido
+
+    strFecha = datosPartido['fechaPartido'].strftime("%d-%m") if datosPartido['fechaPartido'] != NEVER else "TBD"
+    abrEq = list(abrevs.intersection(datosPartido['participantes']))[0]
+    abrRival = list(datosPartido['participantes'].difference(abrevs))[0]
+    locEq = datosPartido['abrev2loc'][abrEq]
     locRival = OtherLoc(locEq)
     textRival = auxEtiqPartido(datosTemp, abrRival, locEq=locEq, usaLargo=False)
-    clasifAux = datosTemp.clasifEquipo(abrRival, partido.fechaPartido)
-    clasifStr = auxCalculaBalanceStr(clasifAux)
-    strRival = f"{strFecha}: {textRival} ({clasifStr})"
+    strRival = f"{strFecha}: {textRival}"
+
+    strResultado = None
+    if isinstance(partido, PartidoACB):
+        # Ya ha habido partido por lo que podemos calcular trayectoria anterior y resultado
+        clasifAux = datosTemp.clasifEquipo(abrRival, partido['fechaPartido'])
+        clasifStr = auxCalculaBalanceStr(clasifAux)
+        strRival = f"{strFecha}: {textRival} ({clasifStr})"
+        marcador = {loc: str(partido.DatosSuministrados['resultado'][loc]) for loc in LocalVisitante}
+        for loc in LocalVisitante:
+            if partido.DatosSuministrados['equipos'][loc]['haGanado']:
+                marcador[loc] = "<b>{}</b>".format(marcador[loc])
+            if loc == locEq:
+                marcador[loc] = "<u>{}</u>".format(marcador[loc])
+
+        resAux = [marcador[loc] for loc in LocalVisitante]
+
+        strResultado = "{} ({})".format("-".join(resAux),
+                                        haGanado2esp[datosPartido['equipos'][locEq]['haGanado']])
 
     # Cadena del resultado del partido
     # TODO: Esto debería ir en HTML o Markup correspondiente
-    marcador = {loc: str(partido.DatosSuministrados['resultado'][loc]) for loc in LocalVisitante}
-    for loc in LocalVisitante:
-        if partido.DatosSuministrados['equipos'][loc]['haGanado']:
-            marcador[loc] = "<b>{}</b>".format(marcador[loc])
-        if loc == locEq:
-            marcador[loc] = "<u>{}</u>".format(marcador[loc])
-
-    resAux = [marcador[loc] for loc in LocalVisitante]
-
-    strResultado = "{} ({})".format("-".join(resAux),
-                                    haGanado2esp[partido.DatosSuministrados['equipos'][locEq]['haGanado']])
 
     return strRival, strResultado
 
