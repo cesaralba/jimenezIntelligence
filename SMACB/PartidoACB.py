@@ -22,7 +22,7 @@ templateURLficha = "http://www.acb.com/fichas/%s%i%03i.php"
 class PartidoACB(object):
 
     def __init__(self, **kwargs):
-        self.Jornada = None
+        self.jornada = None
         self.fechaPartido = None
         self.Pabellon = None
         self.Asistencia = None
@@ -156,7 +156,7 @@ class PartidoACB(object):
 
         reJornada = r"^JORNADA\s*(\d+)$"
 
-        self.Jornada = int(ExtractREGroups(cadena=espTiempo.pop(0), regex=reJornada)[0])
+        self.jornada = int(ExtractREGroups(cadena=espTiempo.pop(0), regex=reJornada)[0])
         cadTiempo = espTiempo[0] + " " + espTiempo[1]
         PATRONdmyhm = r'^\s*(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})?$'
         REhora = re.match(PATRONdmyhm, cadTiempo)
@@ -199,7 +199,7 @@ class PartidoACB(object):
         result = dict()
         result['competicion'] = self.competicion
         result['temporada'] = self.temporada
-        result['jornada'] = self.Jornada
+        result['jornada'] = self.jornada
         result['equipo'] = self.Equipos[estado]['Nombre']
         result['CODequipo'] = self.Equipos[estado]['abrev']
         result['IDequipo'] = self.Equipos[estado]['id']
@@ -341,7 +341,7 @@ class PartidoACB(object):
         return (result)
 
     def resumenPartido(self):
-        return " * J %i: %s (%s) %i - %i %s (%s) " % (self.Jornada, self.EquiposCalendario['Local'],
+        return " * J %i: %s (%s) %i - %i %s (%s) " % (self.jornada, self.EquiposCalendario['Local'],
                                                       self.CodigosCalendario['Local'],
                                                       self.ResultadoCalendario['Local'],
                                                       self.ResultadoCalendario['Visitante'],
@@ -398,7 +398,7 @@ class PartidoACB(object):
                 typesDF['V'] = 'float64'
 
             dfresult = pd.DataFrame.from_dict(dictJugador, orient='index').transpose()
-            dfresult['Fecha'] = self.fechaPartido
+            dfresult['fechaPartido'] = self.fechaPartido
             dfresult['local'] = dfresult['esLocal'].map(local2esp)
             dfresult['titular'] = dfresult['esTitular'].map(titular2esp)
 
@@ -439,7 +439,7 @@ class PartidoACB(object):
                 self.Equipos[estado]['Entrenador'] = datos['codigo']
 
     def partidoAdataframe(self):
-        infoCols = ['Jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'VictoriaLocal', 'url',
+        infoCols = ['jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'VictoriaLocal', 'url',
                     'competicion', 'temporada', 'idPartido']
         equipoCols = ['id', 'Nombre', 'abrev']
 
@@ -510,11 +510,14 @@ class PartidoACB(object):
 
     def __str__(self):
         return "J %02i: [%s] %s (%s) %i - %i %s (%s)" % (
-            self.Jornada, self.fechaPartido,
+            self.jornada, self.fechaPartido,
             self.EquiposCalendario['Local']['nomblargo'], self.CodigosCalendario['Local'],
             self.ResultadoCalendario['Local'],
             self.ResultadoCalendario['Visitante'], self.EquiposCalendario['Visitante']['nomblargo'],
             self.CodigosCalendario['Visitante'])
+
+    def __getitem__(self, item):
+        return getattr(self, item)
 
     __repr__ = __str__
 

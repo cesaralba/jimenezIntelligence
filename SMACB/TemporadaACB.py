@@ -200,7 +200,7 @@ class TemporadaACB(object):
             curVal = None
             jf2periodo = defaultdict(lambda: defaultdict(int))
 
-            dfPairs = dfTemp.apply(lambda r: (r['Fecha'].date(), r['jornada']), axis=1).unique()
+            dfPairs = dfTemp.apply(lambda r: (r['fechaPartido'].date(), r['jornada']), axis=1).unique()
             for p in sorted(list(dfPairs)):
                 if curVal is None or curVal[1] != p[1]:
                     if curVal:
@@ -234,7 +234,7 @@ class TemporadaACB(object):
 
         periodos = jorFech2periodo(dfResult)
 
-        dfResult['periodo'] = dfResult.apply(lambda r: periodos[r['jornada']][r['Fecha'].date()], axis=1)
+        dfResult['periodo'] = dfResult.apply(lambda r: periodos[r['jornada']][r['fechaPartido'].date()], axis=1)
 
         return (dfResult)
 
@@ -280,15 +280,16 @@ class TemporadaACB(object):
         * Si la abrev objetivo es local (True) o visit (False)
         """
         juCal, peCal = self.Calendario.partidosEquipo(abrEq)
+        peOrd = sorted([p for p in peCal], key=lambda x: x['fechaPartido'])
 
-        peOrd = sorted([p for p in peCal], key=lambda x: x['fecha'])
         juOrdTem = sorted([self.Partidos[p['url']] for p in juCal], key=lambda x: x.fechaPartido)
 
         sigPart = peOrd.pop(0)
         abrevsEq = self.Calendario.abrevsEquipo(abrEq)
         abrRival = sigPart['participantes'].difference(abrevsEq).pop()
         juRivCal, peRivCal = self.Calendario.partidosEquipo(abrRival)
-        peRivOrd = sorted([p for p in peRivCal if p['jornada'] != sigPart['jornada']], key=lambda x: x['fecha'])
+
+        peRivOrd = sorted([p for p in peRivCal if p['jornada'] != sigPart['jornada']], key=lambda x: x['fechaPartido'])
         juRivTem = sorted([self.Partidos[p['url']] for p in juRivCal], key=lambda x: x.fechaPartido)
 
         eqIsLocal = sigPart['loc2abrev']['Local'] in abrevsEq
@@ -391,7 +392,7 @@ class TemporadaACB(object):
         return result
 
     def dfPartidosLV2ER(self, partidos: pd.DataFrame, abrEq: str):
-        COLSINFO = ['Jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'url', 'competicion', 'temporada',
+        COLSINFO = ['jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'url', 'competicion', 'temporada',
                     'idPartido', 'Ptot', 'POStot']
 
         idEq = list(self.Calendario.tradEquipos['c2i'][abrEq])[0]
@@ -415,7 +416,7 @@ class TemporadaACB(object):
 
     def dfEstadsEquipo(self, dfEstadsPartidosEq: pd.DataFrame, abrEq: str):
         colProrrogas = ('Info', 'prorrogas')
-        COLDROPPER = [('Info', 'Jornada')]
+        COLDROPPER = [('Info', 'jornada')]
 
         abrevsEq = self.Calendario.abrevsEquipo(abrEq)
 
@@ -505,7 +506,7 @@ def calculaZ(datos, clave, useStd=True, filtroFechas=None):
     clZ = 'Z' if useStd else 'D'
 
     finalKeys = ['codigo', 'competicion', 'temporada', 'jornada', 'CODequipo', 'CODrival', 'esLocal',
-                 'haJugado', 'Fecha', 'periodo', clave]
+                 'haJugado', 'fechaPartido', 'periodo', clave]
     finalTypes = {'CODrival': 'category', 'esLocal': 'bool', 'CODequipo': 'category',
                   ('half-' + clave): 'bool', ('aboveAvg-' + clave): 'bool', (clZ + '-' + clave): 'float64'}
     # We already merged SuperManager?

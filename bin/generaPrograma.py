@@ -16,6 +16,7 @@ from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, 
 from SMACB.CalendarioACB import NEVER
 from SMACB.Constants import LocalVisitante, OtherLoc, haGanado2esp
 from SMACB.FichaJugador import TRADPOSICION
+from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, precalculaOrdenEstadsLiga, COLSESTADSASCENDING, \
     auxEtiqPartido
 from Utils.FechaHora import Time2Str
@@ -135,7 +136,7 @@ INFOTABLAJUGS = {
     ('Totales', 'TAP-F'): {'etiq': 'Tap', 'ancho': 6, 'formato': 'entero'},
     ('Totales', 'TAP-C'): {'etiq': 'Tp R', 'ancho': 6, 'formato': 'entero'},
 
-    ('UltimoPart', 'etFecha'): {'etiq': 'Fecha', 'ancho': 6, 'generador': GENERADORFECHA(col='Fecha'),
+    ('UltimoPart', 'etFecha'): {'etiq': 'Fecha', 'ancho': 6, 'generador': GENERADORFECHA(col='fechaPartido'),
                                 'alignment': 'CENTER'},
     ('UltimoPart', 'Partido'): {'etiq': 'Rival', 'ancho': 22, 'alignment': 'LEFT'},
     ('UltimoPart', 'resultado'): {'etiq': 'Vc', 'ancho': 3, 'alignment': 'CENTER'},
@@ -270,7 +271,7 @@ def cabeceraPortada(partido, tempData):
     compo = partido['cod_competicion']
     edicion = partido['cod_edicion']
     j = partido['jornada']
-    fh = Time2Str(partido['fecha'])
+    fh = Time2Str(partido['fechaPartido'])
 
     style = ParagraphStyle('cabStyle', align='center', fontName='Helvetica', fontSize=20, leading=22, )
 
@@ -278,8 +279,8 @@ def cabeceraPortada(partido, tempData):
         f"<para align='center' fontName='Helvetica' fontSize=20 leading=22><b>{compo}</b> {edicion} - J: <b>{j}</b><br/>{fh}</para>",
         style)
 
-    cabLocal = datosCabEquipo(datosLocal, tempData, partido['fecha'])
-    cabVisit = datosCabEquipo(datosVisit, tempData, partido['fecha'])
+    cabLocal = datosCabEquipo(datosLocal, tempData, partido['fechaPartido'])
+    cabVisit = datosCabEquipo(datosVisit, tempData, partido['fechaPartido'])
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black)])
@@ -479,7 +480,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
 
     estadsPromedios = estadsJugDF[COLS_ESTAD_PROM].droplevel(1, axis=1)
     estadsTotales = estadsJugDF[COLS_ESTAD_TOTAL].droplevel(1, axis=1)
-    datosUltPart = jugDF.sort_values('Fecha').groupby('codigo').tail(n=1).set_index('codigo', drop=False)
+    datosUltPart = jugDF.sort_values('fechaPartido').groupby('codigo').tail(n=1).set_index('codigo', drop=False)
     datosUltPart['Partido'] = datosUltPart.apply(
         lambda p: auxEtiqPartido(tempData, p['CODrival'], esLocal=p['esLocal']), axis=1)
 
@@ -531,7 +532,8 @@ def datosTablaLiga(tempData: TemporadaACB):
         for _, idVisit in seqIDs:
             if idLocal != idVisit:
                 part = auxTabla[idLocal][idVisit]
-                fecha = part['fecha'].strftime("%d-%m") if (('fecha' in part) and (part['fecha'] != NEVER)) else 'TBD'
+                fecha = part['fechaPartido'].strftime("%d-%m") if (
+                        ('fechaPartido' in part) and (part['fechaPartido'] != NEVER)) else 'TBD'
                 jornada = part['jornada']
 
                 texto = f"J:{jornada}<br/>@{fecha}"
@@ -576,6 +578,7 @@ def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
     abrIzda, abrDcha = abrevs
     abrevsIzda = tempData.Calendario.abrevsEquipo(abrIzda)
     abrevsDcha = tempData.Calendario.abrevsEquipo(abrDcha)
+    abrevsPartido = set().union(abrevsIzda).union(abrevsDcha)
 
     while (len(partsIzdaAux) > 0) or (len(partsDchaAux) > 0):
         bloque = dict()
@@ -583,29 +586,36 @@ def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
         try:
             priPartIzda = partsIzdaAux[0]
         except IndexError:
-            bloque['J'] = partsDchaAux[0].Jornada
+            bloque['J'] = partsDchaAux[0]['jornada']
             bloque['dcha'] = partidoTrayectoria(partsDchaAux.pop(0), abrevsDcha, tempData)
             lineas.append(bloque)
             continue
         try:
             priPartDcha = partsDchaAux[0]
         except IndexError:
-            bloque['J'] = priPartIzda.Jornada
+            bloque['J'] = priPartIzda['jornada']
             bloque['izda'] = partidoTrayectoria(partsIzdaAux.pop(0), abrevsIzda, tempData)
             lineas.append(bloque)
             continue
 
         bloque = dict()
-        if priPartIzda.Jornada == priPartDcha.Jornada:
-            bloque['J'] = priPartIzda.Jornada
+        if priPartIzda['jornada'] == priPartDcha['jornada']:
+            bloque['J'] = priPartIzda['jornada']
             bloque['izda'] = partidoTrayectoria(partsIzdaAux.pop(0), abrevsIzda, tempData)
             bloque['dcha'] = partidoTrayectoria(partsDchaAux.pop(0), abrevsDcha, tempData)
+            abrevsPartIzda = priPartIzda.CodigosCalendario if isinstance(priPartIzda, PartidoACB) else priPartIzda[
+                'loc2abrev']
+
+            if len(abrevsPartido.intersection(abrevsPartIzda.values())) == 2:
+                bloque['precedente'] = True
+
         else:
-            if (priPartIzda.fechaPartido, priPartIzda.Jornada) < (priPartDcha.fechaPartido, priPartDcha.Jornada):
-                bloque['J'] = priPartIzda.Jornada
+            if (priPartIzda['fechaPartido'], priPartIzda['jornada']) < (
+                    priPartDcha['fechaPartido'], priPartDcha['jornada']):
+                bloque['J'] = priPartIzda['jornada']
                 bloque['izda'] = partidoTrayectoria(partsIzdaAux.pop(0), abrevsIzda, tempData)
             else:
-                bloque['J'] = priPartDcha.Jornada
+                bloque['J'] = priPartDcha['jornada']
                 bloque['dcha'] = partidoTrayectoria(partsDchaAux.pop(0), abrevsDcha, tempData)
 
         lineas.append(bloque)
@@ -641,45 +651,61 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
 
 def partidoTrayectoria(partido, abrevs, datosTemp):
     # Cadena de información del partido
-    strFecha = partido.fechaPartido.strftime("%d-%m")
-    abrEq = list(abrevs.intersection(partido.DatosSuministrados['participantes']))[0]
-    abrRival = list(partido.DatosSuministrados['participantes'].difference(abrevs))[0]
-    locEq = partido.DatosSuministrados['abrev2loc'][abrEq]
+
+    datosPartido = partido.DatosSuministrados if isinstance(partido, PartidoACB) else partido
+
+    datoFecha = partido.fechaPartido if isinstance(partido, PartidoACB) else datosPartido['fechaPartido']
+
+    strFecha = datoFecha.strftime("%d-%m") if datoFecha != NEVER else "TBD"
+    abrEq = list(abrevs.intersection(datosPartido['participantes']))[0]
+    abrRival = list(datosPartido['participantes'].difference(abrevs))[0]
+    locEq = datosPartido['abrev2loc'][abrEq]
     locRival = OtherLoc(locEq)
     textRival = auxEtiqPartido(datosTemp, abrRival, locEq=locEq, usaLargo=False)
-    clasifAux = datosTemp.clasifEquipo(abrRival, partido.fechaPartido)
-    clasifStr = auxCalculaBalanceStr(clasifAux)
-    strRival = f"{strFecha}: {textRival} ({clasifStr})"
+    strRival = f"{strFecha}: {textRival}"
 
-    # Cadena del resultado del partido
-    # TODO: Esto debería ir en HTML o Markup correspondiente
-    marcador = {loc: str(partido.DatosSuministrados['resultado'][loc]) for loc in LocalVisitante}
-    for loc in LocalVisitante:
-        if partido.DatosSuministrados['equipos'][loc]['haGanado']:
-            marcador[loc] = "<b>{}</b>".format(marcador[loc])
-        if loc == locEq:
-            marcador[loc] = "<u>{}</u>".format(marcador[loc])
+    strResultado = None
+    if isinstance(partido, PartidoACB):
+        # Ya ha habido partido por lo que podemos calcular trayectoria anterior y resultado
+        clasifAux = datosTemp.clasifEquipo(abrRival, partido['fechaPartido'])
+        clasifStr = auxCalculaBalanceStr(clasifAux)
+        strRival = f"{strFecha}: {textRival} ({clasifStr})"
+        marcador = {loc: str(partido.DatosSuministrados['resultado'][loc]) for loc in LocalVisitante}
+        for loc in LocalVisitante:
+            if partido.DatosSuministrados['equipos'][loc]['haGanado']:
+                marcador[loc] = "<b>{}</b>".format(marcador[loc])
+            if loc == locEq:
+                marcador[loc] = "<u>{}</u>".format(marcador[loc])
 
-    resAux = [marcador[loc] for loc in LocalVisitante]
+        resAux = [marcador[loc] for loc in LocalVisitante]
 
-    strResultado = "{} ({})".format("-".join(resAux),
-                                    haGanado2esp[partido.DatosSuministrados['equipos'][locEq]['haGanado']])
+        strResultado = "{} ({})".format("-".join(resAux),
+                                        haGanado2esp[datosPartido['equipos'][locEq]['haGanado']])
 
     return strRival, strResultado
 
 
-def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha):
+def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
+    CELLPAD = 0.2 * mm
+    FONTSIZE = 9
+
+    filasPrecedentes = set()
+
     listaTrayectoria = datosMezclaPartJugados(tempData, abrEqs, juIzda, juDcha)
+    listaFuturos = datosMezclaPartJugados(tempData, abrEqs, peIzda, peDcha)
+
     filas = []
 
-    resultStyle = ParagraphStyle('trayStyle', fontName='Helvetica', fontSize=12, align='center')
-    cellStyle = ParagraphStyle('trayStyle', fontName='Helvetica', fontSize=12)
-    jornStyle = ParagraphStyle('trayStyle', fontName='Helvetica-Bold', fontSize=13, align='right')
+    resultStyle = ParagraphStyle('trayStyle', fontName='Helvetica', fontSize=FONTSIZE, align='center')
+    cellStyle = ParagraphStyle('trayStyle', fontName='Helvetica', fontSize=FONTSIZE)
+    jornStyle = ParagraphStyle('trayStyle', fontName='Helvetica-Bold', fontSize=FONTSIZE + 1, align='right')
 
-    for f in listaTrayectoria:
+    for i, f in enumerate(listaTrayectoria):
         datosIzda = f.get('izda', ['', ''])
         datosDcha = f.get('dcha', ['', ''])
         jornada = f['J']
+        if 'precedente' in f:
+            filasPrecedentes.add(i)
 
         aux = [Paragraph(f"<para align='center'>{datosIzda[1]}</para>"),
                Paragraph(f"<para>{datosIzda[0]}</para>"),
@@ -687,11 +713,40 @@ def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha):
                Paragraph(f"<para>{datosDcha[0]}</para>"),
                Paragraph(f"<para align='center'>{datosDcha[1]}</para>")]
         filas.append(aux)
+    for i, f in enumerate(listaFuturos, start=len(listaTrayectoria)):
+        datosIzda, _ = f.get('izda', ['', None])
+        datosDcha, _ = f.get('dcha', ['', None])
+        jornada = f['J']
+        if 'precedente' in f:
+            if i == 0:  # Es el partido que vamos a tratar, no tiene sentido incluirlo
+                continue
+            filasPrecedentes.add(i)
+
+        aux = [Paragraph(f"<para>{datosIzda}</para>"), None,
+               Paragraph(f"<para align='center' fontName='Helvetica-Bold'>{str(jornada)}</para>"),
+               Paragraph(f"<para>{datosDcha}</para>"), None]
+        filas.append(aux)
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                         ('GRID', (0, 0), (-1, -1), 0.5, colors.black)])
+                         ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
+                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1), ])
 
-    t = Table(data=filas, style=tStyle, colWidths=[23 * mm, 72 * mm, 10 * mm, 72 * mm, 23 * mm])
+    # Formatos extra a la tabla
+    if len(listaTrayectoria) and len(listaFuturos):
+        tStyle.add("LINEABOVE", (0, len(listaTrayectoria)), (-1, len(listaTrayectoria)), 1 * mm, colors.black)
+    for fNum in filasPrecedentes:
+        tStyle.add("BACKGROUND", (0, fNum), (-1, fNum), colors.lightgrey)
+    for fNum, _ in enumerate(listaFuturos, start=len(listaTrayectoria)):
+        tStyle.add("SPAN", (0, fNum), (1, fNum))
+        tStyle.add("SPAN", (-2, fNum), (-1, fNum))
+
+    ANCHORESULTADO = (FONTSIZE * 0.6) * 12
+    ANCHOETPARTIDO = (FONTSIZE * 0.6) * 30
+    ANCHOJORNADA = ((FONTSIZE + 1) * 0.6) * 4
+
+    t = Table(data=filas, style=tStyle,
+              colWidths=[ANCHORESULTADO, ANCHOETPARTIDO, ANCHOJORNADA, ANCHOETPARTIDO, ANCHORESULTADO],
+              rowHeights=FONTSIZE + 4)
 
     return t
 
@@ -835,7 +890,7 @@ def preparaLibro(outfile, tempData, datosSig):
 
     story = []
 
-    (sigPartido, abrEqs, juIzda, peEq, juDcha, peRiv, targLocal) = datosSig
+    (sigPartido, abrEqs, juIzda, peIzda, juDcha, peDcha, targLocal) = datosSig
 
     antecedentes = {p.url for p in juIzda}.intersection({p.url for p in juDcha})
 
@@ -847,12 +902,14 @@ def preparaLibro(outfile, tempData, datosSig):
     if antecedentes:
         print("Antecedentes!")
     else:
-        story.append(Spacer(width=120 * mm, height=3 * mm))
-        story.append(Paragraph("Sin antecedentes esta temporada"))
+        # story.append(Spacer(width=120 * mm, height=3 * mm))
+        #
+        # story.append(Paragraph("Sin antecedentes esta temporada"))
+        pass
 
-    trayectoria = reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha)
+    trayectoria = reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha)
     if trayectoria:
-        story.append(Spacer(width=120 * mm, height=3 * mm))
+        story.append(Spacer(width=120 * mm, height=1 * mm))
         story.append(trayectoria)
 
     story.append(NextPageTemplate('apaisada'))
