@@ -20,7 +20,7 @@ from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Pandas import combinaPDindexes
 from Utils.Web import creaBrowser
 from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
-from .Constants import OtherLoc, EqRival, OtherTeam, LOCALNAMES
+from .Constants import OtherLoc, EqRival, OtherTeam, LOCALNAMES, LocalVisitante
 from .FichaJugador import FichaJugador
 from .PartidoACB import PartidoACB
 
@@ -391,36 +391,49 @@ class TemporadaACB(object):
         result = pd.concat(partidos_DFlist)
         return result
 
-    def dfPartidosLV2ER(self, partidos: pd.DataFrame, abrEq: str):
+    def dfPartidosLV2ER(self, partidos: pd.DataFrame, abrEq: str = None):
         COLSINFO = ['jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'url', 'competicion', 'temporada',
                     'idPartido', 'Ptot', 'POStot']
 
-        idEq = list(self.Calendario.tradEquipos['c2i'][abrEq])[0]
-        partidosEq = partidos.loc[(partidos['Local', 'id'] == idEq) | (partidos['Visitante', 'id'] == idEq)]
-
         finalDFlist = []
-        for esLocal in [True, False]:
-            tagEq, tagRival = ('Local', 'Visitante') if esLocal else ('Visitante', 'Local')
 
-            auxDFlocal = partidosEq.loc[(partidosEq['Local', 'id'] == idEq) == esLocal]
-            infoDF = auxDFlocal['Info'][COLSINFO]
-            eqDF = auxDFlocal[tagEq]
-            rivalDF = auxDFlocal[tagRival]
+        if abrEq:
+            idEq = list(self.Calendario.tradEquipos['c2i'][abrEq])[0]
+            partidosEq = partidos.loc[(partidos['Local', 'id'] == idEq) | (partidos['Visitante', 'id'] == idEq)]
 
-            auxDF = pd.concat([infoDF, eqDF, rivalDF], axis=1, keys=['Info', 'Eq', 'Rival'])
-            finalDFlist.append(auxDF)
+            for esLocal in [True, False]:
+                tagEq, tagRival = ('Local', 'Visitante') if esLocal else ('Visitante', 'Local')
+
+                auxDFlocal = partidosEq.loc[(partidosEq['Local', 'id'] == idEq) == esLocal]
+                infoDF = auxDFlocal['Info'][COLSINFO]
+                eqDF = auxDFlocal[tagEq]
+                rivalDF = auxDFlocal[tagRival]
+
+                auxDF = pd.concat([infoDF, eqDF, rivalDF], axis=1, keys=['Info', 'Eq', 'Rival'])
+                finalDFlist.append(auxDF)
+        else:
+            for loc in LocalVisitante:
+                infoDF = partidos['Info'][COLSINFO]
+                eqDF = partidos[loc]
+                rivalDF = partidos[OtherLoc(loc)]
+
+                auxDF = pd.concat([infoDF, eqDF, rivalDF], axis=1, keys=['Info', 'Eq', 'Rival'])
+                finalDFlist.append(auxDF)
 
         result = pd.concat(finalDFlist)
 
         return result.sort_values(by=('Info', 'fechaPartido'))
 
-    def dfEstadsEquipo(self, dfEstadsPartidosEq: pd.DataFrame, abrEq: str):
+    def dfEstadsEquipo(self, dfEstadsPartidosEq: pd.DataFrame, abrEq: str = None):
         colProrrogas = ('Info', 'prorrogas')
         COLDROPPER = [('Info', 'jornada')]
 
-        abrevsEq = self.Calendario.abrevsEquipo(abrEq)
+        if abrEq:
+            abrevsEq = self.Calendario.abrevsEquipo(abrEq)
 
-        estadPartidos = dfEstadsPartidosEq.loc[dfEstadsPartidosEq[('Eq', 'abrev')].isin(abrevsEq)]
+            estadPartidos = dfEstadsPartidosEq.loc[dfEstadsPartidosEq[('Eq', 'abrev')].isin(abrevsEq)]
+        else:
+            estadPartidos = dfEstadsPartidosEq
 
         resultSinProrogas = auxCalculaEstadsSubDataframe(estadPartidos.drop(columns=(COLDROPPER + [colProrrogas])))
 
