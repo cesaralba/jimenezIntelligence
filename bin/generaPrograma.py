@@ -101,6 +101,8 @@ INFOTABLAJUGS = {
     ('Jugador', 'pos'): {'etiq': 'Pos', 'ancho': 4, 'alignment': 'CENTER'},
     ('Jugador', 'altura'): {'etiq': 'Alt', 'ancho': 5},
     ('Jugador', 'licencia'): {'etiq': 'Lic', 'ancho': 5, 'alignment': 'CENTER'},
+    ('Jugador', 'etNac'): {'etiq': 'Nac', 'ancho': 5, 'alignment': 'CENTER',
+                           'generador': GENERADORFECHA(col='fechaNac', formato='%Y')},
     ('Trayectoria', 'Acta'): {'etiq': 'Cv', 'ancho': 3, 'formato': 'entero'},
     ('Trayectoria', 'Jugados'): {'etiq': 'Ju', 'ancho': 3, 'formato': 'entero'},
     ('Trayectoria', 'Titular'): {'etiq': 'Tt', 'ancho': 3, 'formato': 'entero'},
@@ -453,7 +455,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     COLS_TRAYECT_TEMP_orig_names = ['enActa', 'haJugado', 'esTitular', 'haGanado', ]
     COLS_TRAYECT_TEMP_orig = [(col, 'sum') for col in COLS_TRAYECT_TEMP_orig_names]
     COLS_TRAYECT_TEMP = ['Acta', 'Jugados', 'Titular', 'Vict']
-    COLS_FICHA = ['id', 'alias', 'pos', 'altura', 'licencia']
+    COLS_FICHA = ['id', 'alias', 'pos', 'altura', 'licencia', 'fechaNac']
     VALS_ESTAD_JUGADOR = ['A', 'BP', 'BR', 'FP-C', 'FP-F', 'P', 'ppTC', 'R-D', 'R-O', 'REB-T', 'Segs', 'T1-C', 'T1-I',
                           'T1%', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-I', 'TC-C', 'TC%', 'PTC', 'TAP-C',
                           'TAP-F']
@@ -762,8 +764,6 @@ def tablaJugadoresEquipo(jugDF):
 
     COLSIDENT = [('Jugador', 'dorsal'),
                  ('Jugador', 'nombre'),
-                 ('Jugador', 'pos'),
-                 ('Jugador', 'altura'),
                  ('Trayectoria', 'Acta'),
                  ('Trayectoria', 'Jugados'),
                  ('Trayectoria', 'Titular'),
@@ -771,6 +771,10 @@ def tablaJugadoresEquipo(jugDF):
                  ]
     COLSIDENT_UP = [('Jugador', 'dorsal'),
                     ('Jugador', 'nombre'),
+                    ('Jugador', 'pos'),
+                    ('Jugador', 'altura'),
+                    ('Jugador', 'licencia'),
+                    ('Jugador', 'etNac')
                     ]
 
     COLS_PROMED = [('Promedios', 'etSegs'),
