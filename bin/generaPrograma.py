@@ -34,8 +34,10 @@ ESTAD_SUMA = 6
 
 ESTADISTICOEQ = 'mean'
 ESTADISTICOJUG = 'mean'
+ANCHOTIROS = 16
+ANCHOREBOTES = 14
 
-FORMATOCAMPOS = {'entero': {'numero': '{:3.0f}'}, 'float': {'numero': '{:4.2f}'}, }
+FORMATOCAMPOS = {'entero': {'numero': '{:3.0f}'}, 'float': {'numero': '{:4.1f}'}, }
 
 COLS_IDENTIFIC_JUG = ['competicion', 'temporada', 'CODequipo', 'IDequipo', 'codigo', 'dorsal', 'nombre']
 
@@ -106,14 +108,14 @@ INFOTABLAJUGS = {
 
     ('Promedios', 'etSegs'): {'etiq': 'Min', 'ancho': 7, 'generador': GENERADORTIEMPO(col='Segs')},
     ('Promedios', 'P'): {'etiq': 'P', 'ancho': 7, 'formato': 'float'},
-    ('Promedios', 'etiqT2'): {'etiq': 'T2', 'ancho': 19, 'generador': GENERADORETTIRO('2', entero=False)},
-    ('Promedios', 'etiqT3'): {'etiq': 'T3', 'ancho': 19, 'generador': GENERADORETTIRO(tiro='3', entero=False)},
-    ('Promedios', 'etiqTC'): {'etiq': 'TC', 'ancho': 19, 'generador': GENERADORETTIRO('C', False)},
+    ('Promedios', 'etiqT2'): {'etiq': 'T2', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('2', entero=False)},
+    ('Promedios', 'etiqT3'): {'etiq': 'T3', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO(tiro='3', entero=False)},
+    ('Promedios', 'etiqTC'): {'etiq': 'TC', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('C', False)},
     ('Promedios', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
     ('Promedios', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'float'},
     ('Promedios', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'float'},
-    ('Promedios', 'etiqT1'): {'etiq': 'TL', 'ancho': 19, 'generador': GENERADORETTIRO('1', False)},
-    ('Promedios', 'etRebs'): {'etiq': 'Rebs', 'ancho': 17, 'generador': GENERADORETREBOTE(entero=False)},
+    ('Promedios', 'etiqT1'): {'etiq': 'TL', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('1', False)},
+    ('Promedios', 'etRebs'): {'etiq': 'Rebs', 'ancho': ANCHOREBOTES, 'generador': GENERADORETREBOTE(entero=False)},
     ('Promedios', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'float'},
     ('Promedios', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'float'},
     ('Promedios', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'float'},
@@ -122,14 +124,14 @@ INFOTABLAJUGS = {
 
     ('Totales', 'etSegs'): {'etiq': 'Min', 'ancho': 8, 'generador': GENERADORTIEMPO(col='Segs')},
     ('Totales', 'P'): {'etiq': 'P', 'ancho': 6, 'formato': 'entero'},
-    ('Totales', 'etiqT2'): {'etiq': 'T2', 'ancho': 19, 'generador': GENERADORETTIRO('2', entero=True)},
-    ('Totales', 'etiqT3'): {'etiq': 'T3', 'ancho': 19, 'generador': GENERADORETTIRO('3', entero=True)},
-    ('Totales', 'etiqTC'): {'etiq': 'TC', 'ancho': 19, 'generador': GENERADORETTIRO('C', entero=True)},
+    ('Totales', 'etiqT2'): {'etiq': 'T2', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('2', entero=True)},
+    ('Totales', 'etiqT3'): {'etiq': 'T3', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('3', entero=True)},
+    ('Totales', 'etiqTC'): {'etiq': 'TC', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('C', entero=True)},
     ('Totales', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
     ('Totales', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'entero'},
     ('Totales', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'entero'},
-    ('Totales', 'etiqT1'): {'etiq': 'TL', 'ancho': 19, 'generador': GENERADORETTIRO('1', entero=True)},
-    ('Totales', 'etRebs'): {'etiq': 'Rebs', 'ancho': 17, 'generador': GENERADORETREBOTE(entero=True)},
+    ('Totales', 'etiqT1'): {'etiq': 'TL', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('1', entero=True)},
+    ('Totales', 'etRebs'): {'etiq': 'Rebs', 'ancho': ANCHOREBOTES, 'generador': GENERADORETREBOTE(entero=True)},
     ('Totales', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'entero'},
     ('Totales', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'entero'},
     ('Totales', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'entero'},
@@ -173,7 +175,7 @@ def auxEtiqRebotes(df, entero: bool = True) -> str:
     if isnan(df['R-D']):
         return "-"
 
-    formato = "{:3}+{:3} {:3}" if entero else "{:6.2f}+{:6.2f} {:6.2f}"
+    formato = "{:3}+{:3} {:3}" if entero else "{:5.1f}+{:5.1f} {:5.1f}"
 
     valores = [int(v) if entero else v for v in [df['R-D'], df['R-O'], df['REB-T']]]
 
@@ -196,7 +198,7 @@ def auxEtiqTiempo(df, col='Segs'):
 
 
 def auxEtiqTiros(df, tiro, entero=True):
-    formato = "{:3}/{:3} {:6.2f}%" if entero else "{:6.2f}/{:6.2f} {:6.2f}%"
+    formato = "{:3}/{:3} {:5.1f}%" if entero else "{:5.1f}/{:5.1f} {:5.1f}%"
 
     etTC = f"T{tiro}-C"
     etTI = f"T{tiro}-I"
@@ -762,7 +764,6 @@ def tablaJugadoresEquipo(jugDF):
                  ('Jugador', 'nombre'),
                  ('Jugador', 'pos'),
                  ('Jugador', 'altura'),
-                 ('Jugador', 'licencia'),
                  ('Trayectoria', 'Acta'),
                  ('Trayectoria', 'Jugados'),
                  ('Trayectoria', 'Titular'),
