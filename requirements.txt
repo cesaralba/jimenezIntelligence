@@ -6,7 +6,8 @@ bs4
 MechanicalSoup
 babel
 pandas
-
+scipy
+numpy
 
 XlsxWriter==1.3.7
 

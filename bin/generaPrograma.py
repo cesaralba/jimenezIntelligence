@@ -1,6 +1,7 @@
 from collections import defaultdict
 from copy import copy
 
+import numpy as np
 import pandas as pd
 import sys
 from configargparse import ArgumentParser
@@ -12,17 +13,19 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, Spacer, NextPageTemplate, PageTemplate, \
     Frame, PageBreak
+from scipy import stats
 
 from SMACB.CalendarioACB import NEVER
 from SMACB.Constants import LocalVisitante, OtherLoc, haGanado2esp
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, precalculaOrdenEstadsLiga, COLSESTADSASCENDING, \
-    auxEtiqPartido
+    auxEtiqPartido, equipo2clasif
 from Utils.FechaHora import Time2Str
 
 estadGlobales = None
 estadGlobalesOrden = None
+clasifLiga = None
 
 ESTAD_MEDIA = 0
 ESTAD_MEDIANA = 1
@@ -166,9 +169,10 @@ ESTILOS = getSampleStyleSheet()
 
 
 def auxCalculaBalanceStr(record):
+    strPendiente = f" ({record['pendientes']})" if 'pendientes' in record else ""
     victorias = record.get('V', 0)
     derrotas = record.get('D', 0)
-    texto = f"{victorias}-{derrotas}"
+    texto = f"{victorias}-{derrotas}{strPendiente}"
 
     return texto
 
@@ -301,10 +305,12 @@ def cargaTemporada(fname):
 
 
 def datosCabEquipo(datosEq, tempData, fecha):
+    recuperaClasifLiga(tempData, fecha)
+
     # TODO: Imagen (descargar imagen de escudo y plantarla)
     nombre = datosEq['nombcorto']
 
-    clasifAux = tempData.clasifEquipo(datosEq['abrev'], fecha)
+    clasifAux = equipo2clasif(clasifLiga, datosEq['abrev'])
     clasifStr = auxCalculaBalanceStr(clasifAux)
 
     result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b></para>"),
@@ -319,6 +325,20 @@ def recuperaEstadsGlobales(tempData):
     if estadGlobales is None:
         estadGlobales = tempData.dfEstadsLiga()
         estadGlobalesOrden = precalculaOrdenEstadsLiga(estadGlobales, COLSESTADSASCENDING)
+
+
+def recuperaClasifLiga(tempData, fecha=None):
+    global clasifLiga
+
+    if clasifLiga is None:
+        clasifLiga = tempData.clasifLiga(fecha)
+        jugados = np.array([eq['Jug'] for eq in clasifLiga])
+        modaJug = stats.mode(jugados).mode[0]
+
+        for eq in clasifLiga:
+            if eq['Jug'] != modaJug:
+                pendientes = modaJug - eq['Jug']
+                eq.update({'pendientes': pendientes})
 
 
 def datosEstadsEquipoPortada(tempData: TemporadaACB, eq: str):
@@ -499,6 +519,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
 
 
 def datosTablaLiga(tempData: TemporadaACB):
+    recuperaClasifLiga(tempData)
     FONTSIZE = 10
     CELLPAD = 3 * mm
 
@@ -520,18 +541,17 @@ def datosTablaLiga(tempData: TemporadaACB):
 
     # En la clasificación está el contenido de los márgenes, de las diagonales y el orden de presentación
     # de los equipos
-    clasif = tempData.clasifLiga()
-    seqIDs = [(pos, list(equipo['idEq'])[0]) for pos, equipo in enumerate(clasif)]
+    seqIDs = [(pos, list(equipo['idEq'])[0]) for pos, equipo in enumerate(clasifLiga)]
 
     datosTabla = []
     cabFila = [Paragraph('<b>Casa/Fuera</b>', style=estCelda)] + [
-        Paragraph('<b>' + list(clasif[pos]['abrevsEq'])[0] + '</b>', style=estCelda) for pos, _ in seqIDs] + [
+        Paragraph('<b>' + list(clasifLiga[pos]['abrevsEq'])[0] + '</b>', style=estCelda) for pos, _ in seqIDs] + [
                   Paragraph('<b>Como local</b>', style=estCelda)]
     datosTabla.append(cabFila)
     for pos, idLocal in seqIDs:
         fila = []
-        nombreCorto = sorted(clasif[pos]['nombresEq'], key=lambda n: len(n))[0]
-        abrev = list(clasif[pos]['abrevsEq'])[0]
+        nombreCorto = sorted(clasifLiga[pos]['nombresEq'], key=lambda n: len(n))[0]
+        abrev = list(clasifLiga[pos]['abrevsEq'])[0]
         fila.append(Paragraph(f"{nombreCorto} (<b>{abrev}</b>)", style=estCelda))
         for _, idVisit in seqIDs:
             if idLocal != idVisit:
@@ -549,16 +569,16 @@ def datosTablaLiga(tempData: TemporadaACB):
                     pVisit = part['equipos']['Visitante']['puntos']
                     texto = f"J:{jornada}<br/><b>{pLocal}-{pVisit}</b>"
             else:
-                auxTexto = auxCalculaBalanceStr(clasif[pos])
+                auxTexto = auxCalculaBalanceStr(clasifLiga[pos])
                 texto = f"<b>{auxTexto}</b>"
             fila.append(Paragraph(texto, style=estCelda))
 
-        fila.append(Paragraph(auxCalculaBalanceStr(clasif[pos]['CasaFuera']['Local']), style=estCelda))
+        fila.append(Paragraph(auxCalculaBalanceStr(clasifLiga[pos]['CasaFuera']['Local']), style=estCelda))
         datosTabla.append(fila)
 
     filaBalFuera = [Paragraph('<b>Como visitante</b>', style=estCelda)]
     for pos, idLocal in seqIDs:
-        filaBalFuera.append(Paragraph(auxCalculaBalanceStr(clasif[pos]['CasaFuera']['Visitante']), style=estCelda))
+        filaBalFuera.append(Paragraph(auxCalculaBalanceStr(clasifLiga[pos]['CasaFuera']['Visitante']), style=estCelda))
     filaBalFuera.append([])
     datosTabla.append(filaBalFuera)
 

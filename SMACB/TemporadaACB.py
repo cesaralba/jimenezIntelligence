@@ -687,3 +687,15 @@ def auxEtiqPartido(tempData: TemporadaACB, rivalAbr, esLocal=None, locEq=None, u
     result = f"{prefLoc}{nombre}"
 
     return result
+
+
+def equipo2clasif(clasifLiga, abrEq):
+    result = None
+
+    for eqData in clasifLiga:
+        if abrEq in eqData['abrevsEq']:
+            return eqData
+
+    print("CAP equipo2clasif", abrEq)
+    print(clasifLiga)
+    return result
