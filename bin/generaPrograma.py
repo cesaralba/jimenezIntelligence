@@ -25,6 +25,7 @@ from Utils.FechaHora import Time2Str
 
 estadGlobales = None
 estadGlobalesOrden = None
+
 clasifLiga = None
 
 ESTAD_MEDIA = 0
@@ -675,7 +676,6 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
 
 def partidoTrayectoria(partido, abrevs, datosTemp):
     # Cadena de información del partido
-
     datosPartido = partido.DatosSuministrados if isinstance(partido, PartidoACB) else partido
 
     datoFecha = partido.fechaPartido if isinstance(partido, PartidoACB) else datosPartido['fechaPartido']
@@ -737,6 +737,7 @@ def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
                Paragraph(f"<para>{datosDcha[0]}</para>"),
                Paragraph(f"<para align='center'>{datosDcha[1]}</para>")]
         filas.append(aux)
+
     for i, f in enumerate(listaFuturos, start=len(listaTrayectoria)):
         datosIzda, _ = f.get('izda', ['', None])
         datosDcha, _ = f.get('dcha', ['', None])
