@@ -66,6 +66,8 @@ class TemporadaACB(object):
     Aglutina calendario y lista de partidos
     '''
 
+    #TODO: función __str__
+
     def __init__(self, **kwargs):
         self.competicion = kwargs.get('competicion', "LACB")
         self.edicion = kwargs.get('edicion', None)
