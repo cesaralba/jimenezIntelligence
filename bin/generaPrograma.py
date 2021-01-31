@@ -230,7 +230,7 @@ def auxEtFecha(f, col, formato="%d-%m"):
     return result
 
 
-def auxGeneraTabla(dfDatos, collist, colSpecs, estiloTablaBaseOps, formatos=None, charWidth=10.0):
+def auxGeneraTabla(dfDatos, collist, colSpecs, estiloTablaBaseOps, formatos=None, charWidth=10.0, **kwargs):
     dfColList = []
     filaCab = []
     anchoCols = []
@@ -268,7 +268,7 @@ def auxGeneraTabla(dfDatos, collist, colSpecs, estiloTablaBaseOps, formatos=None
 
     datosTabla = [filaCab] + datosAux.to_records(index=False, column_dtypes='object').tolist()
 
-    t = Table(datosTabla, style=tStyle, colWidths=anchoCols)
+    t = Table(datosTabla, style=tStyle, colWidths=anchoCols, **kwargs)
 
     return t
 
@@ -656,9 +656,11 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
+
         for t in tablasJugadIzda:
             result.append(Spacer(100 * mm, 2 * mm))
             result.append(t)
+            result.append(NextPageTemplate('apaisada'))
 
     if len(juDcha):
         datosIzda = datosJugadores(tempData, abrEqs[1], juDcha)
@@ -863,7 +865,7 @@ def tablaJugadoresEquipo(jugDF):
 
     for colList in [(COLSIDENT + COLS_PROMED), (COLSIDENT + COLS_TOTALES),
                     (COLSIDENT_UP + COLS_ULTP)]:  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
-        t = auxGeneraTabla(auxDF, colList, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA)
+        t = auxGeneraTabla(auxDF, colList, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA, repeatRows=1)
 
         result.append(t)
 
