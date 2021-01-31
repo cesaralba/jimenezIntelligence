@@ -698,6 +698,4 @@ def equipo2clasif(clasifLiga, abrEq):
         if abrEq in eqData['abrevsEq']:
             return eqData
 
-    print("CAP equipo2clasif", abrEq)
-    print(clasifLiga)
     return result
