@@ -13,7 +13,6 @@ from typing import Iterable
 
 import numpy as np
 import pandas as pd
-
 from sys import exc_info, setrecursionlimit
 from time import gmtime
 
@@ -21,7 +20,7 @@ from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Pandas import combinaPDindexes
 from Utils.Web import creaBrowser
 from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
-from .Constants import OtherLoc, EqRival, OtherTeam, LOCALNAMES
+from .Constants import OtherLoc, EqRival, OtherTeam, LOCALNAMES, LocalVisitante
 from .FichaJugador import FichaJugador
 from .PartidoACB import PartidoACB
 
@@ -66,6 +65,8 @@ class TemporadaACB(object):
     '''
     Aglutina calendario y lista de partidos
     '''
+
+    #TODO: función __str__
 
     def __init__(self, **kwargs):
         self.competicion = kwargs.get('competicion', "LACB")
@@ -201,7 +202,7 @@ class TemporadaACB(object):
             curVal = None
             jf2periodo = defaultdict(lambda: defaultdict(int))
 
-            dfPairs = dfTemp.apply(lambda r: (r['Fecha'].date(), r['jornada']), axis=1).unique()
+            dfPairs = dfTemp.apply(lambda r: (r['fechaPartido'].date(), r['jornada']), axis=1).unique()
             for p in sorted(list(dfPairs)):
                 if curVal is None or curVal[1] != p[1]:
                     if curVal:
@@ -235,7 +236,7 @@ class TemporadaACB(object):
 
         periodos = jorFech2periodo(dfResult)
 
-        dfResult['periodo'] = dfResult.apply(lambda r: periodos[r['jornada']][r['Fecha'].date()], axis=1)
+        dfResult['periodo'] = dfResult.apply(lambda r: periodos[r['jornada']][r['fechaPartido'].date()], axis=1)
 
         return (dfResult)
 
@@ -281,15 +282,16 @@ class TemporadaACB(object):
         * Si la abrev objetivo es local (True) o visit (False)
         """
         juCal, peCal = self.Calendario.partidosEquipo(abrEq)
+        peOrd = sorted([p for p in peCal], key=lambda x: x['fechaPartido'])
 
-        peOrd = sorted([p for p in peCal], key=lambda x: x['fecha'])
         juOrdTem = sorted([self.Partidos[p['url']] for p in juCal], key=lambda x: x.fechaPartido)
 
         sigPart = peOrd.pop(0)
         abrevsEq = self.Calendario.abrevsEquipo(abrEq)
         abrRival = sigPart['participantes'].difference(abrevsEq).pop()
         juRivCal, peRivCal = self.Calendario.partidosEquipo(abrRival)
-        peRivOrd = sorted([p for p in peRivCal if p['jornada'] != sigPart['jornada']], key=lambda x: x['fecha'])
+
+        peRivOrd = sorted([p for p in peRivCal if p['jornada'] != sigPart['jornada']], key=lambda x: x['fechaPartido'])
         juRivTem = sorted([self.Partidos[p['url']] for p in juRivCal], key=lambda x: x.fechaPartido)
 
         eqIsLocal = sigPart['loc2abrev']['Local'] in abrevsEq
@@ -391,41 +393,59 @@ class TemporadaACB(object):
         result = pd.concat(partidos_DFlist)
         return result
 
-    def dfPartidosLV2ER(self, partidos: pd.DataFrame, abrEq: str):
-        COLSINFO = ['Jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'url', 'competicion', 'temporada',
+    def dfPartidosLV2ER(self, partidos: pd.DataFrame, abrEq: str = None):
+        COLSINFO = ['jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'url', 'competicion', 'temporada',
                     'idPartido', 'Ptot', 'POStot']
 
-        idEq = list(self.Calendario.tradEquipos['c2i'][abrEq])[0]
-        partidosEq = partidos.loc[(partidos['Local', 'id'] == idEq) | (partidos['Visitante', 'id'] == idEq)]
-
         finalDFlist = []
-        for esLocal in [True, False]:
-            tagEq, tagRival = ('Local', 'Visitante') if esLocal else ('Visitante', 'Local')
 
-            auxDFlocal = partidosEq.loc[(partidosEq['Local', 'id'] == idEq) == esLocal]
-            infoDF = auxDFlocal['Info'][COLSINFO]
-            eqDF = auxDFlocal[tagEq]
-            rivalDF = auxDFlocal[tagRival]
+        if abrEq:
+            idEq = list(self.Calendario.tradEquipos['c2i'][abrEq])[0]
+            partidosEq = partidos.loc[(partidos['Local', 'id'] == idEq) | (partidos['Visitante', 'id'] == idEq)]
 
-            auxDF = pd.concat([infoDF, eqDF, rivalDF], axis=1, keys=['Info', 'Eq', 'Rival'])
-            finalDFlist.append(auxDF)
+            for esLocal in [True, False]:
+                tagEq, tagRival = ('Local', 'Visitante') if esLocal else ('Visitante', 'Local')
+
+                auxDFlocal = partidosEq.loc[(partidosEq['Local', 'id'] == idEq) == esLocal]
+                infoDF = auxDFlocal['Info'][COLSINFO]
+                eqDF = auxDFlocal[tagEq]
+                rivalDF = auxDFlocal[tagRival]
+
+                auxDF = pd.concat([infoDF, eqDF, rivalDF], axis=1, keys=['Info', 'Eq', 'Rival'])
+                finalDFlist.append(auxDF)
+        else:
+            for loc in LocalVisitante:
+                infoDF = partidos['Info'][COLSINFO]
+                eqDF = partidos[loc]
+                rivalDF = partidos[OtherLoc(loc)]
+
+                auxDF = pd.concat([infoDF, eqDF, rivalDF], axis=1, keys=['Info', 'Eq', 'Rival'])
+                finalDFlist.append(auxDF)
 
         result = pd.concat(finalDFlist)
 
         return result.sort_values(by=('Info', 'fechaPartido'))
 
-    def dfEstadsEquipo(self, dfEstadsPartidosEq: pd.DataFrame, abrEq: str):
-        COLDROPPER = [('Info', 'Jornada')]
+    def dfEstadsEquipo(self, dfEstadsPartidosEq: pd.DataFrame, abrEq: str = None):
+        colProrrogas = ('Info', 'prorrogas')
+        COLDROPPER = [('Info', 'jornada')]
 
-        abrevsEq = self.Calendario.abrevsEquipo(abrEq)
+        if abrEq:
+            abrevsEq = self.Calendario.abrevsEquipo(abrEq)
 
-        estadPartidos = dfEstadsPartidosEq.loc[dfEstadsPartidosEq[('Eq', 'abrev')].isin(abrevsEq)]
+            estadPartidos = dfEstadsPartidosEq.loc[dfEstadsPartidosEq[('Eq', 'abrev')].isin(abrevsEq)]
+        else:
+            estadPartidos = dfEstadsPartidosEq
 
-        result = auxCalculaEstadsSubDataframe(estadPartidos.drop(columns=COLDROPPER))
+        resultSinProrogas = auxCalculaEstadsSubDataframe(estadPartidos.drop(columns=(COLDROPPER + [colProrrogas])))
 
         # Sólo cuenta prórrogas de partidos donde ha habido
-        result[('Info', 'prorrogas')] = estadPartidos.loc[estadPartidos[('Info', 'prorrogas')] != 0][
-            ('Info', 'prorrogas')].describe()
+        if estadPartidos[colProrrogas].sum() != 0:
+            datosProrrogas = estadPartidos.loc[estadPartidos[colProrrogas] != 0][[colProrrogas]]
+            estadProrrogas = auxCalculaEstadsSubDataframe(datosProrrogas)
+            result = pd.concat([resultSinProrogas, estadProrrogas])
+        else:
+            result = resultSinProrogas
 
         # No tiene sentido sumar convocados y usados.
         # TODO: Podría tener sentido calcular jugadores únicos pero es trabajoso
@@ -474,10 +494,8 @@ class TemporadaACB(object):
             abrevEq = next(iter(idEq))  # Coge una abr cualquiera que corresponda al id. (se usa
             # abrev porque esas son fáciles de asociar a equipos)
             dfPartidosEq = self.dfPartidosLV2ER(dfTodosPartidos, abrevEq)
-
             dfEstadsAgrEq = self.dfEstadsEquipo(dfPartidosEq, abrEq=abrevEq)
             resultDict[abrevEq] = dfEstadsAgrEq
-
         result = pd.DataFrame.from_dict(data=resultDict, orient='index').sort_index()
 
         return result
@@ -503,7 +521,7 @@ def calculaZ(datos, clave, useStd=True, filtroFechas=None):
     clZ = 'Z' if useStd else 'D'
 
     finalKeys = ['codigo', 'competicion', 'temporada', 'jornada', 'CODequipo', 'CODrival', 'esLocal',
-                 'haJugado', 'Fecha', 'periodo', clave]
+                 'haJugado', 'fechaPartido', 'periodo', clave]
     finalTypes = {'CODrival': 'category', 'esLocal': 'bool', 'CODequipo': 'category',
                   ('half-' + clave): 'bool', ('aboveAvg-' + clave): 'bool', (clZ + '-' + clave): 'float64'}
     # We already merged SuperManager?
@@ -569,6 +587,116 @@ def entradaClas2k(ent: dict) -> tuple:
     ratioVent = ((ent.get('Pfav', 0) - ent.get('Pcon', 0)) / ent.get('Jug')) if ent.get('Jug', 0) else 0.0
 
     result = (ratioV, ent.get('V', 0), ratioVent, ent.get('Pfav', 0))
+
+    return result
+
+
+def ordenEstadsLiga(estads: dict, abr: str, eq: str = 'eq', clave: str = 'P', subclave=0, decrec: bool = True) -> int:
+    if abr not in estads:
+        valCorrectos = ", ".join(sorted(estads.keys()))
+        raise KeyError(f"ordenEstadsLiga: equipo (abr) '{abr}' desconocido. Equipos validos: {valCorrectos}")
+    targEquipo = estads[abr]
+    if eq not in targEquipo:
+        valCorrectos = ", ".join(sorted(targEquipo.keys()))
+        raise KeyError(f"ordenEstadsLiga: ref (eq) '{eq}' desconocido. Referencias válidas: {valCorrectos}")
+    targValores = targEquipo[eq]
+    if clave not in targValores:
+        valCorrectos = ", ".join(sorted(targValores.keys()))
+        raise KeyError(f"ordenEstadsLiga: clave '{clave}' desconocida. Claves válidas: {valCorrectos}")
+
+    auxRef = targValores[clave][subclave] if isinstance(targValores[clave], tuple) else targValores[clave]
+
+    valAcomp = [estads[e][eq][clave] for e in estads.keys()]
+
+    keyGetter = (lambda v, subclave: v[subclave]) if isinstance(targValores[clave], tuple) else (lambda v, subclave: v)
+
+    comparaValores = (lambda x, auxref: x > auxref) if decrec else (lambda x, auxref: x < auxref)
+
+    return sum([comparaValores(keyGetter(v, subclave), auxRef) for v in valAcomp]) + 1
+
+
+def extraeCampoYorden(estads: pd.DataFrame, estadsOrden: pd.DataFrame, eq: str = 'eq', clave: str = 'P',
+                      estadistico='mean'):
+    targetCol = (eq, clave, estadistico)
+
+    if targetCol not in estads.index:
+        valCorrectos = ", ".join(sorted(estads.index).map(str))
+        raise KeyError(
+            f"extraeCampoYorden: parametros para dato '{targetCol}' desconocidos. Referencias válidas: {valCorrectos}")
+
+    valor = estads.loc[targetCol]
+    orden = estadsOrden.loc[targetCol]
+
+    return valor, orden
+
+
+def precalculaOrdenEstadsLiga(dfEstads: pd.DataFrame, listAscending=None):
+    resultDict = dict()
+
+    colsChangeMult = set(listAscending) if listAscending else {}
+
+    for col in dfEstads.columns:
+        multiplicador = 1 if col in colsChangeMult else -1  # En general queremos que sea descendente
+        colAusar = multiplicador * dfEstads[col]
+        ordenIDX = colAusar.index[colAusar.argsort()]
+        auxDict = {eq: pos for pos, eq in enumerate(ordenIDX, start=1)}
+        auxSerie = pd.Series(data=auxDict)
+        resultDict[col] = auxSerie
+
+    result = pd.DataFrame.from_dict(resultDict, orient='columns').sort_index()
+    return result
+
+
+def auxCalculaEstadsSubDataframe(dfEntrada: pd.DataFrame):
+    FILASESTADISTICOS = ['count', 'mean', 'std', 'min', '50%', 'max']
+    ROWRENAMER = {'50%': 'median'}
+    COLDROPPER = []
+
+    estadisticosNumber = dfEntrada.describe(include=[np.number], percentiles=[.50])
+    # Necesario porque describe trata los bool como categóricos
+    estadisticosBool = dfEntrada.select_dtypes([np.bool]).astype(np.int64).apply(
+        lambda c: c.describe(percentiles=[.50]))
+
+    auxEstadisticos = pd.concat([estadisticosNumber, estadisticosBool], axis=1).T[FILASESTADISTICOS].T
+
+    # Hay determinados campos que no tiene sentido sumar. Así que sumamos todos y luego ponemos a nan los que no
+    # Para estos tengo dudas filosóficas de cómo calcular la media (¿media del valor de cada partido o calcular el
+    # ratio a partir de las sumas?
+    sumas = dfEntrada[auxEstadisticos.columns].select_dtypes([np.number, np.bool]).sum()
+
+    sumasDF = pd.DataFrame(sumas).T
+    sumasDF.index = pd.Index(['sum'])
+
+    finalDF = pd.concat([auxEstadisticos, sumasDF]).rename(index=ROWRENAMER)
+
+    result = finalDF.unstack()
+
+    return result
+
+
+def auxEtiqPartido(tempData: TemporadaACB, rivalAbr, esLocal=None, locEq=None, usaAbr=False, usaLargo=False):
+    if (esLocal is None) and (locEq is None):
+        raise ValueError("auxEtiqPartido: debe aportar o esLocal o locEq")
+
+    auxLoc = esLocal if (esLocal is not None) else (locEq in LOCALNAMES)
+    prefLoc = "vs " if auxLoc else "@"
+
+    ordenNombre = -1 if usaLargo else 0
+
+    nombre = rivalAbr if usaAbr else sorted(tempData.Calendario.tradEquipos['c2n'][rivalAbr], key=lambda n: len(n))[
+        ordenNombre]
+
+    result = f"{prefLoc}{nombre}"
+
+    return result
+
+
+def equipo2clasif(clasifLiga, abrEq):
+    result = None
+
+    for eqData in clasifLiga:
+        if abrEq in eqData['abrevsEq']:
+            return eqData
 
     return result
 

@@ -30,13 +30,13 @@ if __name__ == '__main__':
             changesP = False
             datosPartido = temporada.Partidos[partidoID]
 
-            if datosPartido.Jornada != jornadaT:
-                datosPartido.Jornada = jornadaT
+            if datosPartido.jornada != jornadaT:
+                datosPartido.jornada = jornadaT
                 changes = True
 
             nuevosDatos = {'competicion': datosPartido.competicion,
                            'temporada': datosPartido.temporada,
-                           'jornada': datosPartido.Jornada
+                           'jornada': datosPartido.jornada
                            }
 
             for jugID in datosPartido.Jugadores:
