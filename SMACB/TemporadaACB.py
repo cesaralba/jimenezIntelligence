@@ -66,6 +66,8 @@ class TemporadaACB(object):
     Aglutina calendario y lista de partidos
     '''
 
+    #TODO: función __str__
+
     def __init__(self, **kwargs):
         self.competicion = kwargs.get('competicion', "LACB")
         self.edicion = kwargs.get('edicion', None)
@@ -685,5 +687,15 @@ def auxEtiqPartido(tempData: TemporadaACB, rivalAbr, esLocal=None, locEq=None, u
         ordenNombre]
 
     result = f"{prefLoc}{nombre}"
+
+    return result
+
+
+def equipo2clasif(clasifLiga, abrEq):
+    result = None
+
+    for eqData in clasifLiga:
+        if abrEq in eqData['abrevsEq']:
+            return eqData
 
     return result

@@ -1,6 +1,7 @@
 from collections import defaultdict
 from copy import copy
 
+import numpy as np
 import pandas as pd
 import sys
 from configargparse import ArgumentParser
@@ -12,17 +13,19 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, Spacer, NextPageTemplate, PageTemplate, \
     Frame, PageBreak
+from scipy import stats
 
 from SMACB.CalendarioACB import NEVER
 from SMACB.Constants import LocalVisitante, OtherLoc, haGanado2esp
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, precalculaOrdenEstadsLiga, COLSESTADSASCENDING, \
-    auxEtiqPartido
+    auxEtiqPartido, equipo2clasif
 from Utils.FechaHora import Time2Str
 
 estadGlobales = None
 estadGlobalesOrden = None
+clasifLiga = None
 
 ESTAD_MEDIA = 0
 ESTAD_MEDIANA = 1
@@ -34,8 +37,10 @@ ESTAD_SUMA = 6
 
 ESTADISTICOEQ = 'mean'
 ESTADISTICOJUG = 'mean'
+ANCHOTIROS = 16
+ANCHOREBOTES = 14
 
-FORMATOCAMPOS = {'entero': {'numero': '{:3.0f}'}, 'float': {'numero': '{:4.2f}'}, }
+FORMATOCAMPOS = {'entero': {'numero': '{:3.0f}'}, 'float': {'numero': '{:4.1f}'}, }
 
 COLS_IDENTIFIC_JUG = ['competicion', 'temporada', 'CODequipo', 'IDequipo', 'codigo', 'dorsal', 'nombre']
 
@@ -99,6 +104,8 @@ INFOTABLAJUGS = {
     ('Jugador', 'pos'): {'etiq': 'Pos', 'ancho': 4, 'alignment': 'CENTER'},
     ('Jugador', 'altura'): {'etiq': 'Alt', 'ancho': 5},
     ('Jugador', 'licencia'): {'etiq': 'Lic', 'ancho': 5, 'alignment': 'CENTER'},
+    ('Jugador', 'etNac'): {'etiq': 'Nac', 'ancho': 5, 'alignment': 'CENTER',
+                           'generador': GENERADORFECHA(col='fechaNac', formato='%Y')},
     ('Trayectoria', 'Acta'): {'etiq': 'Cv', 'ancho': 3, 'formato': 'entero'},
     ('Trayectoria', 'Jugados'): {'etiq': 'Ju', 'ancho': 3, 'formato': 'entero'},
     ('Trayectoria', 'Titular'): {'etiq': 'Tt', 'ancho': 3, 'formato': 'entero'},
@@ -106,14 +113,14 @@ INFOTABLAJUGS = {
 
     ('Promedios', 'etSegs'): {'etiq': 'Min', 'ancho': 7, 'generador': GENERADORTIEMPO(col='Segs')},
     ('Promedios', 'P'): {'etiq': 'P', 'ancho': 7, 'formato': 'float'},
-    ('Promedios', 'etiqT2'): {'etiq': 'T2', 'ancho': 19, 'generador': GENERADORETTIRO('2', entero=False)},
-    ('Promedios', 'etiqT3'): {'etiq': 'T3', 'ancho': 19, 'generador': GENERADORETTIRO(tiro='3', entero=False)},
-    ('Promedios', 'etiqTC'): {'etiq': 'TC', 'ancho': 19, 'generador': GENERADORETTIRO('C', False)},
+    ('Promedios', 'etiqT2'): {'etiq': 'T2', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('2', entero=False)},
+    ('Promedios', 'etiqT3'): {'etiq': 'T3', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO(tiro='3', entero=False)},
+    ('Promedios', 'etiqTC'): {'etiq': 'TC', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('C', False)},
     ('Promedios', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
     ('Promedios', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'float'},
     ('Promedios', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'float'},
-    ('Promedios', 'etiqT1'): {'etiq': 'TL', 'ancho': 19, 'generador': GENERADORETTIRO('1', False)},
-    ('Promedios', 'etRebs'): {'etiq': 'Rebs', 'ancho': 17, 'generador': GENERADORETREBOTE(entero=False)},
+    ('Promedios', 'etiqT1'): {'etiq': 'TL', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('1', False)},
+    ('Promedios', 'etRebs'): {'etiq': 'Rebs', 'ancho': ANCHOREBOTES, 'generador': GENERADORETREBOTE(entero=False)},
     ('Promedios', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'float'},
     ('Promedios', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'float'},
     ('Promedios', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'float'},
@@ -122,14 +129,14 @@ INFOTABLAJUGS = {
 
     ('Totales', 'etSegs'): {'etiq': 'Min', 'ancho': 8, 'generador': GENERADORTIEMPO(col='Segs')},
     ('Totales', 'P'): {'etiq': 'P', 'ancho': 6, 'formato': 'entero'},
-    ('Totales', 'etiqT2'): {'etiq': 'T2', 'ancho': 19, 'generador': GENERADORETTIRO('2', entero=True)},
-    ('Totales', 'etiqT3'): {'etiq': 'T3', 'ancho': 19, 'generador': GENERADORETTIRO('3', entero=True)},
-    ('Totales', 'etiqTC'): {'etiq': 'TC', 'ancho': 19, 'generador': GENERADORETTIRO('C', entero=True)},
+    ('Totales', 'etiqT2'): {'etiq': 'T2', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('2', entero=True)},
+    ('Totales', 'etiqT3'): {'etiq': 'T3', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('3', entero=True)},
+    ('Totales', 'etiqTC'): {'etiq': 'TC', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('C', entero=True)},
     ('Totales', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
     ('Totales', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'entero'},
     ('Totales', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'entero'},
-    ('Totales', 'etiqT1'): {'etiq': 'TL', 'ancho': 19, 'generador': GENERADORETTIRO('1', entero=True)},
-    ('Totales', 'etRebs'): {'etiq': 'Rebs', 'ancho': 17, 'generador': GENERADORETREBOTE(entero=True)},
+    ('Totales', 'etiqT1'): {'etiq': 'TL', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('1', entero=True)},
+    ('Totales', 'etRebs'): {'etiq': 'Rebs', 'ancho': ANCHOREBOTES, 'generador': GENERADORETREBOTE(entero=True)},
     ('Totales', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'entero'},
     ('Totales', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'entero'},
     ('Totales', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'entero'},
@@ -162,9 +169,10 @@ ESTILOS = getSampleStyleSheet()
 
 
 def auxCalculaBalanceStr(record):
+    strPendiente = f" ({record['pendientes']})" if 'pendientes' in record else ""
     victorias = record.get('V', 0)
     derrotas = record.get('D', 0)
-    texto = f"{victorias}-{derrotas}"
+    texto = f"{victorias}-{derrotas}{strPendiente}"
 
     return texto
 
@@ -173,7 +181,7 @@ def auxEtiqRebotes(df, entero: bool = True) -> str:
     if isnan(df['R-D']):
         return "-"
 
-    formato = "{:3}+{:3} {:3}" if entero else "{:6.2f}+{:6.2f} {:6.2f}"
+    formato = "{:3}+{:3} {:3}" if entero else "{:5.1f}+{:5.1f} {:5.1f}"
 
     valores = [int(v) if entero else v for v in [df['R-D'], df['R-O'], df['REB-T']]]
 
@@ -196,7 +204,7 @@ def auxEtiqTiempo(df, col='Segs'):
 
 
 def auxEtiqTiros(df, tiro, entero=True):
-    formato = "{:3}/{:3} {:6.2f}%" if entero else "{:6.2f}/{:6.2f} {:6.2f}%"
+    formato = "{:3}/{:3} {:5.1f}%" if entero else "{:5.1f}/{:5.1f} {:5.1f}%"
 
     etTC = f"T{tiro}-C"
     etTI = f"T{tiro}-I"
@@ -297,10 +305,12 @@ def cargaTemporada(fname):
 
 
 def datosCabEquipo(datosEq, tempData, fecha):
+    recuperaClasifLiga(tempData, fecha)
+
     # TODO: Imagen (descargar imagen de escudo y plantarla)
     nombre = datosEq['nombcorto']
 
-    clasifAux = tempData.clasifEquipo(datosEq['abrev'], fecha)
+    clasifAux = equipo2clasif(clasifLiga, datosEq['abrev'])
     clasifStr = auxCalculaBalanceStr(clasifAux)
 
     result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b></para>"),
@@ -315,6 +325,20 @@ def recuperaEstadsGlobales(tempData):
     if estadGlobales is None:
         estadGlobales = tempData.dfEstadsLiga()
         estadGlobalesOrden = precalculaOrdenEstadsLiga(estadGlobales, COLSESTADSASCENDING)
+
+
+def recuperaClasifLiga(tempData, fecha=None):
+    global clasifLiga
+
+    if clasifLiga is None:
+        clasifLiga = tempData.clasifLiga(fecha)
+        jugados = np.array([eq['Jug'] for eq in clasifLiga])
+        modaJug = stats.mode(jugados).mode[0]
+
+        for eq in clasifLiga:
+            if eq['Jug'] != modaJug:
+                pendientes = modaJug - eq['Jug']
+                eq.update({'pendientes': pendientes})
 
 
 def datosEstadsEquipoPortada(tempData: TemporadaACB, eq: str):
@@ -402,14 +426,14 @@ def datosEstadsEquipoPortada(tempData: TemporadaACB, eq: str):
 <b>T2</b>:&nbsp;{T2C:.2f}({T2IOrd:.0f})/{T2I:.2f}({T2IOrd:.0f})&nbsp;{T2pc:.2f}%({T2pcOrd:.0f}) <b>/</b> <b>T3</b>:&nbsp;{T3C:.2f}({T3IOrd:.0f})/{T3I:.2f}({T3IOrd:.0f})&nbsp;{T3pc:.2f}%({T3pcOrd:.0f}) <b>/</b>
 <b>TC</b>:&nbsp;{TCC:.2f}({TCIOrd:.0f})/{TCI:.2f}({TCIOrd:.0f})&nbsp;{TCpc:.2f}%({TCpcOrd:.0f}) <b>/</b> <b>P&nbsp;por&nbsp;TC-I</b>:&nbsp;{ppTC:.2f}({ppTCOrd:.0f}) <b>T3-I/TC-I</b>&nbsp;{ratT3:.2f}%({ratT3Ord:.0f}) <b>/</b>
 <b>F&nbsp;com</b>:&nbsp;{Fcom:.2f}({FcomOrd:.0f})  <b>/</b> <b>F&nbsp;rec</b>:&nbsp;{Frec:.2f}({FrecOrd:.0f})  <b>/</b> <b>TL</b>:&nbsp;{T1C:.2f}({T1COrd:.0f})/{T1I:.2f}({T1IOrd:.0f})&nbsp;{T1pc:.2f}%({T1pcOrd:.0f}) <b>/</b>
-<b>Reb</b>:&nbsp;{RebD:.2f}({RebDOrd:.0f})+{RebO:.2f}({RebOOrd:.0f})&nbsp;{RebT:.2f}({RebTOrd:.0f}) <b>/</b> <b>EffRD</b>:&nbsp;{EffRebD:.2f}({EffRebDOrd:.0f}) <b>EffRO</b>:&nbsp;{EffRebO:.2f}({EffRebOOrd:.0f}) <b>/</b>
-<b>A</b>:&nbsp;{A:.2f}({AOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{BP:.2f}({BPOrd:.0f}) <b>/</b> <b>BR</b>:&nbsp;{BR:.2f}({BROrd:.0f}) <b>/</b> <b>A/BP</b>:&nbsp;{ApBP:.2f}({ApBPOrd:.0f}) <b>/</b> <b>A/Can</b>:&nbsp;{ApTCC:.2f}({ApTCCOrd:.0f})<br/>
+<b>Reb</b>:&nbsp;{RebD:.2f}({RebDOrd:.0f})+{RebO:.2f}({RebOOrd:.0f})&nbsp;{RebT:.2f}({RebTOrd:.0f}) <b>/</b> <b>EffRD</b>:&nbsp;{EffRebD:.2f}%({EffRebDOrd:.0f}) <b>EffRO</b>:&nbsp;{EffRebO:.2f}%({EffRebOOrd:.0f}) <b>/</b>
+<b>A</b>:&nbsp;{A:.2f}({AOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{BP:.2f}({BPOrd:.0f}) <b>/</b> <b>BR</b>:&nbsp;{BR:.2f}({BROrd:.0f}) <b>/</b> <b>A/BP</b>:&nbsp;{ApBP:.2f}({ApBPOrd:.0f}) <b>/</b> <b>A/Can</b>:&nbsp;{ApTCC:.2f}%({ApTCCOrd:.0f})<br/>
 
 <B>RIVAL</B> 
 <b>T2</b>:&nbsp;{rT2C:.2f}({rT2IOrd:.0f})/{rT2I:.2f}({rT2IOrd:.0f})&nbsp;{rT2pc:.2f}%({rT2pcOrd:.0f}) <b>/</b> <b>T3</b>:&nbsp;{rT3C:.2f}({rT3IOrd:.0f})/{rT3I:.2f}({rT3IOrd:.0f})&nbsp;{rT3pc:.2f}%({rT3pcOrd:.0f}) <b>/</b>
 <b>TC</b>:&nbsp;{rTCC:.2f}({rTCIOrd:.0f})/{rTCI:.2f}({rTCIOrd:.0f})&nbsp;{rTCpc:.2f}%({rTCpcOrd:.0f}) <b>/</b> <b>P&nbsp;por&nbsp;TC-I</b>:&nbsp;{rppTC:.2f}({rppTCOrd:.0f}) <b>T3-I/TC-I</b>&nbsp;{rratT3:.2f}%({rratT3Ord:.0f}) <b>/</b>
 <b>TL</b>:&nbsp;{rT1C:.2f}({rT1COrd:.0f})/{rT1I:.2f}({rT1IOrd:.0f})&nbsp;{rT1pc:.2f}%({rT1pcOrd:.0f}) <b>/</b> <b>Reb</b>:&nbsp;{rRebD:.2f}({rRebDOrd:.0f})+{rRebO:.2f}({rRebOOrd:.0f})&nbsp;{rRebT:.2f}({rRebTOrd:.0f}) <b>/</b>
-<b>A</b>:&nbsp;{rA:.2f}({rAOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{rBP:.2f}({rBPOrd:.0f}) <b>/</b> <b>BR</b>:&nbsp;{rBR:.2f}({rBROrd:.0f}) <b>/</b> <b>A/BP</b>:&nbsp;{rApBP:.2f}({rApBPOrd:.0f}) <b>/</b> <b>A/Can</b>:&nbsp;{rApTCC:.2f}({rApTCCOrd:.0f})
+<b>A</b>:&nbsp;{rA:.2f}({rAOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{rBP:.2f}({rBPOrd:.0f}) <b>/</b> <b>BR</b>:&nbsp;{rBR:.2f}({rBROrd:.0f}) <b>/</b> <b>A/BP</b>:&nbsp;{rApBP:.2f}({rApBPOrd:.0f}) <b>/</b> <b>A/Can</b>:&nbsp;{rApTCC:.2f}%({rApTCCOrd:.0f})
 """
 
     return resultEq
@@ -451,7 +475,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     COLS_TRAYECT_TEMP_orig_names = ['enActa', 'haJugado', 'esTitular', 'haGanado', ]
     COLS_TRAYECT_TEMP_orig = [(col, 'sum') for col in COLS_TRAYECT_TEMP_orig_names]
     COLS_TRAYECT_TEMP = ['Acta', 'Jugados', 'Titular', 'Vict']
-    COLS_FICHA = ['id', 'alias', 'pos', 'altura', 'licencia']
+    COLS_FICHA = ['id', 'alias', 'pos', 'altura', 'licencia', 'fechaNac']
     VALS_ESTAD_JUGADOR = ['A', 'BP', 'BR', 'FP-C', 'FP-F', 'P', 'ppTC', 'R-D', 'R-O', 'REB-T', 'Segs', 'T1-C', 'T1-I',
                           'T1%', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-I', 'TC-C', 'TC%', 'PTC', 'TAP-C',
                           'TAP-F']
@@ -495,6 +519,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
 
 
 def datosTablaLiga(tempData: TemporadaACB):
+    recuperaClasifLiga(tempData)
     FONTSIZE = 10
     CELLPAD = 3 * mm
 
@@ -516,18 +541,17 @@ def datosTablaLiga(tempData: TemporadaACB):
 
     # En la clasificación está el contenido de los márgenes, de las diagonales y el orden de presentación
     # de los equipos
-    clasif = tempData.clasifLiga()
-    seqIDs = [(pos, list(equipo['idEq'])[0]) for pos, equipo in enumerate(clasif)]
+    seqIDs = [(pos, list(equipo['idEq'])[0]) for pos, equipo in enumerate(clasifLiga)]
 
     datosTabla = []
     cabFila = [Paragraph('<b>Casa/Fuera</b>', style=estCelda)] + [
-        Paragraph('<b>' + list(clasif[pos]['abrevsEq'])[0] + '</b>', style=estCelda) for pos, _ in seqIDs] + [
+        Paragraph('<b>' + list(clasifLiga[pos]['abrevsEq'])[0] + '</b>', style=estCelda) for pos, _ in seqIDs] + [
                   Paragraph('<b>Como local</b>', style=estCelda)]
     datosTabla.append(cabFila)
     for pos, idLocal in seqIDs:
         fila = []
-        nombreCorto = sorted(clasif[pos]['nombresEq'], key=lambda n: len(n))[0]
-        abrev = list(clasif[pos]['abrevsEq'])[0]
+        nombreCorto = sorted(clasifLiga[pos]['nombresEq'], key=lambda n: len(n))[0]
+        abrev = list(clasifLiga[pos]['abrevsEq'])[0]
         fila.append(Paragraph(f"{nombreCorto} (<b>{abrev}</b>)", style=estCelda))
         for _, idVisit in seqIDs:
             if idLocal != idVisit:
@@ -545,16 +569,16 @@ def datosTablaLiga(tempData: TemporadaACB):
                     pVisit = part['equipos']['Visitante']['puntos']
                     texto = f"J:{jornada}<br/><b>{pLocal}-{pVisit}</b>"
             else:
-                auxTexto = auxCalculaBalanceStr(clasif[pos])
+                auxTexto = auxCalculaBalanceStr(clasifLiga[pos])
                 texto = f"<b>{auxTexto}</b>"
             fila.append(Paragraph(texto, style=estCelda))
 
-        fila.append(Paragraph(auxCalculaBalanceStr(clasif[pos]['CasaFuera']['Local']), style=estCelda))
+        fila.append(Paragraph(auxCalculaBalanceStr(clasifLiga[pos]['CasaFuera']['Local']), style=estCelda))
         datosTabla.append(fila)
 
     filaBalFuera = [Paragraph('<b>Como visitante</b>', style=estCelda)]
     for pos, idLocal in seqIDs:
-        filaBalFuera.append(Paragraph(auxCalculaBalanceStr(clasif[pos]['CasaFuera']['Visitante']), style=estCelda))
+        filaBalFuera.append(Paragraph(auxCalculaBalanceStr(clasifLiga[pos]['CasaFuera']['Visitante']), style=estCelda))
     filaBalFuera.append([])
     datosTabla.append(filaBalFuera)
 
@@ -760,9 +784,6 @@ def tablaJugadoresEquipo(jugDF):
 
     COLSIDENT = [('Jugador', 'dorsal'),
                  ('Jugador', 'nombre'),
-                 ('Jugador', 'pos'),
-                 ('Jugador', 'altura'),
-                 ('Jugador', 'licencia'),
                  ('Trayectoria', 'Acta'),
                  ('Trayectoria', 'Jugados'),
                  ('Trayectoria', 'Titular'),
@@ -770,6 +791,10 @@ def tablaJugadoresEquipo(jugDF):
                  ]
     COLSIDENT_UP = [('Jugador', 'dorsal'),
                     ('Jugador', 'nombre'),
+                    ('Jugador', 'pos'),
+                    ('Jugador', 'altura'),
+                    ('Jugador', 'licencia'),
+                    ('Jugador', 'etNac')
                     ]
 
     COLS_PROMED = [('Promedios', 'etSegs'),
