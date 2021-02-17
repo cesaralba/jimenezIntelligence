@@ -341,18 +341,16 @@ def recuperaClasifLiga(tempData, fecha=None):
                 eq.update({'pendientes': pendientes})
 
 
-def datosEstadsEquipoPortada(tempData: TemporadaACB, eq: str):
+def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
     recuperaEstadsGlobales(tempData)
 
-    if eq not in estadGlobales.index:
+    targAbrev = list(tempData.Calendario.abrevsEquipo(abrev).intersection(estadGlobales.index))[0]
+    if not targAbrev:
         valCorrectos = ", ".join(sorted(estadGlobales.index))
-        raise KeyError(f"extraeCampoYorden: equipo (abr) '{eq}' desconocido. Equipos validos: {valCorrectos}")
+        raise KeyError(f"extraeCampoYorden: equipo (abr) '{abrev}' desconocido. Equipos validos: {valCorrectos}")
 
-    estadsEq = estadGlobales.loc[eq]
-    estadsEqOrden = estadGlobalesOrden.loc[eq]
-
-    # targAbrev = list(tempData.Calendario.abrevsEquipo(eq).intersection(estadGlobales.keys()))[0]
-    targAbrev = list(tempData.Calendario.abrevsEquipo(eq).intersection(estadGlobales.index))[0]
+    estadsEq = estadGlobales.loc[targAbrev]
+    estadsEqOrden = estadGlobalesOrden.loc[targAbrev]
 
     pFav, pFavOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'P', ESTADISTICOEQ)
     pCon, pConOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'P', ESTADISTICOEQ)
