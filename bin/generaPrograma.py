@@ -668,6 +668,7 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
         result.append(PageBreak())
         for t in tablasJugadIzda:
             result.append(Spacer(100 * mm, 2 * mm))
+            result.append(NextPageTemplate('apaisada'))
             result.append(t)
 
     return result
