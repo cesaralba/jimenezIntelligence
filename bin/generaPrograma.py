@@ -16,7 +16,7 @@ from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, 
 from scipy import stats
 
 from SMACB.CalendarioACB import NEVER
-from SMACB.Constants import LocalVisitante, OtherLoc, haGanado2esp
+from SMACB.Constants import LocalVisitante, OtherLoc, haGanado2esp, MARCADORESCLASIF
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, precalculaOrdenEstadsLiga, COLSESTADSASCENDING, \
@@ -888,6 +888,15 @@ def tablaLiga(tempData: TemporadaACB):
     anchos = [58] + [38] * (len(datosAux) - 2) + [40]
     for i in range(1, len(datosAux) - 1):
         tStyle.add("BACKGROUND", (i, i), (i, i), colors.lightgrey)
+
+    ANCHOMARCAPOS = 2
+    for pos in MARCADORESCLASIF:
+        commH, commV = ("LINEBELOW", "LINEAFTER") if pos >= 0 else ("LINEABOVE", "LINEBEFORE")
+        incr = 0 if pos >= 0 else -1
+        posIni = 0 if pos >= 0 else pos + incr
+        posFin = pos + incr if pos >= 0 else -1
+        tStyle.add(commH, (posIni, pos + incr), (posFin, pos + incr), ANCHOMARCAPOS, colors.black)
+        tStyle.add(commV, (pos + incr, posIni), (pos + incr, posFin), ANCHOMARCAPOS, colors.black)
 
     t = Table(datosAux, style=tStyle, rowHeights=alturas, colWidths=anchos)
 
