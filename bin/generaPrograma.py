@@ -517,6 +517,13 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
 
 
 def datosTablaLiga(tempData: TemporadaACB):
+    """
+    Calcula los datos que rellenarán la tabla de liga así como las posiciones de los partidos jugados y pendientes para
+    darles formato
+    :param tempData:
+    :return: listaListasCeldas,tupla de listas de coords de jugados y pendientes
+    List
+    """
     recuperaClasifLiga(tempData)
     FONTSIZE = 10
     CELLPAD = 3 * mm
@@ -527,26 +534,34 @@ def datosTablaLiga(tempData: TemporadaACB):
 
     # Precalcula el contenido de la tabla
     auxTabla = defaultdict(dict)
+    auxTablaJuPe = {'pe': [], 'ju': []}
+
     for jId, jDatos in tempData.Calendario.Jornadas.items():
         for part in jDatos['partidos']:
             idLocal = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Local']['abrev']])[0]
             idVisitante = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Visitante']['abrev']])[0]
             auxTabla[idLocal][idVisitante] = part
+            auxTablaJuPe['ju'].append((idLocal, idVisitante))
+
         for part in jDatos['pendientes']:
             idLocal = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Local']['abrev']])[0]
             idVisitante = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Visitante']['abrev']])[0]
             auxTabla[idLocal][idVisitante] = part
+            auxTablaJuPe['pe'].append((idLocal, idVisitante))
 
     # En la clasificación está el contenido de los márgenes, de las diagonales y el orden de presentación
     # de los equipos
     seqIDs = [(pos, list(equipo['idEq'])[0]) for pos, equipo in enumerate(clasifLiga)]
 
     datosTabla = []
+    id2pos = dict()
+
     cabFila = [Paragraph('<b>Casa/Fuera</b>', style=estCelda)] + [
         Paragraph('<b>' + list(clasifLiga[pos]['abrevsEq'])[0] + '</b>', style=estCelda) for pos, _ in seqIDs] + [
                   Paragraph('<b>Como local</b>', style=estCelda)]
     datosTabla.append(cabFila)
     for pos, idLocal in seqIDs:
+        id2pos[idLocal] = pos
         fila = []
         nombreCorto = sorted(clasifLiga[pos]['nombresEq'], key=lambda n: len(n))[0]
         abrev = list(clasifLiga[pos]['abrevsEq'])[0]
@@ -580,7 +595,10 @@ def datosTablaLiga(tempData: TemporadaACB):
     filaBalFuera.append([])
     datosTabla.append(filaBalFuera)
 
-    return datosTabla
+    coordsPeJu = {tipoPart: [(id2pos[idLocal], id2pos[idVisitante]) for idLocal, idVisitante in listaTipo] for
+                  tipoPart, listaTipo in auxTablaJuPe.items()}
+
+    return datosTabla, coordsPeJu
 
 
 def listaEquipos(tempData):
@@ -875,6 +893,8 @@ def tablaLiga(tempData: TemporadaACB):
     CELLPAD = 0.3 * mm
     FONTSIZE = 10
 
+    datosAux, coordsJuPe = datosTablaLiga(tempData)
+
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
@@ -883,11 +903,14 @@ def tablaLiga(tempData: TemporadaACB):
                          ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD),
                          ("BACKGROUND", (-1, 1), (-1, -2), colors.lightgrey),
                          ("BACKGROUND", (1, -1), (-2, -1), colors.lightgrey)])
-    datosAux = datosTablaLiga(tempData)
     alturas = [20] + [28] * (len(datosAux) - 2) + [20]
     anchos = [58] + [38] * (len(datosAux) - 2) + [40]
+
+    CANTGREYBAL = .70
+    colBal = colors.rgb2cmyk(CANTGREYBAL, CANTGREYBAL, CANTGREYBAL)
+
     for i in range(1, len(datosAux) - 1):
-        tStyle.add("BACKGROUND", (i, i), (i, i), colors.lightgrey)
+        tStyle.add("BACKGROUND", (i, i), (i, i), colBal)
 
     ANCHOMARCAPOS = 2
     for pos in MARCADORESCLASIF:
@@ -897,6 +920,14 @@ def tablaLiga(tempData: TemporadaACB):
         posFin = pos + incr if pos >= 0 else -1
         tStyle.add(commH, (posIni, pos + incr), (posFin, pos + incr), ANCHOMARCAPOS, colors.black)
         tStyle.add(commV, (pos + incr, posIni), (pos + incr, posFin), ANCHOMARCAPOS, colors.black)
+
+    # Marca la clase
+    claveJuPe = 'ju' if len(coordsJuPe['ju']) <= len(coordsJuPe['pe']) else 'pe'
+    CANTGREYJUPE = .90
+    colP = colors.rgb2cmyk(CANTGREYJUPE, CANTGREYJUPE, CANTGREYJUPE)
+    for x, y in coordsJuPe[claveJuPe]:
+        coord = (y + 1, x + 1)
+        tStyle.add("BACKGROUND", coord, coord, colP)
 
     t = Table(datosAux, style=tStyle, rowHeights=alturas, colWidths=anchos)
 
