@@ -16,12 +16,13 @@ from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, 
 from scipy import stats
 
 from SMACB.CalendarioACB import NEVER
-from SMACB.Constants import LocalVisitante, OtherLoc, haGanado2esp, MARCADORESCLASIF
+from SMACB.Constants import LocalVisitante, OtherLoc, haGanado2esp, MARCADORESCLASIF, DESCENSOS
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, precalculaOrdenEstadsLiga, COLSESTADSASCENDING, \
     auxEtiqPartido, equipo2clasif
 from Utils.FechaHora import Time2Str
+from Utils.Misc import listize
 
 estadGlobales = None
 estadGlobalesOrden = None
@@ -889,7 +890,7 @@ def tablaJugadoresEquipo(jugDF):
     return result
 
 
-def tablaLiga(tempData: TemporadaACB):
+def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None):
     CELLPAD = 0.3 * mm
     FONTSIZE = 10
 
@@ -921,6 +922,16 @@ def tablaLiga(tempData: TemporadaACB):
         tStyle.add(commH, (posIni, pos + incr), (posFin, pos + incr), ANCHOMARCAPOS, colors.black)
         tStyle.add(commV, (pos + incr, posIni), (pos + incr, posFin), ANCHOMARCAPOS, colors.black)
 
+    # Equipos para descenso (horizontal)
+    tStyle.add("LINEBEFORE", (-DESCENSOS - 1, 0), (-DESCENSOS - 1, 0), ANCHOMARCAPOS, colors.black)
+    tStyle.add("LINEBEFORE", (-1, 0), (-1, 0), ANCHOMARCAPOS, colors.black)
+    tStyle.add("LINEBELOW", (-DESCENSOS - 1, 0), (-2, 0), ANCHOMARCAPOS, colors.black)
+
+    # Equipos para descenso (vertical)
+    tStyle.add("LINEAFTER", (0, -DESCENSOS - 1), (0, -2), ANCHOMARCAPOS, colors.black)
+    tStyle.add("LINEABOVE", (0, -DESCENSOS - 1), (0, -DESCENSOS - 1), ANCHOMARCAPOS, colors.black)
+    tStyle.add("LINEABOVE", (0, -1), (0, -1), ANCHOMARCAPOS, colors.black)
+
     # Marca la clase
     claveJuPe = 'ju' if len(coordsJuPe['ju']) <= len(coordsJuPe['pe']) else 'pe'
     CANTGREYJUPE = .90
@@ -928,6 +939,18 @@ def tablaLiga(tempData: TemporadaACB):
     for x, y in coordsJuPe[claveJuPe]:
         coord = (y + 1, x + 1)
         tStyle.add("BACKGROUND", coord, coord, colP)
+
+    if equiposAmarcar is not None:
+        CANTGREYEQ = .80
+        colEq = colors.rgb2cmyk(CANTGREYEQ, CANTGREYEQ, CANTGREYEQ)
+
+        parEqs = set(listize(equiposAmarcar))
+        seqIDs = [(pos, equipo['abrevsEq']) for pos, equipo in enumerate(clasifLiga) if
+                  equipo['abrevsEq'].intersection(parEqs)]
+
+        for pos, _ in seqIDs:
+            tStyle.add("BACKGROUND", (pos + 1, 0), (pos + 1, 0), colEq)
+            tStyle.add("BACKGROUND", (0, pos + 1), (0, pos + 1), colEq)
 
     t = Table(datosAux, style=tStyle, rowHeights=alturas, colWidths=anchos)
 
@@ -980,7 +1003,7 @@ def preparaLibro(outfile, tempData, datosSig):
 
     story.append(NextPageTemplate('apaisada'))
     story.append(PageBreak())
-    story.append(tablaLiga(tempData))
+    story.append(tablaLiga(tempData, equiposAmarcar=abrEqs))
 
     if (len(juIzda) or len(juDcha)):
         infoJugadores = paginasJugadores(tempData, abrEqs, juIzda, juDcha)

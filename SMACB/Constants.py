@@ -38,7 +38,8 @@ EqRival = ('Eq', 'Rival')
 LOCALNAMES = {'Local', 'L', 'local'}
 VISITNAMES = {'Visitante', 'V', 'visitante'}
 
-MARCADORESCLASIF = [2, 4, 8, -2]
+DESCENSOS = 2
+MARCADORESCLASIF = [2, 4, 8, -DESCENSOS]
 
 
 def calculaValSuperManager(valoracion, haGanado=False):
