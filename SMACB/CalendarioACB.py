@@ -7,7 +7,7 @@ import pandas as pd
 from time import gmtime
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA
-from Utils.Misc import FORMATOtimestamp
+from Utils.Misc import FORMATOtimestamp, listize
 from Utils.Web import DescargaPagina, getObjID, MergeURL
 from .Constants import URL_BASE
 
@@ -63,22 +63,22 @@ class CalendarioACB(object):
 
         return content
 
-    def nuevaTraduccionEquipo2Codigo(self, equipos, codigo, id=None):
+    def nuevaTraduccionEquipo2Codigo(self, nombres, abrev, id=None):
         result = False
-        eqList = equipos if isinstance(equipos, (list, set, tuple)) else [equipos]
+        eqList = listize(nombres)
 
         for eqName in eqList:
-            if (eqName not in self.tradEquipos['n2c']) or (codigo not in self.tradEquipos['c2n']):
+            if (eqName not in self.tradEquipos['n2c']) or (abrev not in self.tradEquipos['c2n']):
                 result = True
-            self.tradEquipos['n2c'][eqName].add(codigo)
-            (self.tradEquipos['c2n'][codigo]).add(eqName)
+            self.tradEquipos['n2c'][eqName].add(abrev)
+            (self.tradEquipos['c2n'][abrev]).add(eqName)
 
             if id is not None:
                 if (id not in self.tradEquipos['i2c']) or (id not in self.tradEquipos['i2n']) or (
-                        eqName not in self.tradEquipos['n2i']) or (codigo not in self.tradEquipos['c2i']):
+                        eqName not in self.tradEquipos['n2i']) or (abrev not in self.tradEquipos['c2i']):
                     result = True
-                self.tradEquipos['i2c'][id].add(codigo)
-                (self.tradEquipos['c2i'][codigo]).add(id)
+                self.tradEquipos['i2c'][id].add(abrev)
+                (self.tradEquipos['c2i'][abrev]).add(id)
                 self.tradEquipos['n2i'][eqName].add(id)
                 (self.tradEquipos['i2n'][id]).add(eqName)
 
@@ -181,8 +181,8 @@ class CalendarioACB(object):
             divsEq = divPartido.find_all("div", {"class": eqUbic})
             infoEq = procesaDivsEquipo(divsEq)
             auxDatos.update(infoEq)
-            self.nuevaTraduccionEquipo2Codigo(equipos=[infoEq['nomblargo'], infoEq['nombcorto']],
-                                              codigo=infoEq['abrev'], id=None)
+            self.nuevaTraduccionEquipo2Codigo(nombres=[infoEq['nomblargo'], infoEq['nombcorto']],
+                                              abrev=infoEq['abrev'], id=None)
             datosPartEqs[eqUbic.capitalize()] = auxDatos
 
         resultado['equipos'] = datosPartEqs

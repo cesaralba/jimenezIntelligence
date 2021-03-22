@@ -66,7 +66,7 @@ class TemporadaACB(object):
     Aglutina calendario y lista de partidos
     '''
 
-    #TODO: función __str__
+    # TODO: función __str__
 
     def __init__(self, **kwargs):
         self.competicion = kwargs.get('competicion', "LACB")
@@ -113,6 +113,12 @@ class TemporadaACB(object):
                 if self.descargaFichas:
                     self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
                 self.actualizaTraduccionesJugador(nuevoPartido)
+
+                # Añade la información de equipos de partido a traducciones de equipo.
+                # (el código de equipo ya no viene en el calendario)
+                for eqData in nuevoPartido.Equipos.values():
+                    self.Calendario.nuevaTraduccionEquipo2Codigo(nombres=eqData['Nombre'], abrev=eqData['abrev'],
+                                                                 id=eqData['id'])
 
             except KeyboardInterrupt:
                 print("actualizaTemporada: Ejecución terminada por el usuario")
@@ -587,6 +593,116 @@ def entradaClas2k(ent: dict) -> tuple:
     ratioVent = ((ent.get('Pfav', 0) - ent.get('Pcon', 0)) / ent.get('Jug')) if ent.get('Jug', 0) else 0.0
 
     result = (ratioV, ent.get('V', 0), ratioVent, ent.get('Pfav', 0))
+
+    return result
+
+
+def ordenEstadsLiga(estads: dict, abr: str, eq: str = 'eq', clave: str = 'P', subclave=0, decrec: bool = True) -> int:
+    if abr not in estads:
+        valCorrectos = ", ".join(sorted(estads.keys()))
+        raise KeyError(f"ordenEstadsLiga: equipo (abr) '{abr}' desconocido. Equipos validos: {valCorrectos}")
+    targEquipo = estads[abr]
+    if eq not in targEquipo:
+        valCorrectos = ", ".join(sorted(targEquipo.keys()))
+        raise KeyError(f"ordenEstadsLiga: ref (eq) '{eq}' desconocido. Referencias válidas: {valCorrectos}")
+    targValores = targEquipo[eq]
+    if clave not in targValores:
+        valCorrectos = ", ".join(sorted(targValores.keys()))
+        raise KeyError(f"ordenEstadsLiga: clave '{clave}' desconocida. Claves válidas: {valCorrectos}")
+
+    auxRef = targValores[clave][subclave] if isinstance(targValores[clave], tuple) else targValores[clave]
+
+    valAcomp = [estads[e][eq][clave] for e in estads.keys()]
+
+    keyGetter = (lambda v, subclave: v[subclave]) if isinstance(targValores[clave], tuple) else (lambda v, subclave: v)
+
+    comparaValores = (lambda x, auxref: x > auxref) if decrec else (lambda x, auxref: x < auxref)
+
+    return sum([comparaValores(keyGetter(v, subclave), auxRef) for v in valAcomp]) + 1
+
+
+def extraeCampoYorden(estads: pd.DataFrame, estadsOrden: pd.DataFrame, eq: str = 'eq', clave: str = 'P',
+                      estadistico='mean'):
+    targetCol = (eq, clave, estadistico)
+
+    if targetCol not in estads.index:
+        valCorrectos = ", ".join(sorted(estads.index).map(str))
+        raise KeyError(
+            f"extraeCampoYorden: parametros para dato '{targetCol}' desconocidos. Referencias válidas: {valCorrectos}")
+
+    valor = estads.loc[targetCol]
+    orden = estadsOrden.loc[targetCol]
+
+    return valor, orden
+
+
+def precalculaOrdenEstadsLiga(dfEstads: pd.DataFrame, listAscending=None):
+    resultDict = dict()
+
+    colsChangeMult = set(listAscending) if listAscending else {}
+
+    for col in dfEstads.columns:
+        multiplicador = 1 if col in colsChangeMult else -1  # En general queremos que sea descendente
+        colAusar = multiplicador * dfEstads[col]
+        ordenIDX = colAusar.index[colAusar.argsort()]
+        auxDict = {eq: pos for pos, eq in enumerate(ordenIDX, start=1)}
+        auxSerie = pd.Series(data=auxDict)
+        resultDict[col] = auxSerie
+
+    result = pd.DataFrame.from_dict(resultDict, orient='columns').sort_index()
+    return result
+
+
+def auxCalculaEstadsSubDataframe(dfEntrada: pd.DataFrame):
+    FILASESTADISTICOS = ['count', 'mean', 'std', 'min', '50%', 'max']
+    ROWRENAMER = {'50%': 'median'}
+    COLDROPPER = []
+
+    estadisticosNumber = dfEntrada.describe(include=[np.number], percentiles=[.50])
+    # Necesario porque describe trata los bool como categóricos
+    estadisticosBool = dfEntrada.select_dtypes([np.bool]).astype(np.int64).apply(
+        lambda c: c.describe(percentiles=[.50]))
+
+    auxEstadisticos = pd.concat([estadisticosNumber, estadisticosBool], axis=1).T[FILASESTADISTICOS].T
+
+    # Hay determinados campos que no tiene sentido sumar. Así que sumamos todos y luego ponemos a nan los que no
+    # Para estos tengo dudas filosóficas de cómo calcular la media (¿media del valor de cada partido o calcular el
+    # ratio a partir de las sumas?
+    sumas = dfEntrada[auxEstadisticos.columns].select_dtypes([np.number, np.bool]).sum()
+
+    sumasDF = pd.DataFrame(sumas).T
+    sumasDF.index = pd.Index(['sum'])
+
+    finalDF = pd.concat([auxEstadisticos, sumasDF]).rename(index=ROWRENAMER)
+
+    result = finalDF.unstack()
+
+    return result
+
+
+def auxEtiqPartido(tempData: TemporadaACB, rivalAbr, esLocal=None, locEq=None, usaAbr=False, usaLargo=False):
+    if (esLocal is None) and (locEq is None):
+        raise ValueError("auxEtiqPartido: debe aportar o esLocal o locEq")
+
+    auxLoc = esLocal if (esLocal is not None) else (locEq in LOCALNAMES)
+    prefLoc = "vs " if auxLoc else "@"
+
+    ordenNombre = -1 if usaLargo else 0
+
+    nombre = rivalAbr if usaAbr else sorted(tempData.Calendario.tradEquipos['c2n'][rivalAbr], key=lambda n: len(n))[
+        ordenNombre]
+
+    result = f"{prefLoc}{nombre}"
+
+    return result
+
+
+def equipo2clasif(clasifLiga, abrEq):
+    result = None
+
+    for eqData in clasifLiga:
+        if abrEq in eqData['abrevsEq']:
+            return eqData
 
     return result
 
