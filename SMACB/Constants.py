@@ -38,6 +38,9 @@ EqRival = ('Eq', 'Rival')
 LOCALNAMES = {'Local', 'L', 'local'}
 VISITNAMES = {'Visitante', 'V', 'visitante'}
 
+DESCENSOS = 2
+MARCADORESCLASIF = [2, 4, 8, -DESCENSOS]
+
 
 def calculaValSuperManager(valoracion, haGanado=False):
     return round(

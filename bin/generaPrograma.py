@@ -16,12 +16,13 @@ from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, 
 from scipy import stats
 
 from SMACB.CalendarioACB import NEVER
-from SMACB.Constants import LocalVisitante, OtherLoc, haGanado2esp
+from SMACB.Constants import LocalVisitante, OtherLoc, haGanado2esp, MARCADORESCLASIF, DESCENSOS
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, precalculaOrdenEstadsLiga, COLSESTADSASCENDING, \
     auxEtiqPartido, equipo2clasif
 from Utils.FechaHora import Time2Str
+from Utils.Misc import listize
 
 estadGlobales = None
 estadGlobalesOrden = None
@@ -230,7 +231,7 @@ def auxEtFecha(f, col, formato="%d-%m"):
     return result
 
 
-def auxGeneraTabla(dfDatos, collist, colSpecs, estiloTablaBaseOps, formatos=None, charWidth=10.0):
+def auxGeneraTabla(dfDatos, collist, colSpecs, estiloTablaBaseOps, formatos=None, charWidth=10.0, **kwargs):
     dfColList = []
     filaCab = []
     anchoCols = []
@@ -268,7 +269,7 @@ def auxGeneraTabla(dfDatos, collist, colSpecs, estiloTablaBaseOps, formatos=None
 
     datosTabla = [filaCab] + datosAux.to_records(index=False, column_dtypes='object').tolist()
 
-    t = Table(datosTabla, style=tStyle, colWidths=anchoCols)
+    t = Table(datosTabla, style=tStyle, colWidths=anchoCols, **kwargs)
 
     return t
 
@@ -341,18 +342,16 @@ def recuperaClasifLiga(tempData, fecha=None):
                 eq.update({'pendientes': pendientes})
 
 
-def datosEstadsEquipoPortada(tempData: TemporadaACB, eq: str):
+def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
     recuperaEstadsGlobales(tempData)
 
-    if eq not in estadGlobales.index:
+    targAbrev = list(tempData.Calendario.abrevsEquipo(abrev).intersection(estadGlobales.index))[0]
+    if not targAbrev:
         valCorrectos = ", ".join(sorted(estadGlobales.index))
-        raise KeyError(f"extraeCampoYorden: equipo (abr) '{eq}' desconocido. Equipos validos: {valCorrectos}")
+        raise KeyError(f"extraeCampoYorden: equipo (abr) '{abrev}' desconocido. Equipos validos: {valCorrectos}")
 
-    estadsEq = estadGlobales.loc[eq]
-    estadsEqOrden = estadGlobalesOrden.loc[eq]
-
-    # targAbrev = list(tempData.Calendario.abrevsEquipo(eq).intersection(estadGlobales.keys()))[0]
-    targAbrev = list(tempData.Calendario.abrevsEquipo(eq).intersection(estadGlobales.index))[0]
+    estadsEq = estadGlobales.loc[targAbrev]
+    estadsEqOrden = estadGlobalesOrden.loc[targAbrev]
 
     pFav, pFavOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'P', ESTADISTICOEQ)
     pCon, pConOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'P', ESTADISTICOEQ)
@@ -519,6 +518,13 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
 
 
 def datosTablaLiga(tempData: TemporadaACB):
+    """
+    Calcula los datos que rellenarán la tabla de liga así como las posiciones de los partidos jugados y pendientes para
+    darles formato
+    :param tempData:
+    :return: listaListasCeldas,tupla de listas de coords de jugados y pendientes
+    List
+    """
     recuperaClasifLiga(tempData)
     FONTSIZE = 10
     CELLPAD = 3 * mm
@@ -529,26 +535,34 @@ def datosTablaLiga(tempData: TemporadaACB):
 
     # Precalcula el contenido de la tabla
     auxTabla = defaultdict(dict)
+    auxTablaJuPe = {'pe': [], 'ju': []}
+
     for jId, jDatos in tempData.Calendario.Jornadas.items():
         for part in jDatos['partidos']:
             idLocal = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Local']['abrev']])[0]
             idVisitante = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Visitante']['abrev']])[0]
             auxTabla[idLocal][idVisitante] = part
+            auxTablaJuPe['ju'].append((idLocal, idVisitante))
+
         for part in jDatos['pendientes']:
             idLocal = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Local']['abrev']])[0]
             idVisitante = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Visitante']['abrev']])[0]
             auxTabla[idLocal][idVisitante] = part
+            auxTablaJuPe['pe'].append((idLocal, idVisitante))
 
     # En la clasificación está el contenido de los márgenes, de las diagonales y el orden de presentación
     # de los equipos
     seqIDs = [(pos, list(equipo['idEq'])[0]) for pos, equipo in enumerate(clasifLiga)]
 
     datosTabla = []
+    id2pos = dict()
+
     cabFila = [Paragraph('<b>Casa/Fuera</b>', style=estCelda)] + [
         Paragraph('<b>' + list(clasifLiga[pos]['abrevsEq'])[0] + '</b>', style=estCelda) for pos, _ in seqIDs] + [
                   Paragraph('<b>Como local</b>', style=estCelda)]
     datosTabla.append(cabFila)
     for pos, idLocal in seqIDs:
+        id2pos[idLocal] = pos
         fila = []
         nombreCorto = sorted(clasifLiga[pos]['nombresEq'], key=lambda n: len(n))[0]
         abrev = list(clasifLiga[pos]['abrevsEq'])[0]
@@ -582,7 +596,10 @@ def datosTablaLiga(tempData: TemporadaACB):
     filaBalFuera.append([])
     datosTabla.append(filaBalFuera)
 
-    return datosTabla
+    coordsPeJu = {tipoPart: [(id2pos[idLocal], id2pos[idVisitante]) for idLocal, idVisitante in listaTipo] for
+                  tipoPart, listaTipo in auxTablaJuPe.items()}
+
+    return datosTabla, coordsPeJu
 
 
 def listaEquipos(tempData):
@@ -656,9 +673,11 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
+
         for t in tablasJugadIzda:
             result.append(Spacer(100 * mm, 2 * mm))
             result.append(t)
+            result.append(NextPageTemplate('apaisada'))
 
     if len(juDcha):
         datosIzda = datosJugadores(tempData, abrEqs[1], juDcha)
@@ -668,6 +687,7 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
         result.append(PageBreak())
         for t in tablasJugadIzda:
             result.append(Spacer(100 * mm, 2 * mm))
+            result.append(NextPageTemplate('apaisada'))
             result.append(t)
 
     return result
@@ -863,16 +883,18 @@ def tablaJugadoresEquipo(jugDF):
 
     for colList in [(COLSIDENT + COLS_PROMED), (COLSIDENT + COLS_TOTALES),
                     (COLSIDENT_UP + COLS_ULTP)]:  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
-        t = auxGeneraTabla(auxDF, colList, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA)
+        t = auxGeneraTabla(auxDF, colList, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA, repeatRows=1)
 
         result.append(t)
 
     return result
 
 
-def tablaLiga(tempData: TemporadaACB):
+def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None):
     CELLPAD = 0.3 * mm
     FONTSIZE = 10
+
+    datosAux, coordsJuPe = datosTablaLiga(tempData)
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -882,11 +904,53 @@ def tablaLiga(tempData: TemporadaACB):
                          ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD),
                          ("BACKGROUND", (-1, 1), (-1, -2), colors.lightgrey),
                          ("BACKGROUND", (1, -1), (-2, -1), colors.lightgrey)])
-    datosAux = datosTablaLiga(tempData)
     alturas = [20] + [28] * (len(datosAux) - 2) + [20]
     anchos = [58] + [38] * (len(datosAux) - 2) + [40]
+
+    CANTGREYBAL = .70
+    colBal = colors.rgb2cmyk(CANTGREYBAL, CANTGREYBAL, CANTGREYBAL)
+
     for i in range(1, len(datosAux) - 1):
-        tStyle.add("BACKGROUND", (i, i), (i, i), colors.lightgrey)
+        tStyle.add("BACKGROUND", (i, i), (i, i), colBal)
+
+    ANCHOMARCAPOS = 2
+    for pos in MARCADORESCLASIF:
+        commH, commV = ("LINEBELOW", "LINEAFTER") if pos >= 0 else ("LINEABOVE", "LINEBEFORE")
+        incr = 0 if pos >= 0 else -1
+        posIni = 0 if pos >= 0 else pos + incr
+        posFin = pos + incr if pos >= 0 else -1
+        tStyle.add(commH, (posIni, pos + incr), (posFin, pos + incr), ANCHOMARCAPOS, colors.black)
+        tStyle.add(commV, (pos + incr, posIni), (pos + incr, posFin), ANCHOMARCAPOS, colors.black)
+
+    # Equipos para descenso (horizontal)
+    tStyle.add("LINEBEFORE", (-DESCENSOS - 1, 0), (-DESCENSOS - 1, 0), ANCHOMARCAPOS, colors.black)
+    tStyle.add("LINEBEFORE", (-1, 0), (-1, 0), ANCHOMARCAPOS, colors.black)
+    tStyle.add("LINEBELOW", (-DESCENSOS - 1, 0), (-2, 0), ANCHOMARCAPOS, colors.black)
+
+    # Equipos para descenso (vertical)
+    tStyle.add("LINEAFTER", (0, -DESCENSOS - 1), (0, -2), ANCHOMARCAPOS, colors.black)
+    tStyle.add("LINEABOVE", (0, -DESCENSOS - 1), (0, -DESCENSOS - 1), ANCHOMARCAPOS, colors.black)
+    tStyle.add("LINEABOVE", (0, -1), (0, -1), ANCHOMARCAPOS, colors.black)
+
+    # Marca la clase
+    claveJuPe = 'ju' if len(coordsJuPe['ju']) <= len(coordsJuPe['pe']) else 'pe'
+    CANTGREYJUPE = .90
+    colP = colors.rgb2cmyk(CANTGREYJUPE, CANTGREYJUPE, CANTGREYJUPE)
+    for x, y in coordsJuPe[claveJuPe]:
+        coord = (y + 1, x + 1)
+        tStyle.add("BACKGROUND", coord, coord, colP)
+
+    if equiposAmarcar is not None:
+        CANTGREYEQ = .80
+        colEq = colors.rgb2cmyk(CANTGREYEQ, CANTGREYEQ, CANTGREYEQ)
+
+        parEqs = set(listize(equiposAmarcar))
+        seqIDs = [(pos, equipo['abrevsEq']) for pos, equipo in enumerate(clasifLiga) if
+                  equipo['abrevsEq'].intersection(parEqs)]
+
+        for pos, _ in seqIDs:
+            tStyle.add("BACKGROUND", (pos + 1, 0), (pos + 1, 0), colEq)
+            tStyle.add("BACKGROUND", (0, pos + 1), (0, pos + 1), colEq)
 
     t = Table(datosAux, style=tStyle, rowHeights=alturas, colWidths=anchos)
 
@@ -939,7 +1003,7 @@ def preparaLibro(outfile, tempData, datosSig):
 
     story.append(NextPageTemplate('apaisada'))
     story.append(PageBreak())
-    story.append(tablaLiga(tempData))
+    story.append(tablaLiga(tempData, equiposAmarcar=abrEqs))
 
     if (len(juIzda) or len(juDcha)):
         infoJugadores = paginasJugadores(tempData, abrEqs, juIzda, juDcha)

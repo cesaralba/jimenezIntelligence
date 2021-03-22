@@ -66,7 +66,7 @@ class TemporadaACB(object):
     Aglutina calendario y lista de partidos
     '''
 
-    #TODO: función __str__
+    # TODO: función __str__
 
     def __init__(self, **kwargs):
         self.competicion = kwargs.get('competicion', "LACB")
@@ -113,6 +113,12 @@ class TemporadaACB(object):
                 if self.descargaFichas:
                     self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
                 self.actualizaTraduccionesJugador(nuevoPartido)
+
+                # Añade la información de equipos de partido a traducciones de equipo.
+                # (el código de equipo ya no viene en el calendario)
+                for eqData in nuevoPartido.Equipos.values():
+                    self.Calendario.nuevaTraduccionEquipo2Codigo(nombres=eqData['Nombre'], abrev=eqData['abrev'],
+                                                                 id=eqData['id'])
 
             except KeyboardInterrupt:
                 print("actualizaTemporada: Ejecución terminada por el usuario")
