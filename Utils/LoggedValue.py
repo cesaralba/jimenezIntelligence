@@ -44,6 +44,8 @@ class LoggedValue:
         self._set(None, 'D', changeTime)
         self.deleted = True
 
+        return True
+
     def get(self):
         if self.deleted:
             raise ValueError("The variable is deleted")
