@@ -257,7 +257,7 @@ class TemporadaACB(object):
 
             return result
 
-        listaURLs = self.Partidos.keys() if listaURLPartidos is None else listaURLPartidos
+        listaURLs = listaURLPartidos or self.Partidos.keys()
 
         dfPartidos = [self.Partidos[pURL].jugadoresAdataframe() for pURL in listaURLs]
 
