@@ -109,18 +109,11 @@ class TemporadaACB(object):
                 nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
                 nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
                 self.Partidos[partido] = nuevoPartido
-                self.actualizaNombresEquipo(nuevoPartido)
+
+                self.actualizaInfoAuxiliar(nuevoPartido, browser, config)
+
                 partidosBajados.add(partido)
 
-                if self.descargaFichas:
-                    self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
-                self.actualizaTraduccionesJugador(nuevoPartido)
-
-                # Añade la información de equipos de partido a traducciones de equipo.
-                # (el código de equipo ya no viene en el calendario)
-                for eqData in nuevoPartido.Equipos.values():
-                    self.Calendario.nuevaTraduccionEquipo2Codigo(nombres=eqData['Nombre'], abrev=eqData['abrev'],
-                                                                 id=eqData['id'])
 
             except KeyboardInterrupt:
                 print("actualizaTemporada: Ejecución terminada por el usuario")
@@ -138,6 +131,17 @@ class TemporadaACB(object):
             self.timestamp = gmtime()
 
         return partidosBajados
+
+    def actualizaInfoAuxiliar(self, nuevoPartido, browser, config):
+        self.actualizaNombresEquipo(nuevoPartido)
+        if self.descargaFichas:
+            self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
+        self.actualizaTraduccionesJugador(nuevoPartido)
+        # Añade la información de equipos de partido a traducciones de equipo.
+        # (el código de equipo ya no viene en el calendario)
+        for eqData in nuevoPartido.Equipos.values():
+            self.Calendario.nuevaTraduccionEquipo2Codigo(nombres=eqData['Nombre'], abrev=eqData['abrev'],
+                                                         id=eqData['id'])
 
     def actualizaNombresEquipo(self, partido):
         for loc in partido.Equipos:
