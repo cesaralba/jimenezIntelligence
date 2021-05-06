@@ -498,7 +498,7 @@ class MercadoPageContent():
 
     def buscaCodigoJugadoresPendientes(self, infoPlantillas=None):
 
-        dataPlantillas = descargaPlantillasCabecera() if infoPlantillas is None else infoPlantillas
+        dataPlantillas = infoPlantillas or descargaPlantillasCabecera()
 
         newPendientes = []
 
