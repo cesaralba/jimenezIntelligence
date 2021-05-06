@@ -1,9 +1,6 @@
-from collections import namedtuple
-
 from time import gmtime, strftime
 
 DATEFORMAT = "%Y-%m-%d %H:%M:%S%z"
-historyEntry = namedtuple("History", ['action', 'timestamp', 'value'])
 
 
 class LoggedValue:
@@ -32,7 +29,7 @@ class LoggedValue:
             raise ValueError(
                 f"changeTime value '{strftime(DATEFORMAT, changeTime)}' is before the last" +
                 f" recorded change '{strftime(DATEFORMAT, self.last_updated)}'")
-        newLog = historyEntry(action=action, timestamp=changeTime, value=v)
+        newLog = (action, changeTime, v)
         self.last_updated = changeTime
         self.value = v
         self.history.append(newLog)
