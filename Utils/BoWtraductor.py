@@ -1,4 +1,5 @@
 import re
+
 from _collections import defaultdict
 from unicodedata import normalize
 
@@ -46,8 +47,9 @@ class BoWTraductor(object):
 
     def BuscaTraduccion(self, x, umbral=0):
         if x in self.TradConocidas:
-            auxRes = self.TradConocidas[x]
-            if len(auxRes) == 1:
+
+            if len(self.TradConocidas[x]) == 1:
+                auxRes = self.TradConocidas[x]
                 return list(auxRes.copy())[0]
         else:
             valNorm = NormalizaCadena(x, NORMA=self.NORMA)
@@ -68,24 +70,23 @@ class BoWTraductor(object):
                         auxRes = auxRes.union(self.TradNormalizadas[sol[0]])
                     return onlySetElement(auxRes)
 
-                if umbral:
+                if umbral and resultList:
                     # TODO: work this out
 
-                    if resultList:
-                        fullMatch = set()
-                        candidates = defaultdict(set)
-                        for vny, bowy, coincidences in resultList:
-                            if bowx == bowy or bowx.intersection(bowy) == bowx:
-                                fullMatch = fullMatch.union(self.TradNormalizadas[vny])
-                            else:
-                                candidates[coincidences] = candidates[coincidences].union(self.TradNormalizadas[vny])
+                    fullMatch = set()
+                    candidates = defaultdict(set)
+                    for vny, bowy, coincidences in resultList:
+                        if bowx == bowy or bowx.intersection(bowy) == bowx:
+                            fullMatch = fullMatch.union(self.TradNormalizadas[vny])
+                        else:
+                            candidates[coincidences] = candidates[coincidences].union(self.TradNormalizadas[vny])
 
-                        if fullMatch:
-                            return onlySetElement(fullMatch)
+                    if fullMatch:
+                        return onlySetElement(fullMatch)
 
-                        elif candidates:
-                            print(candidates)
-                            return candidates
+                    elif candidates:
+                        print(candidates)
+                        return candidates
 
         return None
 
@@ -121,8 +122,6 @@ def CompareBagsOfWords(x, y):
     bogy = setize(y)
 
     result = len(bogx.intersection(bogy))
-    # if result>0:
-    #     print(result,bogx,bogy)
 
     return result
 
@@ -136,11 +135,14 @@ def wordPosSet(wordList):
     :param wordList: Bien una lista de palabras (frase ya dividida) o una frase (se separa por espacios)
     :return:
     """
+    wrkList = wordList
+    if isinstance(wordList, list):
+        wrkList = wordList
+    elif isinstance(wordList, (str, bytes)):
+        wordList.split()
 
-    wrkList = wordList if isinstance(wordList, list) else (
-            wordList.split() if isinstance(wordList, (str, bytes)) else wordList)
     result = defaultdict(set)
-    for o,w in enumerate(wrkList):
+    for o, w in enumerate(wrkList):
         result[w].add(o)
 
     return result
@@ -160,7 +162,6 @@ def RetocaNombreJugador(x):
         return "%s %s" % (REjug['nombre'], REjug['apell'])
     else:
         return x
-        # raise ValueError("Jugador '%s' no casa RE '%s'" % (x, PATjug))
 
 
 def comparaNombresPersonas(fr1, fr2, umbral=1):
@@ -178,10 +179,9 @@ def comparaNombresPersonas(fr1, fr2, umbral=1):
 
         for wl in prefLargo:
             for wc in prefCorto:
-                if esSigla(wl) or esSigla(wc):  # Pedro vs P.
-                    if hazSigla(wl) == hazSigla(wc):
-                        # print("Siglas!", wl, wc, hazSigla(wl), hazSigla(wc), hazSigla(wl) == hazSigla(wc))
-                        return comparaPrefijos(prefLargo.remove(wl), prefCorto.remove(wc), result + 1)
+                if esSigla(wl) or esSigla(wc) and (hazSigla(wl) == hazSigla(wc)):  # Pedro vs P.
+                    # print("Siglas!", wl, wc, hazSigla(wl), hazSigla(wc), hazSigla(wl) == hazSigla(wc))
+                    return comparaPrefijos(prefLargo.remove(wl), prefCorto.remove(wc), result + 1)
 
                 # Javier vs Javi
                 cadLarga = cosaLarga(wl, wc)
