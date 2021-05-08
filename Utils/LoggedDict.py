@@ -72,6 +72,12 @@ class LoggedDict:
     def removeExclusion(self, *kargs):
         self.exclusions.remove(set(kargs).intersection(self.exclusions))
 
+    def keys(self):
+        return self.current.keys()
+
+    def items(self):
+        return self.current.items()
+
     def __len__(self):
         currData = [k for k, v in self.current.items() if not v.isDeleted()]
         return len(currData)
@@ -156,6 +162,19 @@ class DictOfLoggedDict:
         for k in self.current:
             self.current[k].removeExclusion(set(kargs))
 
+    def extractKey(self, key, default=None):
+        result = {k: v.get(key, default=default) for k, v in self.current.items()}
+
+        return result
+
+    def subkeys(self):
+        auxList = []
+
+        for k, v in self.current.items():
+            auxList = auxList + list(v.keys())
+
+        return set(auxList)
+
     def __len__(self):
         return len(self.current)
 
@@ -163,7 +182,7 @@ class DictOfLoggedDict:
         auxResult = {k: self.current[k].__repr__() for k in sorted(self.current)}
 
         if len(auxResult) == 1:
-            k, v = auxResult.pop.item()
+            k, v = auxResult.pop()
             result = vuelcaLoggedDict(k, v)
         else:
             claves = sorted(auxResult.keys())
