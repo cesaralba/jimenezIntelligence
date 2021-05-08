@@ -26,6 +26,8 @@ parser.add('-c', dest='competicion', action="store", env_var='SM_COMPETICION', r
 parser.add('-u', dest='url', action="store", env_var='SM_URLCAL', help='', required=False)
 parser.add('-b', dest='procesaBio', action="store_true", env_var='SM_STOREBIO',
            help='Descarga los datos biográficos de los jugadores', required=False, default=False)
+parser.add('-p', dest='procesaPlantilla', action="store_true", env_var='SM_STOREPLANT',
+           help='Descarga las plantillas de los equipos', required=False, default=False)
 
 parser.add('-i', dest='infile', type=str, env_var='SM_INFILE', help='Fichero de entrada', required=False)
 parser.add('-o', dest='outfile', type=str, env_var='SM_OUTFILE', help='Fichero de salida', required=False)
@@ -52,10 +54,13 @@ temporada = TemporadaACB(competicion=parCompeticion, edicion=parEdicion, urlbase
 if 'infile' in args and args.infile:
     temporada.cargaTemporada(args.infile)
 
-if 'procesaBio' in args and args.procesaBio:
-    if not temporada.descargaFichas:
-        temporada.descargaFichas = True
-        temporada.changed = True
+if 'procesaBio' in args and args.procesaBio and not temporada.descargaFichas:
+    temporada.descargaFichas = True
+    temporada.changed = True
+
+if 'procesaPlantilla' in args and args.procesaPlantilla and not temporada.descargaPlantillas:
+    temporada.descargaPlantillas = True
+    temporada.changed = True
 
 # sm = SuperManagerACB(config=args)
 nuevosPartidos = temporada.actualizaTemporada(browser=browser, config=args)
