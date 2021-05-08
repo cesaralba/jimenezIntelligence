@@ -56,7 +56,7 @@ class LoggedValue:
         dateTxt = strftime(DATEFORMAT, self.last_updated)
         lenTxt = f"l:{len(self.history)}"
 
-        return f"v:{self.value} t:{dateTxt}{delTxt} {lenTxt}"
+        return f"{self.value.__repr__()} [t:{dateTxt}{delTxt} {lenTxt}]"
 
     def __len__(self):
         return len(self.history)

@@ -2,6 +2,9 @@ from time import gmtime
 
 from .LoggedValue import LoggedValue
 
+INDENTSEPR = 2
+SEPRPR = ",\n" + " " * INDENTSEPR
+
 
 class LoggedDict:
     def __init__(self, exclusions: set = None):
@@ -72,6 +75,17 @@ class LoggedDict:
     def __len__(self):
         currData = [k for k, v in self.current.items() if not v.isDeleted()]
         return len(currData)
+
+    def __repr__(self):
+        auxResult = {k: self.current[k].__repr__() for k in sorted(self.current)}
+
+        if len(auxResult) == 1:
+            result = "{  " + "".join([f"{k.__repr__()}: {v}" for k, v in auxResult.items()]) + "}"
+        else:
+            claves = sorted(auxResult.keys())
+            result = "{ " + SEPRPR.join([f"{k.__repr__()}: {auxResult[k]}" for k in claves[
+                                                                                    :-1]]) + SEPRPR + f"{claves[-1].__repr__()}: {auxResult[claves[-1]]}" + "\n}"
+        return result
 
 
 class DictOfLoggedDict:
@@ -144,3 +158,31 @@ class DictOfLoggedDict:
 
     def __len__(self):
         return len(self.current)
+
+    def __repr__(self):
+        auxResult = {k: self.current[k].__repr__() for k in sorted(self.current)}
+
+        if len(auxResult) == 1:
+            k, v = auxResult.pop.item()
+            result = vuelcaLoggedDict(k, v)
+        else:
+            claves = sorted(auxResult.keys())
+            result = "{" + " " * (INDENTSEPR - 1) + vuelcaLoggedDict(claves[0], auxResult[claves[0]]) + SEPRPR + " "
+            result = result + (SEPRPR + " ").join([vuelcaLoggedDict(k, auxResult[k]) for k in claves[1:]])
+            result = result + "\n}"
+            # TODO: WTF los espacios adicionales tras la coma
+        return result
+
+
+def vuelcaLoggedDict(k, v, indent=2):
+    AUXSEP = ("\n" + " " * (indent + 1))
+    vSplit = v.split('\n')
+
+    if len(vSplit) == 1:
+        result = (" " * indent) + f"{k.__repr__()}: {v}"
+    else:
+        result = (" " * (indent - 2)) + f"{k.__repr__()}: {vSplit[0]}" + AUXSEP
+        result = result + AUXSEP.join(vSplit[1:])
+        result = result + " " * (indent + 1)
+
+    return result
