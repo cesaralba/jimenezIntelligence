@@ -16,13 +16,15 @@ from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, 
 from scipy import stats
 
 from SMACB.CalendarioACB import NEVER
-from SMACB.Constants import LocalVisitante, OtherLoc, haGanado2esp, MARCADORESCLASIF, DESCENSOS
+from SMACB.Constants import LocalVisitante, haGanado2esp, MARCADORESCLASIF, DESCENSOS
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, precalculaOrdenEstadsLiga, COLSESTADSASCENDING, \
     auxEtiqPartido, equipo2clasif
 from Utils.FechaHora import Time2Str
 from Utils.Misc import listize
+
+FMTECHACORTA = "%d-%m"
 
 estadGlobales = None
 estadGlobalesOrden = None
@@ -221,7 +223,7 @@ def auxEtiqTiros(df, tiro, entero=True):
     return result
 
 
-def auxEtFecha(f, col, formato="%d-%m"):
+def auxEtFecha(f, col, formato=FMTECHACORTA):
     if f is None:
         return "-"
 
@@ -568,9 +570,9 @@ def datosTablaLiga(tempData: TemporadaACB):
         abrev = list(clasifLiga[pos]['abrevsEq'])[0]
         fila.append(Paragraph(f"{nombreCorto} (<b>{abrev}</b>)", style=estCelda))
         for _, idVisit in seqIDs:
-            if idLocal != idVisit:
+            if idLocal != idVisit:  # Partido, la otra se usa para poner el balance
                 part = auxTabla[idLocal][idVisit]
-                fecha = part['fechaPartido'].strftime("%d-%m") if (
+                fecha = part['fechaPartido'].strftime(FMTECHACORTA) if (
                         ('fechaPartido' in part) and (part['fechaPartido'] != NEVER)) else 'TBD'
                 jornada = part['jornada']
 
@@ -578,7 +580,6 @@ def datosTablaLiga(tempData: TemporadaACB):
                 if not part['pendiente']:
                     pURL = part['url']
                     pTempFecha = tempData.Partidos[pURL].fechaPartido
-                    fecha = pTempFecha.strftime("%d-%m")
                     pLocal = part['equipos']['Local']['puntos']
                     pVisit = part['equipos']['Visitante']['puntos']
                     texto = f"J:{jornada}<br/><b>{pLocal}-{pVisit}</b>"
@@ -621,7 +622,7 @@ def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
     abrevsDcha = tempData.Calendario.abrevsEquipo(abrDcha)
     abrevsPartido = set().union(abrevsIzda).union(abrevsDcha)
 
-    while (len(partsIzdaAux) > 0) or (len(partsDchaAux) > 0):
+    while (len(partsIzdaAux) + len(partsDchaAux) > 0):
         bloque = dict()
 
         try:
@@ -631,6 +632,7 @@ def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
             bloque['dcha'] = partidoTrayectoria(partsDchaAux.pop(0), abrevsDcha, tempData)
             lineas.append(bloque)
             continue
+
         try:
             priPartDcha = partsDchaAux[0]
         except IndexError:
@@ -700,11 +702,10 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
 
     datoFecha = partido.fechaPartido if isinstance(partido, PartidoACB) else datosPartido['fechaPartido']
 
-    strFecha = datoFecha.strftime("%d-%m") if datoFecha != NEVER else "TBD"
+    strFecha = datoFecha.strftime(FMTECHACORTA) if datoFecha != NEVER else "TBD"
     abrEq = list(abrevs.intersection(datosPartido['participantes']))[0]
     abrRival = list(datosPartido['participantes'].difference(abrevs))[0]
     locEq = datosPartido['abrev2loc'][abrEq]
-    locRival = OtherLoc(locEq)
     textRival = auxEtiqPartido(datosTemp, abrRival, locEq=locEq, usaLargo=False)
     strRival = f"{strFecha}: {textRival}"
 
