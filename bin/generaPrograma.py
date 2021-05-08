@@ -730,7 +730,7 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
 
 
 def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
-    CELLPAD = 0.2 * mm
+    CELLPAD = 0.15 * mm
     FONTSIZE = 9
 
     filasPrecedentes = set()
@@ -785,7 +785,7 @@ def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
         tStyle.add("SPAN", (-2, fNum), (-1, fNum))
 
     ANCHORESULTADO = (FONTSIZE * 0.6) * 12
-    ANCHOETPARTIDO = (FONTSIZE * 0.6) * 30
+    ANCHOETPARTIDO = (FONTSIZE * 0.6) * 32
     ANCHOJORNADA = ((FONTSIZE + 1) * 0.6) * 4
 
     t = Table(data=filas, style=tStyle,
