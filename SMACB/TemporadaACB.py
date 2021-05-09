@@ -383,7 +383,7 @@ class TemporadaACB(object):
 
         auxDF = pd.DataFrame.from_dict(auxdict, orient='index')
         for col in ['fechaNac', 'primPartidoT', 'ultPartidoT']:
-            auxDF[col] = auxDF[col]
+            auxDF[col] = pd.to_datetime(auxDF[col])  # TODO: Esto no era
 
         return auxDF
 
@@ -534,9 +534,8 @@ def calculaTempStats(datos, clave, filtroFechas=None):
     if clave not in datos:
         raise KeyError("Clave '%s' no está en datos." % clave)
 
-    if filtroFechas:
-        datosWrk = datos
-    else:
+    datosWrk = datos
+    if filtroFechas:  # TODO: Qué hacer con el filtro
         datosWrk = datos
 
     agg = datosWrk.set_index('codigo')[clave].astype('float64').groupby('codigo').agg(['mean', 'std', 'count',
@@ -558,10 +557,9 @@ def calculaZ(datos, clave, useStd=True, filtroFechas=None):
         finalKeys.append('pos')
         finalTypes['pos'] = 'category'
 
+    datosWrk = datos
     if filtroFechas:
         datosWrk = datos  # TODO: filtro de fechas
-    else:
-        datosWrk = datos
 
     agg1 = calculaTempStats(datos, clave, filtroFechas)
 
@@ -679,7 +677,6 @@ def precalculaOrdenEstadsLiga(dfEstads: pd.DataFrame, listAscending=None):
 def auxCalculaEstadsSubDataframe(dfEntrada: pd.DataFrame):
     FILASESTADISTICOS = ['count', 'mean', 'std', 'min', '50%', 'max']
     ROWRENAMER = {'50%': 'median'}
-    COLDROPPER = []
 
     estadisticosNumber = dfEntrada.describe(include=[np.number], percentiles=[.50])
     # Necesario porque describe trata los bool como categóricos
@@ -789,7 +786,6 @@ def precalculaOrdenEstadsLiga(dfEstads: pd.DataFrame, listAscending=None):
 def auxCalculaEstadsSubDataframe(dfEntrada: pd.DataFrame):
     FILASESTADISTICOS = ['count', 'mean', 'std', 'min', '50%', 'max']
     ROWRENAMER = {'50%': 'median'}
-    COLDROPPER = []
 
     estadisticosNumber = dfEntrada.describe(include=[np.number], percentiles=[.50])
     # Necesario porque describe trata los bool como categóricos
