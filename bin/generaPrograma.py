@@ -773,7 +773,7 @@ def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
         datosIzda = f.get('izda', ['', ''])
         datosDcha = f.get('dcha', ['', ''])
         jornada = f['J']
-        if 'precedente' in f:
+        if f.get('precedente', False):
             filasPrecedentes.add(i)
 
         aux = [Paragraph(f"<para align='center'>{datosIzda[1]}</para>"),
@@ -786,7 +786,7 @@ def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
         datosIzda, _ = f.get('izda', ['', None])
         datosDcha, _ = f.get('dcha', ['', None])
         jornada = f['J']
-        if 'precedente' in f:
+        if f.get('precedente', False):
             if i == 0:  # Es el partido que vamos a tratar, no tiene sentido incluirlo
                 continue
             filasPrecedentes.add(i)
