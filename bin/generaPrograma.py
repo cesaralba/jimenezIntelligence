@@ -11,8 +11,8 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
-from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, Spacer, NextPageTemplate, PageTemplate, \
-    Frame, PageBreak
+from reportlab.platypus import (Table, SimpleDocTemplate, Paragraph, TableStyle, Spacer, NextPageTemplate, PageTemplate,
+                                Frame, PageBreak)
 from scipy import stats
 
 from SMACB.CalendarioACB import NEVER
@@ -22,7 +22,7 @@ from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, precalculaOrdenEstadsLiga, COLSESTADSASCENDING, \
     auxEtiqPartido, equipo2clasif
 from Utils.FechaHora import Time2Str
-from Utils.Misc import listize
+from Utils.Misc import listize, onlySetElement
 
 FMTECHACORTA = "%d-%m"
 
@@ -502,6 +502,13 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
 
     identifJug = pd.concat([estadsJugDF['Jugador'][COLS_IDENTIFIC_JUG], fichasJugadores[COLS_FICHA]], axis=1,
                            join="inner")
+
+    if tempData.descargaPlantillas:
+        idEq = onlySetElement(tempData.Calendario.tradEquipos['c2i'][abrEq])
+        statusJugs = tempData.plantillas[idEq].jugadores.extractKey('activo', False)
+        identifJug['ACTIVO'] = identifJug['codigo'].map(statusJugs, True)
+    else:
+        identifJug['ACTIVO'] = True
 
     estadsPromedios = estadsJugDF[COLS_ESTAD_PROM].droplevel(1, axis=1)
     estadsTotales = estadsJugDF[COLS_ESTAD_TOTAL].droplevel(1, axis=1)
