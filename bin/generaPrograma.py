@@ -251,7 +251,8 @@ def auxGeneraTabla(dfDatos, collist, colSpecs, estiloTablaBaseOps, formatos=None
             etiqFormato = colSpec['formato']
             if colSpec['formato'] not in formatos:
                 raise KeyError(
-                    f"auxGeneraTabla: columna '{colkey}': formato '{etiqFormato}' desconocido. Formatos conocidos: {formatos}")
+                    f"auxGeneraTabla: columna '{colkey}': formato '{etiqFormato}' desconocido. " +
+                    f"Formatos conocidos: {formatos}")
             formatSpec = formatos[etiqFormato]
 
             if 'numero' in formatSpec:
@@ -287,8 +288,8 @@ def cabeceraPortada(partido, tempData):
     style = ParagraphStyle('cabStyle', align='center', fontName='Helvetica', fontSize=20, leading=22, )
 
     cadenaCentral = Paragraph(
-        f"<para align='center' fontName='Helvetica' fontSize=20 leading=22><b>{compo}</b> {edicion} - J: <b>{j}</b><br/>{fh}</para>",
-        style)
+        f"<para align='center' fontName='Helvetica' fontSize=20 leading=22><b>{compo}</b> {edicion} - " +
+        f"J: <b>{j}</b><br/>{fh}</para>", style)
 
     cabLocal = datosCabEquipo(datosLocal, tempData, partido['fechaPartido'])
     cabVisit = datosCabEquipo(datosVisit, tempData, partido['fechaPartido'])
@@ -422,19 +423,34 @@ def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
     ###
 
     resultEq = f"""
-<b>PF</b>:&nbsp;{pFav:.2f}({pFavOrd:.0f}) <b>/</b> <b>PC</b>:&nbsp;{pCon:.2f}({pConOrd:.0f}) <b>/</b>
-<b>Pos</b>:&nbsp;{pos:.2f}({posOrd:.0f}) <b>/</b> <b>OER</b>:&nbsp;{OER:.2f}({OEROrd:.0f}) <b>/</b> <b>DER</b>:&nbsp;{DER:.2f}({DEROrd:.0f}) <b>/</b>
-<b>T2</b>:&nbsp;{T2C:.2f}({T2IOrd:.0f})/{T2I:.2f}({T2IOrd:.0f})&nbsp;{T2pc:.2f}%({T2pcOrd:.0f}) <b>/</b> <b>T3</b>:&nbsp;{T3C:.2f}({T3IOrd:.0f})/{T3I:.2f}({T3IOrd:.0f})&nbsp;{T3pc:.2f}%({T3pcOrd:.0f}) <b>/</b>
-<b>TC</b>:&nbsp;{TCC:.2f}({TCIOrd:.0f})/{TCI:.2f}({TCIOrd:.0f})&nbsp;{TCpc:.2f}%({TCpcOrd:.0f}) <b>/</b> <b>P&nbsp;por&nbsp;TC-I</b>:&nbsp;{ppTC:.2f}({ppTCOrd:.0f}) <b>T3-I/TC-I</b>&nbsp;{ratT3:.2f}%({ratT3Ord:.0f}) <b>/</b>
-<b>F&nbsp;com</b>:&nbsp;{Fcom:.2f}({FcomOrd:.0f})  <b>/</b> <b>F&nbsp;rec</b>:&nbsp;{Frec:.2f}({FrecOrd:.0f})  <b>/</b> <b>TL</b>:&nbsp;{T1C:.2f}({T1COrd:.0f})/{T1I:.2f}({T1IOrd:.0f})&nbsp;{T1pc:.2f}%({T1pcOrd:.0f}) <b>/</b>
-<b>Reb</b>:&nbsp;{RebD:.2f}({RebDOrd:.0f})+{RebO:.2f}({RebOOrd:.0f})&nbsp;{RebT:.2f}({RebTOrd:.0f}) <b>/</b> <b>EffRD</b>:&nbsp;{EffRebD:.2f}%({EffRebDOrd:.0f}) <b>EffRO</b>:&nbsp;{EffRebO:.2f}%({EffRebOOrd:.0f}) <b>/</b>
-<b>A</b>:&nbsp;{A:.2f}({AOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{BP:.2f}({BPOrd:.0f}) <b>/</b> <b>BR</b>:&nbsp;{BR:.2f}({BROrd:.0f}) <b>/</b> <b>A/BP</b>:&nbsp;{ApBP:.2f}({ApBPOrd:.0f}) <b>/</b> <b>A/Can</b>:&nbsp;{ApTCC:.2f}%({ApTCCOrd:.0f})<br/>
+<b>PF</b>:&nbsp;{pFav:.2f}({pFavOrd:.0f}) <b>/</b> 
+<b>PC</b>:&nbsp;{pCon:.2f}({pConOrd:.0f}) <b>/</b>
+<b>Pos</b>:&nbsp;{pos:.2f}({posOrd:.0f}) <b>/</b> 
+<b>OER</b>:&nbsp;{OER:.2f}({OEROrd:.0f}) <b>/</b> 
+<b>DER</b>:&nbsp;{DER:.2f}({DEROrd:.0f}) <b>/</b>
+<b>T2</b>:&nbsp;{T2C:.2f}({T2IOrd:.0f})/{T2I:.2f}({T2IOrd:.0f})&nbsp;{T2pc:.2f}%({T2pcOrd:.0f}) <b>/</b> 
+<b>T3</b>:&nbsp;{T3C:.2f}({T3IOrd:.0f})/{T3I:.2f}({T3IOrd:.0f})&nbsp;{T3pc:.2f}%({T3pcOrd:.0f}) <b>/</b>
+<b>TC</b>:&nbsp;{TCC:.2f}({TCIOrd:.0f})/{TCI:.2f}({TCIOrd:.0f})&nbsp;{TCpc:.2f}%({TCpcOrd:.0f}) <b>/</b> 
+<b>P&nbsp;por&nbsp;TC-I</b>:&nbsp;{ppTC:.2f}({ppTCOrd:.0f}) <b>T3-I/TC-I</b>&nbsp;{ratT3:.2f}%({ratT3Ord:.0f}) <b>/</b>
+<b>F&nbsp;com</b>:&nbsp;{Fcom:.2f}({FcomOrd:.0f})  <b>/</b> <b>F&nbsp;rec</b>:&nbsp;{Frec:.2f}({FrecOrd:.0f})  <b>/</b> 
+<b>TL</b>:&nbsp;{T1C:.2f}({T1COrd:.0f})/{T1I:.2f}({T1IOrd:.0f})&nbsp;{T1pc:.2f}%({T1pcOrd:.0f}) <b>/</b>
+<b>Reb</b>:&nbsp;{RebD:.2f}({RebDOrd:.0f})+{RebO:.2f}({RebOOrd:.0f})&nbsp;{RebT:.2f}({RebTOrd:.0f}) <b>/</b> 
+<b>EffRD</b>:&nbsp;{EffRebD:.2f}%({EffRebDOrd:.0f}) <b>EffRO</b>:&nbsp;{EffRebO:.2f}%({EffRebOOrd:.0f}) <b>/</b>
+<b>A</b>:&nbsp;{A:.2f}({AOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{BP:.2f}({BPOrd:.0f}) <b>/</b> 
+<b>BR</b>:&nbsp;{BR:.2f}({BROrd:.0f}) <b>/</b> 
+<b>A/BP</b>:&nbsp;{ApBP:.2f}({ApBPOrd:.0f}) <b>/</b> <b>A/Can</b>:&nbsp;{ApTCC:.2f}%({ApTCCOrd:.0f})<br/>
 
 <B>RIVAL</B> 
-<b>T2</b>:&nbsp;{rT2C:.2f}({rT2IOrd:.0f})/{rT2I:.2f}({rT2IOrd:.0f})&nbsp;{rT2pc:.2f}%({rT2pcOrd:.0f}) <b>/</b> <b>T3</b>:&nbsp;{rT3C:.2f}({rT3IOrd:.0f})/{rT3I:.2f}({rT3IOrd:.0f})&nbsp;{rT3pc:.2f}%({rT3pcOrd:.0f}) <b>/</b>
-<b>TC</b>:&nbsp;{rTCC:.2f}({rTCIOrd:.0f})/{rTCI:.2f}({rTCIOrd:.0f})&nbsp;{rTCpc:.2f}%({rTCpcOrd:.0f}) <b>/</b> <b>P&nbsp;por&nbsp;TC-I</b>:&nbsp;{rppTC:.2f}({rppTCOrd:.0f}) <b>T3-I/TC-I</b>&nbsp;{rratT3:.2f}%({rratT3Ord:.0f}) <b>/</b>
-<b>TL</b>:&nbsp;{rT1C:.2f}({rT1COrd:.0f})/{rT1I:.2f}({rT1IOrd:.0f})&nbsp;{rT1pc:.2f}%({rT1pcOrd:.0f}) <b>/</b> <b>Reb</b>:&nbsp;{rRebD:.2f}({rRebDOrd:.0f})+{rRebO:.2f}({rRebOOrd:.0f})&nbsp;{rRebT:.2f}({rRebTOrd:.0f}) <b>/</b>
-<b>A</b>:&nbsp;{rA:.2f}({rAOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{rBP:.2f}({rBPOrd:.0f}) <b>/</b> <b>BR</b>:&nbsp;{rBR:.2f}({rBROrd:.0f}) <b>/</b> <b>A/BP</b>:&nbsp;{rApBP:.2f}({rApBPOrd:.0f}) <b>/</b> <b>A/Can</b>:&nbsp;{rApTCC:.2f}%({rApTCCOrd:.0f})
+<b>T2</b>:&nbsp;{rT2C:.2f}({rT2IOrd:.0f})/{rT2I:.2f}({rT2IOrd:.0f})&nbsp;{rT2pc:.2f}%({rT2pcOrd:.0f}) <b>/</b> 
+<b>T3</b>:&nbsp;{rT3C:.2f}({rT3IOrd:.0f})/{rT3I:.2f}({rT3IOrd:.0f})&nbsp;{rT3pc:.2f}%({rT3pcOrd:.0f}) <b>/</b>
+<b>TC</b>:&nbsp;{rTCC:.2f}({rTCIOrd:.0f})/{rTCI:.2f}({rTCIOrd:.0f})&nbsp;{rTCpc:.2f}%({rTCpcOrd:.0f}) <b>/</b> 
+<b>P&nbsp;por&nbsp;TC-I</b>:&nbsp;{rppTC:.2f}({rppTCOrd:.0f}) <b>/</b>  
+<b>T3-I/TC-I</b>&nbsp;{rratT3:.2f}%({rratT3Ord:.0f}) <b>/</b>
+<b>TL</b>:&nbsp;{rT1C:.2f}({rT1COrd:.0f})/{rT1I:.2f}({rT1IOrd:.0f})&nbsp;{rT1pc:.2f}%({rT1pcOrd:.0f}) <b>/</b> 
+<b>Reb</b>:&nbsp;{rRebD:.2f}({rRebDOrd:.0f})+{rRebO:.2f}({rRebOOrd:.0f})&nbsp;{rRebT:.2f}({rRebTOrd:.0f}) <b>/</b>
+<b>A</b>:&nbsp;{rA:.2f}({rAOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{rBP:.2f}({rBPOrd:.0f}) <b>/</b> 
+<b>BR</b>:&nbsp;{rBR:.2f}({rBROrd:.0f}) <b>/</b> <b>A/BP</b>:&nbsp;{rApBP:.2f}({rApBPOrd:.0f}) <b>/</b> 
+<b>A/Can</b>:&nbsp;{rApTCC:.2f}%({rApTCCOrd:.0f})
 """
 
     return resultEq
@@ -579,8 +595,10 @@ def datosTablaLiga(tempData: TemporadaACB):
         for _, idVisit in seqIDs:
             if idLocal != idVisit:  # Partido, la otra se usa para poner el balance
                 part = auxTabla[idLocal][idVisit]
-                fecha = part['fechaPartido'].strftime(FMTECHACORTA) if (
-                        ('fechaPartido' in part) and (part['fechaPartido'] != NEVER)) else 'TBD'
+
+                fechaAux = part.get('fechaPartido', NEVER)
+
+                fecha = 'TBD' if (fechaAux == NEVER) else fechaAux.strftime(FMTECHACORTA)
                 jornada = part['jornada']
 
                 texto = f"J:{jornada}<br/>@{fecha}"
@@ -629,7 +647,7 @@ def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
     abrevsDcha = tempData.Calendario.abrevsEquipo(abrDcha)
     abrevsPartido = set().union(abrevsIzda).union(abrevsDcha)
 
-    while (len(partsIzdaAux) + len(partsDchaAux) > 0):
+    while (len(partsIzdaAux) + len(partsDchaAux)) > 0:
         bloque = dict()
 
         try:
@@ -656,8 +674,7 @@ def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
             abrevsPartIzda = priPartIzda.CodigosCalendario if isinstance(priPartIzda, PartidoACB) else priPartIzda[
                 'loc2abrev']
 
-            if len(abrevsPartido.intersection(abrevsPartIzda.values())) == 2:
-                bloque['precedente'] = True
+            bloque['precedente'] = (len(abrevsPartido.intersection(abrevsPartIzda.values())) == 2)
 
         else:
             if (priPartIzda['fechaPartido'], priPartIzda['jornada']) < (
