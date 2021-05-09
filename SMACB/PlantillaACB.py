@@ -57,6 +57,9 @@ class PlantillaACB(object):
 
         return result
 
+    def getValorJugadores(self, clave, default=None):
+        return self.jugadores.extractKey(key=clave, default=default)
+
     def __str__(self):
         result = "%s [%s] Year: %s Jugadores conocidos: %i Entrenadores conocidos: %i" % (
             self.club.get('nombreActual', "TBD"), self.id, self.edicion, len(self.jugadores), len(self.tecnicos))
@@ -108,6 +111,7 @@ class PlantillaACB(object):
     #
     #     return onlySetElement(codeList)
     #
+
 
 def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=Namespace(), otrosNombres=None):
     if browser is None:
