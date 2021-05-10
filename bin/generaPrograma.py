@@ -64,6 +64,14 @@ def GENERADORTIEMPO(*kargs, **kwargs):
     return lambda f: auxEtiqTiempo(f, *kargs, **kwargs)
 
 
+def GENMAPDICT(*kargs, **kwargs):
+    return lambda f: auxMapDict(f, *kargs, **kwargs)
+
+
+def GENERADORCLAVEDORSAL(*kargs, **kwargs):
+    return lambda f: auxKeyDorsal(f, *kargs, **kwargs)
+
+
 INFOESTADSEQ = {
     ('Eq', 'P'): {'etiq': 'PF', 'formato': 'float'},
     ('Rival', 'P'): {'etiq': 'PC', 'formato': 'float'},
@@ -103,12 +111,15 @@ INFOESTADSEQ = {
 
 INFOTABLAJUGS = {
     ('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
+    ('Jugador', 'Kdorsal'): {'etiq': 'kD', 'generador': GENERADORCLAVEDORSAL(col='dorsal')},
     ('Jugador', 'nombre'): {'etiq': 'Nombre', 'ancho': 22, 'alignment': 'LEFT'},
     ('Jugador', 'pos'): {'etiq': 'Pos', 'ancho': 4, 'alignment': 'CENTER'},
     ('Jugador', 'altura'): {'etiq': 'Alt', 'ancho': 5},
     ('Jugador', 'licencia'): {'etiq': 'Lic', 'ancho': 5, 'alignment': 'CENTER'},
     ('Jugador', 'etNac'): {'etiq': 'Nac', 'ancho': 5, 'alignment': 'CENTER',
                            'generador': GENERADORFECHA(col='fechaNac', formato='%Y')},
+    ('Jugador', 'Activo'): {'etiq': 'Act', 'ancho': 4, 'alignment': 'CENTER',
+                            'generador': GENMAPDICT(col='Activo', lookup={True: 'A', False: 'B'})},
     ('Trayectoria', 'Acta'): {'etiq': 'Cv', 'ancho': 3, 'formato': 'entero'},
     ('Trayectoria', 'Jugados'): {'etiq': 'Ju', 'ancho': 3, 'formato': 'entero'},
     ('Trayectoria', 'Titular'): {'etiq': 'Tt', 'ancho': 3, 'formato': 'entero'},
@@ -233,11 +244,49 @@ def auxEtFecha(f, col, formato=FMTECHACORTA):
     return result
 
 
-def auxGeneraTabla(dfDatos, collist, colSpecs, estiloTablaBaseOps, formatos=None, charWidth=10.0, **kwargs):
+def auxMapDict(f, col, lookup):
+    if f is None:
+        return "-"
+
+    dato = f[col]
+    result = lookup.get(dato, "-")
+
+    return result
+
+
+def auxKeyDorsal(f, col):
+    if f is None:
+        return "-"
+
+    dato = f[col]
+    result = -1 if dato == "00" else int(dato)
+
+    return result
+
+
+def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estiloTablaBaseOps, formatos=None,
+                   charWidth=10.0, **kwargs):
     dfColList = []
     filaCab = []
     anchoCols = []
     tStyle = TableStyle(estiloTablaBaseOps)
+
+    for col in infoTabla.get('extraCols', []):
+        level, colkey = col
+        colSpec = colSpecs.get(col, {})
+        newCol = dfDatos[level].apply(colSpec['generador'], axis=1) if 'generador' in colSpec else dfDatos[[col]]
+        dfDatos[col] = newCol
+
+    for col, value in infoTabla.get('filtro', []):
+        dfDatos = dfDatos.loc[dfDatos[col] == value]
+
+    sortOrder = infoTabla.get('ordena', [])
+    byList = [c for c, _ in sortOrder if c in dfDatos.columns]
+    ascList = [a for c, a in sortOrder if c in dfDatos.columns]
+
+    dfDatos = dfDatos.sort_values(by=byList, ascending=ascList)
+
+    collist = infoTabla['columnas']
 
     if formatos is None:
         formatos = dict()
@@ -249,16 +298,17 @@ def auxGeneraTabla(dfDatos, collist, colSpecs, estiloTablaBaseOps, formatos=None
 
         if 'formato' in colSpec:
             etiqFormato = colSpec['formato']
-            if colSpec['formato'] not in formatos:
+            if etiqFormato not in formatos:
                 raise KeyError(
                     f"auxGeneraTabla: columna '{colkey}': formato '{etiqFormato}' desconocido. " +
                     f"Formatos conocidos: {formatos}")
             formatSpec = formatos[etiqFormato]
 
             if 'numero' in formatSpec:
-                newCol = newCol.apply(lambda c: c.map(formatSpec['numero'].format))
-
+                newCol = newCol.apply(lambda c, spec=formatSpec: c.map(spec['numero'].format))
         newEtiq = colSpec.get('etiq', etiq)
+
+        print(etiq, newEtiq)
         newAncho = colSpec.get('ancho', 10) * charWidth
 
         dfColList.append(newCol)
@@ -501,7 +551,6 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     COLS_ESTAD_TOTAL = [(col, 'sum') for col in VALS_ESTAD_JUGADOR]
 
     abrevsEq = tempData.Calendario.abrevsEquipo(abrEq)
-    keyDorsal = lambda d: -1 if d == '00' else int(d)
 
     urlPartsJug = [p.url for p in partJug]
 
@@ -522,9 +571,9 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     if tempData.descargaPlantillas:
         idEq = onlySetElement(tempData.Calendario.tradEquipos['c2i'][abrEq])
         statusJugs = tempData.plantillas[idEq].jugadores.extractKey('activo', False)
-        identifJug['ACTIVO'] = identifJug['codigo'].map(statusJugs, True)
+        identifJug['Activo'] = identifJug['codigo'].map(statusJugs, True)
     else:
-        identifJug['ACTIVO'] = True
+        identifJug['Activo'] = True
 
     estadsPromedios = estadsJugDF[COLS_ESTAD_PROM].droplevel(1, axis=1)
     estadsTotales = estadsJugDF[COLS_ESTAD_TOTAL].droplevel(1, axis=1)
@@ -536,8 +585,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
                          'Promedios': estadsPromedios,  # .drop(columns=COLS_IDENTIFIC_JUG + COLS_TRAYECT_TEMP)
                          'Totales': estadsTotales,  # .drop(columns=COLS_IDENTIFIC_JUG + COLS_TRAYECT_TEMP)
                          'UltimoPart': datosUltPart}  # .drop(columns=COLS_IDENTIFIC_JUG)
-    result = pd.concat(dataFramesAJuntar.values(), axis=1, join='outer', keys=dataFramesAJuntar.keys()).sort_values(
-        ('Jugador', 'dorsal'), key=lambda c: c.map(keyDorsal))
+    result = pd.concat(dataFramesAJuntar.values(), axis=1, join='outer', keys=dataFramesAJuntar.keys())
 
     return result
 
@@ -695,23 +743,24 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
 
     if len(juIzda):
         datosIzda = datosJugadores(tempData, abrEqs[0], juIzda)
-        tablasJugadIzda = tablaJugadoresEquipo(datosIzda)
+        tablasJugadIzda = tablasJugadoresEquipo(datosIzda)
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
 
-        for t in tablasJugadIzda:
+        for (infoTabla, t) in tablasJugadIzda:
             result.append(Spacer(100 * mm, 2 * mm))
             result.append(t)
             result.append(NextPageTemplate('apaisada'))
 
     if len(juDcha):
         datosIzda = datosJugadores(tempData, abrEqs[1], juDcha)
-        tablasJugadIzda = tablaJugadoresEquipo(datosIzda)
+        tablasJugadIzda = tablasJugadoresEquipo(datosIzda)
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
-        for t in tablasJugadIzda:
+
+        for (infoTabla, t) in tablasJugadIzda:
             result.append(Spacer(100 * mm, 2 * mm))
             result.append(NextPageTemplate('apaisada'))
             result.append(t)
@@ -820,20 +869,29 @@ def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
     return t
 
 
-def tablaJugadoresEquipo(jugDF):
+def tablasJugadoresEquipo(jugDF):
     result = []
 
     CELLPAD = 0.2 * mm
     FONTSIZE = 8
     ANCHOLETRA = FONTSIZE * 0.5
-
-    COLSIDENT = [('Jugador', 'dorsal'),
-                 ('Jugador', 'nombre'),
-                 ('Trayectoria', 'Acta'),
-                 ('Trayectoria', 'Jugados'),
-                 ('Trayectoria', 'Titular'),
-                 ('Trayectoria', 'Vict')
-                 ]
+    COLACTIVO = ('Jugador', 'Activo')
+    COLDORSAL_IDX = ('Jugador', 'Kdorsal')
+    COLSIDENT_PROM = [('Jugador', 'dorsal'),
+                      ('Jugador', 'nombre'),
+                      ('Trayectoria', 'Acta'),
+                      ('Trayectoria', 'Jugados'),
+                      ('Trayectoria', 'Titular'),
+                      ('Trayectoria', 'Vict')
+                      ]
+    COLSIDENT_TOT = [('Jugador', 'dorsal'),
+                     COLACTIVO,
+                     ('Jugador', 'nombre'),
+                     ('Trayectoria', 'Acta'),
+                     ('Trayectoria', 'Jugados'),
+                     ('Trayectoria', 'Titular'),
+                     ('Trayectoria', 'Vict')
+                     ]
     COLSIDENT_UP = [('Jugador', 'dorsal'),
                     ('Jugador', 'nombre'),
                     ('Jugador', 'pos'),
@@ -904,13 +962,22 @@ def tablaJugadoresEquipo(jugDF):
                ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD), ('TOPPADDING', (0, 0), (-1, -1), CELLPAD),
                ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD), ]
 
+    tablas = {
+        'promedios': {'seq': 1, 'nombre': 'Promedios', 'columnas': (COLSIDENT_PROM + COLS_PROMED),
+                      'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
+                      'ordena': [(COLDORSAL_IDX, True)]},
+        'totales': {'seq': 2, 'nombre': 'Totales', 'columnas': (COLSIDENT_TOT + COLS_TOTALES),
+                    'extraCols': [('Jugador', 'Kdorsal')], 'ordena': [(COLACTIVO, False), (COLDORSAL_IDX, True)]},
+        'ultimo': {'seq': 3, 'nombre': 'Último partido', 'columnas': (COLSIDENT_UP + COLS_ULTP),
+                   'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
+                   'ordena': [(COLDORSAL_IDX, True)]}
+    }
     auxDF = jugDF.copy()
 
-    for colList in [(COLSIDENT + COLS_PROMED), (COLSIDENT + COLS_TOTALES),
-                    (COLSIDENT_UP + COLS_ULTP)]:  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
-        t = auxGeneraTabla(auxDF, colList, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA, repeatRows=1)
+    for infoTabla in tablas.values():  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
+        t = auxGeneraTabla(auxDF, infoTabla, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA, repeatRows=1)
 
-        result.append(t)
+        result.append((infoTabla, t))
 
     return result
 
@@ -1030,7 +1097,7 @@ def preparaLibro(outfile, tempData, datosSig):
     story.append(PageBreak())
     story.append(tablaLiga(tempData, equiposAmarcar=abrEqs))
 
-    if (len(juIzda) or len(juDcha)):
+    if (len(juIzda) + len(juDcha)):
         infoJugadores = paginasJugadores(tempData, abrEqs, juIzda, juDcha)
         story.extend(infoJugadores)
 
