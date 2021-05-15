@@ -275,7 +275,7 @@ class SuperManagerACB(object):
                        'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'sube15%', 'seMantiene', 'baja15%', 'rival',
                        'CODequipo', 'CODrival', 'info']
 
-        dataPlants = descargaPlantillasCabecera(jugId2nombre=nombresJugadores) if infoPlants is None else infoPlants
+        dataPlants = infoPlants or descargaPlantillasCabecera(jugId2nombre=nombresJugadores)
 
         cacheLinks = dict()
         cacheEqNom = defaultdict(dict)
