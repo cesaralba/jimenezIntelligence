@@ -23,6 +23,7 @@ from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
 from .Constants import OtherLoc, EqRival, OtherTeam, LOCALNAMES, LocalVisitante
 from .FichaJugador import FichaJugador
 from .PartidoACB import PartidoACB
+from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB
 
 COLSESTADSASCENDING = [
     ('Info', 'prorrogas', 'mean'),
@@ -73,6 +74,7 @@ class TemporadaACB(object):
         self.edicion = kwargs.get('edicion', None)
         self.urlbase = kwargs.get('urlbase', calendario_URLBASE)
         descargaFichas = kwargs.get('descargaFichas', False)
+        descargaPlantillas = kwargs.get('descargaPlantillas', False)
 
         self.timestamp = gmtime()
         self.Calendario = CalendarioACB(competicion=self.competicion, edicion=self.edicion, urlbase=self.urlbase)
@@ -80,39 +82,38 @@ class TemporadaACB(object):
         self.changed = False
         self.tradJugadores = {'id2nombres': defaultdict(set), 'nombre2ids': defaultdict(set)}
         self.descargaFichas = descargaFichas
+        self.descargaPlantillas = descargaPlantillas
         self.fichaJugadores = dict()
         self.fichaEntrenadores = dict()
+        self.plantillas = dict()
 
     def actualizaTemporada(self, home=None, browser=None, config=Namespace()):
+        changeOrig = self.changed
 
-        if isinstance(config, dict):
-            config = Namespace(**config)
+        config = Namespace(**config) if isinstance(config, dict) else config
 
         if browser is None:
             browser = creaBrowser(config)
             browser.open(URL_BASE)
 
         self.Calendario.actualizaCalendario(browser=browser, config=config)
+        self.actualizaPlantillas(browser=browser, config=config)
 
         if 'procesabio' in config and config.procesaBio:
             self.descargaFichas = True
 
         partidosBajados = set()
 
-        for partido in self.Calendario.Partidos:
-            if partido in self.Partidos:
-                continue
-
+        for partido in set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys())):
             try:
                 nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
                 nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
                 self.Partidos[partido] = nuevoPartido
-                self.actualizaNombresEquipo(nuevoPartido)
+
+                self.actualizaInfoAuxiliar(nuevoPartido, browser, config)
+
                 partidosBajados.add(partido)
 
-                if self.descargaFichas:
-                    self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
-                self.actualizaTraduccionesJugador(nuevoPartido)
 
                 # Añade la información de equipos de partido a traducciones de equipo.
                 # (el código de equipo ya no viene en el calendario)
@@ -130,11 +131,23 @@ class TemporadaACB(object):
             if 'justone' in config and config.justone:  # Just downloads a game (for testing/dev purposes)
                 break
 
-        if partidosBajados:
-            self.changed = True
+        self.changed = self.changed | (len(partidosBajados) > 0)
+
+        if self.changed != changeOrig:
             self.timestamp = gmtime()
 
         return partidosBajados
+
+    def actualizaInfoAuxiliar(self, nuevoPartido, browser, config):
+        self.actualizaNombresEquipo(nuevoPartido)
+        if self.descargaFichas:
+            self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
+        self.actualizaTraduccionesJugador(nuevoPartido)
+        # Añade la información de equipos de partido a traducciones de equipo.
+        # (el código de equipo ya no viene en el calendario)
+        for eqData in nuevoPartido.Equipos.values():
+            self.Calendario.nuevaTraduccionEquipo2Codigo(nombres=eqData['Nombre'], abrev=eqData['abrev'],
+                                                         id=eqData['id'])
 
     def actualizaNombresEquipo(self, partido):
         for loc in partido.Equipos:
@@ -185,6 +198,22 @@ class TemporadaACB(object):
         for codE in nuevoPartido.Entrenadores:
             pass
 
+    def actualizaPlantillas(self, browser=None, config=Namespace()):
+        if self.descargaPlantillas:
+            if browser is None:
+                browser = creaBrowser(config)
+                browser.open(URL_BASE)
+
+            if len(self.plantillas):  # Ya se han descargado por primera vez
+                changes = [self.plantillas[id].descargaYactualizaPlantilla(browser=None, config=Namespace()) for id in self.plantillas]
+                self.changed |= any(changes)
+            else:
+                datosPlantillas = descargaPlantillasCabecera(browser, config)
+                for id, datos in datosPlantillas.items():
+                    self.plantillas[id] = PlantillaACB(id)
+                    self.plantillas[id].actualizaPlantillaDescargada(datos)
+                self.changed = True
+
     def actualizaTraduccionesJugador(self, nuevoPartido):
         for codJ, datosJug in nuevoPartido.Jugadores.items():
             if codJ in self.fichaJugadores:
@@ -234,7 +263,7 @@ class TemporadaACB(object):
 
             return result
 
-        listaURLs = self.Partidos.keys() if listaURLPartidos is None else listaURLPartidos
+        listaURLs = listaURLPartidos or self.Partidos.keys()
 
         dfPartidos = [self.Partidos[pURL].jugadoresAdataframe() for pURL in listaURLs]
 
@@ -360,7 +389,7 @@ class TemporadaACB(object):
 
         auxDF = pd.DataFrame.from_dict(auxdict, orient='index')
         for col in ['fechaNac', 'primPartidoT', 'ultPartidoT']:
-            auxDF[col] = auxDF[col]
+            auxDF[col] = pd.to_datetime(auxDF[col])  # TODO: Esto no era
 
         return auxDF
 
@@ -509,11 +538,10 @@ class TemporadaACB(object):
 
 def calculaTempStats(datos, clave, filtroFechas=None):
     if clave not in datos:
-        raise (KeyError, "Clave '%s' no está en datos." % clave)
+        raise KeyError("Clave '%s' no está en datos." % clave)
 
-    if filtroFechas:
-        datosWrk = datos
-    else:
+    datosWrk = datos
+    if filtroFechas:  # TODO: Qué hacer con el filtro
         datosWrk = datos
 
     agg = datosWrk.set_index('codigo')[clave].astype('float64').groupby('codigo').agg(['mean', 'std', 'count',
@@ -535,10 +563,9 @@ def calculaZ(datos, clave, useStd=True, filtroFechas=None):
         finalKeys.append('pos')
         finalTypes['pos'] = 'category'
 
+    datosWrk = datos
     if filtroFechas:
         datosWrk = datos  # TODO: filtro de fechas
-    else:
-        datosWrk = datos
 
     agg1 = calculaTempStats(datos, clave, filtroFechas)
 
@@ -656,7 +683,6 @@ def precalculaOrdenEstadsLiga(dfEstads: pd.DataFrame, listAscending=None):
 def auxCalculaEstadsSubDataframe(dfEntrada: pd.DataFrame):
     FILASESTADISTICOS = ['count', 'mean', 'std', 'min', '50%', 'max']
     ROWRENAMER = {'50%': 'median'}
-    COLDROPPER = []
 
     estadisticosNumber = dfEntrada.describe(include=[np.number], percentiles=[.50])
     # Necesario porque describe trata los bool como categóricos
@@ -766,7 +792,6 @@ def precalculaOrdenEstadsLiga(dfEstads: pd.DataFrame, listAscending=None):
 def auxCalculaEstadsSubDataframe(dfEntrada: pd.DataFrame):
     FILASESTADISTICOS = ['count', 'mean', 'std', 'min', '50%', 'max']
     ROWRENAMER = {'50%': 'median'}
-    COLDROPPER = []
 
     estadisticosNumber = dfEntrada.describe(include=[np.number], percentiles=[.50])
     # Necesario porque describe trata los bool como categóricos
@@ -873,50 +898,6 @@ def precalculaOrdenEstadsLiga(dfEstads: pd.DataFrame, listAscending=None):
     return result
 
 
-def auxCalculaEstadsSubDataframe(dfEntrada: pd.DataFrame):
-    FILASESTADISTICOS = ['count', 'mean', 'std', 'min', '50%', 'max']
-    ROWRENAMER = {'50%': 'median'}
-    COLDROPPER = []
-
-    estadisticosNumber = dfEntrada.describe(include=[np.number], percentiles=[.50])
-    # Necesario porque describe trata los bool como categóricos
-    estadisticosBool = dfEntrada.select_dtypes([np.bool]).astype(np.int64).apply(
-        lambda c: c.describe(percentiles=[.50]))
-
-    auxEstadisticos = pd.concat([estadisticosNumber, estadisticosBool], axis=1).T[FILASESTADISTICOS].T
-
-    # Hay determinados campos que no tiene sentido sumar. Así que sumamos todos y luego ponemos a nan los que no
-    # Para estos tengo dudas filosóficas de cómo calcular la media (¿media del valor de cada partido o calcular el
-    # ratio a partir de las sumas?
-    sumas = dfEntrada[auxEstadisticos.columns].select_dtypes([np.number, np.bool]).sum()
-
-    sumasDF = pd.DataFrame(sumas).T
-    sumasDF.index = pd.Index(['sum'])
-
-    finalDF = pd.concat([auxEstadisticos, sumasDF]).rename(index=ROWRENAMER)
-
-    result = finalDF.unstack()
-
-    return result
-
-
-def auxEtiqPartido(tempData: TemporadaACB, rivalAbr, esLocal=None, locEq=None, usaAbr=False, usaLargo=False):
-    if (esLocal is None) and (locEq is None):
-        raise ValueError("auxEtiqPartido: debe aportar o esLocal o locEq")
-
-    auxLoc = esLocal if (esLocal is not None) else (locEq in LOCALNAMES)
-    prefLoc = "vs " if auxLoc else "@"
-
-    ordenNombre = -1 if usaLargo else 0
-
-    nombre = rivalAbr if usaAbr else sorted(tempData.Calendario.tradEquipos['c2n'][rivalAbr], key=lambda n: len(n))[
-        ordenNombre]
-
-    result = f"{prefLoc}{nombre}"
-
-    return result
-
-
 def ordenEstadsLiga(estads: dict, abr: str, eq: str = 'eq', clave: str = 'P', subclave=0, decrec: bool = True) -> int:
     if abr not in estads:
         valCorrectos = ", ".join(sorted(estads.keys()))
@@ -941,7 +922,7 @@ def ordenEstadsLiga(estads: dict, abr: str, eq: str = 'eq', clave: str = 'P', su
     return sum([comparaValores(keyGetter(v, subclave), auxRef) for v in valAcomp]) + 1
 
 
-def extraeCampoYorden(estads: dict, abr: str, eq: str = 'eq', clave: str = 'P', subclave=0, decrec: bool = True):
+def extraeCampoYorden_XXX(estads: dict, abr: str, eq: str = 'eq', clave: str = 'P', subclave=0, decrec: bool = True):
     if abr not in estads:
         valCorrectos = ", ".join(sorted(estads.keys()))
         raise KeyError(f"ordenEstadsLiga: equipo (abr) '{abr}' desconocido. Equipos validos: {valCorrectos}")

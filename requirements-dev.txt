@@ -9,4 +9,5 @@ flake8-isort
 ipykernel
 matplotlib
 setuptools
+pylint
 

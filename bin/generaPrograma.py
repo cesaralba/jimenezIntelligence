@@ -11,18 +11,20 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
-from reportlab.platypus import Table, SimpleDocTemplate, Paragraph, TableStyle, Spacer, NextPageTemplate, PageTemplate, \
-    Frame, PageBreak
+from reportlab.platypus import (Table, SimpleDocTemplate, Paragraph, TableStyle, Spacer, NextPageTemplate, PageTemplate,
+                                Frame, PageBreak)
 from scipy import stats
 
 from SMACB.CalendarioACB import NEVER
-from SMACB.Constants import LocalVisitante, OtherLoc, haGanado2esp, MARCADORESCLASIF, DESCENSOS
+from SMACB.Constants import LocalVisitante, haGanado2esp, MARCADORESCLASIF, DESCENSOS
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, precalculaOrdenEstadsLiga, COLSESTADSASCENDING, \
     auxEtiqPartido, equipo2clasif
 from Utils.FechaHora import Time2Str
-from Utils.Misc import listize
+from Utils.Misc import listize, onlySetElement
+
+FMTECHACORTA = "%d-%m"
 
 estadGlobales = None
 estadGlobalesOrden = None
@@ -60,6 +62,14 @@ def GENERADORFECHA(*kargs, **kwargs):
 
 def GENERADORTIEMPO(*kargs, **kwargs):
     return lambda f: auxEtiqTiempo(f, *kargs, **kwargs)
+
+
+def GENMAPDICT(*kargs, **kwargs):
+    return lambda f: auxMapDict(f, *kargs, **kwargs)
+
+
+def GENERADORCLAVEDORSAL(*kargs, **kwargs):
+    return lambda f: auxKeyDorsal(f, *kargs, **kwargs)
 
 
 INFOESTADSEQ = {
@@ -101,12 +111,15 @@ INFOESTADSEQ = {
 
 INFOTABLAJUGS = {
     ('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
+    ('Jugador', 'Kdorsal'): {'etiq': 'kD', 'generador': GENERADORCLAVEDORSAL(col='dorsal')},
     ('Jugador', 'nombre'): {'etiq': 'Nombre', 'ancho': 22, 'alignment': 'LEFT'},
     ('Jugador', 'pos'): {'etiq': 'Pos', 'ancho': 4, 'alignment': 'CENTER'},
     ('Jugador', 'altura'): {'etiq': 'Alt', 'ancho': 5},
     ('Jugador', 'licencia'): {'etiq': 'Lic', 'ancho': 5, 'alignment': 'CENTER'},
     ('Jugador', 'etNac'): {'etiq': 'Nac', 'ancho': 5, 'alignment': 'CENTER',
                            'generador': GENERADORFECHA(col='fechaNac', formato='%Y')},
+    ('Jugador', 'Activo'): {'etiq': 'Act', 'ancho': 4, 'alignment': 'CENTER',
+                            'generador': GENMAPDICT(col='Activo', lookup={True: 'A', False: 'B'})},
     ('Trayectoria', 'Acta'): {'etiq': 'Cv', 'ancho': 3, 'formato': 'entero'},
     ('Trayectoria', 'Jugados'): {'etiq': 'Ju', 'ancho': 3, 'formato': 'entero'},
     ('Trayectoria', 'Titular'): {'etiq': 'Tt', 'ancho': 3, 'formato': 'entero'},
@@ -221,7 +234,7 @@ def auxEtiqTiros(df, tiro, entero=True):
     return result
 
 
-def auxEtFecha(f, col, formato="%d-%m"):
+def auxEtFecha(f, col, formato=FMTECHACORTA):
     if f is None:
         return "-"
 
@@ -231,11 +244,49 @@ def auxEtFecha(f, col, formato="%d-%m"):
     return result
 
 
-def auxGeneraTabla(dfDatos, collist, colSpecs, estiloTablaBaseOps, formatos=None, charWidth=10.0, **kwargs):
+def auxMapDict(f, col, lookup):
+    if f is None:
+        return "-"
+
+    dato = f[col]
+    result = lookup.get(dato, "-")
+
+    return result
+
+
+def auxKeyDorsal(f, col):
+    if f is None:
+        return "-"
+
+    dato = f[col]
+    result = -1 if dato == "00" else int(dato)
+
+    return result
+
+
+def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estiloTablaBaseOps, formatos=None,
+                   charWidth=10.0, **kwargs):
     dfColList = []
     filaCab = []
     anchoCols = []
     tStyle = TableStyle(estiloTablaBaseOps)
+
+    for col in infoTabla.get('extraCols', []):
+        level, colkey = col
+        colSpec = colSpecs.get(col, {})
+        newCol = dfDatos[level].apply(colSpec['generador'], axis=1) if 'generador' in colSpec else dfDatos[[col]]
+        dfDatos[col] = newCol
+
+    for col, value in infoTabla.get('filtro', []):
+        dfDatos = dfDatos.loc[dfDatos[col] == value]
+
+    sortOrder = infoTabla.get('ordena', [])
+    byList = [c for c, _ in sortOrder if c in dfDatos.columns]
+    ascList = [a for c, a in sortOrder if c in dfDatos.columns]
+
+    dfDatos = dfDatos.sort_values(by=byList, ascending=ascList)
+
+    collist = infoTabla['columnas']
 
     if formatos is None:
         formatos = dict()
@@ -247,15 +298,17 @@ def auxGeneraTabla(dfDatos, collist, colSpecs, estiloTablaBaseOps, formatos=None
 
         if 'formato' in colSpec:
             etiqFormato = colSpec['formato']
-            if colSpec['formato'] not in formatos:
+            if etiqFormato not in formatos:
                 raise KeyError(
-                    f"auxGeneraTabla: columna '{colkey}': formato '{etiqFormato}' desconocido. Formatos conocidos: {formatos}")
+                    f"auxGeneraTabla: columna '{colkey}': formato '{etiqFormato}' desconocido. " +
+                    f"Formatos conocidos: {formatos}")
             formatSpec = formatos[etiqFormato]
 
             if 'numero' in formatSpec:
-                newCol = newCol.apply(lambda c: c.map(formatSpec['numero'].format))
-
+                newCol = newCol.apply(lambda c, spec=formatSpec: c.map(spec['numero'].format))
         newEtiq = colSpec.get('etiq', etiq)
+
+        print(etiq, newEtiq)
         newAncho = colSpec.get('ancho', 10) * charWidth
 
         dfColList.append(newCol)
@@ -285,8 +338,8 @@ def cabeceraPortada(partido, tempData):
     style = ParagraphStyle('cabStyle', align='center', fontName='Helvetica', fontSize=20, leading=22, )
 
     cadenaCentral = Paragraph(
-        f"<para align='center' fontName='Helvetica' fontSize=20 leading=22><b>{compo}</b> {edicion} - J: <b>{j}</b><br/>{fh}</para>",
-        style)
+        f"<para align='center' fontName='Helvetica' fontSize=20 leading=22><b>{compo}</b> {edicion} - " +
+        f"J: <b>{j}</b><br/>{fh}</para>", style)
 
     cabLocal = datosCabEquipo(datosLocal, tempData, partido['fechaPartido'])
     cabVisit = datosCabEquipo(datosVisit, tempData, partido['fechaPartido'])
@@ -420,19 +473,34 @@ def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
     ###
 
     resultEq = f"""
-<b>PF</b>:&nbsp;{pFav:.2f}({pFavOrd:.0f}) <b>/</b> <b>PC</b>:&nbsp;{pCon:.2f}({pConOrd:.0f}) <b>/</b>
-<b>Pos</b>:&nbsp;{pos:.2f}({posOrd:.0f}) <b>/</b> <b>OER</b>:&nbsp;{OER:.2f}({OEROrd:.0f}) <b>/</b> <b>DER</b>:&nbsp;{DER:.2f}({DEROrd:.0f}) <b>/</b>
-<b>T2</b>:&nbsp;{T2C:.2f}({T2IOrd:.0f})/{T2I:.2f}({T2IOrd:.0f})&nbsp;{T2pc:.2f}%({T2pcOrd:.0f}) <b>/</b> <b>T3</b>:&nbsp;{T3C:.2f}({T3IOrd:.0f})/{T3I:.2f}({T3IOrd:.0f})&nbsp;{T3pc:.2f}%({T3pcOrd:.0f}) <b>/</b>
-<b>TC</b>:&nbsp;{TCC:.2f}({TCIOrd:.0f})/{TCI:.2f}({TCIOrd:.0f})&nbsp;{TCpc:.2f}%({TCpcOrd:.0f}) <b>/</b> <b>P&nbsp;por&nbsp;TC-I</b>:&nbsp;{ppTC:.2f}({ppTCOrd:.0f}) <b>T3-I/TC-I</b>&nbsp;{ratT3:.2f}%({ratT3Ord:.0f}) <b>/</b>
-<b>F&nbsp;com</b>:&nbsp;{Fcom:.2f}({FcomOrd:.0f})  <b>/</b> <b>F&nbsp;rec</b>:&nbsp;{Frec:.2f}({FrecOrd:.0f})  <b>/</b> <b>TL</b>:&nbsp;{T1C:.2f}({T1COrd:.0f})/{T1I:.2f}({T1IOrd:.0f})&nbsp;{T1pc:.2f}%({T1pcOrd:.0f}) <b>/</b>
-<b>Reb</b>:&nbsp;{RebD:.2f}({RebDOrd:.0f})+{RebO:.2f}({RebOOrd:.0f})&nbsp;{RebT:.2f}({RebTOrd:.0f}) <b>/</b> <b>EffRD</b>:&nbsp;{EffRebD:.2f}%({EffRebDOrd:.0f}) <b>EffRO</b>:&nbsp;{EffRebO:.2f}%({EffRebOOrd:.0f}) <b>/</b>
-<b>A</b>:&nbsp;{A:.2f}({AOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{BP:.2f}({BPOrd:.0f}) <b>/</b> <b>BR</b>:&nbsp;{BR:.2f}({BROrd:.0f}) <b>/</b> <b>A/BP</b>:&nbsp;{ApBP:.2f}({ApBPOrd:.0f}) <b>/</b> <b>A/Can</b>:&nbsp;{ApTCC:.2f}%({ApTCCOrd:.0f})<br/>
+<b>PF</b>:&nbsp;{pFav:.2f}({pFavOrd:.0f}) <b>/</b> 
+<b>PC</b>:&nbsp;{pCon:.2f}({pConOrd:.0f}) <b>/</b>
+<b>Pos</b>:&nbsp;{pos:.2f}({posOrd:.0f}) <b>/</b> 
+<b>OER</b>:&nbsp;{OER:.2f}({OEROrd:.0f}) <b>/</b> 
+<b>DER</b>:&nbsp;{DER:.2f}({DEROrd:.0f}) <b>/</b>
+<b>T2</b>:&nbsp;{T2C:.2f}({T2IOrd:.0f})/{T2I:.2f}({T2IOrd:.0f})&nbsp;{T2pc:.2f}%({T2pcOrd:.0f}) <b>/</b> 
+<b>T3</b>:&nbsp;{T3C:.2f}({T3IOrd:.0f})/{T3I:.2f}({T3IOrd:.0f})&nbsp;{T3pc:.2f}%({T3pcOrd:.0f}) <b>/</b>
+<b>TC</b>:&nbsp;{TCC:.2f}({TCIOrd:.0f})/{TCI:.2f}({TCIOrd:.0f})&nbsp;{TCpc:.2f}%({TCpcOrd:.0f}) <b>/</b> 
+<b>P&nbsp;por&nbsp;TC-I</b>:&nbsp;{ppTC:.2f}({ppTCOrd:.0f}) <b>T3-I/TC-I</b>&nbsp;{ratT3:.2f}%({ratT3Ord:.0f}) <b>/</b>
+<b>F&nbsp;com</b>:&nbsp;{Fcom:.2f}({FcomOrd:.0f})  <b>/</b> <b>F&nbsp;rec</b>:&nbsp;{Frec:.2f}({FrecOrd:.0f})  <b>/</b> 
+<b>TL</b>:&nbsp;{T1C:.2f}({T1COrd:.0f})/{T1I:.2f}({T1IOrd:.0f})&nbsp;{T1pc:.2f}%({T1pcOrd:.0f}) <b>/</b>
+<b>Reb</b>:&nbsp;{RebD:.2f}({RebDOrd:.0f})+{RebO:.2f}({RebOOrd:.0f})&nbsp;{RebT:.2f}({RebTOrd:.0f}) <b>/</b> 
+<b>EffRD</b>:&nbsp;{EffRebD:.2f}%({EffRebDOrd:.0f}) <b>EffRO</b>:&nbsp;{EffRebO:.2f}%({EffRebOOrd:.0f}) <b>/</b>
+<b>A</b>:&nbsp;{A:.2f}({AOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{BP:.2f}({BPOrd:.0f}) <b>/</b> 
+<b>BR</b>:&nbsp;{BR:.2f}({BROrd:.0f}) <b>/</b> 
+<b>A/BP</b>:&nbsp;{ApBP:.2f}({ApBPOrd:.0f}) <b>/</b> <b>A/Can</b>:&nbsp;{ApTCC:.2f}%({ApTCCOrd:.0f})<br/>
 
 <B>RIVAL</B> 
-<b>T2</b>:&nbsp;{rT2C:.2f}({rT2IOrd:.0f})/{rT2I:.2f}({rT2IOrd:.0f})&nbsp;{rT2pc:.2f}%({rT2pcOrd:.0f}) <b>/</b> <b>T3</b>:&nbsp;{rT3C:.2f}({rT3IOrd:.0f})/{rT3I:.2f}({rT3IOrd:.0f})&nbsp;{rT3pc:.2f}%({rT3pcOrd:.0f}) <b>/</b>
-<b>TC</b>:&nbsp;{rTCC:.2f}({rTCIOrd:.0f})/{rTCI:.2f}({rTCIOrd:.0f})&nbsp;{rTCpc:.2f}%({rTCpcOrd:.0f}) <b>/</b> <b>P&nbsp;por&nbsp;TC-I</b>:&nbsp;{rppTC:.2f}({rppTCOrd:.0f}) <b>T3-I/TC-I</b>&nbsp;{rratT3:.2f}%({rratT3Ord:.0f}) <b>/</b>
-<b>TL</b>:&nbsp;{rT1C:.2f}({rT1COrd:.0f})/{rT1I:.2f}({rT1IOrd:.0f})&nbsp;{rT1pc:.2f}%({rT1pcOrd:.0f}) <b>/</b> <b>Reb</b>:&nbsp;{rRebD:.2f}({rRebDOrd:.0f})+{rRebO:.2f}({rRebOOrd:.0f})&nbsp;{rRebT:.2f}({rRebTOrd:.0f}) <b>/</b>
-<b>A</b>:&nbsp;{rA:.2f}({rAOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{rBP:.2f}({rBPOrd:.0f}) <b>/</b> <b>BR</b>:&nbsp;{rBR:.2f}({rBROrd:.0f}) <b>/</b> <b>A/BP</b>:&nbsp;{rApBP:.2f}({rApBPOrd:.0f}) <b>/</b> <b>A/Can</b>:&nbsp;{rApTCC:.2f}%({rApTCCOrd:.0f})
+<b>T2</b>:&nbsp;{rT2C:.2f}({rT2IOrd:.0f})/{rT2I:.2f}({rT2IOrd:.0f})&nbsp;{rT2pc:.2f}%({rT2pcOrd:.0f}) <b>/</b> 
+<b>T3</b>:&nbsp;{rT3C:.2f}({rT3IOrd:.0f})/{rT3I:.2f}({rT3IOrd:.0f})&nbsp;{rT3pc:.2f}%({rT3pcOrd:.0f}) <b>/</b>
+<b>TC</b>:&nbsp;{rTCC:.2f}({rTCIOrd:.0f})/{rTCI:.2f}({rTCIOrd:.0f})&nbsp;{rTCpc:.2f}%({rTCpcOrd:.0f}) <b>/</b> 
+<b>P&nbsp;por&nbsp;TC-I</b>:&nbsp;{rppTC:.2f}({rppTCOrd:.0f}) <b>/</b>  
+<b>T3-I/TC-I</b>&nbsp;{rratT3:.2f}%({rratT3Ord:.0f}) <b>/</b>
+<b>TL</b>:&nbsp;{rT1C:.2f}({rT1COrd:.0f})/{rT1I:.2f}({rT1IOrd:.0f})&nbsp;{rT1pc:.2f}%({rT1pcOrd:.0f}) <b>/</b> 
+<b>Reb</b>:&nbsp;{rRebD:.2f}({rRebDOrd:.0f})+{rRebO:.2f}({rRebOOrd:.0f})&nbsp;{rRebT:.2f}({rRebTOrd:.0f}) <b>/</b>
+<b>A</b>:&nbsp;{rA:.2f}({rAOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{rBP:.2f}({rBPOrd:.0f}) <b>/</b> 
+<b>BR</b>:&nbsp;{rBR:.2f}({rBROrd:.0f}) <b>/</b> <b>A/BP</b>:&nbsp;{rApBP:.2f}({rApBPOrd:.0f}) <b>/</b> 
+<b>A/Can</b>:&nbsp;{rApTCC:.2f}%({rApTCCOrd:.0f})
 """
 
     return resultEq
@@ -483,7 +551,6 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     COLS_ESTAD_TOTAL = [(col, 'sum') for col in VALS_ESTAD_JUGADOR]
 
     abrevsEq = tempData.Calendario.abrevsEquipo(abrEq)
-    keyDorsal = lambda d: -1 if d == '00' else int(d)
 
     urlPartsJug = [p.url for p in partJug]
 
@@ -501,6 +568,13 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     identifJug = pd.concat([estadsJugDF['Jugador'][COLS_IDENTIFIC_JUG], fichasJugadores[COLS_FICHA]], axis=1,
                            join="inner")
 
+    if tempData.descargaPlantillas:
+        idEq = onlySetElement(tempData.Calendario.tradEquipos['c2i'][abrEq])
+        statusJugs = tempData.plantillas[idEq].jugadores.extractKey('activo', False)
+        identifJug['Activo'] = identifJug['codigo'].map(statusJugs, True)
+    else:
+        identifJug['Activo'] = True
+
     estadsPromedios = estadsJugDF[COLS_ESTAD_PROM].droplevel(1, axis=1)
     estadsTotales = estadsJugDF[COLS_ESTAD_TOTAL].droplevel(1, axis=1)
     datosUltPart = jugDF.sort_values('fechaPartido').groupby('codigo').tail(n=1).set_index('codigo', drop=False)
@@ -511,8 +585,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
                          'Promedios': estadsPromedios,  # .drop(columns=COLS_IDENTIFIC_JUG + COLS_TRAYECT_TEMP)
                          'Totales': estadsTotales,  # .drop(columns=COLS_IDENTIFIC_JUG + COLS_TRAYECT_TEMP)
                          'UltimoPart': datosUltPart}  # .drop(columns=COLS_IDENTIFIC_JUG)
-    result = pd.concat(dataFramesAJuntar.values(), axis=1, join='outer', keys=dataFramesAJuntar.keys()).sort_values(
-        ('Jugador', 'dorsal'), key=lambda c: c.map(keyDorsal))
+    result = pd.concat(dataFramesAJuntar.values(), axis=1, join='outer', keys=dataFramesAJuntar.keys())
 
     return result
 
@@ -568,17 +641,18 @@ def datosTablaLiga(tempData: TemporadaACB):
         abrev = list(clasifLiga[pos]['abrevsEq'])[0]
         fila.append(Paragraph(f"{nombreCorto} (<b>{abrev}</b>)", style=estCelda))
         for _, idVisit in seqIDs:
-            if idLocal != idVisit:
+            if idLocal != idVisit:  # Partido, la otra se usa para poner el balance
                 part = auxTabla[idLocal][idVisit]
-                fecha = part['fechaPartido'].strftime("%d-%m") if (
-                        ('fechaPartido' in part) and (part['fechaPartido'] != NEVER)) else 'TBD'
+
+                fechaAux = part.get('fechaPartido', NEVER)
+
+                fecha = 'TBD' if (fechaAux == NEVER) else fechaAux.strftime(FMTECHACORTA)
                 jornada = part['jornada']
 
                 texto = f"J:{jornada}<br/>@{fecha}"
                 if not part['pendiente']:
                     pURL = part['url']
                     pTempFecha = tempData.Partidos[pURL].fechaPartido
-                    fecha = pTempFecha.strftime("%d-%m")
                     pLocal = part['equipos']['Local']['puntos']
                     pVisit = part['equipos']['Visitante']['puntos']
                     texto = f"J:{jornada}<br/><b>{pLocal}-{pVisit}</b>"
@@ -621,7 +695,7 @@ def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
     abrevsDcha = tempData.Calendario.abrevsEquipo(abrDcha)
     abrevsPartido = set().union(abrevsIzda).union(abrevsDcha)
 
-    while (len(partsIzdaAux) > 0) or (len(partsDchaAux) > 0):
+    while (len(partsIzdaAux) + len(partsDchaAux)) > 0:
         bloque = dict()
 
         try:
@@ -631,6 +705,7 @@ def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
             bloque['dcha'] = partidoTrayectoria(partsDchaAux.pop(0), abrevsDcha, tempData)
             lineas.append(bloque)
             continue
+
         try:
             priPartDcha = partsDchaAux[0]
         except IndexError:
@@ -647,8 +722,7 @@ def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
             abrevsPartIzda = priPartIzda.CodigosCalendario if isinstance(priPartIzda, PartidoACB) else priPartIzda[
                 'loc2abrev']
 
-            if len(abrevsPartido.intersection(abrevsPartIzda.values())) == 2:
-                bloque['precedente'] = True
+            bloque['precedente'] = (len(abrevsPartido.intersection(abrevsPartIzda.values())) == 2)
 
         else:
             if (priPartIzda['fechaPartido'], priPartIzda['jornada']) < (
@@ -669,23 +743,24 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
 
     if len(juIzda):
         datosIzda = datosJugadores(tempData, abrEqs[0], juIzda)
-        tablasJugadIzda = tablaJugadoresEquipo(datosIzda)
+        tablasJugadIzda = tablasJugadoresEquipo(datosIzda)
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
 
-        for t in tablasJugadIzda:
+        for (infoTabla, t) in tablasJugadIzda:
             result.append(Spacer(100 * mm, 2 * mm))
             result.append(t)
             result.append(NextPageTemplate('apaisada'))
 
     if len(juDcha):
         datosIzda = datosJugadores(tempData, abrEqs[1], juDcha)
-        tablasJugadIzda = tablaJugadoresEquipo(datosIzda)
+        tablasJugadIzda = tablasJugadoresEquipo(datosIzda)
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
-        for t in tablasJugadIzda:
+
+        for (infoTabla, t) in tablasJugadIzda:
             result.append(Spacer(100 * mm, 2 * mm))
             result.append(NextPageTemplate('apaisada'))
             result.append(t)
@@ -700,11 +775,10 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
 
     datoFecha = partido.fechaPartido if isinstance(partido, PartidoACB) else datosPartido['fechaPartido']
 
-    strFecha = datoFecha.strftime("%d-%m") if datoFecha != NEVER else "TBD"
+    strFecha = datoFecha.strftime(FMTECHACORTA) if datoFecha != NEVER else "TBD"
     abrEq = list(abrevs.intersection(datosPartido['participantes']))[0]
     abrRival = list(datosPartido['participantes'].difference(abrevs))[0]
     locEq = datosPartido['abrev2loc'][abrEq]
-    locRival = OtherLoc(locEq)
     textRival = auxEtiqPartido(datosTemp, abrRival, locEq=locEq, usaLargo=False)
     strRival = f"{strFecha}: {textRival}"
 
@@ -730,7 +804,7 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
 
 
 def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
-    CELLPAD = 0.2 * mm
+    CELLPAD = 0.15 * mm
     FONTSIZE = 9
 
     filasPrecedentes = set()
@@ -748,7 +822,7 @@ def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
         datosIzda = f.get('izda', ['', ''])
         datosDcha = f.get('dcha', ['', ''])
         jornada = f['J']
-        if 'precedente' in f:
+        if f.get('precedente', False):
             filasPrecedentes.add(i)
 
         aux = [Paragraph(f"<para align='center'>{datosIzda[1]}</para>"),
@@ -761,7 +835,7 @@ def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
         datosIzda, _ = f.get('izda', ['', None])
         datosDcha, _ = f.get('dcha', ['', None])
         jornada = f['J']
-        if 'precedente' in f:
+        if f.get('precedente', False):
             if i == 0:  # Es el partido que vamos a tratar, no tiene sentido incluirlo
                 continue
             filasPrecedentes.add(i)
@@ -785,7 +859,7 @@ def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
         tStyle.add("SPAN", (-2, fNum), (-1, fNum))
 
     ANCHORESULTADO = (FONTSIZE * 0.6) * 12
-    ANCHOETPARTIDO = (FONTSIZE * 0.6) * 30
+    ANCHOETPARTIDO = (FONTSIZE * 0.6) * 32
     ANCHOJORNADA = ((FONTSIZE + 1) * 0.6) * 4
 
     t = Table(data=filas, style=tStyle,
@@ -795,20 +869,29 @@ def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
     return t
 
 
-def tablaJugadoresEquipo(jugDF):
+def tablasJugadoresEquipo(jugDF):
     result = []
 
     CELLPAD = 0.2 * mm
     FONTSIZE = 8
     ANCHOLETRA = FONTSIZE * 0.5
-
-    COLSIDENT = [('Jugador', 'dorsal'),
-                 ('Jugador', 'nombre'),
-                 ('Trayectoria', 'Acta'),
-                 ('Trayectoria', 'Jugados'),
-                 ('Trayectoria', 'Titular'),
-                 ('Trayectoria', 'Vict')
-                 ]
+    COLACTIVO = ('Jugador', 'Activo')
+    COLDORSAL_IDX = ('Jugador', 'Kdorsal')
+    COLSIDENT_PROM = [('Jugador', 'dorsal'),
+                      ('Jugador', 'nombre'),
+                      ('Trayectoria', 'Acta'),
+                      ('Trayectoria', 'Jugados'),
+                      ('Trayectoria', 'Titular'),
+                      ('Trayectoria', 'Vict')
+                      ]
+    COLSIDENT_TOT = [('Jugador', 'dorsal'),
+                     COLACTIVO,
+                     ('Jugador', 'nombre'),
+                     ('Trayectoria', 'Acta'),
+                     ('Trayectoria', 'Jugados'),
+                     ('Trayectoria', 'Titular'),
+                     ('Trayectoria', 'Vict')
+                     ]
     COLSIDENT_UP = [('Jugador', 'dorsal'),
                     ('Jugador', 'nombre'),
                     ('Jugador', 'pos'),
@@ -879,13 +962,22 @@ def tablaJugadoresEquipo(jugDF):
                ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD), ('TOPPADDING', (0, 0), (-1, -1), CELLPAD),
                ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD), ]
 
+    tablas = {
+        'promedios': {'seq': 1, 'nombre': 'Promedios', 'columnas': (COLSIDENT_PROM + COLS_PROMED),
+                      'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
+                      'ordena': [(COLDORSAL_IDX, True)]},
+        'totales': {'seq': 2, 'nombre': 'Totales', 'columnas': (COLSIDENT_TOT + COLS_TOTALES),
+                    'extraCols': [('Jugador', 'Kdorsal')], 'ordena': [(COLACTIVO, False), (COLDORSAL_IDX, True)]},
+        'ultimo': {'seq': 3, 'nombre': 'Último partido', 'columnas': (COLSIDENT_UP + COLS_ULTP),
+                   'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
+                   'ordena': [(COLDORSAL_IDX, True)]}
+    }
     auxDF = jugDF.copy()
 
-    for colList in [(COLSIDENT + COLS_PROMED), (COLSIDENT + COLS_TOTALES),
-                    (COLSIDENT_UP + COLS_ULTP)]:  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
-        t = auxGeneraTabla(auxDF, colList, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA, repeatRows=1)
+    for infoTabla in tablas.values():  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
+        t = auxGeneraTabla(auxDF, infoTabla, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA, repeatRows=1)
 
-        result.append(t)
+        result.append((infoTabla, t))
 
     return result
 
@@ -1005,7 +1097,7 @@ def preparaLibro(outfile, tempData, datosSig):
     story.append(PageBreak())
     story.append(tablaLiga(tempData, equiposAmarcar=abrEqs))
 
-    if (len(juIzda) or len(juDcha)):
+    if (len(juIzda) + len(juDcha)):
         infoJugadores = paginasJugadores(tempData, abrEqs, juIzda, juDcha)
         story.extend(infoJugadores)
 
