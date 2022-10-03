@@ -320,7 +320,11 @@ def procesaCab(cab):
     if patL:
         dictFound = patL.groupdict()
         resultado.update(dictFound)
-        resultado['auxFechas'] = procesaFechasJornada(cadR)
+        if cadR != '':
+            try:
+                resultado['auxFechas'] = procesaFechasJornada(cadR)
+            except ValueError as exc:
+                raise ValueError(f"procesaCab: {cab} RE: problemas procesando fechas de '{cadR}': '{exc}'")
     else:
         raise ValueError("procesaCab: valor '%s' no casa RE '%s'", cadL, patronL)
 

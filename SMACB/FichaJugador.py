@@ -185,7 +185,7 @@ def descargaURLficha(urlFicha, home=None, browser=None, config=Namespace()):
                 if reProc:
                     result['altura'] = 100 * int(reProc.group(1)) + int(reProc.group(2))
                 else:
-                    print("ALTURA no casa RE", valor, REaltura)
+                    print(cosasUtiles, f"ALTURA '{valor}' no casa RE '{REaltura}'")
 
             elif 'lugar_nacimiento' in classDiv:
                 result['lugarNac'] = valor
