@@ -114,13 +114,6 @@ class TemporadaACB(object):
 
                 partidosBajados.add(partido)
 
-
-                # Añade la información de equipos de partido a traducciones de equipo.
-                # (el código de equipo ya no viene en el calendario)
-                for eqData in nuevoPartido.Equipos.values():
-                    self.Calendario.nuevaTraduccionEquipo2Codigo(nombres=eqData['Nombre'], abrev=eqData['abrev'],
-                                                                 id=eqData['id'])
-
             except KeyboardInterrupt:
                 print("actualizaTemporada: Ejecución terminada por el usuario")
                 break

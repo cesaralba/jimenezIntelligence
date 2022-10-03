@@ -308,7 +308,6 @@ def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estil
                 newCol = newCol.apply(lambda c, spec=formatSpec: c.map(spec['numero'].format))
         newEtiq = colSpec.get('etiq', etiq)
 
-        print(etiq, newEtiq)
         newAncho = colSpec.get('ancho', 10) * charWidth
 
         dfColList.append(newCol)
