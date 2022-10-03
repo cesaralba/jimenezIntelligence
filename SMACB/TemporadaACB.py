@@ -114,7 +114,6 @@ class TemporadaACB(object):
 
                 partidosBajados.add(partido)
 
-
             except KeyboardInterrupt:
                 print("actualizaTemporada: Ejecución terminada por el usuario")
                 break
