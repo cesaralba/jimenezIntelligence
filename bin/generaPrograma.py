@@ -675,12 +675,16 @@ def datosTablaLiga(tempData: TemporadaACB):
     return datosTabla, coordsPeJu
 
 
-def listaEquipos(tempData):
-    print("Abreviatura -> nombre(s) equipo")
-    for abr in sorted(tempData.Calendario.tradEquipos['c2n']):
-        listaEquiposAux = sorted(tempData.Calendario.tradEquipos['c2n'][abr], key=lambda x: (len(x), x), reverse=True)
-        listaEquiposStr = ",".join(listaEquiposAux)
-        print(f'{abr}: {listaEquiposStr}')
+def listaEquipos(tempData,beQuiet=False):
+    if beQuiet:
+        print(" ".join(sorted(tempData.Calendario.tradEquipos['c2n'])))
+    else:
+        print("Abreviatura -> nombre(s) equipo")
+        for abr in sorted(tempData.Calendario.tradEquipos['c2n']):
+            listaEquiposAux = sorted(tempData.Calendario.tradEquipos['c2n'][abr], key=lambda x: (len(x), x), reverse=True)
+            listaEquiposStr = ",".join(listaEquiposAux)
+            print(f'{abr}: {listaEquiposStr}')
+
     sys.exit(0)
 
 
@@ -1111,6 +1115,8 @@ def parse_arguments():
                         help="Nombre del ficheros de temporada", )
     parser.add_argument("-l", "--listaequipos", dest='listaEquipos', action="store_true", required=False,
                         help="Lista siglas para equipos", )
+    parser.add_argument("-q", "--quiet", dest='quiet', action="store_true", required=False,
+                        help="En combinación con -l saca lista siglas sin nombres", )
 
     parser.add_argument("-e", "--equipo", dest="equipo", action="store", required=False,
                         help="Abreviatura del equipo deseado (usar -l para obtener lista)", )
