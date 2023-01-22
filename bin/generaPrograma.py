@@ -386,7 +386,7 @@ def recuperaClasifLiga(tempData, fecha=None):
     if clasifLiga is None:
         clasifLiga = tempData.clasifLiga(fecha)
         jugados = np.array([eq['Jug'] for eq in clasifLiga])
-        modaJug = stats.mode(jugados).mode[0]
+        modaJug = stats.mode(jugados,keepdims=False).mode
 
         for eq in clasifLiga:
             if eq['Jug'] != modaJug:
