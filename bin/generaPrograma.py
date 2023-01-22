@@ -1135,7 +1135,7 @@ def main(args):
     tempData = cargaTemporada(args.acbfile)
 
     if args.listaEquipos:
-        listaEquipos(tempData)
+        listaEquipos(tempData,args.quiet)
 
     REQARGS = ['equipo', 'outfile']
     missingReqs = {k for k in REQARGS if (k not in args) or (args.__getattribute__(k) is None)}
