@@ -207,8 +207,11 @@ class CalendarioACB(object):
                 if isinstance(auxFecha, str) and auxFecha != '':
                     cadFecha = auxFecha.lower()
                     cadHora = auxHora.strip() if auxHora else None
-
-                    resultado['fechaPartido'] = procesaFechaHoraPartido(cadFecha.strip(), cadHora, datosJornada)
+                    try:
+                        resultado['fechaPartido'] = procesaFechaHoraPartido(cadFecha.strip(), cadHora, datosJornada)
+                    except ValueError as err:
+                        print(err)
+                        resultado['fechaPartido'] = NEVER
 
         return resultado
 
