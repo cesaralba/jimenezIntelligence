@@ -398,8 +398,11 @@ def recuperaClasifLiga(tempData, fecha=None):
 
         for eq in clasifLiga:
             if eq['Jug'] != modaJug:
+
                 pendientes = modaJug - eq['Jug']
-                eq.update({'pendientes': pendientes})
+                aux = "*" if (abs(pendientes) == 1) else pendientes
+
+                eq.update({'pendientes': aux})
 
 
 def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
@@ -602,7 +605,7 @@ def datosTablaLiga(tempData: TemporadaACB):
     Calcula los datos que rellenarán la tabla de liga así como las posiciones de los partidos jugados y pendientes para
     darles formato
     :param tempData:
-    :return: listaListasCeldas,tupla de listas de coords de jugados y pendientes
+    :return: listaListasCeldas,tupla de listas de coords de jugados y pendientes, primer eq con balance negativo
     List
     """
     firstNegBal = None
@@ -643,6 +646,7 @@ def datosTablaLiga(tempData: TemporadaACB):
         Paragraph('<b>' + list(clasifLiga[pos]['abrevsEq'])[0] + '</b>', style=estCelda) for pos, _ in seqIDs] + [
                   Paragraph('<b>Como local</b>', style=estCelda)]
     datosTabla.append(cabFila)
+
     for pos, idLocal in seqIDs:
         datosEq = clasifLiga[pos]
 
