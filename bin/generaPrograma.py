@@ -315,9 +315,10 @@ def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estil
         newAncho = colSpec.get('ancho', 10) * charWidth
 
         #Fills with default value
-        newCol[nullValues] = defValue
+        finalCol = newCol.copy()
+        finalCol[nullValues] = defValue
 
-        dfColList.append(newCol)
+        dfColList.append(finalCol)
         filaCab.append(newEtiq)
         anchoCols.append(newAncho)
         if 'alignment' in colSpec:
@@ -573,8 +574,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
 
     identifJug = pd.concat([estadsJugDF['Jugador'][COLS_IDENTIFIC_JUG], fichasJugadores[COLS_FICHA]], axis=1,
                            join="inner")
-    print("A")
-    print(identifJug)
+
     if tempData.descargaPlantillas:
         idEq = onlySetElement(tempData.Calendario.tradEquipos['c2i'][abrEq])
         statusJugs = tempData.plantillas[idEq].jugadores.extractKey('activo', False)
