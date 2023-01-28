@@ -25,6 +25,7 @@ from Utils.FechaHora import Time2Str
 from Utils.Misc import listize, onlySetElement
 
 FMTECHACORTA = "%d-%m"
+DEFTABVALUE = "-"
 
 estadGlobales = None
 estadGlobalesOrden = None
@@ -296,6 +297,9 @@ def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estil
         colSpec = colSpecs.get(colkey, {})
         newCol = dfDatos[level].apply(colSpec['generador'], axis=1) if 'generador' in colSpec else dfDatos[[colkey]]
 
+        defValue = colSpec.get('default',DEFTABVALUE)
+        nullValues = newCol.isnull()
+
         if 'formato' in colSpec:
             etiqFormato = colSpec['formato']
             if etiqFormato not in formatos:
@@ -309,6 +313,9 @@ def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estil
         newEtiq = colSpec.get('etiq', etiq)
 
         newAncho = colSpec.get('ancho', 10) * charWidth
+
+        #Fills with default value
+        newCol[nullValues] = defValue
 
         dfColList.append(newCol)
         filaCab.append(newEtiq)
@@ -651,8 +658,6 @@ def datosTablaLiga(tempData: TemporadaACB):
 
                 texto = f"J:{jornada}<br/>@{fecha}"
                 if not part['pendiente']:
-                    pURL = part['url']
-                    pTempFecha = tempData.Partidos[pURL].fechaPartido
                     pLocal = part['equipos']['Local']['puntos']
                     pVisit = part['equipos']['Visitante']['puntos']
                     texto = f"J:{jornada}<br/><b>{pLocal}-{pVisit}</b>"
@@ -1086,11 +1091,6 @@ def preparaLibro(outfile, tempData, datosSig):
 
     if antecedentes:
         print("Antecedentes!")
-    else:
-        # story.append(Spacer(width=120 * mm, height=3 * mm))
-        #
-        # story.append(Paragraph("Sin antecedentes esta temporada"))
-        pass
 
     trayectoria = reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha)
     if trayectoria:
