@@ -10,4 +10,4 @@ ipykernel
 matplotlib
 setuptools
 pylint
-
+seaborn
