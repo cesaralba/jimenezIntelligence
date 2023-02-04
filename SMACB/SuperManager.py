@@ -7,7 +7,7 @@ from pickle import dump, load
 
 import mechanicalsoup
 import pandas as pd
-from babel.numbers import decimal
+from babel.numbers import format_decimal
 from bs4 import BeautifulSoup
 from mechanicalsoup import LinkNotFoundError
 from time import gmtime
@@ -562,7 +562,7 @@ class ResultadosJornadas(object):
         self.equipo2socio = dict()
 
         self.types = {'asistencias': int, 'broker': int, 'key': str, 'puntos': int, 'rebotes': int, 'triples': int,
-                      'valJornada': decimal.Decimal}
+                      'valJornada': format_decimal.Decimal}
 
         for team in supermanager.jornadas[jornada].data:
             datosJor = supermanager.jornadas[jornada].data[team]
