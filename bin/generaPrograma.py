@@ -579,7 +579,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
                            join="inner")
 
     if tempData.descargaPlantillas:
-        idEq = onlySetElement(tempData.Calendario.tradEquipos['c2i'][abrEq])
+        idEq = onlySetElement(tempData.tradEquipos['c2i'][abrEq])
         statusJugs = tempData.plantillas[idEq].jugadores.extractKey('activo', False)
         identifJug['Activo'] = identifJug['codigo'].map(statusJugs, 'ignore')
     else:
@@ -624,14 +624,14 @@ def datosTablaLiga(tempData: TemporadaACB):
 
     for jId, jDatos in tempData.Calendario.Jornadas.items():
         for part in jDatos['partidos']:
-            idLocal = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Local']['abrev']])[0]
-            idVisitante = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Visitante']['abrev']])[0]
+            idLocal = list(tempData.tradEquipos['c2i'][part['equipos']['Local']['abrev']])[0]
+            idVisitante = list(tempData.tradEquipos['c2i'][part['equipos']['Visitante']['abrev']])[0]
             auxTabla[idLocal][idVisitante] = part
             auxTablaJuPe['ju'].append((idLocal, idVisitante))
 
         for part in jDatos['pendientes']:
-            idLocal = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Local']['abrev']])[0]
-            idVisitante = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Visitante']['abrev']])[0]
+            idLocal = list(tempData.tradEquipos['c2i'][part['equipos']['Local']['abrev']])[0]
+            idVisitante = list(tempData.tradEquipos['c2i'][part['equipos']['Visitante']['abrev']])[0]
             auxTabla[idLocal][idVisitante] = part
             auxTablaJuPe['pe'].append((idLocal, idVisitante))
 
@@ -694,11 +694,11 @@ def datosTablaLiga(tempData: TemporadaACB):
 
 def listaEquipos(tempData, beQuiet=False):
     if beQuiet:
-        print(" ".join(sorted(tempData.Calendario.tradEquipos['c2n'])))
+        print(" ".join(sorted(tempData.tradEquipos['c2n'])))
     else:
         print("Abreviatura -> nombre(s) equipo")
-        for abr in sorted(tempData.Calendario.tradEquipos['c2n']):
-            listaEquiposAux = sorted(tempData.Calendario.tradEquipos['c2n'][abr], key=lambda x: (len(x), x),
+        for abr in sorted(tempData.tradEquipos['c2n']):
+            listaEquiposAux = sorted(tempData.tradEquipos['c2n'][abr], key=lambda x: (len(x), x),
                                      reverse=True)
             listaEquiposStr = ",".join(listaEquiposAux)
             print(f'{abr}: {listaEquiposStr}')

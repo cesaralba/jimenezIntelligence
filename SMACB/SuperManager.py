@@ -501,7 +501,7 @@ class SuperManagerACB(object):
         # for codigo, nombres in datosACB.tradJugadores['id2nombres'].items():
         #     self.addTraduccionJugador(codigo, nombres)
 
-        for codigo, nombres in datosACB.Calendario.tradEquipos['c2n'].items():
+        for codigo, nombres in datosACB.tradEquipos['c2n'].items():
             if (codigo not in self.traducciones['equipos']['c2n']):
                 self.changed = True
             for nombre in nombres:
@@ -510,7 +510,7 @@ class SuperManagerACB(object):
                 self.traducciones['equipos']['n2c'][nombre].add(codigo)
                 self.traducciones['equipos']['c2n'][codigo].add(nombre)
 
-        for id, codigos in datosACB.Calendario.tradEquipos['i2c'].items():
+        for id, codigos in datosACB.tradEquipos['i2c'].items():
             if (id not in self.traducciones['equipos']['i2c']):
                 self.changed = True
             for codigo in codigos:
@@ -519,7 +519,7 @@ class SuperManagerACB(object):
                 self.traducciones['equipos']['i2c'][id].add(codigo)
                 self.traducciones['equipos']['c2i'][codigo].add(id)
 
-        for id, nombres in datosACB.Calendario.tradEquipos['i2n'].items():
+        for id, nombres in datosACB.tradEquipos['i2n'].items():
             if (id not in self.traducciones['equipos']['i2n']):
                 self.changed = True
             for nombre in nombres:

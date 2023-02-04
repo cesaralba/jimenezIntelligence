@@ -527,6 +527,10 @@ class TemporadaACB(object):
 
         return result
 
+    @property
+    def tradEquipos(self):
+        return self.Calendario.tradEquipos
+
 
 def calculaTempStats(datos, clave, filtroFechas=None):
     if clave not in datos:
