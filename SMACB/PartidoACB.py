@@ -451,6 +451,9 @@ class PartidoACB(object):
             estadsDict[loc]['local'] = loc == 'Local'
             for col in equipoCols:
                 estadsDict[loc][col] = self.Equipos[loc][col]
+                other = OtherLoc(loc)
+                estadsDict[loc][f"RIV{col}"] = self.Equipos[other][col]
+
             estadsDict[loc]['haGanado'] = self.DatosSuministrados['equipos'][loc]['haGanado']
             estadsDict[loc]['convocados'] = len(self.Equipos[loc]['Jugadores'])
             estadsDict[loc]['utilizados'] = len(
@@ -495,7 +498,10 @@ class PartidoACB(object):
             estadsDict[loc]['Segs'] = self.Equipos[loc]['estads']['Segs'] / 5
 
         infoDict['Ptot'] = estadsDict['Local']['P'] + estadsDict[OtherLoc('Local')]['P']
+        infoDict['Ftot'] = estadsDict['Local']['FP-C'] + estadsDict[OtherLoc('Local')]['FP-C']
         infoDict['POStot'] = estadsDict['Local']['POS'] + estadsDict[OtherLoc('Local')]['POS']
+
+        infoDict['ratio40min'] = 40 / (40 + (infoDict['prorrogas']*5))
 
         estadsDF = pd.DataFrame.from_dict(data=estadsDict, orient='index')
 
