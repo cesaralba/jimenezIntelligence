@@ -422,8 +422,6 @@ class TemporadaACB(object):
         return result
 
     def dfPartidosLV2ER(self, partidos: pd.DataFrame, abrEq: str = None):
-        COLSINFO = ['jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'url', 'competicion', 'temporada',
-                    'idPartido', 'Ptot', 'POStot']
 
         finalDFlist = []
 
@@ -435,7 +433,8 @@ class TemporadaACB(object):
                 tagEq, tagRival = ('Local', 'Visitante') if esLocal else ('Visitante', 'Local')
 
                 auxDFlocal = partidosEq.loc[(partidosEq['Local', 'id'] == idEq) == esLocal]
-                infoDF = auxDFlocal['Info'][COLSINFO]
+                infoDF = auxDFlocal['Info']
+
                 eqDF = auxDFlocal[tagEq]
                 rivalDF = auxDFlocal[tagRival]
 
@@ -443,7 +442,7 @@ class TemporadaACB(object):
                 finalDFlist.append(auxDF)
         else:
             for loc in LocalVisitante:
-                infoDF = partidos['Info'][COLSINFO]
+                infoDF = partidos['Info']
                 eqDF = partidos[loc]
                 rivalDF = partidos[OtherLoc(loc)]
 
