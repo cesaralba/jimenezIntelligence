@@ -1,7 +1,8 @@
 import re
 from argparse import Namespace
+from copy import copy
 from traceback import print_exc
-
+from itertools import product
 import numpy as np
 import pandas as pd
 from babel.numbers import parse_number
@@ -340,14 +341,6 @@ class PartidoACB(object):
 
         return (result)
 
-    def resumenPartido(self):
-        return " * J %i: %s (%s) %i - %i %s (%s) " % (self.jornada, self.EquiposCalendario['Local'],
-                                                      self.CodigosCalendario['Local'],
-                                                      self.ResultadoCalendario['Local'],
-                                                      self.ResultadoCalendario['Visitante'],
-                                                      self.EquiposCalendario['Visitante'],
-                                                      self.CodigosCalendario['Visitante'])
-
     def jugadoresAdataframe(self):
         typesDF = {'competicion': 'object', 'temporada': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
                    'esTitular': 'bool',
@@ -502,6 +495,7 @@ class PartidoACB(object):
         infoDict['POStot'] = estadsDict['Local']['POS'] + estadsDict[OtherLoc('Local')]['POS']
 
         infoDict['ratio40min'] = 40 / (40 + (infoDict['prorrogas']*5))
+        infoDict['label'] = "-".join(map(lambda k:estadsDict[k[0]][k[1]],product(LocalVisitante,['abrev'])))
 
         estadsDF = pd.DataFrame.from_dict(data=estadsDict, orient='index')
 
@@ -513,6 +507,15 @@ class PartidoACB(object):
         result.index = result['Info', 'url']
         result.index.name = 'url'
         return result
+
+    def resumenPartido(self):
+        return " * J %i: %s (%s) %i - %i %s (%s) " % (self.jornada, self.EquiposCalendario['Local'],
+                                                      self.CodigosCalendario['Local'],
+                                                      self.ResultadoCalendario['Local'],
+                                                      self.ResultadoCalendario['Visitante'],
+                                                      self.EquiposCalendario['Visitante'],
+                                                      self.CodigosCalendario['Visitante'])
+
 
     def __str__(self):
         return "J %02i: [%s] %s (%s) %i - %i %s (%s)" % (
@@ -532,11 +535,11 @@ class PartidoACB(object):
 
         for loc in LocalVisitante:
             estads = result[loc]
-            other = result[OtherTeam(loc)]
+            other = result[OtherLoc(loc)]
             avanzadas = dict()
 
             avanzadas['Abrev'] = self.Equipos[loc]['abrev']
-            avanzadas['Rival'] = self.Equipos[OtherTeam(loc)]['abrev']
+            avanzadas['Rival'] = self.Equipos[OtherLoc(loc)]['abrev']
             avanzadas['Priv'] = other['P']
             avanzadas['Ptot'] = estads['P'] + other['P']
             avanzadas['Vict'] = estads['P'] > other['P']
