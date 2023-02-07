@@ -2,7 +2,7 @@ from itertools import product
 
 import pandas as pd
 
-from SMACB.Constants import LocalVisitante,EqRival
+from SMACB.Constants import LocalVisitante, EqRival
 from SMACB.TemporadaACB import TemporadaACB
 
 COLFECHAPARTIDO = ('Info', 'fechaPartido')
@@ -49,8 +49,7 @@ def dfPartidos2serieFechas(dfPartidos: pd.DataFrame, colFecha=COLFECHAPARTIDO, a
     else:
         raise KeyError(f"dfPartidos2serieFechas: columna desconocida '{colFecha}'")
 
-    result = auxResult.groupby(auxResult.dt.date).max().sort_values()
-
+    result = auxResult.sort_values()
     return result
 
 
@@ -126,12 +125,12 @@ def calculaEstadisticosPartidos(dfPartidos: pd.DataFrame, campoFecha=COLFECHAPAR
         raise KeyError(f"calculaEstadisticosPartidos: la clave {campoFecha} no está en las columnas del DF")
 
     if campoFecha in dfPartidos.columns:
-        fechasRef = dfPartidos[[campoFecha]]
+        fechasRef = dfPartidos[campoFecha]
     elif campoFecha in dfPartidos.index.names:
-        if isinstance(dfPartidos.index, pd.Index):
+        if isinstance(dfPartidos.index, pd.MultiIndex):
+            fechasRef = dfPartidos.index.to_frame(allow_duplicates=True)[campoFecha]
+        elif isinstance(dfPartidos.index, pd.Index):
             fechasRef = dfPartidos.index.to_series()
-        elif isinstance(dfPartidos.index, pd.MultiIndex):
-            fechasRef = dfPartidos.index.to_frame(allow_duplicates=True)[[campoFecha]]
         else:
             raise TypeError("dfPartidos2serieFechas: tipo desconocido de index")
 

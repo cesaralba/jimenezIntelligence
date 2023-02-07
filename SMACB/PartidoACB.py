@@ -432,11 +432,13 @@ class PartidoACB(object):
                 self.Equipos[estado]['Entrenador'] = datos['codigo']
 
     def partidoAdataframe(self):
-        infoCols = ['jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'VictoriaLocal', 'url',
+        infoCols = ['jornada', 'Pabellon', 'Asistencia', 'prorrogas', 'VictoriaLocal', 'url',
                     'competicion', 'temporada', 'idPartido']
         equipoCols = ['id', 'Nombre', 'abrev']
 
         infoDict = {k: self.__getattribute__(k) for k in infoCols}
+        infoDict['fechaHoraPartido'] = self.__getattribute__('fechaPartido')
+        infoDict['fechaPartido'] = (infoDict['fechaHoraPartido']).date()
 
         estadsDict = {loc: dict() for loc in self.Equipos}
 
