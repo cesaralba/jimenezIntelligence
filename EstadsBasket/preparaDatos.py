@@ -118,9 +118,9 @@ def getMarkerMatch(df, abrev1, abrev2, fill=False, filler=''):
     return result
 
 
-def calculaEstadisticosPartidos(dfPartidos: pd.DataFrame, campoFecha=COLFECHAPARTIDO, listafechas=None):
+def calculaEstadisticosPartidos(dfPartidos: pd.DataFrame, col2calc=None, campoFecha=COLFECHAPARTIDO, listafechas=None):
     dfKeyPair = df2KEYPAIR(dfPartidos)
-    campos_STATS = COLSINFO4STATS + sorted(list(product(ABREVPAIRS[dfKeyPair], COLSSTATEQ4STATS)))
+
     if campoFecha is not None and (campoFecha not in dfPartidos.columns) and (campoFecha not in dfPartidos.index.names):
         raise KeyError(f"calculaEstadisticosPartidos: la clave {campoFecha} no está en las columnas del DF")
 
@@ -133,6 +133,11 @@ def calculaEstadisticosPartidos(dfPartidos: pd.DataFrame, campoFecha=COLFECHAPAR
             fechasRef = dfPartidos.index.to_series()
         else:
             raise TypeError("dfPartidos2serieFechas: tipo desconocido de index")
+
+    if col2calc is None:
+        campos_STATS = COLSINFO4STATS + sorted(list(product(ABREVPAIRS[dfKeyPair], COLSSTATEQ4STATS)))
+    else:
+        campos_STATS = sorted(list(product(ABREVPAIRS[dfKeyPair], [col2calc])))
 
     fechasWork = listafechas if (listafechas is not None) else dfPartidos2serieFechas(dfPartidos, colFecha=campoFecha)
 
