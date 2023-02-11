@@ -11,7 +11,6 @@ STYLEEQ1 = '--'
 COLOREQ2 = 'blue'
 STYLEEQ2 = ':'
 
-
 COLSESTADMEDIAN = ['min', 'max', '50%']
 MARKERSTADMEDIAN = '^v*'
 COLSESTADAVG = ['min', 'mean', 'max']
@@ -78,8 +77,8 @@ def find_filters(dfSorted, abrev1, abrev2):
     return result
 
 
-def plotEstads(ax, dfEstads: pd.DataFrame, categ, estads, target='Eq', prefijo='', color=DEFAULTCOLOR, markers=DEFAULTMARKER, alpha:float=DEFAULTALPHA,
-               linestyle=DEFAULTLINESTYLE):
+def plotEstads(ax, dfEstads: pd.DataFrame, categ, estads, target='Eq', prefijo='', color=DEFAULTCOLOR,
+               markers=DEFAULTMARKER, alpha: float = DEFAULTALPHA, linestyle=DEFAULTLINESTYLE):
     estads2wrk = listize(estads)
     colnames = [(target, categ, x) for x in estads2wrk]
     labels = buildLabels(prefijo, categ, estads2wrk)
@@ -93,8 +92,8 @@ def plotEstads(ax, dfEstads: pd.DataFrame, categ, estads, target='Eq', prefijo='
         dfEstads[colX].plot(ax=ax, color=colorX, alpha=alphaX, label=labelX, style=lstyleX, marker=markerX)
 
 
-def plotTrayEquipo(ax, dfEstads: pd.DataFrame, categ, target='Eq', prefijo='', color=DEFAULTCOLOR, marker=DEFAULTMARKER, alpha:float=DEFAULTALPHA,
-                   linestyle=DEFAULTLINESTYLE):
+def plotTrayEquipo(ax, dfEstads: pd.DataFrame, categ, target='Eq', prefijo='', color=DEFAULTCOLOR, marker=DEFAULTMARKER,
+                   alpha: float = DEFAULTALPHA, linestyle=DEFAULTLINESTYLE):
     col2show = (target, categ)
     dfEstads[col2show].plot(kind='line', c=color, ls=linestyle, label=prefijo, ax=ax, marker=marker, alpha=alpha)
 
@@ -104,7 +103,8 @@ def plotAntecedentes(ax: plt.Axes, dfEstads: pd.DataFrame, color=DEFAULTCOLOR, l
               linestyles=linestyle)
 
 
-def plotRestOfGames(ax: plt.Axes, dfEstads: pd.DataFrame, categ, target='Eq', color=DEFAULTCOLOR, marker=DEFAULTMARKER, alpha:float=DEFAULTALPHA):
+def plotRestOfGames(ax: plt.Axes, dfEstads: pd.DataFrame, categ, target='Eq', color=DEFAULTCOLOR, marker=DEFAULTMARKER,
+                    alpha: float = DEFAULTALPHA):
     targetCol = (target, categ)
     ax.scatter(x=dfEstads.index.to_list(), y=dfEstads[[targetCol]], alpha=alpha, c=color, marker=marker)
 
