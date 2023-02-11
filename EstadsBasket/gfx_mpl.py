@@ -140,7 +140,12 @@ def dibujaCategoria(dfPartidos, abrev1, abrev2, categ, target='Eq'):
     if gameFilters['precs1'].any():
         plotAntecedentes(ax=ejes, dfEstads=dfSorted[gameFilters['precs1']], color='green')
 
-    plotRestOfGames(ax=ejes, dfEstads=dfSorted[~gameFilters['filt_both']], categ=categ, target=target, color='black',
-                    alpha=0.1)
+    plotRestOfGames(ax=ejes, dfEstads=dfSorted[~gameFilters['filt_both']], categ=categ, target=target, color='black', marker='.',                   alpha=0.1)
 
+    #TODO: Etiquetas horizontal y vertical
+    #TODO: Etiqs X
+    #TODO: Tabla con indicación del partido del equipo
     return fig, ejes
+
+#TODO: Kde de las categorías
+#TODO: Scatterplot eff of/def
