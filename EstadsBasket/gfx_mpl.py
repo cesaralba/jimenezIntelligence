@@ -1,41 +1,28 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from .preparaDatos import teamMatch, calculaEstadisticosPartidos
+from SMACB.Constants import OtherTeam
 from Utils.Misc import listize
+from .preparaDatos import teamMatch, calculaEstadisticosPartidos
 
 REQCABS = [('Eq', 'abrev'), ('Rival', 'abrev')]
-COLOREQ1='red'
-COLOREQ2='blue'
+COLOREQ1 = 'red'
+STYLEEQ1 = '--'
+COLOREQ2 = 'blue'
+STYLEEQ2 = ':'
 
-COLSESTADMEDIAN = ['min', 'max','50%']
+
+COLSESTADMEDIAN = ['min', 'max', '50%']
 MARKERSTADMEDIAN = '^v*'
 COLSESTADAVG = ['min', 'mean', 'max']
 MARKERSTAD = '^+v'
-COLSESTADBOTH = ['min', 'mean', 'max','50%']
+COLSESTADBOTH = ['min', 'mean', 'max', '50%']
 MARKERSTADBOTH = '^+v*'
 
-
 DEFAULTCOLOR = 'black'
-DEFAULTALPHA = 1
+DEFAULTALPHA = 1.0
 DEFAULTLINESTYLE = '-'
 DEFAULTMARKER = ''
-
-
-def scatter_hist(x, y, ax, ax_histx, ax_histy, binwidth=None):
-    # no labels
-    ax_histx.tick_params(axis="x", labelbottom=False)
-    ax_histy.tick_params(axis="y", labelleft=False)
-
-    # the scatter plot:
-    ax.scatter(x, y)
-
-    # now determine nice limits by hand:
-
-    ax_histx.hist(x, )
-    ax_histy.hist(y, orientation='horizontal')
-
-
 
 
 def dibujaTodo(ax, dfTodo, etiq=('Eq', 'P_por40m'), team1='RMB', team2='LNT'):
@@ -50,64 +37,110 @@ def dibujaTodo(ax, dfTodo, etiq=('Eq', 'P_por40m'), team1='RMB', team2='LNT'):
 
     return o1, o2
 
-def extendList(lista,listaref,defValue):
-    if len(lista) == len(listaref):
-        result=lista
-    elif len(lista)==1:
-        result= lista * len(listaref)
-    else:
-        result = [defValue] * (len(listaref) - len(lista))
 
-    return result
-
-def buildLabels(pref,categ,estads):
+def buildLabels(pref, categ, estads):
     if pref == '':
         result = [f"{categ} {val}" for val in estads]
     else:
         result = [f"{pref} {categ} {val}" for val in estads]
     return result
 
-def plotEstads(ax, dfEstads: pd.DataFrame, categ, estads, target = 'Eq', prefijo = '', color='black', markers='', alpha=1, linestyle='-'):
+
+def extendList(lista, listaref, defValue):
+    if len(lista) == len(listaref):
+        result = lista
+    elif len(lista) == 1:
+        result = lista * len(listaref)
+    else:
+        result = [defValue] * (len(listaref) - len(lista))
+
+    return result
+
+
+def find_filters(dfSorted, abrev1, abrev2):
+    """
+    Finds the filters (a series of bool that can be used to extract certain rows from a dataframe)
+    :param dfSorted: target dataframe
+    :param abrev1: abrev of team 1
+    :param abrev2: abrev of team 2
+
+    :return: dictionary with all envisioned filters
+    """
+    result = dict()
+    result['games1'] = teamMatch(dfSorted, abrev1, teamOnly=True)
+    result['games2'] = teamMatch(dfSorted, abrev2, teamOnly=True)
+    result['precs1'] = teamMatch(dfSorted, abrev1) & teamMatch(dfSorted, abrev2) & (dfSorted[('Eq', 'abrev')] == abrev1)
+    result['precs2'] = teamMatch(dfSorted, abrev1) & teamMatch(dfSorted, abrev2) & (dfSorted[('Eq', 'abrev')] == abrev2)
+    result['games1_noprec'] = result['games1'] ^ result['precs1']
+    result['games2_noprec'] = result['games2'] ^ result['precs2']
+    result['filt_both'] = result['games1'] | result['games2']
+
+    return result
+
+
+def plotEstads(ax, dfEstads: pd.DataFrame, categ, estads, target='Eq', prefijo='', color=DEFAULTCOLOR, markers=DEFAULTMARKER, alpha:float=DEFAULTALPHA,
+               linestyle=DEFAULTLINESTYLE):
     estads2wrk = listize(estads)
-    colnames =[(target,categ, x) for x in estads2wrk]
-    labels = buildLabels(prefijo,categ,estads2wrk)
-    colors2wrk = extendList(listize(color),estads2wrk,DEFAULTCOLOR)
-    alpha2wrk = extendList(listize(alpha),estads2wrk,DEFAULTALPHA)
+    colnames = [(target, categ, x) for x in estads2wrk]
+    labels = buildLabels(prefijo, categ, estads2wrk)
+    colors2wrk = extendList(listize(color), estads2wrk, DEFAULTCOLOR)
+    alpha2wrk = extendList(listize(alpha), estads2wrk, DEFAULTALPHA)
     linestyle2wrk = extendList(listize(linestyle), estads2wrk, DEFAULTLINESTYLE)
-    marker2wrk = extendList([*markers],estads2wrk,DEFAULTMARKER)
+    marker2wrk = extendList([*markers], estads2wrk, DEFAULTMARKER)
 
-    for colX,labelX,colorX,alphaX,lstyleX,markerX in zip(colnames,labels,colors2wrk,alpha2wrk,linestyle2wrk,marker2wrk):
-        dfEstads[colX].plot(ax=ax,color=colorX,alpha=alphaX,label=labelX,style=lstyleX,marker=markerX)
-
-
-
+    for colX, labelX, colorX, alphaX, lstyleX, markerX in zip(colnames, labels, colors2wrk, alpha2wrk, linestyle2wrk,
+                                                              marker2wrk):
+        dfEstads[colX].plot(ax=ax, color=colorX, alpha=alphaX, label=labelX, style=lstyleX, marker=markerX)
 
 
-def dibujaCategoria(dfPartidos, abrev1, abrev2, categ):
-    ESTADS2SHOW = ['min','mean','max']
-    MARKERS = []
-    dfSorted = dfPartidos.sort_index()
-    filt1 = teamMatch(dfSorted, abrev1, teamOnly=True)
-    filt2 = teamMatch(dfSorted, abrev2, teamOnly=True)
+def plotTrayEquipo(ax, dfEstads: pd.DataFrame, categ, target='Eq', prefijo='', color=DEFAULTCOLOR, marker=DEFAULTMARKER, alpha:float=DEFAULTALPHA,
+                   linestyle=DEFAULTLINESTYLE):
+    col2show = (target, categ)
+    dfEstads[col2show].plot(kind='line', c=color, ls=linestyle, label=prefijo, ax=ax, marker=marker, alpha=alpha)
 
-    precs = filt1 & filt2
-    filt1_noprec = filt1 ^ precs
-    filt2_noprec = filt2 ^ precs
-    filt_ambos = filt1 | filt2
 
-    ListaCols = [('Eq', 'abrev'), ('Rival', 'abrev'), ('Eq', categ), ('Rival', categ)]
+def plotAntecedentes(ax: plt.Axes, dfEstads: pd.DataFrame, color=DEFAULTCOLOR, linestyle=DEFAULTLINESTYLE):
+    ax.vlines(x=dfEstads.index.to_list(), ymin=ax.get_ylim()[0], ymax=ax.get_ylim()[1], colors=color,
+              linestyles=linestyle)
 
-    datos_Liga = calculaEstadisticosPartidos(dfPartidos[ListaCols], col2calc=categ)
-    datos_Eq1 = calculaEstadisticosPartidos(dfPartidos[ListaCols][filt1], col2calc=categ)
-    datos_Eq2 = calculaEstadisticosPartidos(dfPartidos[ListaCols][filt2], col2calc=categ)
 
-    parts1 = dfPartidos[filt1][ListaCols]
-    parts2 = dfPartidos[filt2][ListaCols]
+def plotRestOfGames(ax: plt.Axes, dfEstads: pd.DataFrame, categ, target='Eq', color=DEFAULTCOLOR, marker=DEFAULTMARKER, alpha:float=DEFAULTALPHA):
+    targetCol = (target, categ)
+    ax.scatter(x=dfEstads.index.to_list(), y=dfEstads[[targetCol]], alpha=alpha, c=color, marker=marker)
+
+
+def dibujaCategoria(dfPartidos, abrev1, abrev2, categ, target='Eq'):
+    dfSorted = dfPartidos.sort_values(by=[('Info', 'fechaHoraPartido'), ('Info', 'jornada'), ('Eq', 'abrev')])
+    gameFilters = find_filters(dfSorted, abrev1, abrev2)
+
+    ListaCols = [(target, 'abrev'), (OtherTeam(target), 'abrev'), (target, categ), (OtherTeam(target), categ),
+                 (target, 'haGanado')]
+
+    datos_Liga = calculaEstadisticosPartidos(dfSorted[ListaCols], col2calc=categ)
+    datos_Eq1 = calculaEstadisticosPartidos(dfSorted[ListaCols][gameFilters['games1']], col2calc=categ)
+    datos_Eq2 = calculaEstadisticosPartidos(dfSorted[ListaCols][gameFilters['games2']], col2calc=categ)
+
+    games1 = dfSorted[gameFilters['games1']][ListaCols]
+    games2 = dfSorted[gameFilters['games2']][ListaCols]
 
     fig, ejes = plt.subplots()
 
-    g1=plotEstads(ax=ejes,dfEstads=datos_Liga,estads=COLSESTADAVG,categ=categ,prefijo='ACB',alpha=0.2)
-    g2=plotEstads(ax=ejes,dfEstads=datos_Eq1,estads=COLSESTADMEDIAN,categ=categ,color=COLOREQ1,alpha=0.4,markers=MARKERSTADMEDIAN,linestyle='--')
-    g3=plotEstads(ax=ejes,dfEstads=datos_Eq2,estads=COLSESTADMEDIAN,categ=categ,color=COLOREQ2,alpha=0.4,markers=MARKERSTADMEDIAN,linestyle=':')
+    plotEstads(ax=ejes, dfEstads=datos_Liga, estads=COLSESTADAVG, categ=categ, target=target, prefijo='ACB',
+               alpha=0.2)
+    plotEstads(ax=ejes, dfEstads=datos_Eq1, estads=COLSESTADMEDIAN, categ=categ, target=target, color=COLOREQ1,
+               alpha=0.4, markers=MARKERSTADMEDIAN, linestyle=STYLEEQ1)
+    plotEstads(ax=ejes, dfEstads=datos_Eq2, estads=COLSESTADMEDIAN, categ=categ, target=target, color=COLOREQ2,
+               alpha=0.4, markers=MARKERSTADMEDIAN, linestyle=STYLEEQ2)
 
-    return g1, g2, g3
+    plotTrayEquipo(ax=ejes, dfEstads=games1, target=target, categ=categ, prefijo=abrev1, color=COLOREQ1, marker='o',
+                   linestyle=STYLEEQ1)
+    plotTrayEquipo(ax=ejes, dfEstads=games2, target=target, categ=categ, prefijo=abrev2, color=COLOREQ2, marker='o',
+                   linestyle=STYLEEQ2)
+
+    if gameFilters['precs1'].any():
+        plotAntecedentes(ax=ejes, dfEstads=dfSorted[gameFilters['precs1']], color='green')
+
+    plotRestOfGames(ax=ejes, dfEstads=dfSorted[~gameFilters['filt_both']], categ=categ, target=target, color='black',
+                    alpha=0.1)
+
+    return fig, ejes
