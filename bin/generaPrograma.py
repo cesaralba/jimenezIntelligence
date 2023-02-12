@@ -1,11 +1,10 @@
+import sys
 from collections import defaultdict
-from copy import copy
+from math import isnan
 
 import numpy as np
 import pandas as pd
-import sys
 from configargparse import ArgumentParser
-from math import isnan
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4, landscape
@@ -398,7 +397,6 @@ def recuperaClasifLiga(tempData, fecha=None):
 
         for eq in clasifLiga:
             if eq['Jug'] != modaJug:
-
                 pendientes = modaJug - eq['Jug']
                 aux = "*" if (abs(pendientes) == 1) else pendientes
 
@@ -708,56 +706,28 @@ def listaEquipos(tempData, beQuiet=False):
 
 
 def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
-    partsIzdaAux = copy(partsIzda)
-    partsDchaAux = copy(partsDcha)
-    lineas = list()
-
+    lineasMerged = tempData.mergeTrayectoriaEquipos(abrevs, partsIzda, partsDcha)
     abrIzda, abrDcha = abrevs
-    abrevsIzda = tempData.Calendario.abrevsEquipo(abrIzda)
-    abrevsDcha = tempData.Calendario.abrevsEquipo(abrDcha)
-    abrevsPartido = set().union(abrevsIzda).union(abrevsDcha)
+    colAbrev = {"izda": tempData.Calendario.abrevsEquipo(abrIzda),
+                "dcha": tempData.Calendario.abrevsEquipo(abrDcha)}
 
-    while (len(partsIzdaAux) + len(partsDchaAux)) > 0:
-        bloque = dict()
+    result = []
 
-        try:
-            priPartIzda = partsIzdaAux[0]
-        except IndexError:
-            bloque['J'] = partsDchaAux[0]['jornada']
-            bloque['dcha'] = partidoTrayectoria(partsDchaAux.pop(0), abrevsDcha, tempData)
-            lineas.append(bloque)
-            continue
+    for lineaDict in lineasMerged:
+        finalDict = {k: lineaDict[k] for k in ["J", "precedente"]}
 
-        try:
-            priPartDcha = partsDchaAux[0]
-        except IndexError:
-            bloque['J'] = priPartIzda['jornada']
-            bloque['izda'] = partidoTrayectoria(partsIzdaAux.pop(0), abrevsIzda, tempData)
-            lineas.append(bloque)
-            continue
+        for k in colAbrev:
+            if k not in lineaDict:
+                continue
 
-        bloque = dict()
-        if priPartIzda['jornada'] == priPartDcha['jornada']:
-            bloque['J'] = priPartIzda['jornada']
-            bloque['izda'] = partidoTrayectoria(partsIzdaAux.pop(0), abrevsIzda, tempData)
-            bloque['dcha'] = partidoTrayectoria(partsDchaAux.pop(0), abrevsDcha, tempData)
-            abrevsPartIzda = priPartIzda.CodigosCalendario if isinstance(priPartIzda, PartidoACB) else priPartIzda[
-                'loc2abrev']
+            dato = lineaDict[k]
+            dato2wrk = dato if isinstance(dato, dict) else tempData.Partidos[dato]
+            finalDict[k] = partidoTrayectoria(dato2wrk, colAbrev[k], tempData)
 
-            bloque['precedente'] = (len(abrevsPartido.intersection(abrevsPartIzda.values())) == 2)
+        print(finalDict)
+        result.append(finalDict)
 
-        else:
-            if (priPartIzda['fechaPartido'], priPartIzda['jornada']) < (
-                    priPartDcha['fechaPartido'], priPartDcha['jornada']):
-                bloque['J'] = priPartIzda['jornada']
-                bloque['izda'] = partidoTrayectoria(partsIzdaAux.pop(0), abrevsIzda, tempData)
-            else:
-                bloque['J'] = priPartDcha['jornada']
-                bloque['dcha'] = partidoTrayectoria(partsDchaAux.pop(0), abrevsDcha, tempData)
-
-        lineas.append(bloque)
-
-    return lineas
+    return result
 
 
 def paginasJugadores(tempData, abrEqs, juIzda, juDcha):

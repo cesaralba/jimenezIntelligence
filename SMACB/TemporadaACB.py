@@ -528,6 +528,76 @@ class TemporadaACB(object):
 
         return result
 
+    def mergeTrayectoriaEquipos(self,abrevs,partsIzda,partsDcha):
+        """
+        Devuelve la trayectoria comparada entre 2 equipos para poder hacer una tabla entre ellos
+        :param abrevs: dupla con las abrev del equipo de la izda (o 1 o...) y el de la derecha (o
+                       2 o ...)
+        :param partsIzda: lista de partidos del eq de la izda ordenados por fecha)
+        :param partsDcha: lista de partidos del eq de la dcha ordenados por fecha)
+
+        :return: lista de diccionarios con los siguientes campos: Izda: URL (en ACB) del partido de
+                 la izda; Dcha: URL del part de la dcha, J: Jornada del partido, precedente: si es
+                 un enfrentamiento entre ambos equipos
+        """
+
+        partsIzdaAux = copy(partsIzda)
+        partsDchaAux = copy(partsDcha)
+        lineas = list()
+
+        abrIzda, abrDcha = abrevs
+        abrevsIzda = self.Calendario.abrevsEquipo(abrIzda)
+        abrevsDcha = self.Calendario.abrevsEquipo(abrDcha)
+        abrevsPartido = set().union(abrevsIzda).union(abrevsDcha)
+
+        while (len(partsIzdaAux) + len(partsDchaAux)) > 0:
+            bloque = dict()
+
+            try:
+                priPartIzda = partsIzdaAux[0]
+            except IndexError:
+                dato = partsDchaAux.pop(0)
+                bloque['J'] = dato['jornada']
+                bloque['dcha'] = dato.url if ('url' in dato) else dato
+                lineas.append(bloque)
+                continue
+
+            try:
+                priPartDcha = partsDchaAux[0]
+            except IndexError:
+                dato = priPartIzda.pop(0)
+                bloque['J'] = dato['jornada']
+                bloque['izda'] = dato.url if ('url' in dato) else dato
+                lineas.append(bloque)
+                continue
+
+            bloque = dict()
+            if priPartIzda['jornada'] == priPartDcha['jornada']:
+                bloque['J'] = priPartIzda['jornada']
+
+                datoI = partsIzdaAux.pop(0)
+                datoD = partsDchaAux.pop(0)
+
+                bloque['izda'] = datoI.url if isinstance(datoI,PartidoACB) else datoI
+                bloque['dcha'] = datoD.url if isinstance(datoD,PartidoACB) else datoD
+
+                abrevsPartIzda = priPartIzda.CodigosCalendario if isinstance(priPartIzda, PartidoACB) else priPartIzda['loc2abrev']
+
+                bloque['precedente'] = (len(abrevsPartido.intersection(abrevsPartIzda.values())) == 2)
+
+            else:
+                if (priPartIzda['fechaPartido'], priPartIzda['jornada']) < (
+                        priPartDcha['fechaPartido'], priPartDcha['jornada']):
+                    bloque['J'] = priPartIzda['jornada']
+                    bloque['izda'] = partsIzdaAux.pop(0).url
+                else:
+                    bloque['J'] = priPartDcha['jornada']
+                    bloque['dcha'] = partsDchaAux.pop(0).url
+
+            lineas.append(bloque)
+
+        return lineas
+
     @property
     def tradEquipos(self):
         return self.Calendario.tradEquipos
