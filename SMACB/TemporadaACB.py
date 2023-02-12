@@ -8,13 +8,13 @@ from argparse import Namespace
 from collections import defaultdict
 from copy import copy
 from pickle import dump, load
+from sys import exc_info, setrecursionlimit
+from time import gmtime
 from traceback import print_exception
 from typing import Iterable
 
 import numpy as np
 import pandas as pd
-from sys import exc_info, setrecursionlimit
-from time import gmtime
 
 from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Pandas import combinaPDindexes
@@ -198,7 +198,8 @@ class TemporadaACB(object):
                 browser.open(URL_BASE)
 
             if len(self.plantillas):  # Ya se han descargado por primera vez
-                changes = [self.plantillas[id].descargaYactualizaPlantilla(browser=None, config=Namespace()) for id in self.plantillas]
+                changes = [self.plantillas[id].descargaYactualizaPlantilla(browser=None, config=Namespace()) for id in
+                           self.plantillas]
                 self.changed |= any(changes)
             else:
                 datosPlantillas = descargaPlantillasCabecera(browser, config)
@@ -358,8 +359,8 @@ class TemporadaACB(object):
             result['Pcon'] += datosRival['puntos']
             result['Lcon'].append(datosRival['puntos'])
 
-        result['idEq'] = self.Calendario.tradEquipos['c2i'][abrEq]
-        result['nombresEq'] = self.Calendario.tradEquipos['c2n'][abrEq]
+        result['idEq'] = self.tradEqAbrev2Id(abrEq)
+        result['nombresEq'] = self.tradEquipos['c2n'][abrEq]
         result['abrevsEq'] = abrevsEq
 
         return result
@@ -426,7 +427,7 @@ class TemporadaACB(object):
         finalDFlist = []
 
         if abrEq:
-            idEq = list(self.Calendario.tradEquipos['c2i'][abrEq])[0]
+            idEq = self.tradEqAbrev2Id(abrEq)
             partidosEq = partidos.loc[(partidos['Local', 'id'] == idEq) | (partidos['Visitante', 'id'] == idEq)]
 
             for esLocal in [True, False]:
@@ -530,6 +531,14 @@ class TemporadaACB(object):
     @property
     def tradEquipos(self):
         return self.Calendario.tradEquipos
+
+    def tradEqAbrev2Id(self, abrev):
+        aux = self.tradEquipos['c2i'][abrev]
+        if (len(aux)) == 0:
+            self.tradEquipos['c2i'].pop(abrev)
+            raise KeyError(f"There is no team with acronym {abrev}")
+        result = list(aux)[0]
+        return result
 
 
 def calculaTempStats(datos, clave, filtroFechas=None):

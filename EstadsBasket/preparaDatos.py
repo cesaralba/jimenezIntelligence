@@ -31,10 +31,7 @@ def dfPartidos2serieFechas(dfPartidos: pd.DataFrame, colFecha=COLFECHAPARTIDO, a
             raise ValueError(
                 f"dfPartidos2serieFechas: si se suministra abreviatura '{abrEq}' se requiere info de temporada")
 
-        if not len(datosTemp.tradEquipos['c2i'][abrEq]):
-            raise KeyError(f"dfPartidos2serieFechas: '{abrEq}' desconocida en temporada")
-
-        idEq = list(datosTemp.tradEquipos['c2i'][abrEq])[0]
+        idEq = datosTemp.tradEqAbrev2Id(abrEq)
         listaPartidos = dfPartidos[teamMatch(dfPartidos, idEq, field='id', teamOnly=True)]
 
     if (colFecha in listaPartidos.columns):

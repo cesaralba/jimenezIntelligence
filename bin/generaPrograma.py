@@ -624,20 +624,20 @@ def datosTablaLiga(tempData: TemporadaACB):
 
     for jId, jDatos in tempData.Calendario.Jornadas.items():
         for part in jDatos['partidos']:
-            idLocal = list(tempData.tradEquipos['c2i'][part['equipos']['Local']['abrev']])[0]
-            idVisitante = list(tempData.tradEquipos['c2i'][part['equipos']['Visitante']['abrev']])[0]
+            idLocal = tempData.tradEqAbrev2Id(part['equipos']['Local']['abrev'])
+            idVisitante = tempData.tradEqAbrev2Id(part['equipos']['Visitante']['abrev'])
             auxTabla[idLocal][idVisitante] = part
             auxTablaJuPe['ju'].append((idLocal, idVisitante))
 
         for part in jDatos['pendientes']:
-            idLocal = list(tempData.tradEquipos['c2i'][part['equipos']['Local']['abrev']])[0]
-            idVisitante = list(tempData.tradEquipos['c2i'][part['equipos']['Visitante']['abrev']])[0]
+            idLocal = tempData.tradEqAbrev2Id(part['equipos']['Local']['abrev'])
+            idVisitante = tempData.tradEqAbrev2Id(part['equipos']['Visitante']['abrev'])
             auxTabla[idLocal][idVisitante] = part
             auxTablaJuPe['pe'].append((idLocal, idVisitante))
 
     # En la clasificación está el contenido de los márgenes, de las diagonales y el orden de presentación
     # de los equipos
-    seqIDs = [(pos, list(equipo['idEq'])[0]) for pos, equipo in enumerate(clasifLiga)]
+    seqIDs = [(pos, equipo['idEq']) for pos, equipo in enumerate(clasifLiga)]
 
     datosTabla = []
     id2pos = dict()
@@ -654,6 +654,7 @@ def datosTablaLiga(tempData: TemporadaACB):
         fila = []
         nombreCorto = sorted(datosEq['nombresEq'], key=lambda n: len(n))[0]
         abrev = list(datosEq['abrevsEq'])[0]
+
         fila.append(Paragraph(f"{nombreCorto} (<b>{abrev}</b>)", style=estCelda))
         for _, idVisit in seqIDs:
             if idLocal != idVisit:  # Partido, la otra se usa para poner el balance
