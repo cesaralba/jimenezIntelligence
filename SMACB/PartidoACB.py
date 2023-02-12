@@ -1,13 +1,14 @@
 import re
 from argparse import Namespace
 from copy import copy
-from traceback import print_exc
 from itertools import product
+from time import gmtime
+from traceback import print_exc
+
 import numpy as np
 import pandas as pd
 from babel.numbers import parse_number
 from bs4 import Tag
-from time import gmtime
 
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHAHORA, PATRONFECHA
@@ -450,6 +451,9 @@ class PartidoACB(object):
                 estadsDict[loc][f"RIV{col}"] = self.Equipos[other][col]
 
             estadsDict[loc]['haGanado'] = self.DatosSuministrados['equipos'][loc]['haGanado']
+            estadsDict[loc]['etiqPartido'] = "{locres}{abrev}{victoderr}".format(
+                locres=("v" if estadsDict[loc]['local'] else "@"), abrev=estadsDict[loc]['RIVabrev'],
+                victoderr=("+" if estadsDict[loc]['haGanado'] else "-"))
             estadsDict[loc]['convocados'] = len(self.Equipos[loc]['Jugadores'])
             estadsDict[loc]['utilizados'] = len(
                 [j for j in self.Equipos[loc]['Jugadores'] if self.Jugadores[j]['haJugado']])
@@ -496,8 +500,8 @@ class PartidoACB(object):
         infoDict['Ftot'] = estadsDict['Local']['FP-C'] + estadsDict[OtherLoc('Local')]['FP-C']
         infoDict['POStot'] = estadsDict['Local']['POS'] + estadsDict[OtherLoc('Local')]['POS']
 
-        infoDict['ratio40min'] = 40 / (40 + (infoDict['prorrogas']*5))
-        infoDict['label'] = "-".join(map(lambda k:estadsDict[k[0]][k[1]],product(LocalVisitante,['abrev'])))
+        infoDict['ratio40min'] = 40 / (40 + (infoDict['prorrogas'] * 5))
+        infoDict['label'] = "-".join(map(lambda k: estadsDict[k[0]][k[1]], product(LocalVisitante, ['abrev'])))
 
         estadsDF = pd.DataFrame.from_dict(data=estadsDict, orient='index')
 
@@ -517,7 +521,6 @@ class PartidoACB(object):
                                                       self.ResultadoCalendario['Visitante'],
                                                       self.EquiposCalendario['Visitante'],
                                                       self.CodigosCalendario['Visitante'])
-
 
     def __str__(self):
         return "J %02i: [%s] %s (%s) %i - %i %s (%s)" % (
