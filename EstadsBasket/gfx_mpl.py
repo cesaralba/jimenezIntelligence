@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.dates import DateFormatter
 
 from SMACB.Constants import OtherTeam
 from Utils.Misc import listize
@@ -140,12 +141,16 @@ def dibujaCategoria(dfPartidos, abrev1, abrev2, categ, target='Eq'):
     if gameFilters['precs1'].any():
         plotAntecedentes(ax=ejes, dfEstads=dfSorted[gameFilters['precs1']], color='green')
 
-    plotRestOfGames(ax=ejes, dfEstads=dfSorted[~gameFilters['filt_both']], categ=categ, target=target, color='black', marker='.',                   alpha=0.1)
+    plotRestOfGames(ax=ejes, dfEstads=dfSorted[~gameFilters['filt_both']], categ=categ, target=target, color='black',
+                    marker='.', alpha=0.1)
+    date_form = DateFormatter("%d-%m")
+    ejes.xaxis.set_major_formatter(date_form)
+    ejes.xaxis.set_label_text('Fecha')
+    ejes.yaxis.set_label_text(categ)
 
-    #TODO: Etiquetas horizontal y vertical
-    #TODO: Etiqs X
-    #TODO: Tabla con indicación del partido del equipo
+    # TODO: Tabla con indicación del partido del equipo
+    #TODO: Leyendas
     return fig, ejes
 
-#TODO: Kde de las categorías
-#TODO: Scatterplot eff of/def
+# TODO: Kde de las categorías
+# TODO: Scatterplot eff of/def
