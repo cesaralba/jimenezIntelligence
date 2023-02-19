@@ -19,10 +19,10 @@ import pandas as pd
 from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Pandas import combinaPDindexes
 from Utils.Web import creaBrowser
-from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
-from .Constants import OtherLoc, EqRival, OtherTeam, LOCALNAMES, LocalVisitante
-from .FichaJugador import FichaJugador
-from .PartidoACB import PartidoACB
+from SMACB.CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
+from SMACB.Constants import OtherLoc, EqRival, OtherTeam, LOCALNAMES, LocalVisitante
+from SMACB.FichaJugador import FichaJugador
+from SMACB.PartidoACB import PartidoACB
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB
 
 COLSESTADSASCENDING = [
@@ -558,20 +558,22 @@ class TemporadaACB(object):
             bloque = dict()
 
             try:
-                priPartIzda = partsIzdaAux[0]
+                priPartIzda = partsIzdaAux[0] #List izda is not empty
             except IndexError:
                 dato = partsDchaAux.pop(0)
                 bloque['J'] = dato['jornada']
-                bloque['dcha'] = dato.url if ('url' in dato) else dato
+                bloque['dcha'] = dato.url if hasattr(dato,'url') else dato
+                bloque['precedente'] = False
                 lineas.append(bloque)
                 continue
 
             try:
-                priPartDcha = partsDchaAux[0]
+                priPartDcha = partsDchaAux[0] #List dcha is not empty
             except IndexError:
-                dato = priPartIzda.pop(0)
+                dato = partsIzdaAux.pop(0)
                 bloque['J'] = dato['jornada']
-                bloque['izda'] = dato.url if ('url' in dato) else dato
+                bloque['izda'] = dato.url if hasattr(dato,'url') else dato
+                bloque['precedente'] = False
                 lineas.append(bloque)
                 continue
 
@@ -593,10 +595,14 @@ class TemporadaACB(object):
                 if (priPartIzda['fechaPartido'], priPartIzda['jornada']) < (
                         priPartDcha['fechaPartido'], priPartDcha['jornada']):
                     bloque['J'] = priPartIzda['jornada']
-                    bloque['izda'] = partsIzdaAux.pop(0).url
+                    dato= partsIzdaAux.pop(0)
+                    bloque['precedente'] = False
+                    bloque['izda'] = dato.url if hasattr(dato,'url') else dato
                 else:
                     bloque['J'] = priPartDcha['jornada']
-                    bloque['dcha'] = partsDchaAux.pop(0).url
+                    dato = partsDchaAux.pop(0)
+                    bloque['precedente'] = False
+                    bloque['dcha'] = dato.url if hasattr(dato,'url') else dato
 
             lineas.append(bloque)
 
