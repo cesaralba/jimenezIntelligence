@@ -724,7 +724,6 @@ def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
             dato2wrk = dato if isinstance(dato, dict) else tempData.Partidos[dato]
             finalDict[k] = partidoTrayectoria(dato2wrk, colAbrev[k], tempData)
 
-        print(finalDict)
         result.append(finalDict)
 
     return result
