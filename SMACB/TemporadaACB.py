@@ -178,9 +178,13 @@ class TemporadaACB(object):
 
         for codJ, datosJug in nuevoPartido.Jugadores.items():
             if codJ not in self.fichaJugadores:
-                nuevaFicha = FichaJugador.fromURL(datosJug['linkPersona'], home=browser.get_url(), browser=browser,
-                                                  config=config)
-                self.fichaJugadores[codJ] = nuevaFicha
+                try:
+                    nuevaFicha = FichaJugador.fromURL(datosJug['linkPersona'], home=browser.get_url(), browser=browser,                                                  config=config)
+                    self.fichaJugadores[codJ] = nuevaFicha
+                except AttributeError as exc:
+                    print("SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido: something happened",exc)
+                    print(datosJug)
+                    raise exc
 
             elif refrescaFichas:
                 self.fichaJugadores[codJ] = self.fichaJugadores[codJ].actualizaFicha(browser=browser, config=config)
