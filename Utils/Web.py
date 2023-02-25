@@ -5,7 +5,8 @@ from urllib.parse import (parse_qs, unquote, urlencode, urljoin, urlparse,
                           urlunparse)
 
 from mechanicalsoup import StatefulBrowser
-
+import logging
+logger = logging.getLogger(__name__)
 
 def DescargaPagina(dest, home=None, browser=None, config=Namespace()):
     """
@@ -20,13 +21,17 @@ def DescargaPagina(dest, home=None, browser=None, config=Namespace()):
         browser = creaBrowser(config)
 
     if home is None:
+        logger.info(f"DescargaPagina: no home {dest}")
         browser.open(dest)
     elif dest.startswith('/'):
         newDest = MergeURL(home, dest)
+        logger.info(f"DescargaPagina: home abs link {newDest}")
         browser.open(newDest)
     else:
         browser.open(home)
+        logger.info(f"DescargaPagina: home rel link {dest}")
         browser.follow_link(dest)
+    logging.info(f"DescargaPagina: downloaded")
 
     source = browser.get_url()
     content = browser.get_current_page()

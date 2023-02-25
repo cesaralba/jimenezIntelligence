@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import logging
 import sys
+
 from configargparse import ArgumentParser
 from mechanicalsoup import StatefulBrowser
 
 from SMACB.CalendarioACB import calendario_URLBASE
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.Web import ExtraeGetParams
+
+logger = logging.getLogger(__name__)
 
 parser = ArgumentParser()
 parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, help='', default=0)
@@ -35,6 +39,12 @@ parser.add('-o', dest='outfile', type=str, env_var='SM_OUTFILE', help='Fichero d
 args = parser.parse_args()
 
 browser = StatefulBrowser(soup_config={'features': "html.parser"}, raise_on_404=True, user_agent="SMparser", )
+
+if args.verbose:
+    logging.basicConfig(level=logging.INFO)
+
+if args.debug:
+    logging.basicConfig(level=logging.DEBUG)
 
 if args.url is not None:
     sourceURL = args.url

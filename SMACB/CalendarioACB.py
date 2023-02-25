@@ -1,7 +1,10 @@
+import logging
 import re
 from argparse import Namespace
 from collections import defaultdict
 from copy import deepcopy, copy
+
+logger = logging.getLogger(__name__)
 
 import pandas as pd
 from time import gmtime
@@ -85,6 +88,7 @@ class CalendarioACB(object):
         return result
 
     def descargaCalendario(self, home=None, browser=None, config=Namespace()):
+        logger.info(f"descargaCalendario")
         if self.url is None:
             pagCalendario = DescargaPagina(self.urlbase, home=home, browser=browser, config=config)
             pagCalendarioData = pagCalendario['data']
@@ -114,10 +118,10 @@ class CalendarioACB(object):
             priCompoID = divCompos.find('div', {"class": "elemento"})['data-t2v-id']
 
             if self.competicion not in compoClaves:
-                listaComposTxt = ["{k} = '{label}'".format(k=x, label=listaCompos[compoClaves[x]]) for x in
-                                  compoClaves]
-                raise KeyError("Compo solicitada {compo} no disponible. Disponibles: {listaCompos}".format(
-                    compo=self.competicion, listaCompos=", ".join(listaComposTxt)))
+                listaComposTxt = ["{k} = '{label}'".format(k=x, label=listaCompos[compoClaves[x]]) for x in compoClaves]
+                raise KeyError(
+                    "Compo solicitada {compo} no disponible. Disponibles: {listaCompos}".format(compo=self.competicion,
+                        listaCompos=", ".join(listaComposTxt)))
 
             self.url = template_CALENDARIOFULL.format(year=self.edicion, compoID=compoClaves[self.competicion])
 

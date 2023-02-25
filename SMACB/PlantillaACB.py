@@ -1,8 +1,9 @@
+import logging
 from argparse import Namespace
 from collections import defaultdict
+from time import gmtime
 
 import bs4
-from time import gmtime
 
 from Utils.LoggedDict import LoggedDict, DictOfLoggedDict
 from Utils.Web import creaBrowser, DescargaPagina, getObjID, MergeURL
@@ -117,6 +118,7 @@ def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=Namespace
     if browser is None:
         browser = creaBrowser(config)
     try:
+        logging.debug(f"descargaURLplantilla: downloading {urlPlantilla} ")
         pagPlant = DescargaPagina(urlPlantilla, home=home, browser=browser, config=config)
 
         result = procesaPlantillaDescargada(pagPlant, otrosNombres=otrosNombres)
