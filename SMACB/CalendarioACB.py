@@ -92,7 +92,7 @@ class CalendarioACB(object):
         if self.url is None:
             pagCalendario = DescargaPagina(self.urlbase, home=home, browser=browser, config=config)
             pagCalendarioData = pagCalendario['data']
-            divTemporadas = pagCalendarioData.find("div", {"class": "listado_temporada"})
+            divTemporadas = pagCalendarioData.find("div", {"class": "desplegable_temporada"})
 
             currYear = divTemporadas.find('div', {"class": "elemento"})['data-t2v-id']
 
@@ -111,11 +111,11 @@ class CalendarioACB(object):
 
             pagYearData = pagYear['data']
 
-            divCompos = pagYearData.find("div", {"class": "listado_competicion"})
+            divCompos = pagYearData.find("div", {"class": "desplegable_competicion"})
             listaCompos = {x['data-t2v-id']: x.get_text() for x in divCompos.find_all('div', {"class": "elemento"})}
             compoClaves = compo2clave(listaCompos)
 
-            priCompoID = divCompos.find('div', {"class": "elemento"})['data-t2v-id']
+            priCompoID = divCompos.find('div', {"class": "elemento_seleccionado"}).find('input')['value']
 
             if self.competicion not in compoClaves:
                 listaComposTxt = ["{k} = '{label}'".format(k=x, label=listaCompos[compoClaves[x]]) for x in compoClaves]
@@ -185,8 +185,8 @@ class CalendarioACB(object):
             divsEq = divPartido.find_all("div", {"class": eqUbic})
             infoEq = procesaDivsEquipo(divsEq)
             auxDatos.update(infoEq)
-            self.nuevaTraduccionEquipo2Codigo(nombres=[infoEq['nomblargo'], infoEq['nombcorto']],
-                                              abrev=infoEq['abrev'], id=None)
+            self.nuevaTraduccionEquipo2Codigo(nombres=[infoEq['nomblargo'], infoEq['nombcorto']], abrev=infoEq['abrev'],
+                                              id=None)
             datosPartEqs[eqUbic.capitalize()] = auxDatos
 
         resultado['equipos'] = datosPartEqs
