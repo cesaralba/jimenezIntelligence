@@ -252,7 +252,7 @@ def encuentraUltEdicion(plantDesc):
     return result
 
 
-def descargaPlantillasCabecera(browser=None, config=Namespace()):
+def descargaPlantillasCabecera(browser=None, config=Namespace(),edicion=None,listaIDs=[]):
     """
     Descarga los contenidos de las plantillas y los procesa. Servirá para alimentar las plantillas de TemporadaACB
     :param browser:
@@ -264,19 +264,24 @@ def descargaPlantillasCabecera(browser=None, config=Namespace()):
     if browser is None:
         browser = creaBrowser(config)
 
-    paginaRaiz = DescargaPagina(dest=URL_BASE, browser=browser, config=config)
+    urlClubes = generaURLClubes(edicion)
+    paginaRaiz = DescargaPagina(dest=urlClubes, browser=browser, config=config)
 
     if paginaRaiz is None:
-        raise Exception("Incapaz de descargar %s" % URL_BASE)
+        raise ConnectionError("Incapaz de descargar %s" % URL_BASE)
 
     raizData = paginaRaiz['data']
-    divLogos = raizData.find('div', {'class': 'contenedor_logos_equipos'})
+    divLogos = raizData.find('section', {'class': 'contenedora_clubes'})
 
-    for eqLink in divLogos.find_all('a', {'class': 'equipo_logo'}):
+    for artLink in divLogos.find_all('article'):
+        eqLink = artLink.find('div').find('a')
         urlLink = eqLink['href']
         urlFull = MergeURL(browser.get_url(), urlLink)
 
         idEq = getObjID(objURL=urlFull, clave='id')
+
+        if listaIDs and idEq not in listaIDs:
+            continue
 
         result[idEq] = descargaURLplantilla(urlFull)
 
@@ -294,3 +299,16 @@ def generaURLPlantilla(plantilla):
     result = MergeURL(URL_BASE, urlSTR)
 
     return result
+
+def generaURLClubes(edicion=None):
+    # https://www.acb.com/club/index/temporada_id/2015
+    params = ['/club', 'index']
+    if edicion is not None:
+        params += ['temporada_id', edicion]
+
+    urlSTR = "/".join(params)
+
+    result = MergeURL(URL_BASE, urlSTR)
+
+    return result
+
