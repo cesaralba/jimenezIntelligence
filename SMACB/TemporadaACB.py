@@ -100,7 +100,9 @@ class TemporadaACB(object):
             browser.open(URL_BASE)
 
         self.Calendario.actualizaCalendario(browser=browser, config=config)
-        self.actualizaPlantillas(browser=browser, config=config)
+
+        if self.descargaPlantillas:
+            self.actualizaPlantillas(browser=browser, config=config)
 
         if 'procesabio' in config and config.procesaBio:
             self.descargaFichas = True
