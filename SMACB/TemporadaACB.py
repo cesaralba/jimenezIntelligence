@@ -1,8 +1,8 @@
-'''
+"""
 Created on Jan 4, 2018
 
 @author: calba
-'''
+"""
 
 from argparse import Namespace
 from collections import defaultdict
@@ -66,9 +66,9 @@ COLSESTADSASCENDING = [
 
 
 class TemporadaACB(object):
-    '''
+    """
     Aglutina calendario y lista de partidos
-    '''
+    """
 
     # TODO: función __str__
 
@@ -101,12 +101,6 @@ class TemporadaACB(object):
 
         self.Calendario.actualizaCalendario(browser=browser, config=config)
 
-        if self.descargaPlantillas:
-            self.actualizaPlantillas(browser=browser, config=config)
-
-        if 'procesabio' in config and config.procesaBio:
-            self.descargaFichas = True
-
         partidosBajados = set()
 
         for partido in set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys())):
@@ -130,6 +124,9 @@ class TemporadaACB(object):
                 break
 
         self.changed = self.changed | (len(partidosBajados) > 0)
+
+        if self.descargaPlantillas:
+            self.actualizaPlantillas(browser=browser, config=config)
 
         if self.changed != changeOrig:
             self.timestamp = gmtime()
@@ -159,7 +156,7 @@ class TemporadaACB(object):
         aux = copy(self)
 
         # Clean stuff that shouldn't be saved
-        for atributo in ('changed'):
+        for atributo in {'changed'}:
             if hasattr(aux, atributo):
                 aux.__delattr__(atributo)
 
@@ -172,7 +169,7 @@ class TemporadaACB(object):
         aux = load(open(filename, "rb"))
 
         for atributo in aux.__dict__.keys():
-            if atributo in ('changed'):
+            if atributo in {'changed'}:
                 continue
             self.__setattr__(atributo, aux.__getattribute__(atributo))
 
@@ -207,14 +204,17 @@ class TemporadaACB(object):
                 browser.open(URL_BASE)
 
             if len(self.plantillas):  # Ya se han descargado por primera vez
-                changes = [self.plantillas[id].descargaYactualizaPlantilla(browser=None, config=Namespace()) for id in
+                changes = [self.plantillas[teamId].descargaYactualizaPlantilla(browser=None, config=Namespace()) for teamId in
                            self.plantillas]
                 self.changed |= any(changes)
-            else:
-                datosPlantillas = descargaPlantillasCabecera(browser, config)
-                for id, datos in datosPlantillas.items():
-                    self.plantillas[id] = PlantillaACB(id)
-                    self.plantillas[id].actualizaPlantillaDescargada(datos)
+
+            currEqs = set(self.plantillas.keys())
+            eqsCalendario = set(self.idEquipos())
+            eqs2process = eqsCalendario.difference(currEqs)
+            datosPlantillas = descargaPlantillasCabecera(browser, config,self.edicion,eqs2process)
+            for teamId, datos in datosPlantillas.items():
+                self.plantillas[teamId] = PlantillaACB(teamId)
+                self.plantillas[teamId].actualizaPlantillaDescargada(datos)
                 self.changed = True
 
     def actualizaTraduccionesJugador(self, nuevoPartido):
@@ -276,7 +276,7 @@ class TemporadaACB(object):
 
         dfResult['periodo'] = dfResult.apply(lambda r: periodos[r['jornada']][r['fechaPartido'].date()], axis=1)
 
-        return (dfResult)
+        return dfResult
 
     def dfEstadsJugadores(self, dfDatosPartidos: pd.DataFrame, abrEq: str = None):
         COLDROPPER = ['jornada', 'temporada']
@@ -382,13 +382,13 @@ class TemporadaACB(object):
         return result
 
     def dataFrameFichasJugadores(self):
-        auxdict = {id: ficha.dictDatosJugador() for id, ficha in self.fichaJugadores.items()}
+        auxdict = {playerId: ficha.dictDatosJugador() for playerId, ficha in self.fichaJugadores.items()}
 
-        for id, ficha in auxdict.items():
+        for playerId, ficha in auxdict.items():
             partido = self.Partidos[ficha['ultPartidoP']]
-            entradaJug = partido.Jugadores[id]
-            auxdict[id]['ultEquipo'] = entradaJug['equipo']
-            auxdict[id]['ultEquipoAbr'] = entradaJug['CODequipo']
+            entradaJug = partido.Jugadores[playerId]
+            auxdict[playerId]['ultEquipo'] = entradaJug['equipo']
+            auxdict[playerId]['ultEquipoAbr'] = entradaJug['CODequipo']
 
         auxDF = pd.DataFrame.from_dict(auxdict, orient='index')
         for col in ['fechaNac', 'primPartidoT', 'ultPartidoT']:
@@ -625,6 +625,8 @@ class TemporadaACB(object):
         result = list(aux)[0]
         return result
 
+    def idEquipos(self):
+        return list(self.tradEquipos['i2c'].keys())
 
 def calculaTempStats(datos, clave, filtroFechas=None):
     if clave not in datos:

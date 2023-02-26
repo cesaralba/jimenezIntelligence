@@ -123,7 +123,7 @@ class PartidoACB(object):
                         continue
                     else:
                         if cachedTeam is None:
-                            cachedTeam = PlantillaACB(id=datosJug['IDequipo'], edicion=datosJug['temporada'])
+                            cachedTeam = PlantillaACB(teamId=datosJug['IDequipo'], edicion=datosJug['temporada'])
 
                     nombreRetoc = RetocaNombreJugador(datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug[
                         'nombre']

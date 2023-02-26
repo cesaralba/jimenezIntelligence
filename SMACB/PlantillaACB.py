@@ -15,8 +15,8 @@ CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 
 
 
 class PlantillaACB(object):
-    def __init__(self, id, **kwargs):
-        self.id = id
+    def __init__(self, teamId, **kwargs):
+        self.id = teamId
         self.edicion = kwargs.get('edicion', None)
         self.URL = generaURLPlantilla(self)
         self.timestamp = None
@@ -152,9 +152,8 @@ def procesaPlantillaDescargada(plantDesc, otrosNombres: dict = None):
     """
     auxTraducciones = otrosNombres or dict()
 
-    result = {'jugadores': dict(), 'tecnicos': dict()}
+    result = {'jugadores': dict(), 'tecnicos': dict(), 'club': extraeDatosClub(plantDesc)}
 
-    result['club'] = extraeDatosClub(plantDesc)
     fichaData = plantDesc['data']
 
     cosasUtiles = fichaData.find(name='section', attrs={'class': 'contenido_central_equipo'})
@@ -254,14 +253,19 @@ def encuentraUltEdicion(plantDesc):
     return result
 
 
-def descargaPlantillasCabecera(browser=None, config=Namespace(),edicion=None,listaIDs=[]):
+def descargaPlantillasCabecera(browser=None, config=Namespace(), edicion=None, listaIDs=None):
     """
     Descarga los contenidos de las plantillas y los procesa. Servirá para alimentar las plantillas de TemporadaACB
     :param browser:
     :param config:
-    :param jugId2nombre:
+    :param edicion:
+    :param listaIDs: IDs to be considered
     :return:
     """
+
+    if listaIDs is None:
+        listaIDs = []
+
     result = dict()
     if browser is None:
         browser = creaBrowser(config)
@@ -301,6 +305,7 @@ def generaURLPlantilla(plantilla):
     result = MergeURL(URL_BASE, urlSTR)
 
     return result
+
 
 def generaURLClubes(edicion=None):
     # https://www.acb.com/club/index/temporada_id/2015
