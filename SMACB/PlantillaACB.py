@@ -9,6 +9,8 @@ from Utils.LoggedDict import LoggedDict, DictOfLoggedDict
 from Utils.Web import creaBrowser, DescargaPagina, getObjID, MergeURL
 from .Constants import URL_BASE
 
+logger = logging.getLogger()
+
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
 
 
@@ -311,4 +313,3 @@ def generaURLClubes(edicion=None):
     result = MergeURL(URL_BASE, urlSTR)
 
     return result
-

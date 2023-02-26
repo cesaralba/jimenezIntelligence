@@ -14,7 +14,7 @@ from traceback import print_exception
 from typing import Iterable
 
 import logging
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 import numpy as np
 import pandas as pd

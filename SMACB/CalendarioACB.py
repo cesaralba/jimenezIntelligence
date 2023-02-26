@@ -4,7 +4,7 @@ from argparse import Namespace
 from collections import defaultdict
 from copy import deepcopy, copy
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
 import pandas as pd
 from time import gmtime
@@ -428,7 +428,7 @@ def recuperaPartidosEquipo(idEquipo, home=None, browser=None, config=Namespace()
 
     urlDest = template_PARTIDOSEQUIPO.format(idequipo=idEquipo)
 
-    partidosPage = DescargaPagina(dest=urlDest, browser=browser, config=config)
+    partidosPage = DescargaPagina(dest=urlDest, home=home, browser=browser, config=config)
 
     if partidosPage is None:
         return None
