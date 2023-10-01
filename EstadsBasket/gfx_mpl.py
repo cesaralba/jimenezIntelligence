@@ -1,7 +1,11 @@
+from copy import copy
+
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.dates import DateFormatter
 
+from SMACB.PartidoACB import PartidoACB
+from SMACB.TemporadaACB import TemporadaACB
 from SMACB.Constants import OtherTeam
 from Utils.Misc import listize
 from .preparaDatos import teamMatch, calculaEstadisticosPartidos
@@ -24,6 +28,7 @@ DEFAULTALPHA = 1.0
 DEFAULTLINESTYLE = '-'
 DEFAULTMARKER = ''
 
+#TODO: All this will break when some team changes sponsor and the acronym changes.
 
 def dibujaTodo(ax, dfTodo, etiq=('Eq', 'P_por40m'), team1='RMB', team2='LNT'):
     x1 = dfTodo[teamMatch(dfTodo, team1, teamOnly=True)][etiq].index
@@ -154,3 +159,91 @@ def dibujaCategoria(dfPartidos, abrev1, abrev2, categ, target='Eq'):
 
 # TODO: Kde de las categorías
 # TODO: Scatterplot eff of/def
+
+def teamsTrayectoryDataframe(dataTemp:TemporadaACB,dfGames:pd.DataFrame,abrev1:str,abrev2:str):
+    """
+    Dado una colección de datos de temporada, un dataframe con resultados de los partidos y las brevs de 2 equipos
+
+    :param dataTemp: información de temporada original ACB (SMACB.TemporadaACB)
+    :param dfGames: dataframe con datos de los partidos. Sí, la información está
+                    derivada de dataTemp pero puede (de hecho lo está estar enriquecida)
+    :param abrev1: abrev del equipo 1
+    :param abrev2: abrev del equipo 2
+
+    Es altamente probable que se pueda hacr
+    :return:
+    """
+
+    (sig1, abrEqs1, juI1, _, juD1, _, targLocal) = dataTemp.sigPartido(abrev1)
+
+    gamesTemp1 = juI1 if targLocal else juD1
+    if set(abrEqs1) == {abrev1,abrev2}:
+        gamesTemp2 = juD1 if targLocal else juI1
+    else:
+        (sig2, _, juIzda2, _, juDcha2, _, targLocal2) = dataTemp.sigPartido(abrev2)
+        gamesTemp2 = juIzda2 if targLocal2 else juDcha2
+
+        print("Games in the middle!!!")
+        #TODO: Show proper warning
+
+    lineas = dataTemp.mergeTrayectoriaEquipos((abrev1,abrev2),gamesTemp1, gamesTemp2)
+
+    gameFilters = find_filters(dfGames,abrev1,abrev2)
+
+    gamesDF1 = dfGames[gameFilters['games1']]
+    gamesDF2 = dfGames[gameFilters['games2']]
+
+    dfList = []
+    for linData in lineas:
+        df1 = df2 = None
+        url1=linData.get('izda',None)
+        if url1:
+            df1 = gamesDF1[gamesDF1[('Info','url')]==url1].reset_index()
+        url2=linData.get('dcha',None)
+        if url2:
+            df2 = gamesDF2[gamesDF2[('Info','url')]==url2].reset_index()
+
+        mergedDF = pd.concat([df1,df2],axis=1,keys=['Eq1','Eq2'])
+
+        dfList.append(mergedDF)
+
+    result = pd.concat(dfList)
+
+    return result
+
+def datosTablaAux(dfMerged:pd.DataFrame,categ,abrevsDuple,target='Eq',categLabel=None,formatCat="{:.2f}"):
+    if(len(abrevsDuple)) != 2:
+        raise ValueError(f"datosTablaAux: abrevsDuple {abrevsDuple} len must be 2. Current:{len(abrevsDuple)}")
+
+    abrevTeam = dict()
+    abrevTeam['Eq1'] = abrevsDuple[0]
+    abrevTeam['Eq2'] = abrevsDuple[1]
+    auxCateg = categ if categLabel is None else categLabel
+
+    colList=[]
+    colNames = []
+    formats = dict()
+
+    diffJornadas= ~((dfMerged[('Eq1', 'Info', 'jornada')]==dfMerged[ ('Eq2', 'Info', 'jornada')]).all())
+    if ~diffJornadas:
+        colList.append(('Eq1','Info','jornada'))
+        colNames.append('J')
+        formats['J'] = "{!i:2}"
+    for team in ['Eq1','Eq2']:
+        abrev = abrevTeam[team]
+        if diffJornadas:
+            colList.append((team,'Info','jornada'))
+            colNames.append(f"{abrev} J")
+            formats[f"{abrev} J"] = "{:2i}".format
+
+        colList.append((team,target,'etiqPartido'))
+        colNames.append(f"{abrev} Part")
+        colList.append((team,target,categ))
+        colNames.append(f"{abrev} {auxCateg}")
+        formats[f"{abrev} {auxCateg}"] = formatCat
+
+    data2show=dfMerged[colList]
+    data2show.columns=colNames
+    result=data2show.style.format(formatter=formats,na_rep="")
+
+    return result

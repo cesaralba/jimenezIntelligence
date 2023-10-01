@@ -18,3 +18,4 @@ XlsxWriter==3.0.7
 #Programas
 #fpdf
 reportlab
+Jinja2==3.1.2
