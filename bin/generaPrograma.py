@@ -25,6 +25,7 @@ from Utils.FechaHora import Time2Str
 from Utils.Misc import listize, onlySetElement
 
 FMTECHACORTA = "%d-%m"
+DEFTABVALUE = "-"
 
 estadGlobales = None
 estadGlobalesOrden = None
@@ -239,7 +240,7 @@ def auxEtFecha(f, col, formato=FMTECHACORTA):
         return "-"
 
     dato = f[col]
-    result = dato.strftime(formato)
+    result = "-" if pd.isnull(dato) else dato.strftime(formato)
 
     return result
 
@@ -296,6 +297,9 @@ def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estil
         colSpec = colSpecs.get(colkey, {})
         newCol = dfDatos[level].apply(colSpec['generador'], axis=1) if 'generador' in colSpec else dfDatos[[colkey]]
 
+        defValue = colSpec.get('default', DEFTABVALUE)
+        nullValues = newCol.isnull()
+
         if 'formato' in colSpec:
             etiqFormato = colSpec['formato']
             if etiqFormato not in formatos:
@@ -310,7 +314,11 @@ def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estil
 
         newAncho = colSpec.get('ancho', 10) * charWidth
 
-        dfColList.append(newCol)
+        # Fills with default value
+        finalCol = newCol.copy()
+        finalCol[nullValues] = defValue
+
+        dfColList.append(finalCol)
         filaCab.append(newEtiq)
         anchoCols.append(newAncho)
         if 'alignment' in colSpec:
@@ -386,12 +394,15 @@ def recuperaClasifLiga(tempData, fecha=None):
     if clasifLiga is None:
         clasifLiga = tempData.clasifLiga(fecha)
         jugados = np.array([eq['Jug'] for eq in clasifLiga])
-        modaJug = stats.mode(jugados).mode[0]
+        modaJug = stats.mode(jugados, keepdims=False).mode
 
         for eq in clasifLiga:
             if eq['Jug'] != modaJug:
+
                 pendientes = modaJug - eq['Jug']
-                eq.update({'pendientes': pendientes})
+                aux = "*" if (abs(pendientes) == 1) else pendientes
+
+                eq.update({'pendientes': aux})
 
 
 def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
@@ -570,7 +581,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     if tempData.descargaPlantillas:
         idEq = onlySetElement(tempData.Calendario.tradEquipos['c2i'][abrEq])
         statusJugs = tempData.plantillas[idEq].jugadores.extractKey('activo', False)
-        identifJug['Activo'] = identifJug['codigo'].map(statusJugs, True)
+        identifJug['Activo'] = identifJug['codigo'].map(statusJugs, 'ignore')
     else:
         identifJug['Activo'] = True
 
@@ -594,9 +605,11 @@ def datosTablaLiga(tempData: TemporadaACB):
     Calcula los datos que rellenarán la tabla de liga así como las posiciones de los partidos jugados y pendientes para
     darles formato
     :param tempData:
-    :return: listaListasCeldas,tupla de listas de coords de jugados y pendientes
+    :return: listaListasCeldas,tupla de listas de coords de jugados y pendientes, primer eq con balance negativo
     List
     """
+    firstNegBal = None
+
     recuperaClasifLiga(tempData)
     FONTSIZE = 10
     CELLPAD = 3 * mm
@@ -633,11 +646,14 @@ def datosTablaLiga(tempData: TemporadaACB):
         Paragraph('<b>' + list(clasifLiga[pos]['abrevsEq'])[0] + '</b>', style=estCelda) for pos, _ in seqIDs] + [
                   Paragraph('<b>Como local</b>', style=estCelda)]
     datosTabla.append(cabFila)
+
     for pos, idLocal in seqIDs:
+        datosEq = clasifLiga[pos]
+
         id2pos[idLocal] = pos
         fila = []
-        nombreCorto = sorted(clasifLiga[pos]['nombresEq'], key=lambda n: len(n))[0]
-        abrev = list(clasifLiga[pos]['abrevsEq'])[0]
+        nombreCorto = sorted(datosEq['nombresEq'], key=lambda n: len(n))[0]
+        abrev = list(datosEq['abrevsEq'])[0]
         fila.append(Paragraph(f"{nombreCorto} (<b>{abrev}</b>)", style=estCelda))
         for _, idVisit in seqIDs:
             if idLocal != idVisit:  # Partido, la otra se usa para poner el balance
@@ -650,17 +666,18 @@ def datosTablaLiga(tempData: TemporadaACB):
 
                 texto = f"J:{jornada}<br/>@{fecha}"
                 if not part['pendiente']:
-                    pURL = part['url']
-                    pTempFecha = tempData.Partidos[pURL].fechaPartido
                     pLocal = part['equipos']['Local']['puntos']
                     pVisit = part['equipos']['Visitante']['puntos']
                     texto = f"J:{jornada}<br/><b>{pLocal}-{pVisit}</b>"
             else:
-                auxTexto = auxCalculaBalanceStr(clasifLiga[pos])
+                auxTexto = auxCalculaBalanceStr(datosEq)
                 texto = f"<b>{auxTexto}</b>"
             fila.append(Paragraph(texto, style=estCelda))
 
-        fila.append(Paragraph(auxCalculaBalanceStr(clasifLiga[pos]['CasaFuera']['Local']), style=estCelda))
+        if (datosEq['V'] < datosEq['D']) and (firstNegBal is None):
+            firstNegBal = pos
+
+        fila.append(Paragraph(auxCalculaBalanceStr(datosEq['CasaFuera']['Local']), style=estCelda))
         datosTabla.append(fila)
 
     filaBalFuera = [Paragraph('<b>Como visitante</b>', style=estCelda)]
@@ -672,15 +689,20 @@ def datosTablaLiga(tempData: TemporadaACB):
     coordsPeJu = {tipoPart: [(id2pos[idLocal], id2pos[idVisitante]) for idLocal, idVisitante in listaTipo] for
                   tipoPart, listaTipo in auxTablaJuPe.items()}
 
-    return datosTabla, coordsPeJu
+    return datosTabla, coordsPeJu, firstNegBal
 
 
-def listaEquipos(tempData):
-    print("Abreviatura -> nombre(s) equipo")
-    for abr in sorted(tempData.Calendario.tradEquipos['c2n']):
-        listaEquiposAux = sorted(tempData.Calendario.tradEquipos['c2n'][abr], key=lambda x: (len(x), x), reverse=True)
-        listaEquiposStr = ",".join(listaEquiposAux)
-        print(f'{abr}: {listaEquiposStr}')
+def listaEquipos(tempData, beQuiet=False):
+    if beQuiet:
+        print(" ".join(sorted(tempData.Calendario.tradEquipos['c2n'])))
+    else:
+        print("Abreviatura -> nombre(s) equipo")
+        for abr in sorted(tempData.Calendario.tradEquipos['c2n']):
+            listaEquiposAux = sorted(tempData.Calendario.tradEquipos['c2n'][abr], key=lambda x: (len(x), x),
+                                     reverse=True)
+            listaEquiposStr = ",".join(listaEquiposAux)
+            print(f'{abr}: {listaEquiposStr}')
+
     sys.exit(0)
 
 
@@ -985,7 +1007,7 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None):
     CELLPAD = 0.3 * mm
     FONTSIZE = 10
 
-    datosAux, coordsJuPe = datosTablaLiga(tempData)
+    datosAux, coordsJuPe, firstNegBal = datosTablaLiga(tempData)
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
@@ -1022,6 +1044,13 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None):
     tStyle.add("LINEAFTER", (0, -DESCENSOS - 1), (0, -2), ANCHOMARCAPOS, colors.black)
     tStyle.add("LINEABOVE", (0, -DESCENSOS - 1), (0, -DESCENSOS - 1), ANCHOMARCAPOS, colors.black)
     tStyle.add("LINEABOVE", (0, -1), (0, -1), ANCHOMARCAPOS, colors.black)
+
+    # Balance negativo
+    if firstNegBal is not None:
+        tStyle.add("LINEAFTER", (firstNegBal, 0), (firstNegBal, firstNegBal), ANCHOMARCAPOS, colors.black, "squared",
+                   (1, 8))
+        tStyle.add("LINEBELOW", (0, firstNegBal), (firstNegBal, firstNegBal), ANCHOMARCAPOS, colors.black, "squared",
+                   (1, 8))
 
     # Marca la clase
     claveJuPe = 'ju' if len(coordsJuPe['ju']) <= len(coordsJuPe['pe']) else 'pe'
@@ -1081,11 +1110,6 @@ def preparaLibro(outfile, tempData, datosSig):
 
     if antecedentes:
         print("Antecedentes!")
-    else:
-        # story.append(Spacer(width=120 * mm, height=3 * mm))
-        #
-        # story.append(Paragraph("Sin antecedentes esta temporada"))
-        pass
 
     trayectoria = reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha)
     if trayectoria:
@@ -1111,6 +1135,8 @@ def parse_arguments():
                         help="Nombre del ficheros de temporada", )
     parser.add_argument("-l", "--listaequipos", dest='listaEquipos', action="store_true", required=False,
                         help="Lista siglas para equipos", )
+    parser.add_argument("-q", "--quiet", dest='quiet', action="store_true", required=False,
+                        help="En combinación con -l saca lista siglas sin nombres", )
 
     parser.add_argument("-e", "--equipo", dest="equipo", action="store", required=False,
                         help="Abreviatura del equipo deseado (usar -l para obtener lista)", )
@@ -1129,7 +1155,7 @@ def main(args):
     tempData = cargaTemporada(args.acbfile)
 
     if args.listaEquipos:
-        listaEquipos(tempData)
+        listaEquipos(tempData, args.quiet)
 
     REQARGS = ['equipo', 'outfile']
     missingReqs = {k for k in REQARGS if (k not in args) or (args.__getattribute__(k) is None)}

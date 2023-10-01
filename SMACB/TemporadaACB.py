@@ -679,7 +679,7 @@ def auxCalculaEstadsSubDataframe(dfEntrada: pd.DataFrame):
 
     estadisticosNumber = dfEntrada.describe(include=[np.number], percentiles=[.50])
     # Necesario porque describe trata los bool como categóricos
-    estadisticosBool = dfEntrada.select_dtypes([np.bool]).astype(np.int64).apply(
+    estadisticosBool = dfEntrada.select_dtypes([np.bool_]).astype(np.int64).apply(
         lambda c: c.describe(percentiles=[.50]))
 
     auxEstadisticos = pd.concat([estadisticosNumber, estadisticosBool], axis=1).T[FILASESTADISTICOS].T
@@ -687,7 +687,7 @@ def auxCalculaEstadsSubDataframe(dfEntrada: pd.DataFrame):
     # Hay determinados campos que no tiene sentido sumar. Así que sumamos todos y luego ponemos a nan los que no
     # Para estos tengo dudas filosóficas de cómo calcular la media (¿media del valor de cada partido o calcular el
     # ratio a partir de las sumas?
-    sumas = dfEntrada[auxEstadisticos.columns].select_dtypes([np.number, np.bool]).sum()
+    sumas = dfEntrada[auxEstadisticos.columns].select_dtypes([np.number, np.bool_]).sum()
 
     sumasDF = pd.DataFrame(sumas).T
     sumasDF.index = pd.Index(['sum'])
@@ -788,7 +788,7 @@ def auxCalculaEstadsSubDataframe(dfEntrada: pd.DataFrame):
 
     estadisticosNumber = dfEntrada.describe(include=[np.number], percentiles=[.50])
     # Necesario porque describe trata los bool como categóricos
-    estadisticosBool = dfEntrada.select_dtypes([np.bool]).astype(np.int64).apply(
+    estadisticosBool = dfEntrada.select_dtypes([np.bool_]).astype(np.int64).apply(
         lambda c: c.describe(percentiles=[.50]))
 
     auxEstadisticos = pd.concat([estadisticosNumber, estadisticosBool], axis=1).T[FILASESTADISTICOS].T
@@ -796,7 +796,7 @@ def auxCalculaEstadsSubDataframe(dfEntrada: pd.DataFrame):
     # Hay determinados campos que no tiene sentido sumar. Así que sumamos todos y luego ponemos a nan los que no
     # Para estos tengo dudas filosóficas de cómo calcular la media (¿media del valor de cada partido o calcular el
     # ratio a partir de las sumas?
-    sumas = dfEntrada[auxEstadisticos.columns].select_dtypes([np.number, np.bool]).sum()
+    sumas = dfEntrada[auxEstadisticos.columns].select_dtypes([np.number, np.bool_]).sum()
 
     sumasDF = pd.DataFrame(sumas).T
     sumasDF.index = pd.Index(['sum'])
