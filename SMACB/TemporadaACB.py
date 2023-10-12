@@ -14,7 +14,7 @@ from typing import Iterable
 import numpy as np
 import pandas as pd
 from sys import exc_info, setrecursionlimit
-from time import gmtime
+from time import gmtime,strftime
 
 from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Pandas import combinaPDindexes
@@ -86,6 +86,11 @@ class TemporadaACB(object):
         self.fichaJugadores = dict()
         self.fichaEntrenadores = dict()
         self.plantillas = dict()
+
+    def __repr__(self):
+        tstampStr = strftime("%Y%m%d-%H:%M:%S",self.timestamp)
+        result = f"{self.competicion} Temporada: {self.edicion} Datos: {tstampStr}"
+        return result
 
     def actualizaTemporada(self, home=None, browser=None, config=Namespace()):
         changeOrig = self.changed
