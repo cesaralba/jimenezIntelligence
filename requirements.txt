@@ -27,7 +27,7 @@ kiwisolver==1.4.5
 packaging==23.2
 Pillow==10.0.1
 
-XlsxWriter==3.1.6
+XlsxWriter==3.1.7
 
 #Guesser
 #distributed
@@ -35,6 +35,6 @@ XlsxWriter==3.1.6
 
 #Programas
 #fpdf
-reportlab==4.0.5
+reportlab==4.0.6
 #Dependencias (añadidas por vulnerabilidades detectadas)
 
