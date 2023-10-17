@@ -4,24 +4,32 @@ from collections import defaultdict
 from copy import copy
 from math import isnan
 
+import numpy as np
 import pandas as pd
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
-from reportlab.lib.styles import ParagraphStyle
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import TableStyle, Table, Paragraph, NextPageTemplate, PageBreak, Spacer
+from scipy import stats
 
 from SMACB.Constants import LocalVisitante, haGanado2esp, MARCADORESCLASIF, DESCENSOS
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
-from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, auxEtiqPartido
-from Utils.FechaHora import NEVER
+from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, auxEtiqPartido, equipo2clasif, \
+    precalculaOrdenEstadsLiga, COLSESTADSASCENDING
+from Utils.FechaHora import NEVER, Time2Str
 from Utils.Misc import onlySetElement, listize
-from bin.generaPrograma import ANCHOTIROS, ANCHOREBOTES, recuperaEstadsGlobales, estadGlobales, estadGlobalesOrden, \
-    ESTADISTICOEQ, ESTADISTICOJUG, recuperaClasifLiga, ESTILOS, clasifLiga
+
+estadGlobales = None
+estadGlobalesOrden = None
+clasifLiga = None
+ESTILOS = getSampleStyleSheet()
+
 
 FMTECHACORTA = "%d-%m"
 DEFTABVALUE = "-"
+
 ESTAD_MEDIA = 0
 ESTAD_MEDIANA = 1
 ESTAD_DEVSTD = 2
@@ -29,8 +37,15 @@ ESTAD_MAX = 3
 ESTAD_MIN = 4
 ESTAD_COUNT = 5
 ESTAD_SUMA = 6
+
+ESTADISTICOEQ = 'mean'
+ESTADISTICOJUG = 'mean'
+
 FORMATOCAMPOS = {'entero': {'numero': '{:3.0f}'}, 'float': {'numero': '{:4.1f}'}, }
 COLS_IDENTIFIC_JUG = ['competicion', 'temporada', 'CODequipo', 'IDequipo', 'codigo', 'dorsal', 'nombre']
+
+ANCHOTIROS = 16
+ANCHOREBOTES = 14
 
 
 def GENERADORETTIRO(*kargs, **kwargs):
@@ -58,96 +73,108 @@ def GENERADORCLAVEDORSAL(*kargs, **kwargs):
 
 
 INFOESTADSEQ = {('Eq', 'P'): {'etiq': 'PF', 'formato': 'float'}, ('Rival', 'P'): {'etiq': 'PC', 'formato': 'float'},
-    ('Eq', 'POS'): {'etiq': 'Pos', 'formato': 'float'}, ('Eq', 'OER'): {'etiq': 'OER', 'formato': 'float'},
-    ('Rival', 'OER'): {'etiq': 'DER', 'formato': 'float'},
-    ('Eq', 'T2'): {'etiq': 'T2', 'generador': GENERADORETTIRO(tiro='2', entero=False, orden=True)},
-    ('Eq', 'T3'): {'etiq': 'T3', 'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
-    ('Eq', 'TC'): {'etiq': 'TC', 'generador': GENERADORETTIRO(tiro='C', entero=False, orden=True)},
-    ('Eq', 'ppTC'): {'etiq': 'P / TC-I', 'formato': 'float'},
-    ('Eq', 't3/tc-I'): {'etiq': 'T3-I / TC-I', 'formato': 'float'},
-    ('Eq', 'FP-F'): {'etiq': 'F com', 'formato': 'float'}, ('Eq', 'FP-C'): {'etiq': 'F rec', 'formato': 'float'},
-    ('Eq', 'T1'): {'etiq': 'T3', 'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
-    ('Eq', 'REB'): {'etiq': 'Rebs', 'ancho': 17, 'generador': GENERADORETREBOTE(entero=False, orden=True)},
-    ('Eq', 'EffRebD'): {'etiq': 'F rec', 'formato': 'float'}, ('Eq', 'EffRebO'): {'etiq': 'F rec', 'formato': 'float'},
-    ('Eq', 'A'): {'formato': 'float'}, ('Eq', 'BP'): {'formato': 'float'}, ('Eq', 'BR'): {'formato': 'float'},
-    ('Eq', 'A/BP'): {'formato': 'float'}, ('Eq', 'A/TC-C'): {'etiq': 'A/Can', 'formato': 'float'},
+                ('Eq', 'POS'): {'etiq': 'Pos', 'formato': 'float'}, ('Eq', 'OER'): {'etiq': 'OER', 'formato': 'float'},
+                ('Rival', 'OER'): {'etiq': 'DER', 'formato': 'float'},
+                ('Eq', 'T2'): {'etiq': 'T2', 'generador': GENERADORETTIRO(tiro='2', entero=False, orden=True)},
+                ('Eq', 'T3'): {'etiq': 'T3', 'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
+                ('Eq', 'TC'): {'etiq': 'TC', 'generador': GENERADORETTIRO(tiro='C', entero=False, orden=True)},
+                ('Eq', 'ppTC'): {'etiq': 'P / TC-I', 'formato': 'float'},
+                ('Eq', 't3/tc-I'): {'etiq': 'T3-I / TC-I', 'formato': 'float'},
+                ('Eq', 'FP-F'): {'etiq': 'F com', 'formato': 'float'},
+                ('Eq', 'FP-C'): {'etiq': 'F rec', 'formato': 'float'},
+                ('Eq', 'T1'): {'etiq': 'T3', 'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
+                ('Eq', 'REB'): {'etiq': 'Rebs', 'ancho': 17, 'generador': GENERADORETREBOTE(entero=False, orden=True)},
+                ('Eq', 'EffRebD'): {'etiq': 'F rec', 'formato': 'float'},
+                ('Eq', 'EffRebO'): {'etiq': 'F rec', 'formato': 'float'}, ('Eq', 'A'): {'formato': 'float'},
+                ('Eq', 'BP'): {'formato': 'float'}, ('Eq', 'BR'): {'formato': 'float'},
+                ('Eq', 'A/BP'): {'formato': 'float'}, ('Eq', 'A/TC-C'): {'etiq': 'A/Can', 'formato': 'float'},
 
-    ('Rival', 'T2'): {'generador': GENERADORETTIRO(tiro='2', entero=False, orden=True)},
-    ('Rival', 'T3'): {'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
-    ('Rival', 'TC'): {'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
-    ('Rival', 'ppTC'): {'etiq': 'P / TC-I', 'formato': 'float'},
-    ('Rival', 't3/tc-I'): {'etiq': 'T3-I / TC-I', 'formato': 'float'},
-    ('Rival', 'T1'): {'etiq': 'TL', 'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
-    ('Rival', 'REB'): {'etiq': 'Rebs', 'ancho': 17, 'generador': GENERADORETREBOTE(entero=False, orden=True)},
-    ('Rival', 'A'): {'formato': 'float'}, ('Rival', 'BP'): {'formato': 'float'}, ('Rival', 'BR'): {'formato': 'float'},
-    ('Rival', 'A/BP'): {'formato': 'float'}, ('Rival', 'A/TC-C'): {'etiq': 'A/Can', 'formato': 'float'}, }
+                ('Rival', 'T2'): {'generador': GENERADORETTIRO(tiro='2', entero=False, orden=True)},
+                ('Rival', 'T3'): {'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
+                ('Rival', 'TC'): {'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
+                ('Rival', 'ppTC'): {'etiq': 'P / TC-I', 'formato': 'float'},
+                ('Rival', 't3/tc-I'): {'etiq': 'T3-I / TC-I', 'formato': 'float'},
+                ('Rival', 'T1'): {'etiq': 'TL', 'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
+                ('Rival', 'REB'): {'etiq': 'Rebs', 'ancho': 17,
+                                   'generador': GENERADORETREBOTE(entero=False, orden=True)},
+                ('Rival', 'A'): {'formato': 'float'}, ('Rival', 'BP'): {'formato': 'float'},
+                ('Rival', 'BR'): {'formato': 'float'}, ('Rival', 'A/BP'): {'formato': 'float'},
+                ('Rival', 'A/TC-C'): {'etiq': 'A/Can', 'formato': 'float'}, }
 INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
-    ('Jugador', 'Kdorsal'): {'etiq': 'kD', 'generador': GENERADORCLAVEDORSAL(col='dorsal')},
-    ('Jugador', 'nombre'): {'etiq': 'Nombre', 'ancho': 22, 'alignment': 'LEFT'},
-    ('Jugador', 'pos'): {'etiq': 'Pos', 'ancho': 4, 'alignment': 'CENTER'},
-    ('Jugador', 'altura'): {'etiq': 'Alt', 'ancho': 5},
-    ('Jugador', 'licencia'): {'etiq': 'Lic', 'ancho': 5, 'alignment': 'CENTER'},
-    ('Jugador', 'etNac'): {'etiq': 'Nac', 'ancho': 5, 'alignment': 'CENTER',
-                           'generador': GENERADORFECHA(col='fechaNac', formato='%Y')},
-    ('Jugador', 'Activo'): {'etiq': 'Act', 'ancho': 4, 'alignment': 'CENTER',
-                            'generador': GENMAPDICT(col='Activo', lookup={True: 'A', False: 'B'})},
-    ('Trayectoria', 'Acta'): {'etiq': 'Cv', 'ancho': 3, 'formato': 'entero'},
-    ('Trayectoria', 'Jugados'): {'etiq': 'Ju', 'ancho': 3, 'formato': 'entero'},
-    ('Trayectoria', 'Titular'): {'etiq': 'Tt', 'ancho': 3, 'formato': 'entero'},
-    ('Trayectoria', 'Vict'): {'etiq': 'Vc', 'ancho': 3, 'formato': 'entero'},
+                 ('Jugador', 'Kdorsal'): {'etiq': 'kD', 'generador': GENERADORCLAVEDORSAL(col='dorsal')},
+                 ('Jugador', 'nombre'): {'etiq': 'Nombre', 'ancho': 22, 'alignment': 'LEFT'},
+                 ('Jugador', 'pos'): {'etiq': 'Pos', 'ancho': 4, 'alignment': 'CENTER'},
+                 ('Jugador', 'altura'): {'etiq': 'Alt', 'ancho': 5},
+                 ('Jugador', 'licencia'): {'etiq': 'Lic', 'ancho': 5, 'alignment': 'CENTER'},
+                 ('Jugador', 'etNac'): {'etiq': 'Nac', 'ancho': 5, 'alignment': 'CENTER',
+                                        'generador': GENERADORFECHA(col='fechaNac', formato='%Y')},
+                 ('Jugador', 'Activo'): {'etiq': 'Act', 'ancho': 4, 'alignment': 'CENTER',
+                                         'generador': GENMAPDICT(col='Activo', lookup={True: 'A', False: 'B'})},
+                 ('Trayectoria', 'Acta'): {'etiq': 'Cv', 'ancho': 3, 'formato': 'entero'},
+                 ('Trayectoria', 'Jugados'): {'etiq': 'Ju', 'ancho': 3, 'formato': 'entero'},
+                 ('Trayectoria', 'Titular'): {'etiq': 'Tt', 'ancho': 3, 'formato': 'entero'},
+                 ('Trayectoria', 'Vict'): {'etiq': 'Vc', 'ancho': 3, 'formato': 'entero'},
 
-    ('Promedios', 'etSegs'): {'etiq': 'Min', 'ancho': 7, 'generador': GENERADORTIEMPO(col='Segs')},
-    ('Promedios', 'P'): {'etiq': 'P', 'ancho': 7, 'formato': 'float'},
-    ('Promedios', 'etiqT2'): {'etiq': 'T2', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('2', entero=False)},
-    ('Promedios', 'etiqT3'): {'etiq': 'T3', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO(tiro='3', entero=False)},
-    ('Promedios', 'etiqTC'): {'etiq': 'TC', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('C', False)},
-    ('Promedios', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
-    ('Promedios', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'float'},
-    ('Promedios', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'float'},
-    ('Promedios', 'etiqT1'): {'etiq': 'TL', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('1', False)},
-    ('Promedios', 'etRebs'): {'etiq': 'Rebs', 'ancho': ANCHOREBOTES, 'generador': GENERADORETREBOTE(entero=False)},
-    ('Promedios', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'float'},
-    ('Promedios', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'float'},
-    ('Promedios', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'float'},
-    ('Promedios', 'TAP-F'): {'etiq': 'Tap', 'ancho': 6, 'formato': 'float'},
-    ('Promedios', 'TAP-C'): {'etiq': 'Tp R', 'ancho': 6, 'formato': 'float'},
+                 ('Promedios', 'etSegs'): {'etiq': 'Min', 'ancho': 7, 'generador': GENERADORTIEMPO(col='Segs')},
+                 ('Promedios', 'P'): {'etiq': 'P', 'ancho': 7, 'formato': 'float'},
+                 ('Promedios', 'etiqT2'): {'etiq': 'T2', 'ancho': ANCHOTIROS,
+                                           'generador': GENERADORETTIRO('2', entero=False)},
+                 ('Promedios', 'etiqT3'): {'etiq': 'T3', 'ancho': ANCHOTIROS,
+                                           'generador': GENERADORETTIRO(tiro='3', entero=False)},
+                 ('Promedios', 'etiqTC'): {'etiq': 'TC', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('C', False)},
+                 ('Promedios', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
+                 ('Promedios', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'float'},
+                 ('Promedios', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'float'},
+                 ('Promedios', 'etiqT1'): {'etiq': 'TL', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('1', False)},
+                 ('Promedios', 'etRebs'): {'etiq': 'Rebs', 'ancho': ANCHOREBOTES,
+                                           'generador': GENERADORETREBOTE(entero=False)},
+                 ('Promedios', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'float'},
+                 ('Promedios', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'float'},
+                 ('Promedios', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'float'},
+                 ('Promedios', 'TAP-F'): {'etiq': 'Tap', 'ancho': 6, 'formato': 'float'},
+                 ('Promedios', 'TAP-C'): {'etiq': 'Tp R', 'ancho': 6, 'formato': 'float'},
 
-    ('Totales', 'etSegs'): {'etiq': 'Min', 'ancho': 8, 'generador': GENERADORTIEMPO(col='Segs')},
-    ('Totales', 'P'): {'etiq': 'P', 'ancho': 6, 'formato': 'entero'},
-    ('Totales', 'etiqT2'): {'etiq': 'T2', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('2', entero=True)},
-    ('Totales', 'etiqT3'): {'etiq': 'T3', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('3', entero=True)},
-    ('Totales', 'etiqTC'): {'etiq': 'TC', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('C', entero=True)},
-    ('Totales', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
-    ('Totales', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'entero'},
-    ('Totales', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'entero'},
-    ('Totales', 'etiqT1'): {'etiq': 'TL', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('1', entero=True)},
-    ('Totales', 'etRebs'): {'etiq': 'Rebs', 'ancho': ANCHOREBOTES, 'generador': GENERADORETREBOTE(entero=True)},
-    ('Totales', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'entero'},
-    ('Totales', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'entero'},
-    ('Totales', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'entero'},
-    ('Totales', 'TAP-F'): {'etiq': 'Tap', 'ancho': 6, 'formato': 'entero'},
-    ('Totales', 'TAP-C'): {'etiq': 'Tp R', 'ancho': 6, 'formato': 'entero'},
+                 ('Totales', 'etSegs'): {'etiq': 'Min', 'ancho': 8, 'generador': GENERADORTIEMPO(col='Segs')},
+                 ('Totales', 'P'): {'etiq': 'P', 'ancho': 6, 'formato': 'entero'},
+                 ('Totales', 'etiqT2'): {'etiq': 'T2', 'ancho': ANCHOTIROS,
+                                         'generador': GENERADORETTIRO('2', entero=True)},
+                 ('Totales', 'etiqT3'): {'etiq': 'T3', 'ancho': ANCHOTIROS,
+                                         'generador': GENERADORETTIRO('3', entero=True)},
+                 ('Totales', 'etiqTC'): {'etiq': 'TC', 'ancho': ANCHOTIROS,
+                                         'generador': GENERADORETTIRO('C', entero=True)},
+                 ('Totales', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
+                 ('Totales', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'entero'},
+                 ('Totales', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'entero'},
+                 ('Totales', 'etiqT1'): {'etiq': 'TL', 'ancho': ANCHOTIROS,
+                                         'generador': GENERADORETTIRO('1', entero=True)},
+                 ('Totales', 'etRebs'): {'etiq': 'Rebs', 'ancho': ANCHOREBOTES,
+                                         'generador': GENERADORETREBOTE(entero=True)},
+                 ('Totales', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'entero'},
+                 ('Totales', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'entero'},
+                 ('Totales', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'entero'},
+                 ('Totales', 'TAP-F'): {'etiq': 'Tap', 'ancho': 6, 'formato': 'entero'},
+                 ('Totales', 'TAP-C'): {'etiq': 'Tp R', 'ancho': 6, 'formato': 'entero'},
 
-    ('UltimoPart', 'etFecha'): {'etiq': 'Fecha', 'ancho': 6, 'generador': GENERADORFECHA(col='fechaPartido'),
-                                'alignment': 'CENTER'},
-    ('UltimoPart', 'Partido'): {'etiq': 'Rival', 'ancho': 22, 'alignment': 'LEFT'},
-    ('UltimoPart', 'resultado'): {'etiq': 'Vc', 'ancho': 3, 'alignment': 'CENTER'},
-    ('UltimoPart', 'titular'): {'etiq': 'Tt', 'ancho': 3, 'alignment': 'CENTER'},
-    ('UltimoPart', 'etSegs'): {'etiq': 'Min', 'ancho': 6, 'generador': GENERADORTIEMPO(col='Segs')},
-    ('UltimoPart', 'P'): {'etiq': 'P', 'ancho': 4, 'formato': 'entero'},
-    ('UltimoPart', 'etiqT2'): {'etiq': 'T2', 'ancho': 14, 'generador': GENERADORETTIRO('2', entero=True)},
-    ('UltimoPart', 'etiqT3'): {'etiq': 'T3', 'ancho': 14, 'generador': GENERADORETTIRO('3', entero=True)},
-    ('UltimoPart', 'etiqTC'): {'etiq': 'TC', 'ancho': 14, 'generador': GENERADORETTIRO('C', entero=True)},
-    ('UltimoPart', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
-    ('UltimoPart', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'entero'},
-    ('UltimoPart', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'entero'},
-    ('UltimoPart', 'etiqT1'): {'etiq': 'TL', 'ancho': 14, 'generador': GENERADORETTIRO('1', entero=True)},
-    ('UltimoPart', 'etRebs'): {'etiq': 'Rebs', 'ancho': 10, 'generador': GENERADORETREBOTE(entero=True)},
-    ('UltimoPart', 'A'): {'etiq': 'A', 'ancho': 4, 'formato': 'entero'},
-    ('UltimoPart', 'BP'): {'etiq': 'BP', 'ancho': 4, 'formato': 'entero'},
-    ('UltimoPart', 'BR'): {'etiq': 'BR', 'ancho': 4, 'formato': 'entero'},
-    ('UltimoPart', 'TAP-C'): {'etiq': 'Tap', 'ancho': 4, 'formato': 'entero'},
-    ('UltimoPart', 'TAP-F'): {'etiq': 'Tp R', 'ancho': 4, 'formato': 'entero'}, }
+                 ('UltimoPart', 'etFecha'): {'etiq': 'Fecha', 'ancho': 6,
+                                             'generador': GENERADORFECHA(col='fechaPartido'), 'alignment': 'CENTER'},
+                 ('UltimoPart', 'Partido'): {'etiq': 'Rival', 'ancho': 22, 'alignment': 'LEFT'},
+                 ('UltimoPart', 'resultado'): {'etiq': 'Vc', 'ancho': 3, 'alignment': 'CENTER'},
+                 ('UltimoPart', 'titular'): {'etiq': 'Tt', 'ancho': 3, 'alignment': 'CENTER'},
+                 ('UltimoPart', 'etSegs'): {'etiq': 'Min', 'ancho': 6, 'generador': GENERADORTIEMPO(col='Segs')},
+                 ('UltimoPart', 'P'): {'etiq': 'P', 'ancho': 4, 'formato': 'entero'},
+                 ('UltimoPart', 'etiqT2'): {'etiq': 'T2', 'ancho': 14, 'generador': GENERADORETTIRO('2', entero=True)},
+                 ('UltimoPart', 'etiqT3'): {'etiq': 'T3', 'ancho': 14, 'generador': GENERADORETTIRO('3', entero=True)},
+                 ('UltimoPart', 'etiqTC'): {'etiq': 'TC', 'ancho': 14, 'generador': GENERADORETTIRO('C', entero=True)},
+                 ('UltimoPart', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
+                 ('UltimoPart', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'entero'},
+                 ('UltimoPart', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'entero'},
+                 ('UltimoPart', 'etiqT1'): {'etiq': 'TL', 'ancho': 14, 'generador': GENERADORETTIRO('1', entero=True)},
+                 ('UltimoPart', 'etRebs'): {'etiq': 'Rebs', 'ancho': 10, 'generador': GENERADORETREBOTE(entero=True)},
+                 ('UltimoPart', 'A'): {'etiq': 'A', 'ancho': 4, 'formato': 'entero'},
+                 ('UltimoPart', 'BP'): {'etiq': 'BP', 'ancho': 4, 'formato': 'entero'},
+                 ('UltimoPart', 'BR'): {'etiq': 'BR', 'ancho': 4, 'formato': 'entero'},
+                 ('UltimoPart', 'TAP-C'): {'etiq': 'Tap', 'ancho': 4, 'formato': 'entero'},
+                 ('UltimoPart', 'TAP-F'): {'etiq': 'Tp R', 'ancho': 4, 'formato': 'entero'}, }
 
 
 def auxCalculaBalanceStr(record):
@@ -802,9 +829,9 @@ def tablasJugadoresEquipo(jugDF):
                    ('Promedios', 'etiqT1'), ('Promedios', 'etRebs'), ('Promedios', 'A'), ('Promedios', 'BP'),
                    ('Promedios', 'BR'), ('Promedios', 'TAP-F'), ('Promedios', 'TAP-C'), ]
     COLS_TOTALES = [('Totales', 'etSegs'), ('Totales', 'P'), ('Totales', 'etiqT2'), ('Totales', 'etiqT3'),
-        ('Totales', 'etiqTC'), ('Totales', 'ppTC'), ('Totales', 'FP-F'), ('Totales', 'FP-C'), ('Totales', 'etiqT1'),
-        ('Totales', 'etRebs'), ('Totales', 'A'), ('Totales', 'BP'), ('Totales', 'BR'), ('Totales', 'TAP-F'),
-        ('Totales', 'TAP-C'), ]
+                    ('Totales', 'etiqTC'), ('Totales', 'ppTC'), ('Totales', 'FP-F'), ('Totales', 'FP-C'),
+                    ('Totales', 'etiqT1'), ('Totales', 'etRebs'), ('Totales', 'A'), ('Totales', 'BP'),
+                    ('Totales', 'BR'), ('Totales', 'TAP-F'), ('Totales', 'TAP-C'), ]
     COLS_ULTP = [('UltimoPart', 'etFecha'), ('UltimoPart', 'Partido'), ('UltimoPart', 'resultado'),
                  ('UltimoPart', 'titular'), ('UltimoPart', 'etSegs'), ('UltimoPart', 'P'), ('UltimoPart', 'etiqT2'),
                  ('UltimoPart', 'etiqT3'), ('UltimoPart', 'etiqTC'), ('UltimoPart', 'ppTC'), ('UltimoPart', 'FP-F'),
@@ -821,11 +848,11 @@ def tablasJugadoresEquipo(jugDF):
     tablas = {'promedios': {'seq': 1, 'nombre': 'Promedios', 'columnas': (COLSIDENT_PROM + COLS_PROMED),
                             'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
                             'ordena': [(COLDORSAL_IDX, True)]},
-        'totales': {'seq': 2, 'nombre': 'Totales', 'columnas': (COLSIDENT_TOT + COLS_TOTALES),
-                    'extraCols': [('Jugador', 'Kdorsal')], 'ordena': [(COLACTIVO, False), (COLDORSAL_IDX, True)]},
-        'ultimo': {'seq': 3, 'nombre': 'Último partido', 'columnas': (COLSIDENT_UP + COLS_ULTP),
-                   'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
-                   'ordena': [(COLDORSAL_IDX, True)]}}
+              'totales': {'seq': 2, 'nombre': 'Totales', 'columnas': (COLSIDENT_TOT + COLS_TOTALES),
+                          'extraCols': [('Jugador', 'Kdorsal')], 'ordena': [(COLACTIVO, False), (COLDORSAL_IDX, True)]},
+              'ultimo': {'seq': 3, 'nombre': 'Último partido', 'columnas': (COLSIDENT_UP + COLS_ULTP),
+                         'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
+                         'ordena': [(COLDORSAL_IDX, True)]}}
     auxDF = jugDF.copy()
 
     for infoTabla in tablas.values():  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
@@ -909,7 +936,7 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None):
     return t
 
 
-def datosRestoJornada(tempData: TemporadaACB, datosSig:dict):
+def datosRestoJornada(tempData: TemporadaACB, datosSig: dict):
     """
     Devuelve la lista de partidos de la jornada a la que corresponde  el partidos siguiente del equipo objetivo
     :param tempData: datos descargados de ACB (ya cargados, no el fichero)
@@ -925,10 +952,80 @@ def datosRestoJornada(tempData: TemporadaACB, datosSig:dict):
         urlPart = p['url']
         part = tempData.Partidos[urlPart]
         data = copy(p)
-        data['fechaPartido']=part.fechaPartido
+        data['fechaPartido'] = part.fechaPartido
         result.append(data)
 
     result.extend([p for p in calJornada['pendientes'] if p['participantes'] != sigPartido['participantes']])
     result.sort(key=itemgetter('fechaPartido'))
 
     return result
+
+
+def cabeceraPortada(partido, tempData):
+    datosLocal = partido['equipos']['Local']
+    datosVisit = partido['equipos']['Visitante']
+    compo = partido['cod_competicion']
+    edicion = partido['cod_edicion']
+    j = partido['jornada']
+    fh = Time2Str(partido['fechaPartido'])
+
+    style = ParagraphStyle('cabStyle', align='center', fontName='Helvetica', fontSize=20, leading=22, )
+
+    cadenaCentral = Paragraph(
+        f"<para align='center' fontName='Helvetica' fontSize=20 leading=22><b>{compo}</b> {edicion} - " + f"J: <b>{j}</b><br/>{fh}</para>",
+        style)
+
+    cabLocal = datosCabEquipo(datosLocal, tempData, partido['fechaPartido'])
+    cabVisit = datosCabEquipo(datosVisit, tempData, partido['fechaPartido'])
+
+    tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                         ('GRID', (0, 0), (-1, -1), 0.5, colors.black)])
+    t = Table(data=[[cabLocal, cadenaCentral, cabVisit]], colWidths=[60 * mm, 80 * mm, 60 * mm], style=tStyle)  #
+
+    return t
+
+
+def cargaTemporada(fname):
+    result = TemporadaACB()
+    result.cargaTemporada(fname)
+
+    return result
+
+
+def datosCabEquipo(datosEq, tempData, fecha):
+    recuperaClasifLiga(tempData, fecha)
+
+    # TODO: Imagen (descargar imagen de escudo y plantarla)
+    nombre = datosEq['nombcorto']
+
+    clasifAux = equipo2clasif(clasifLiga, datosEq['abrev'])
+    clasifStr = auxCalculaBalanceStr(clasifAux)
+
+    result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b></para>"),
+              Paragraph(f"<para align='center' fontSize='14'>{clasifStr}</para>")]
+
+    return result
+
+
+def recuperaEstadsGlobales(tempData):
+    global estadGlobales
+    global estadGlobalesOrden
+    if estadGlobales is None:
+        estadGlobales = tempData.dfEstadsLiga()
+        estadGlobalesOrden = precalculaOrdenEstadsLiga(estadGlobales, COLSESTADSASCENDING)
+
+
+def recuperaClasifLiga(tempData: TemporadaACB, fecha=None):
+    global clasifLiga
+
+    if clasifLiga is None:
+        clasifLiga = tempData.clasifLiga(fecha)
+        jugados = np.array([eq['Jug'] for eq in clasifLiga])
+        modaJug = stats.mode(jugados, keepdims=False).mode
+
+        for eq in clasifLiga:
+            if eq['Jug'] != modaJug:
+                pendientes = modaJug - eq['Jug']
+                aux = "*" if (abs(pendientes) == 1) else pendientes
+
+                eq.update({'pendientes': aux})
