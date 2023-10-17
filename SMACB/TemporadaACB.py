@@ -8,13 +8,13 @@ from argparse import Namespace
 from collections import defaultdict
 from copy import copy
 from pickle import dump, load
+from sys import exc_info, setrecursionlimit
+from time import gmtime, strftime
 from traceback import print_exception
 from typing import Iterable
 
 import numpy as np
 import pandas as pd
-from sys import exc_info, setrecursionlimit
-from time import gmtime,strftime
 
 from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Pandas import combinaPDindexes
@@ -61,6 +61,19 @@ COLSESTADSASCENDING = [
     ('Rival', 'OERpot', 'sum'),
 ]
 
+DEFAULTNAVALUES = {
+    ('Eq', 'convocados', 'sum'): 0,
+    ('Eq', 'utilizados', 'sum'): 0,
+    ('Info', 'prorrogas', 'count'): 0,
+    ('Info', 'prorrogas', 'max'): 0,
+    ('Info', 'prorrogas', 'mean'): 0,
+    ('Info', 'prorrogas', 'median'): 0,
+    ('Info', 'prorrogas', 'min'): 0,
+    ('Info', 'prorrogas', 'std'): 0,
+    ('Info', 'prorrogas', 'sum'): 0,
+    ('Rival', 'convocados', 'sum'): 0,
+    ('Rival', 'utilizados', 'sum'): 0,
+}
 
 class TemporadaACB(object):
     '''
@@ -886,7 +899,16 @@ def precalculaOrdenEstadsLiga(dfEstads: pd.DataFrame, listAscending=None):
 
     for col in dfEstads.columns:
         multiplicador = 1 if col in colsChangeMult else -1  # En general queremos que sea descendente
-        colAusar = multiplicador * dfEstads[col]
+
+        colWrk = dfEstads[col]
+        if (colWrk.isna().any()):
+            if (col in DEFAULTNAVALUES):
+                colWrk.fillna(value=DEFAULTNAVALUES[col], inplace=True)
+            else:
+                print(f"SMACB.TemporadaACB.precalculaOrdenEstadsLiga: Column {col} has NAs unhandled!")
+                print(colWrk)
+
+        colAusar = multiplicador * colWrk
         ordenIDX = colAusar.index[colAusar.argsort()]
         auxDict = {eq: pos for pos, eq in enumerate(ordenIDX, start=1)}
         auxSerie = pd.Series(data=auxDict)
