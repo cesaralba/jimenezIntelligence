@@ -177,8 +177,8 @@ INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
                  ('UltimoPart', 'TAP-F'): {'etiq': 'Tp R', 'ancho': 4, 'formato': 'entero'}, }
 
 
-def auxCalculaBalanceStr(record):
-    strPendiente = f" ({record['pendientes']})" if 'pendientes' in record else ""
+def auxCalculaBalanceStr(record, addPendientes=True):
+    strPendiente = f" ({record['pendientes']})" if (('pendientes' in record) and addPendientes) else ""
     victorias = record.get('V', 0)
     derrotas = record.get('D', 0)
     texto = f"{victorias}-{derrotas}{strPendiente}"
@@ -936,30 +936,6 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None):
     return t
 
 
-def datosRestoJornada(tempData: TemporadaACB, datosSig: dict):
-    """
-    Devuelve la lista de partidos de la jornada a la que corresponde  el partidos siguiente del equipo objetivo
-    :param tempData: datos descargados de ACB (ya cargados, no el fichero)
-    :param datosSig: resultado de tempData.sigPartido (info sobre el siguiente partido del equipo objetivo
-    :return: lista con información sobre partidos sacada del Calendario
-    """
-    result = list()
-    sigPartido = datosSig[0]
-    jornada = int(sigPartido['jornada'])
-    calJornada = tempData.Calendario.Jornadas[jornada]
-
-    for p in calJornada['partidos']:
-        urlPart = p['url']
-        part = tempData.Partidos[urlPart]
-        data = copy(p)
-        data['fechaPartido'] = part.fechaPartido
-        result.append(data)
-
-    result.extend([p for p in calJornada['pendientes'] if p['participantes'] != sigPartido['participantes']])
-    result.sort(key=itemgetter('fechaPartido'))
-
-    return result
-
 
 def cabeceraPortada(partido, tempData):
     datosLocal = partido['equipos']['Local']
@@ -1029,3 +1005,112 @@ def recuperaClasifLiga(tempData: TemporadaACB, fecha=None):
                 aux = "*" if (abs(pendientes) == 1) else pendientes
 
                 eq.update({'pendientes': aux})
+
+
+def datosRestoJornada(tempData: TemporadaACB, datosSig: tuple):
+    """
+    Devuelve la lista de partidos de la jornada a la que corresponde  el partidos siguiente del equipo objetivo
+    :param tempData: datos descargados de ACB (ya cargados, no el fichero)
+    :param datosSig: resultado de tempData.sigPartido (info sobre el siguiente partido del equipo objetivo
+    :return: lista con información sobre partidos sacada del Calendario
+    """
+    result = list()
+    sigPartido = datosSig[0]
+    jornada = int(sigPartido['jornada'])
+    calJornada = tempData.Calendario.Jornadas[jornada]
+
+    for p in calJornada['partidos']:
+        urlPart = p['url']
+        part = tempData.Partidos[urlPart]
+        data = copy(p)
+        data['fechaPartido'] = part.fechaPartido
+        result.append(data)
+
+    result.extend([p for p in calJornada['pendientes'] if p['participantes'] != sigPartido['participantes']])
+    result.sort(key=itemgetter('fechaPartido'))
+
+    return result
+
+
+def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
+    def infoEq(eqData: dict):
+        abrev = eqData['abrev']
+
+        clasifAux = equipo2clasif(clasifLiga, eqData['abrev'])
+        clasifStr = auxCalculaBalanceStr(clasifAux, False)
+        formatoIn, formatoOut = ('<b>', '</b>') if eqData['haGanado'] else ('', '')
+        formato = "{fIn}{nombre} ({abrev}){fOut} [{balance}]"
+        result = formato.format(nombre=eqData['nombcorto'], abrev=abrev, balance=clasifStr, fIn=formatoIn,
+                                fOut=formatoOut)
+        return result
+
+    def infoRes(partData: dict):
+        pts = list()
+        for loc in LocalVisitante:
+            p = partData['resultado'][loc]
+            formato = ("<b>{:3}</b>" if partData['equipos'][loc]['haGanado'] else "{:3}")
+            pts.append(formato.format(p))
+        result = "-".join(pts)
+        return result
+
+    def etFecha(tStamp: pd.Timestamp, fechaRef: pd.Timestamp = None):
+        tFormato = "%d-%m-%Y"
+        if fechaRef and abs((tStamp - fechaRef).days) <= 3:
+            tFormato = "%a %m@%H:%M"
+        result = tStamp.strftime(tFormato)
+        return result
+
+    def preparaDatos(datos, tstampRef):
+        intData = list()
+        for p in sorted(datos, key=itemgetter('fechaPartido')):
+            info = {'pendiente': p['pendiente'], 'fecha': etFecha(p['fechaPartido'], tstampRef)}
+            for loc in LocalVisitante:
+                info[loc] = infoEq(p['equipos'][loc])
+            if not p['pendiente']:
+                info['resultado'] = infoRes(p)
+
+            intData.append(info)
+        return intData
+
+    # Data preparation
+    sigPartido = datosSig[0]
+    jornada = int(sigPartido['jornada'])
+    recuperaClasifLiga(tempData)
+    drj = datosRestoJornada(tempData, datosSig)
+    datosParts = preparaDatos(drj, sigPartido['fechaPartido'])
+
+    if len(datosParts) == 0:
+        return None
+    # Table building
+    textoCab = f"Resto jornada {jornada}"
+    filaCab = [Paragraph(f"<para align='center'>{textoCab}</para>"), None, None]
+    filas = [filaCab]
+
+    for part in datosParts:
+        datosIzq = part['Local']
+        datosDcha = part['Visitante']
+        datosCentr = part['fecha'] if part['pendiente'] else part['resultado']
+
+        aux = [Paragraph(f"<para align='left'>{datosIzq}</para>"),
+               Paragraph(f"<para align='center'>{datosCentr}</para>"),
+               Paragraph(f"<para align='right'>{datosDcha}</para>")]
+        filas.append(aux)
+
+    CELLPAD = 0.15 * mm
+    FONTSIZE = 9
+    jornStyle = ParagraphStyle('trayStyle', fontName='Helvetica-Bold', fontSize=FONTSIZE + 1, align='center')
+    resultStyle = ParagraphStyle('trayStyle', fontName='Helvetica', fontSize=FONTSIZE, align='center')
+    cellStyle = ParagraphStyle('trayStyle', fontName='Helvetica', fontSize=FONTSIZE)
+
+    tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                         ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
+                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1),("SPAN", (0, 0), (-1, 0)) ])
+
+    ANCHOEQUIPO = (FONTSIZE * 0.6) * 28
+    ANCHOCENTRO = ((FONTSIZE + 1) * 0.6) * 14
+
+    t = Table(data=filas, style=tStyle,
+              colWidths=[ANCHOEQUIPO,ANCHOCENTRO,ANCHOEQUIPO],
+              rowHeights=FONTSIZE + 4)
+
+    return t

@@ -1,12 +1,13 @@
 import sys
 
+from locale import setlocale,LC_ALL
 from configargparse import ArgumentParser
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
 from reportlab.platypus import (SimpleDocTemplate, Spacer, NextPageTemplate, PageTemplate, Frame, PageBreak)
 
 from SMACB.Programa import estadsEquipoPortada, listaEquipos, paginasJugadores, reportTrayectoriaEquipos, tablaLiga, \
-    cabeceraPortada, cargaTemporada
+    cabeceraPortada, cargaTemporada, tablaRestoJornada
 
 
 def preparaLibro(outfile, tempData, datosSig):
@@ -37,13 +38,15 @@ def preparaLibro(outfile, tempData, datosSig):
     story.append(Spacer(width=120 * mm, height=2 * mm))
     story.append(estadsEquipoPortada(tempData, abrEqs))
 
-    if antecedentes:
-        print("Antecedentes!")
-
     trayectoria = reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha)
     if trayectoria:
         story.append(Spacer(width=120 * mm, height=1 * mm))
         story.append(trayectoria)
+
+    restoJornada = tablaRestoJornada(tempData,datosSig)
+    if restoJornada:
+        story.append(Spacer(width=120 * mm, height=2 * mm))
+        story.append(restoJornada)
 
     story.append(NextPageTemplate('apaisada'))
     story.append(PageBreak())
@@ -74,6 +77,8 @@ def parse_arguments():
 
     parser.add_argument("-c", "--cachedir", dest="cachedir", action="store", required=False, env_var="ACB_CACHEDIR",
                         help="Ubicación de caché de ficheros", )
+    parser.add_argument("--locale", dest="locale", action="store", required=False, default='es_ES',
+                        help="Locale", )
 
     result = parser.parse_args()
 
@@ -81,6 +86,7 @@ def parse_arguments():
 
 
 def main(args):
+    setlocale(LC_ALL,args.locale)
     tempData = cargaTemporada(args.acbfile)
 
     if args.listaEquipos:
