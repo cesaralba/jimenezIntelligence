@@ -7,7 +7,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import (SimpleDocTemplate, Spacer, NextPageTemplate, PageTemplate, Frame, PageBreak)
 
 from SMACB.Programa import estadsEquipoPortada, listaEquipos, paginasJugadores, reportTrayectoriaEquipos, tablaLiga, \
-    cabeceraPortada, cargaTemporada, tablaRestoJornada
+    cabeceraPortada, cargaTemporada, tablaRestoJornada, tablasClasifLiga
 
 
 def preparaLibro(outfile, tempData, datosSig):
@@ -47,6 +47,14 @@ def preparaLibro(outfile, tempData, datosSig):
     if restoJornada:
         story.append(Spacer(width=120 * mm, height=2 * mm))
         story.append(restoJornada)
+
+    # story.append(NextPageTemplate('normal'))
+    # story.append(PageBreak())
+    #
+    # tclas1, tclas2 = tablasClasifLiga(tempData)
+    # story.append(tclas1)
+    # story.append(Spacer(width=120 * mm, height=2 * mm))
+    #story.append(tclas2)
 
     story.append(NextPageTemplate('apaisada'))
     story.append(PageBreak())
