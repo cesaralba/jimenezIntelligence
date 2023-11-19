@@ -1081,7 +1081,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
     if len(datosParts) == 0:
         return None
     # Table building
-    textoCab = f"Resto jornada {jornada}"
+    textoCab = f"<b>Resto jornada {jornada}</b>"
     filaCab = [Paragraph(f"<para align='center'>{textoCab}</para>"), None, None]
     filas = [filaCab]
 
@@ -1118,13 +1118,13 @@ def tablasClasifLiga(tempData: TemporadaACB):
             victs = eq.get('V',0)
             derrs =  eq.get('D',0)
             jugs = victs + derrs
-            ratio = 100.0 * victs / jugs
+            ratio = (100.0 * victs / jugs) if (jugs != 0) else 0.0
             puntF = eq.get('Pfav',0)
             puntC = eq.get('Pcon',0)
             diffP = puntF - puntC
 
-            fila = [Paragraph(f"<para align='right'>{pos+1}</para>"),
-                     Paragraph(f"<para align='left'>{nombEq}</para>")
+            fila = [f"<para align='right'>{pos+1}</para>",
+                     f"<para align='left'>{nombEq}</para>"
                     # Paragraph(f"<para align='right'>{jugs}</para>"),
                     # Paragraph(f"<para align='right'>{victs}</para>"),
                     # Paragraph(f"<para align='right'>{derrs}</para>"),
@@ -1139,8 +1139,8 @@ def tablasClasifLiga(tempData: TemporadaACB):
     recuperaClasifLiga(tempData)
     filasClasLiga = datosTablaClasif(clasifLiga)
 
-    filaCab = [Paragraph("<para align='center'><b>Po</b></para>"),
-               # Paragraph("<para align='center'><b>Equipo</b></para>"),
+    filaCab = ["<b>Po</b>",
+               "<b>Equipo</b>"
                # Paragraph("<para align='center'><b>J</b></para>"),
                # Paragraph("<para align='center'><b>V</b></para>"),
                # Paragraph("<para align='center'><b>D</b></para>"),
@@ -1150,21 +1150,27 @@ def tablasClasifLiga(tempData: TemporadaACB):
                # Paragraph("<para align='center'><b>Dif</b></para>")
                ]
 
+    #filaCab = ["<para align='center'><b>Po</b></para>",None]
     lista1 = list()
     lista2 = list()
 
-    #lista1.append(filaCab)
-    # lista2.append(filaCab)
+    #lista1 = filasClasLiga
+    lista2.append(filaCab)
+    lista1.append(filaCab)
+    print(lista1)
 
-    for eqIDX in range(9):
-        lista1.append(filasClasLiga[eqIDX])
-        lista2.append(filasClasLiga[9+eqIDX])
+    # for eqIDX in range(9):
+    #     lista1.append(filasClasLiga[eqIDX])
+    #     lista2.append(filasClasLiga[9+eqIDX])
 
     FONTSIZE = 9
-    print(lista1)
+
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
                          ])  #('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)
+
+    # tStyle = TableStyle([])
+
 
     ANCHOPOS = (FONTSIZE * 0.6) * 2
     ANCHOEQUIPO = (FONTSIZE * 0.6) * 15
