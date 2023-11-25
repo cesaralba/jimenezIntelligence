@@ -26,7 +26,6 @@ estadGlobalesOrden = None
 clasifLiga = None
 ESTILOS = getSampleStyleSheet()
 
-
 FMTECHACORTA = "%d-%m"
 DEFTABVALUE = "-"
 
@@ -100,9 +99,7 @@ INFOESTADSEQ = {('Eq', 'P'): {'etiq': 'PF', 'formato': 'float'}, ('Rival', 'P'):
                                    'generador': GENERADORETREBOTE(entero=False, orden=True)},
                 ('Rival', 'A'): {'formato': 'float'}, ('Rival', 'BP'): {'formato': 'float'},
                 ('Rival', 'BR'): {'formato': 'float'}, ('Rival', 'A/BP'): {'formato': 'float'},
-                ('Rival', 'A/TC-C'): {'etiq': 'A/Can', 'formato': 'float'},
-                ('Rival', 'PNR'): {'formato': 'float'},
-                }
+                ('Rival', 'A/TC-C'): {'etiq': 'A/Can', 'formato': 'float'}, ('Rival', 'PNR'): {'formato': 'float'}, }
 
 INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
                  ('Jugador', 'Kdorsal'): {'etiq': 'kD', 'generador': GENERADORCLAVEDORSAL(col='dorsal')},
@@ -944,7 +941,6 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None):
     return t
 
 
-
 def cabeceraPortada(partido, tempData):
     datosLocal = partido['equipos']['Local']
     datosVisit = partido['equipos']['Visitante']
@@ -1107,32 +1103,29 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
-                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1),("SPAN", (0, 0), (-1, 0)) ])
+                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1), ("SPAN", (0, 0), (-1, 0))])
 
     ANCHOEQUIPO = (FONTSIZE * 0.6) * 22
     ANCHOCENTRO = ((FONTSIZE + 1) * 0.6) * 14
-    t = Table(data=filas, style=tStyle,
-              colWidths=[ANCHOEQUIPO,ANCHOCENTRO,ANCHOEQUIPO],
-              rowHeights=FONTSIZE + 4)
+    t = Table(data=filas, style=tStyle, colWidths=[ANCHOEQUIPO, ANCHOCENTRO, ANCHOEQUIPO], rowHeights=FONTSIZE + 4)
 
     return t
 
-def tablasClasifLiga(tempData: TemporadaACB):
 
-    def datosTablaClasif(clasif:list):
+def tablasClasifLiga(tempData: TemporadaACB):
+    def datosTablaClasif(clasif: list):
         result = list()
-        for pos,eq in enumerate(clasif):
+        for pos, eq in enumerate(clasif):
             nombEq = sorted(eq['nombresEq'], key=lambda n: len(n))[0]
-            victs = eq.get('V',0)
-            derrs =  eq.get('D',0)
+            victs = eq.get('V', 0)
+            derrs = eq.get('D', 0)
             jugs = victs + derrs
             ratio = (100.0 * victs / jugs) if (jugs != 0) else 0.0
-            puntF = eq.get('Pfav',0)
-            puntC = eq.get('Pcon',0)
+            puntF = eq.get('Pfav', 0)
+            puntC = eq.get('Pcon', 0)
             diffP = puntF - puntC
 
-            fila = [f"<para align='right'>{pos+1}</para>",
-                     f"<para align='left'>{nombEq}</para>"
+            fila = [f"<para align='right'>{pos + 1}</para>", f"<para align='left'>{nombEq}</para>"
                     # Paragraph(f"<para align='right'>{jugs}</para>"),
                     # Paragraph(f"<para align='right'>{victs}</para>"),
                     # Paragraph(f"<para align='right'>{derrs}</para>"),
@@ -1147,9 +1140,7 @@ def tablasClasifLiga(tempData: TemporadaACB):
     recuperaClasifLiga(tempData)
     filasClasLiga = datosTablaClasif(clasifLiga)
 
-    filaCab = ["<b>Po</b>",
-               "<b>Equipo</b>"
-               # Paragraph("<para align='center'><b>J</b></para>"),
+    filaCab = ["<b>Po</b>", "<b>Equipo</b>"# Paragraph("<para align='center'><b>J</b></para>"),
                # Paragraph("<para align='center'><b>V</b></para>"),
                # Paragraph("<para align='center'><b>D</b></para>"),
                # Paragraph("<para align='center'><b>%amp;</b></para>"),
@@ -1158,11 +1149,11 @@ def tablasClasifLiga(tempData: TemporadaACB):
                # Paragraph("<para align='center'><b>Dif</b></para>")
                ]
 
-    #filaCab = ["<para align='center'><b>Po</b></para>",None]
+    # filaCab = ["<para align='center'><b>Po</b></para>",None]
     lista1 = list()
     lista2 = list()
 
-    #lista1 = filasClasLiga
+    # lista1 = filasClasLiga
     lista2.append(filaCab)
     lista1.append(filaCab)
 
@@ -1173,11 +1164,10 @@ def tablasClasifLiga(tempData: TemporadaACB):
     FONTSIZE = 9
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                         ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
-                         ])  #('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)
+                         ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                         ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE), ])  # ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)
 
     # tStyle = TableStyle([])
-
 
     ANCHOPOS = (FONTSIZE * 0.6) * 2
     ANCHOEQUIPO = (FONTSIZE * 0.6) * 15
@@ -1185,11 +1175,11 @@ def tablasClasifLiga(tempData: TemporadaACB):
     ANCHOPERC = (FONTSIZE * 0.6) * 5
     ANCHOPUNTS = (FONTSIZE * 0.6) * 4
 
-    tabla1 = Table(data=lista1, style=tStyle,
-              colWidths=[ANCHOPOS,ANCHOEQUIPO], # ,ANCHOPARTS,ANCHOPARTS,ANCHOPARTS,ANCHOPERC,ANCHOPUNTS,ANCHOPUNTS,ANCHOPUNTS
-              rowHeights=FONTSIZE + 4)
-    tabla2 = Table(data=lista2, style=tStyle,
-                   colWidths=[ANCHOPOS,ANCHOEQUIPO], # ,ANCHOPARTS,ANCHOPARTS,ANCHOPARTS,ANCHOPERC,ANCHOPUNTS,ANCHOPUNTS,ANCHOPUNTS
+    tabla1 = Table(data=lista1, style=tStyle, colWidths=[ANCHOPOS, ANCHOEQUIPO],
+                   # ,ANCHOPARTS,ANCHOPARTS,ANCHOPARTS,ANCHOPERC,ANCHOPUNTS,ANCHOPUNTS,ANCHOPUNTS
+                   rowHeights=FONTSIZE + 4)
+    tabla2 = Table(data=lista2, style=tStyle, colWidths=[ANCHOPOS, ANCHOEQUIPO],
+                   # ,ANCHOPARTS,ANCHOPARTS,ANCHOPARTS,ANCHOPERC,ANCHOPUNTS,ANCHOPUNTS,ANCHOPUNTS
                    rowHeights=FONTSIZE + 4)
 
-    return tabla1,tabla2
+    return tabla1, tabla2
