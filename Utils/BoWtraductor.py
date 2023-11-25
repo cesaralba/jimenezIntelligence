@@ -232,7 +232,7 @@ def comparaNombresPersonas(fr1, fr2, umbral=1):
 
 
 def esSigla(cadena):
-    PATsigla = b'^[a-z]\.' if isinstance(cadena, bytes) else r'^[a-z]\.'
+    PATsigla = rb'^[a-z]\.' if isinstance(cadena, bytes) else r'^[a-z]\.'
     REsult = re.match(PATsigla, cadena, re.IGNORECASE)
 
     return REsult is not None
