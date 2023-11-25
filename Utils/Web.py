@@ -98,7 +98,7 @@ sentinel = object()
 
 
 def getObjID(objURL, clave='id', defaultresult=sentinel):
-    PATid = r'^.*/' + clave + '/(?P<id>\d+)(/.*)?'
+    PATid = r'^.*/' + clave + r'/(?P<id>\d+)(/.*)?'
     REid = re.match(PATid, objURL)
 
     if REid:
