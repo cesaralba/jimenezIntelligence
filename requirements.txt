@@ -22,7 +22,7 @@ matplotlib==3.8.2
   contourpy==1.2.0
   cycler==0.12.1
   pyparsing==3.1.1
-fonttools==4.44.3
+fonttools==4.45.1
 kiwisolver==1.4.5
 packaging==23.2
 Pillow==10.1.0
