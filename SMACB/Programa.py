@@ -100,7 +100,10 @@ INFOESTADSEQ = {('Eq', 'P'): {'etiq': 'PF', 'formato': 'float'}, ('Rival', 'P'):
                                    'generador': GENERADORETREBOTE(entero=False, orden=True)},
                 ('Rival', 'A'): {'formato': 'float'}, ('Rival', 'BP'): {'formato': 'float'},
                 ('Rival', 'BR'): {'formato': 'float'}, ('Rival', 'A/BP'): {'formato': 'float'},
-                ('Rival', 'A/TC-C'): {'etiq': 'A/Can', 'formato': 'float'}, }
+                ('Rival', 'A/TC-C'): {'etiq': 'A/Can', 'formato': 'float'},
+                ('Rival', 'PNR'): {'formato': 'float'},
+                }
+
 INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
                  ('Jugador', 'Kdorsal'): {'etiq': 'kD', 'generador': GENERADORCLAVEDORSAL(col='dorsal')},
                  ('Jugador', 'nombre'): {'etiq': 'Nombre', 'ancho': 22, 'alignment': 'LEFT'},
@@ -375,6 +378,7 @@ def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
     BR, BROrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'BR', ESTADISTICOEQ)
     ApBP, ApBPOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'A/BP', ESTADISTICOEQ)
     ApTCC, ApTCCOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'A/TC-C', ESTADISTICOEQ)
+    PNR, PNROrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'PNR', ESTADISTICOEQ)
 
     ### Valores del equipo rival
 
@@ -402,6 +406,7 @@ def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
     rBR, rBROrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'BR', ESTADISTICOEQ)
     rApBP, rApBPOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'A/BP', ESTADISTICOEQ)
     rApTCC, rApTCCOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'A/TC-C', ESTADISTICOEQ)
+    rPNR, rPNROrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'PNR', ESTADISTICOEQ)
 
     ###
 
@@ -421,7 +426,8 @@ def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
 <b>EffRD</b>:&nbsp;{EffRebD:.2f}%({EffRebDOrd:.0f}) <b>EffRO</b>:&nbsp;{EffRebO:.2f}%({EffRebOOrd:.0f}) <b>/</b>
 <b>A</b>:&nbsp;{A:.2f}({AOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{BP:.2f}({BPOrd:.0f}) <b>/</b> 
 <b>BR</b>:&nbsp;{BR:.2f}({BROrd:.0f}) <b>/</b> 
-<b>A/BP</b>:&nbsp;{ApBP:.2f}({ApBPOrd:.0f}) <b>/</b> <b>A/Can</b>:&nbsp;{ApTCC:.2f}%({ApTCCOrd:.0f})<br/>
+<b>A/BP</b>:&nbsp;{ApBP:.2f}({ApBPOrd:.0f}) <b>/</b> <b>A/Can</b>:&nbsp;{ApTCC:.2f}%({ApTCCOrd:.0f}) <b>/</b>
+<b>PNR</b>:&nbsp;{PNR:.2f}({PNROrd:.0f})<br/>
 
 <B>RIVAL</B> 
 <b>T2</b>:&nbsp;{rT2C:.2f}({rT2IOrd:.0f})/{rT2I:.2f}({rT2IOrd:.0f})&nbsp;{rT2pc:.2f}%({rT2pcOrd:.0f}) <b>/</b> 
@@ -433,7 +439,8 @@ def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
 <b>Reb</b>:&nbsp;{rRebD:.2f}({rRebDOrd:.0f})+{rRebO:.2f}({rRebOOrd:.0f})&nbsp;{rRebT:.2f}({rRebTOrd:.0f}) <b>/</b>
 <b>A</b>:&nbsp;{rA:.2f}({rAOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{rBP:.2f}({rBPOrd:.0f}) <b>/</b> 
 <b>BR</b>:&nbsp;{rBR:.2f}({rBROrd:.0f}) <b>/</b> <b>A/BP</b>:&nbsp;{rApBP:.2f}({rApBPOrd:.0f}) <b>/</b> 
-<b>A/Can</b>:&nbsp;{rApTCC:.2f}%({rApTCCOrd:.0f})
+<b>A/Can</b>:&nbsp;{rApTCC:.2f}%({rApTCCOrd:.0f}) <b>/</b>
+<b>PNR</b>:&nbsp;{rPNR:.2f}({rPNROrd:.0f})
 """
 
     return resultEq
