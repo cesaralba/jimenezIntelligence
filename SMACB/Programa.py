@@ -1165,7 +1165,6 @@ def tablasClasifLiga(tempData: TemporadaACB):
     #lista1 = filasClasLiga
     lista2.append(filaCab)
     lista1.append(filaCab)
-    print(lista1)
 
     # for eqIDX in range(9):
     #     lista1.append(filasClasLiga[eqIDX])
