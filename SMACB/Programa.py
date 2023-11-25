@@ -870,7 +870,7 @@ def tablasJugadoresEquipo(jugDF):
 
 def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None):
     CELLPAD = 0.3 * mm
-    FONTSIZE = 10
+    FONTSIZE = 9
 
     datosAux, coordsJuPe, firstNegBal = datosTablaLiga(tempData)
 
@@ -881,8 +881,8 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None):
                          ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD),
                          ("BACKGROUND", (-1, 1), (-1, -2), colors.lightgrey),
                          ("BACKGROUND", (1, -1), (-2, -1), colors.lightgrey)])
-    alturas = [20] + [28] * (len(datosAux) - 2) + [20]
-    anchos = [58] + [38] * (len(datosAux) - 2) + [40]
+    alturas = [20] + [29] * (len(datosAux) - 2) + [22]
+    anchos = [61] + [39] * (len(datosAux) - 2) + [38]
 
     CANTGREYBAL = .70
     colBal = colors.rgb2cmyk(CANTGREYBAL, CANTGREYBAL, CANTGREYBAL)
@@ -1125,14 +1125,15 @@ def tablasClasifLiga(tempData: TemporadaACB):
             puntC = eq.get('Pcon', 0)
             diffP = puntF - puntC
 
-            fila = [f"<para align='right'>{pos + 1}</para>", f"<para align='left'>{nombEq}</para>"
-                    # Paragraph(f"<para align='right'>{jugs}</para>"),
-                    # Paragraph(f"<para align='right'>{victs}</para>"),
-                    # Paragraph(f"<para align='right'>{derrs}</para>"),
-                    # Paragraph(f"<para align='right'>{ratio:3.0f}%</para>"),
-                    # Paragraph(f"<para align='right'>{puntF}</para>"),
-                    # Paragraph(f"<para align='right'>{puntC}</para>"),
-                    # Paragraph(f"<para align='right'>{diffP}</para>")
+            fila = [Paragraph(f"<para align='right'>{pos + 1}</para>"),
+                    Paragraph(f"<para align='left'>{nombEq}</para>"),
+                    Paragraph(f"<para align='right'>{jugs}</para>"),
+                    Paragraph(f"<para align='right'>{victs}</para>"),
+                    Paragraph(f"<para align='right'>{derrs}</para>"),
+                    Paragraph(f"<para align='right'>{ratio:3.0f}%</para>"),
+                    Paragraph(f"<para align='right'>{puntF}</para>"),
+                    Paragraph(f"<para align='right'>{puntC}</para>"),
+                    Paragraph(f"<para align='right'>{diffP}</para>")
                     ]
             result.append(fila)
         return result
@@ -1140,49 +1141,40 @@ def tablasClasifLiga(tempData: TemporadaACB):
     recuperaClasifLiga(tempData)
     filasClasLiga = datosTablaClasif(clasifLiga)
 
-    filaCab = ["<b>Po</b>", "<b>Equipo</b>"# Paragraph("<para align='center'><b>J</b></para>"),
-               # Paragraph("<para align='center'><b>V</b></para>"),
-               # Paragraph("<para align='center'><b>D</b></para>"),
-               # Paragraph("<para align='center'><b>%amp;</b></para>"),
-               # Paragraph("<para align='center'><b>PF</b></para>"),
-               # Paragraph("<para align='center'><b>PC</b></para>"),
-               # Paragraph("<para align='center'><b>Dif</b></para>")
+    filaCab = [
+        Paragraph("<para align='center'><b>Po</b></para>"),
+        Paragraph("<para align='center'><b>Equipo</b></para>"),
+        Paragraph("<para align='center'><b>J</b></para>"),
+        Paragraph("<para align='center'><b>V</b></para>"),
+        Paragraph("<para align='center'><b>D</b></para>"),
+        Paragraph("<para align='center'><b>%</b></para>"),
+        Paragraph("<para align='center'><b>PF</b></para>"),
+        Paragraph("<para align='center'><b>PC</b></para>"),
+        Paragraph("<para align='center'><b>Df</b></para>")
                ]
 
-    # filaCab = ["<para align='center'><b>Po</b></para>",None]
-    lista1 = list()
-    lista2 = list()
-
-    # lista1 = filasClasLiga
-    lista2.append(filaCab)
-    lista1.append(filaCab)
+    lista1 = [filaCab] + filasClasLiga
 
     # for eqIDX in range(9):
     #     lista1.append(filasClasLiga[eqIDX])
     #     lista2.append(filasClasLiga[9+eqIDX])
 
-    FONTSIZE = 9
+    FONTSIZE = 8
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                         ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE), ])  # ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)
+                         ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
+                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)])  # ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)
 
-    # tStyle = TableStyle([])
+    ANCHOPOS = (FONTSIZE * 0.6) * 5.5
+    ANCHOEQUIPO = (FONTSIZE * 0.6) * 19
+    ANCHOPARTS = (FONTSIZE * 0.6) * 5
+    ANCHOPERC = (FONTSIZE * 0.6) * 7
+    ANCHOPUNTS = (FONTSIZE * 0.6) * 6
 
-    # tStyle = TableStyle([])
-
-
-    ANCHOPOS = (FONTSIZE * 0.6) * 2
-    ANCHOEQUIPO = (FONTSIZE * 0.6) * 15
-    ANCHOPARTS = (FONTSIZE * 0.6) * 2
-    ANCHOPERC = (FONTSIZE * 0.6) * 5
-    ANCHOPUNTS = (FONTSIZE * 0.6) * 4
-
-    tabla1 = Table(data=lista1, style=tStyle, colWidths=[ANCHOPOS, ANCHOEQUIPO],
-                   # ,ANCHOPARTS,ANCHOPARTS,ANCHOPARTS,ANCHOPERC,ANCHOPUNTS,ANCHOPUNTS,ANCHOPUNTS
-                   rowHeights=FONTSIZE + 4)
-    tabla2 = Table(data=lista2, style=tStyle, colWidths=[ANCHOPOS, ANCHOEQUIPO],
-                   # ,ANCHOPARTS,ANCHOPARTS,ANCHOPARTS,ANCHOPERC,ANCHOPUNTS,ANCHOPUNTS,ANCHOPUNTS
+    tabla1 = Table(data=lista1, style=tStyle,
+                   colWidths=[ANCHOPOS, ANCHOEQUIPO, ANCHOPARTS, ANCHOPARTS, ANCHOPARTS, ANCHOPERC, ANCHOPUNTS,
+                              ANCHOPUNTS, ANCHOPUNTS],
                    rowHeights=FONTSIZE + 4)
 
-    return tabla1, tabla2
+    return tabla1

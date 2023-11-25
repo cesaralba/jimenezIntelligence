@@ -1,6 +1,6 @@
 import sys
+from locale import setlocale, LC_ALL
 
-from locale import setlocale,LC_ALL
 from configargparse import ArgumentParser
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
@@ -51,7 +51,7 @@ def preparaLibro(outfile, tempData, datosSig):
     story.append(NextPageTemplate('normal'))
     story.append(PageBreak())
 
-    tclas1, tclas2 = tablasClasifLiga(tempData)
+    tclas1 = tablasClasifLiga(tempData)  # , tclas2
     story.append(tclas1)
     story.append(Spacer(width=120 * mm, height=2 * mm))
     #story.append(tclas2)
