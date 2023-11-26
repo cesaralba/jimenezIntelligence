@@ -1128,8 +1128,7 @@ def tablasClasifLiga(tempData: TemporadaACB):
             fila = [Paragraph(f"<para align='right'>{pos + 1}</para>"),
                     Paragraph(f"<para align='left'>{nombEq}</para>"),
                     Paragraph(f"<para align='right'>{jugs}</para>"),
-                    Paragraph(f"<para align='right'>{victs}</para>"),
-                    Paragraph(f"<para align='right'>{derrs}</para>"),
+                    Paragraph(f"<para align='center'>{victs:2}-{derrs:2}</para>"),
                     Paragraph(f"<para align='right'>{ratio:3.0f}%</para>"),
                     Paragraph(f"<para align='right'>{puntF}</para>"),
                     Paragraph(f"<para align='right'>{puntC}</para>"),
@@ -1145,8 +1144,7 @@ def tablasClasifLiga(tempData: TemporadaACB):
         Paragraph("<para align='center'><b>Po</b></para>"),
         Paragraph("<para align='center'><b>Equipo</b></para>"),
         Paragraph("<para align='center'><b>J</b></para>"),
-        Paragraph("<para align='center'><b>V</b></para>"),
-        Paragraph("<para align='center'><b>D</b></para>"),
+        Paragraph("<para align='center'><b>V-D</b></para>"),
         Paragraph("<para align='center'><b>%</b></para>"),
         Paragraph("<para align='center'><b>PF</b></para>"),
         Paragraph("<para align='center'><b>PC</b></para>"),
@@ -1166,15 +1164,14 @@ def tablasClasifLiga(tempData: TemporadaACB):
                          ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
                          ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)])  # ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)
 
-    ANCHOPOS = (FONTSIZE * 0.6) * 5.5
+    ANCHOPOS = (FONTSIZE * 0.6) * 5.3
     ANCHOEQUIPO = (FONTSIZE * 0.6) * 19
-    ANCHOPARTS = (FONTSIZE * 0.6) * 5
+    ANCHOPARTS = (FONTSIZE * 0.6) * 4.9
     ANCHOPERC = (FONTSIZE * 0.6) * 7
-    ANCHOPUNTS = (FONTSIZE * 0.6) * 6
+    ANCHOPUNTS = (FONTSIZE * 0.6) * 6.8
 
     tabla1 = Table(data=lista1, style=tStyle,
-                   colWidths=[ANCHOPOS, ANCHOEQUIPO, ANCHOPARTS, ANCHOPARTS, ANCHOPARTS, ANCHOPERC, ANCHOPUNTS,
-                              ANCHOPUNTS, ANCHOPUNTS],
+                   colWidths=[ANCHOPOS, ANCHOEQUIPO, ANCHOPARTS, ANCHOPARTS*1.4, ANCHOPERC, ANCHOPUNTS,ANCHOPUNTS, ANCHOPUNTS],
                    rowHeights=FONTSIZE + 4)
 
     return tabla1
