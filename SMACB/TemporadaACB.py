@@ -43,6 +43,12 @@ COLSESTADSASCENDING = [
     ('Eq', 'FP-C', 'median'),
     ('Eq', 'FP-C', 'max'),
     ('Eq', 'FP-C', 'sum'),
+    ('Eq', 'PNR', 'mean'),
+    ('Eq', 'PNR', 'min'),
+    ('Eq', 'PNR', 'median'),
+    ('Eq', 'PNR', 'max'),
+    ('Eq', 'PNR', 'sum'),
+
     ('Rival', 'P', 'mean'),
     ('Rival', 'P', 'std'),
     ('Rival', 'P', 'min'),
