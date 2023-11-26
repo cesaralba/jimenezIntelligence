@@ -1134,6 +1134,15 @@ def tablasClasifLiga(tempData: TemporadaACB):
             result.append(fila)
         return result
 
+    def firstBalNeg(clasif: list):
+        for pos,eq in enumerate(clasif):
+            victs = eq.get('V', 0)
+            derrs = eq.get('D', 0)
+
+            if derrs > victs:
+                return pos+1
+        return None
+
     recuperaClasifLiga(tempData)
     filasClasLiga = datosTablaClasif(clasifLiga)
 
@@ -1153,13 +1162,26 @@ def tablasClasifLiga(tempData: TemporadaACB):
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
-                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)])  # ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)
+                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)])
 
     ANCHOPOS = (FONTSIZE * 0.6) * 5.3
     ANCHOEQUIPO = (FONTSIZE * 0.6) * 19
     ANCHOPARTS = (FONTSIZE * 0.6) * 4.9
     ANCHOPERC = (FONTSIZE * 0.6) * 7
     ANCHOPUNTS = (FONTSIZE * 0.6) * 6.8
+
+
+    ANCHOMARCAPOS = 2
+    for pos in MARCADORESCLASIF:
+        commH = "LINEBELOW"
+        incr = 0 if pos >= 0 else -1
+        tStyle.add(commH, (0, pos + incr), (-1 , pos + incr), ANCHOMARCAPOS, colors.black)
+
+    # Balance negativo
+    posFirstNegBal = firstBalNeg(clasifLiga)
+    if posFirstNegBal is not None:
+        tStyle.add("LINEABOVE", (0, posFirstNegBal), (-1, posFirstNegBal), ANCHOMARCAPOS, colors.black, "squared",
+                   (1, 8))
 
     tabla1 = Table(data=lista1, style=tStyle,
                    colWidths=[ANCHOPOS, ANCHOEQUIPO, ANCHOPARTS, ANCHOPARTS * 1.4, ANCHOPERC, ANCHOPUNTS, ANCHOPUNTS,
