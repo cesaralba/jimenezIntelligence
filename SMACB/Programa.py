@@ -1126,30 +1126,22 @@ def tablasClasifLiga(tempData: TemporadaACB):
             diffP = puntF - puntC
 
             fila = [Paragraph(f"<para align='right'>{pos + 1}</para>"),
-                    Paragraph(f"<para align='left'>{nombEq}</para>"),
-                    Paragraph(f"<para align='right'>{jugs}</para>"),
+                    Paragraph(f"<para align='left'>{nombEq}</para>"), Paragraph(f"<para align='right'>{jugs}</para>"),
                     Paragraph(f"<para align='center'>{victs:2}-{derrs:2}</para>"),
                     Paragraph(f"<para align='right'>{ratio:3.0f}%</para>"),
-                    Paragraph(f"<para align='right'>{puntF}</para>"),
-                    Paragraph(f"<para align='right'>{puntC}</para>"),
-                    Paragraph(f"<para align='right'>{diffP}</para>")
-                    ]
+                    Paragraph(f"<para align='right'>{puntF}</para>"), Paragraph(f"<para align='right'>{puntC}</para>"),
+                    Paragraph(f"<para align='right'>{diffP}</para>")]
             result.append(fila)
         return result
 
     recuperaClasifLiga(tempData)
     filasClasLiga = datosTablaClasif(clasifLiga)
 
-    filaCab = [
-        Paragraph("<para align='center'><b>Po</b></para>"),
-        Paragraph("<para align='center'><b>Equipo</b></para>"),
-        Paragraph("<para align='center'><b>J</b></para>"),
-        Paragraph("<para align='center'><b>V-D</b></para>"),
-        Paragraph("<para align='center'><b>%</b></para>"),
-        Paragraph("<para align='center'><b>PF</b></para>"),
-        Paragraph("<para align='center'><b>PC</b></para>"),
-        Paragraph("<para align='center'><b>Df</b></para>")
-               ]
+    filaCab = [Paragraph("<para align='center'><b>Po</b></para>"),
+        Paragraph("<para align='center'><b>Equipo</b></para>"), Paragraph("<para align='center'><b>J</b></para>"),
+        Paragraph("<para align='center'><b>V-D</b></para>"), Paragraph("<para align='center'><b>%</b></para>"),
+        Paragraph("<para align='center'><b>PF</b></para>"), Paragraph("<para align='center'><b>PC</b></para>"),
+        Paragraph("<para align='center'><b>Df</b></para>")]
 
     lista1 = [filaCab] + filasClasLiga
 
@@ -1160,8 +1152,7 @@ def tablasClasifLiga(tempData: TemporadaACB):
     FONTSIZE = 8
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                         ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                         ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
+                         ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
                          ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)])  # ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)
 
     ANCHOPOS = (FONTSIZE * 0.6) * 5.3
@@ -1171,7 +1162,7 @@ def tablasClasifLiga(tempData: TemporadaACB):
     ANCHOPUNTS = (FONTSIZE * 0.6) * 6.8
 
     tabla1 = Table(data=lista1, style=tStyle,
-                   colWidths=[ANCHOPOS, ANCHOEQUIPO, ANCHOPARTS, ANCHOPARTS*1.4, ANCHOPERC, ANCHOPUNTS,ANCHOPUNTS, ANCHOPUNTS],
-                   rowHeights=FONTSIZE + 4)
+                   colWidths=[ANCHOPOS, ANCHOEQUIPO, ANCHOPARTS, ANCHOPARTS * 1.4, ANCHOPERC, ANCHOPUNTS, ANCHOPUNTS,
+                              ANCHOPUNTS], rowHeights=FONTSIZE + 4)
 
     return tabla1
