@@ -48,13 +48,13 @@ def preparaLibro(outfile, tempData, datosSig):
         story.append(Spacer(width=120 * mm, height=2 * mm))
         story.append(restoJornada)
 
-    story.append(NextPageTemplate('normal'))
-    story.append(PageBreak())
-
-    tclas1 = tablasClasifLiga(tempData)  # , tclas2
-    story.append(tclas1)
-    story.append(Spacer(width=120 * mm, height=2 * mm))
-    #story.append(tclas2)
+    # story.append(NextPageTemplate('normal'))
+    # story.append(PageBreak())
+    #
+    # tclas1 = tablasClasifLiga(tempData)  # , tclas2
+    # story.append(tclas1)
+    # story.append(Spacer(width=120 * mm, height=2 * mm))
+    # #story.append(tclas2)
 
     story.append(NextPageTemplate('apaisada'))
     story.append(PageBreak())
