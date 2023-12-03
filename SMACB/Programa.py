@@ -811,7 +811,7 @@ def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
         tStyle.add("SPAN", (0, fNum), (1, fNum))
         tStyle.add("SPAN", (-2, fNum), (-1, fNum))
 
-    ANCHORESULTADO = (FONTSIZE * 0.6) * 12
+    ANCHORESULTADO = (FONTSIZE * 0.6) * 13
     ANCHOETPARTIDO = (FONTSIZE * 0.6) * 32
     ANCHOJORNADA = ((FONTSIZE + 1) * 0.6) * 4
 
