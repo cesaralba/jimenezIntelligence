@@ -26,7 +26,6 @@ estadGlobalesOrden = None
 clasifLiga = None
 ESTILOS = getSampleStyleSheet()
 
-
 FMTECHACORTA = "%d-%m"
 DEFTABVALUE = "-"
 
@@ -88,6 +87,7 @@ INFOESTADSEQ = {('Eq', 'P'): {'etiq': 'PF', 'formato': 'float'}, ('Rival', 'P'):
                 ('Eq', 'EffRebO'): {'etiq': 'F rec', 'formato': 'float'}, ('Eq', 'A'): {'formato': 'float'},
                 ('Eq', 'BP'): {'formato': 'float'}, ('Eq', 'BR'): {'formato': 'float'},
                 ('Eq', 'A/BP'): {'formato': 'float'}, ('Eq', 'A/TC-C'): {'etiq': 'A/Can', 'formato': 'float'},
+                ('Eq', 'PNR'): {'formato': 'float'},
 
                 ('Rival', 'T2'): {'generador': GENERADORETTIRO(tiro='2', entero=False, orden=True)},
                 ('Rival', 'T3'): {'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
@@ -99,7 +99,8 @@ INFOESTADSEQ = {('Eq', 'P'): {'etiq': 'PF', 'formato': 'float'}, ('Rival', 'P'):
                                    'generador': GENERADORETREBOTE(entero=False, orden=True)},
                 ('Rival', 'A'): {'formato': 'float'}, ('Rival', 'BP'): {'formato': 'float'},
                 ('Rival', 'BR'): {'formato': 'float'}, ('Rival', 'A/BP'): {'formato': 'float'},
-                ('Rival', 'A/TC-C'): {'etiq': 'A/Can', 'formato': 'float'}, }
+                ('Rival', 'A/TC-C'): {'etiq': 'A/Can', 'formato': 'float'}, ('Rival', 'PNR'): {'formato': 'float'}, }
+
 INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
                  ('Jugador', 'Kdorsal'): {'etiq': 'kD', 'generador': GENERADORCLAVEDORSAL(col='dorsal')},
                  ('Jugador', 'nombre'): {'etiq': 'Nombre', 'ancho': 22, 'alignment': 'LEFT'},
@@ -177,8 +178,15 @@ INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
                  ('UltimoPart', 'TAP-F'): {'etiq': 'Tp R', 'ancho': 4, 'formato': 'entero'}, }
 
 
-def auxCalculaBalanceStr(record, addPendientes=True):
-    strPendiente = f" ({record['pendientes']})" if (('pendientes' in record) and addPendientes) else ""
+def auxCalculaBalanceStr(record: dict, addPendientes: bool = False, currJornada: int = None, addPendJornada: bool = False) -> str:
+    textoAux = ""
+    if currJornada is not None:
+        pendJornada = currJornada not in record['Jjug']
+        pendientes = any([(p not in record['Jjug']) for p in range(1,currJornada)])
+        adelantados = any([p > currJornada for p in record['Jjug']])
+        textoAux = ""+("J" if (pendJornada and addPendJornada) else "")+ ("P" if pendientes else "")+("A" if adelantados else "")
+
+    strPendiente = f" ({textoAux})" if (addPendientes and textoAux) else ""
     victorias = record.get('V', 0)
     derrotas = record.get('D', 0)
     texto = f"{victorias}-{derrotas}{strPendiente}"
@@ -374,6 +382,7 @@ def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
     BR, BROrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'BR', ESTADISTICOEQ)
     ApBP, ApBPOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'A/BP', ESTADISTICOEQ)
     ApTCC, ApTCCOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'A/TC-C', ESTADISTICOEQ)
+    PNR, PNROrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'PNR', ESTADISTICOEQ)
 
     ### Valores del equipo rival
 
@@ -401,6 +410,7 @@ def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
     rBR, rBROrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'BR', ESTADISTICOEQ)
     rApBP, rApBPOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'A/BP', ESTADISTICOEQ)
     rApTCC, rApTCCOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'A/TC-C', ESTADISTICOEQ)
+    rPNR, rPNROrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'PNR', ESTADISTICOEQ)
 
     ###
 
@@ -420,7 +430,8 @@ def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
 <b>EffRD</b>:&nbsp;{EffRebD:.2f}%({EffRebDOrd:.0f}) <b>EffRO</b>:&nbsp;{EffRebO:.2f}%({EffRebOOrd:.0f}) <b>/</b>
 <b>A</b>:&nbsp;{A:.2f}({AOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{BP:.2f}({BPOrd:.0f}) <b>/</b> 
 <b>BR</b>:&nbsp;{BR:.2f}({BROrd:.0f}) <b>/</b> 
-<b>A/BP</b>:&nbsp;{ApBP:.2f}({ApBPOrd:.0f}) <b>/</b> <b>A/Can</b>:&nbsp;{ApTCC:.2f}%({ApTCCOrd:.0f})<br/>
+<b>A/BP</b>:&nbsp;{ApBP:.2f}({ApBPOrd:.0f}) <b>/</b> <b>A/Can</b>:&nbsp;{ApTCC:.2f}%({ApTCCOrd:.0f}) <b>/</b>
+<b>PNR</b>:&nbsp;{PNR:.2f}({PNROrd:.0f})<br/>
 
 <B>RIVAL</B> 
 <b>T2</b>:&nbsp;{rT2C:.2f}({rT2IOrd:.0f})/{rT2I:.2f}({rT2IOrd:.0f})&nbsp;{rT2pc:.2f}%({rT2pcOrd:.0f}) <b>/</b> 
@@ -432,7 +443,8 @@ def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
 <b>Reb</b>:&nbsp;{rRebD:.2f}({rRebDOrd:.0f})+{rRebO:.2f}({rRebOOrd:.0f})&nbsp;{rRebT:.2f}({rRebTOrd:.0f}) <b>/</b>
 <b>A</b>:&nbsp;{rA:.2f}({rAOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{rBP:.2f}({rBPOrd:.0f}) <b>/</b> 
 <b>BR</b>:&nbsp;{rBR:.2f}({rBROrd:.0f}) <b>/</b> <b>A/BP</b>:&nbsp;{rApBP:.2f}({rApBPOrd:.0f}) <b>/</b> 
-<b>A/Can</b>:&nbsp;{rApTCC:.2f}%({rApTCCOrd:.0f})
+<b>A/Can</b>:&nbsp;{rApTCC:.2f}%({rApTCCOrd:.0f}) <b>/</b>
+<b>PNR</b>:&nbsp;{rPNR:.2f}({rPNROrd:.0f})
 """
 
     return resultEq
@@ -522,11 +534,12 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     return result
 
 
-def datosTablaLiga(tempData: TemporadaACB):
+def datosTablaLiga(tempData: TemporadaACB, currJornada: int=None):
     """
     Calcula los datos que rellenarán la tabla de liga así como las posiciones de los partidos jugados y pendientes para
     darles formato
-    :param tempData:
+    :param tempData: Info completa de la temporada
+    :param currJornada: Jornada a la que se refiere el programa
     :return: listaListasCeldas,tupla de listas de coords de jugados y pendientes, primer eq con balance negativo
     List
     """
@@ -592,7 +605,7 @@ def datosTablaLiga(tempData: TemporadaACB):
                     pVisit = part['equipos']['Visitante']['puntos']
                     texto = f"J:{jornada}<br/><b>{pLocal}-{pVisit}</b>"
             else:
-                auxTexto = auxCalculaBalanceStr(datosEq)
+                auxTexto = auxCalculaBalanceStr(datosEq, addPendientes=True, currJornada=currJornada,addPendJornada=True)
                 texto = f"<b>{auxTexto}</b>"
             fila.append(Paragraph(texto, style=estCelda))
 
@@ -729,7 +742,7 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
     if isinstance(partido, PartidoACB):
         # Ya ha habido partido por lo que podemos calcular trayectoria anterior y resultado
         clasifAux = datosTemp.clasifEquipo(abrRival, partido['fechaPartido'])
-        clasifStr = auxCalculaBalanceStr(clasifAux)
+        clasifStr = auxCalculaBalanceStr(clasifAux,addPendientes=True,currJornada=int(partido['jornada']),addPendJornada=False)
         strRival = f"{strFecha}: {textRival} ({clasifStr})"
         marcador = {loc: str(partido.DatosSuministrados['resultado'][loc]) for loc in LocalVisitante}
         for loc in LocalVisitante:
@@ -798,7 +811,7 @@ def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
         tStyle.add("SPAN", (0, fNum), (1, fNum))
         tStyle.add("SPAN", (-2, fNum), (-1, fNum))
 
-    ANCHORESULTADO = (FONTSIZE * 0.6) * 12
+    ANCHORESULTADO = (FONTSIZE * 0.6) * 13
     ANCHOETPARTIDO = (FONTSIZE * 0.6) * 32
     ANCHOJORNADA = ((FONTSIZE + 1) * 0.6) * 4
 
@@ -863,11 +876,11 @@ def tablasJugadoresEquipo(jugDF):
     return result
 
 
-def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None):
+def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None,currJornada:int=None):
     CELLPAD = 0.3 * mm
-    FONTSIZE = 10
+    FONTSIZE = 9
 
-    datosAux, coordsJuPe, firstNegBal = datosTablaLiga(tempData)
+    datosAux, coordsJuPe, firstNegBal = datosTablaLiga(tempData, currJornada)
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
@@ -876,8 +889,8 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None):
                          ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD),
                          ("BACKGROUND", (-1, 1), (-1, -2), colors.lightgrey),
                          ("BACKGROUND", (1, -1), (-2, -1), colors.lightgrey)])
-    alturas = [20] + [28] * (len(datosAux) - 2) + [20]
-    anchos = [58] + [38] * (len(datosAux) - 2) + [40]
+    alturas = [20] + [29] * (len(datosAux) - 2) + [22]
+    anchos = [61] + [39] * (len(datosAux) - 2) + [38]
 
     CANTGREYBAL = .70
     colBal = colors.rgb2cmyk(CANTGREYBAL, CANTGREYBAL, CANTGREYBAL)
@@ -936,7 +949,6 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None):
     return t
 
 
-
 def cabeceraPortada(partido, tempData):
     datosLocal = partido['equipos']['Local']
     datosVisit = partido['equipos']['Visitante']
@@ -951,8 +963,8 @@ def cabeceraPortada(partido, tempData):
         f"<para align='center' fontName='Helvetica' fontSize=20 leading=22><b>{compo}</b> {edicion} - " + f"J: <b>{j}</b><br/>{fh}</para>",
         style)
 
-    cabLocal = datosCabEquipo(datosLocal, tempData, partido['fechaPartido'])
-    cabVisit = datosCabEquipo(datosVisit, tempData, partido['fechaPartido'])
+    cabLocal = datosCabEquipo(datosLocal, tempData, partido['fechaPartido'],currJornada=int(j))
+    cabVisit = datosCabEquipo(datosVisit, tempData, partido['fechaPartido'],currJornada=int(j))
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black)])
@@ -968,14 +980,14 @@ def cargaTemporada(fname):
     return result
 
 
-def datosCabEquipo(datosEq, tempData, fecha):
+def datosCabEquipo(datosEq, tempData, fecha,currJornada:int=None):
     recuperaClasifLiga(tempData, fecha)
 
     # TODO: Imagen (descargar imagen de escudo y plantarla)
     nombre = datosEq['nombcorto']
 
     clasifAux = equipo2clasif(clasifLiga, datosEq['abrev'])
-    clasifStr = auxCalculaBalanceStr(clasifAux)
+    clasifStr = auxCalculaBalanceStr(clasifAux,addPendientes=True,currJornada=currJornada)
 
     result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b></para>"),
               Paragraph(f"<para align='center' fontSize='14'>{clasifStr}</para>")]
@@ -996,15 +1008,6 @@ def recuperaClasifLiga(tempData: TemporadaACB, fecha=None):
 
     if clasifLiga is None:
         clasifLiga = tempData.clasifLiga(fecha)
-        jugados = np.array([eq['Jug'] for eq in clasifLiga])
-        modaJug = stats.mode(jugados, keepdims=False).mode
-
-        for eq in clasifLiga:
-            if eq['Jug'] != modaJug:
-                pendientes = modaJug - eq['Jug']
-                aux = "*" if (abs(pendientes) == 1) else pendientes
-
-                eq.update({'pendientes': aux})
 
 
 def datosRestoJornada(tempData: TemporadaACB, datosSig: tuple):
@@ -1033,11 +1036,11 @@ def datosRestoJornada(tempData: TemporadaACB, datosSig: tuple):
 
 
 def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
-    def infoEq(eqData: dict):
+    def infoEq(eqData: dict, jornada:int):
         abrev = eqData['abrev']
 
         clasifAux = equipo2clasif(clasifLiga, abrev)
-        clasifStr = auxCalculaBalanceStr(clasifAux, False)
+        clasifStr = auxCalculaBalanceStr(clasifAux,addPendientes=True,currJornada=jornada,addPendJornada=False)
         formatoIn, formatoOut = ('<b>', '</b>') if eqData['haGanado'] else ('', '')
         formato = "{fIn}{nombre}{fOut} [{balance}]"
         result = formato.format(nombre=eqData['nombcorto'], balance=clasifStr, fIn=formatoIn, fOut=formatoOut)
@@ -1064,7 +1067,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
         for p in sorted(datos, key=itemgetter('fechaPartido')):
             info = {'pendiente': p['pendiente'], 'fecha': etFecha(p['fechaPartido'], tstampRef)}
             for loc in LocalVisitante:
-                info[loc] = infoEq(p['equipos'][loc])
+                info[loc] = infoEq(p['equipos'][loc],jornada=jornada)
             if not p['pendiente']:
                 info['resultado'] = infoRes(p)
 
@@ -1081,7 +1084,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
     if len(datosParts) == 0:
         return None
     # Table building
-    textoCab = f"Resto jornada {jornada}"
+    textoCab = f"<b>Resto jornada {jornada}</b>"
     filaCab = [Paragraph(f"<para align='center'>{textoCab}</para>"), None, None]
     filas = [filaCab]
 
@@ -1099,84 +1102,88 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
-                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1),("SPAN", (0, 0), (-1, 0)) ])
+                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1), ("SPAN", (0, 0), (-1, 0))])
 
-    ANCHOEQUIPO = (FONTSIZE * 0.6) * 22
+    ANCHOEQUIPO = (FONTSIZE * 0.6) * 24
     ANCHOCENTRO = ((FONTSIZE + 1) * 0.6) * 14
-    t = Table(data=filas, style=tStyle,
-              colWidths=[ANCHOEQUIPO,ANCHOCENTRO,ANCHOEQUIPO],
-              rowHeights=FONTSIZE + 4)
+    t = Table(data=filas, style=tStyle, colWidths=[ANCHOEQUIPO, ANCHOCENTRO, ANCHOEQUIPO], rowHeights=FONTSIZE + 4)
 
     return t
 
-def tablasClasifLiga(tempData: TemporadaACB):
 
-    def datosTablaClasif(clasif:list):
+def tablasClasifLiga(tempData: TemporadaACB):
+    def datosTablaClasif(clasif: list):
         result = list()
-        for pos,eq in enumerate(clasif):
+        for pos, eq in enumerate(clasif):
             nombEq = sorted(eq['nombresEq'], key=lambda n: len(n))[0]
-            victs = eq.get('V',0)
-            derrs =  eq.get('D',0)
+            victs = eq.get('V', 0)
+            derrs = eq.get('D', 0)
             jugs = victs + derrs
-            ratio = 100.0 * victs / jugs
-            puntF = eq.get('Pfav',0)
-            puntC = eq.get('Pcon',0)
+            ratio = (100.0 * victs / jugs) if (jugs != 0) else 0.0
+            puntF = eq.get('Pfav', 0)
+            puntC = eq.get('Pcon', 0)
             diffP = puntF - puntC
 
-            fila = [Paragraph(f"<para align='right'>{pos+1}</para>"),
-                     Paragraph(f"<para align='left'>{nombEq}</para>")
-                    # Paragraph(f"<para align='right'>{jugs}</para>"),
-                    # Paragraph(f"<para align='right'>{victs}</para>"),
-                    # Paragraph(f"<para align='right'>{derrs}</para>"),
-                    # Paragraph(f"<para align='right'>{ratio:3.0f}%</para>"),
-                    # Paragraph(f"<para align='right'>{puntF}</para>"),
-                    # Paragraph(f"<para align='right'>{puntC}</para>"),
-                    # Paragraph(f"<para align='right'>{diffP}</para>")
-                    ]
+            fila = [Paragraph(f"<para align='right'>{pos + 1}</para>"),
+                    Paragraph(f"<para align='left'>{nombEq}</para>"), Paragraph(f"<para align='right'>{jugs}</para>"),
+                    Paragraph(f"<para align='center'>{victs:2}-{derrs:2}</para>"),
+                    Paragraph(f"<para align='right'>{ratio:3.0f}%</para>"),
+                    Paragraph(f"<para align='right'>{puntF}</para>"), Paragraph(f"<para align='right'>{puntC}</para>"),
+                    Paragraph(f"<para align='right'>{diffP}</para>")]
             result.append(fila)
         return result
+
+    def firstBalNeg(clasif: list):
+        for pos,eq in enumerate(clasif):
+            victs = eq.get('V', 0)
+            derrs = eq.get('D', 0)
+
+            if derrs > victs:
+                return pos+1
+        return None
 
     recuperaClasifLiga(tempData)
     filasClasLiga = datosTablaClasif(clasifLiga)
 
     filaCab = [Paragraph("<para align='center'><b>Po</b></para>"),
-               # Paragraph("<para align='center'><b>Equipo</b></para>"),
-               # Paragraph("<para align='center'><b>J</b></para>"),
-               # Paragraph("<para align='center'><b>V</b></para>"),
-               # Paragraph("<para align='center'><b>D</b></para>"),
-               # Paragraph("<para align='center'><b>%amp;</b></para>"),
-               # Paragraph("<para align='center'><b>PF</b></para>"),
-               # Paragraph("<para align='center'><b>PC</b></para>"),
-               # Paragraph("<para align='center'><b>Dif</b></para>")
-               ]
+        Paragraph("<para align='center'><b>Equipo</b></para>"), Paragraph("<para align='center'><b>J</b></para>"),
+        Paragraph("<para align='center'><b>V-D</b></para>"), Paragraph("<para align='center'><b>%</b></para>"),
+        Paragraph("<para align='center'><b>PF</b></para>"), Paragraph("<para align='center'><b>PC</b></para>"),
+        Paragraph("<para align='center'><b>Df</b></para>")]
 
-    lista1 = list()
-    lista2 = list()
+    lista1 = [filaCab] + filasClasLiga
 
-    #lista1.append(filaCab)
-    # lista2.append(filaCab)
+    # for eqIDX in range(9):
+    #     lista1.append(filasClasLiga[eqIDX])
+    #     lista2.append(filasClasLiga[9+eqIDX])
 
-    for eqIDX in range(9):
-        lista1.append(filasClasLiga[eqIDX])
-        lista2.append(filasClasLiga[9+eqIDX])
+    FONTSIZE = 8
 
-    FONTSIZE = 9
-    print(lista1)
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
-                         ])  #('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)
+                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)])
 
-    ANCHOPOS = (FONTSIZE * 0.6) * 2
-    ANCHOEQUIPO = (FONTSIZE * 0.6) * 15
-    ANCHOPARTS = (FONTSIZE * 0.6) * 2
-    ANCHOPERC = (FONTSIZE * 0.6) * 5
-    ANCHOPUNTS = (FONTSIZE * 0.6) * 4
+    ANCHOPOS = (FONTSIZE * 0.6) * 5.3
+    ANCHOEQUIPO = (FONTSIZE * 0.6) * 19
+    ANCHOPARTS = (FONTSIZE * 0.6) * 4.9
+    ANCHOPERC = (FONTSIZE * 0.6) * 7
+    ANCHOPUNTS = (FONTSIZE * 0.6) * 6.8
+
+
+    ANCHOMARCAPOS = 2
+    for pos in MARCADORESCLASIF:
+        commH = "LINEBELOW"
+        incr = 0 if pos >= 0 else -1
+        tStyle.add(commH, (0, pos + incr), (-1 , pos + incr), ANCHOMARCAPOS, colors.black)
+
+    # Balance negativo
+    posFirstNegBal = firstBalNeg(clasifLiga)
+    if posFirstNegBal is not None:
+        tStyle.add("LINEABOVE", (0, posFirstNegBal), (-1, posFirstNegBal), ANCHOMARCAPOS, colors.black, "squared",
+                   (1, 8))
 
     tabla1 = Table(data=lista1, style=tStyle,
-              colWidths=[ANCHOPOS,ANCHOEQUIPO], # ,ANCHOPARTS,ANCHOPARTS,ANCHOPARTS,ANCHOPERC,ANCHOPUNTS,ANCHOPUNTS,ANCHOPUNTS
-              rowHeights=FONTSIZE + 4)
-    tabla2 = Table(data=lista2, style=tStyle,
-                   colWidths=[ANCHOPOS,ANCHOEQUIPO], # ,ANCHOPARTS,ANCHOPARTS,ANCHOPARTS,ANCHOPERC,ANCHOPUNTS,ANCHOPUNTS,ANCHOPUNTS
-                   rowHeights=FONTSIZE + 4)
+                   colWidths=[ANCHOPOS, ANCHOEQUIPO, ANCHOPARTS, ANCHOPARTS * 1.4, ANCHOPERC, ANCHOPUNTS, ANCHOPUNTS,
+                              ANCHOPUNTS], rowHeights=FONTSIZE + 4)
 
-    return tabla1,tabla2
+    return tabla1
