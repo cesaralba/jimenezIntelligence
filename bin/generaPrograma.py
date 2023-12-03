@@ -30,6 +30,7 @@ def preparaLibro(outfile, tempData, datosSig):
     story = []
 
     (sigPartido, abrEqs, juIzda, peIzda, juDcha, peDcha, targLocal) = datosSig
+    currJornada = int(sigPartido['jornada'])
 
     antecedentes = {p.url for p in juIzda}.intersection({p.url for p in juDcha})
 
@@ -58,7 +59,7 @@ def preparaLibro(outfile, tempData, datosSig):
 
     story.append(NextPageTemplate('apaisada'))
     story.append(PageBreak())
-    story.append(tablaLiga(tempData, equiposAmarcar=abrEqs))
+    story.append(tablaLiga(tempData, equiposAmarcar=abrEqs,currJornada=currJornada))
 
     if (len(juIzda) + len(juDcha)):
         infoJugadores = paginasJugadores(tempData, abrEqs, juIzda, juDcha)
