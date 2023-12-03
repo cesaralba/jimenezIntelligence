@@ -359,11 +359,14 @@ class TemporadaACB(object):
         result = defaultdict(int)
         result['Lfav'] = list()
         result['Lcon'] = list()
+        result['Jjug'] = set()
         result['CasaFuera'] = {'Local': defaultdict(int), 'Visitante': defaultdict(int)}
 
         partidosAcontar = [p for p in juCal if self.Partidos[p['url']].fechaPartido < fecha] if fecha else juCal
 
         for datosCal in partidosAcontar:
+            result['Jjug'].add(int(datosCal['jornada']))
+
             abrevUsada = abrevsEq.intersection(datosCal['participantes']).pop()
             locEq = datosCal['abrev2loc'][abrevUsada]
             locRival = OtherLoc(locEq)
