@@ -14,8 +14,7 @@ from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHAHORA, PATRONFECHA
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams, getObjID
-from .Constants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp,
-                        titular2esp, OtherLoc, LocalVisitante)
+from .Constants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp, titular2esp, OtherLoc, LocalVisitante)
 from .PlantillaACB import PlantillaACB
 
 templateURLficha = "http://www.acb.com/fichas/%s%i%03i.php"
@@ -110,10 +109,8 @@ class PartidoACB(object):
                 for datosJug in self.pendientes[l]:
                     if datosJug['nombre'] == '':
                         datosJugTxt = "{localidad} Eq: '{equipo}' Dorsal: {dorsal} {posicion}".format(
-                            localidad=("Local" if datosJug['esLocal'] else "Visit"),
-                            equipo=datosJug['equipo'],
-                            dorsal=datosJug['dorsal'],
-                            posicion=("Jugador" if datosJug['esJugador'] else "Entrenador"))
+                            localidad=("Local" if datosJug['esLocal'] else "Visit"), equipo=datosJug['equipo'],
+                            dorsal=datosJug['dorsal'], posicion=("Jugador" if datosJug['esJugador'] else "Entrenador"))
                         print(f"(W) Partido: {self} -> {datosJugTxt}: Datos insuficientes para encontrar ID.")
                         newPendientes.append(datosJug)
                         if datosJug['esJugador']:
@@ -129,8 +126,8 @@ class PartidoACB(object):
                         'nombre']
 
                     newCode = cachedTeam.getCode(nombre=nombreRetoc, dorsal=datosJug['dorsal'],
-                                                 esTecnico=datosJug['entrenador'],
-                                                 esJugador=datosJug['esJugador'], umbral=1)
+                                                 esTecnico=datosJug['entrenador'], esJugador=datosJug['esJugador'],
+                                                 umbral=1)
                     if newCode is not None:
                         datosJug['codigo'] = newCode
 
@@ -235,8 +232,8 @@ class PartidoACB(object):
                     if estads['P'] != self.Equipos[estado]['Puntos']:
                         print(estads, self.Equipos[estado])
                         raise BaseException("ProcesaLineaTablaEstadistica: TOTAL '%s' puntos '%i' "
-                                            "no casan con encabezado '%i' " % (estado, estads['P'],
-                                                                               self.Equipos[estado]['Puntos']))
+                                            "no casan con encabezado '%i' " % (
+                                            estado, estads['P'], self.Equipos[estado]['Puntos']))
             else:  # Jugadores
                 result['esJugador'] = True
                 result['entrenador'] = False
@@ -311,8 +308,7 @@ class PartidoACB(object):
             if auxTemp:
                 return (int(auxTemp[0]))
             else:
-                raise BadString("ProcesaEstadisticas:ProcesaPorcentajes '%s' no casa RE '%s' " %
-                                (cadena, rePorcentaje))
+                raise BadString("ProcesaEstadisticas:ProcesaPorcentajes '%s' no casa RE '%s' " % (cadena, rePorcentaje))
 
         for key in contadores.keys():
             val = contadores[key]
@@ -342,10 +338,16 @@ class PartidoACB(object):
 
         return (result)
 
+    def resumenPartido(self):
+        return " * J %i: %s (%s) %i - %i %s (%s) " % (
+        self.jornada, self.EquiposCalendario['Local'], self.CodigosCalendario['Local'],
+        self.ResultadoCalendario['Local'], self.ResultadoCalendario['Visitante'], self.EquiposCalendario['Visitante'],
+        self.CodigosCalendario['Visitante'])
+
     def jugadoresAdataframe(self):
         typesDF = {'competicion': 'object', 'temporada': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
-                   'esTitular': 'bool',
-                   'haJugado': 'bool', 'titular': 'category', 'haGanado': 'bool', 'enActa': 'bool', 'Vsm': 'float64'}
+                   'esTitular': 'bool', 'haJugado': 'bool', 'titular': 'category', 'haGanado': 'bool', 'enActa': 'bool',
+                   'Vsm': 'float64'}
 
         # 'equipo': 'object', 'CODequipo': 'object', 'rival': 'object', 'CODrival': 'object', 'dorsal': 'object'
         # 'nombre': 'object', 'codigo': 'object'
@@ -493,6 +495,7 @@ class PartidoACB(object):
             estadsDict[loc]['A/BP'] = self.Equipos[loc]['estads']['A'] / self.Equipos[loc]['estads']['BP']
             estadsDict[loc]['RO/TC-F'] = self.Equipos[loc]['estads']['R-O'] / (
                     estadsDict[loc]['TC-I'] - estadsDict[loc]['TC-C'])
+            estadsDict[loc]['PNR'] = self.Equipos[loc]['estads']['BP'] - self.Equipos[OtherLoc(loc)]['estads']['BR']
 
             estadsDict[loc]['Segs'] = self.Equipos[loc]['estads']['Segs'] / 5
 
@@ -524,11 +527,9 @@ class PartidoACB(object):
 
     def __str__(self):
         return "J %02i: [%s] %s (%s) %i - %i %s (%s)" % (
-            self.jornada, self.fechaPartido,
-            self.EquiposCalendario['Local']['nomblargo'], self.CodigosCalendario['Local'],
-            self.ResultadoCalendario['Local'],
-            self.ResultadoCalendario['Visitante'], self.EquiposCalendario['Visitante']['nomblargo'],
-            self.CodigosCalendario['Visitante'])
+            self.jornada, self.fechaPartido, self.EquiposCalendario['Local']['nomblargo'],
+            self.CodigosCalendario['Local'], self.ResultadoCalendario['Local'], self.ResultadoCalendario['Visitante'],
+            self.EquiposCalendario['Visitante']['nomblargo'], self.CodigosCalendario['Visitante'])
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -603,8 +604,8 @@ def GeneraURLpartido(link):
 
     liurlcomps = ExtraeGetParams(link2process)
     CheckParameters(liurlcomps)
-    return templateURLficha % (liurlcomps['cod_competicion'], int(liurlcomps['cod_edicion']),
-                               int(liurlcomps['partido']))
+    return templateURLficha % (
+    liurlcomps['cod_competicion'], int(liurlcomps['cod_edicion']), int(liurlcomps['partido']))
 
 
 def extractPrefijosTablaEstads(tablaEstads):

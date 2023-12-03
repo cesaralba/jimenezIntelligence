@@ -9,7 +9,7 @@ from collections import defaultdict
 from copy import copy
 from pickle import dump, load
 from sys import exc_info, setrecursionlimit
-from time import gmtime
+from time import gmtime, strftime
 from traceback import print_exception
 from typing import Iterable
 
@@ -46,6 +46,12 @@ COLSESTADSASCENDING = [
     ('Eq', 'FP-C', 'median'),
     ('Eq', 'FP-C', 'max'),
     ('Eq', 'FP-C', 'sum'),
+    ('Eq', 'PNR', 'mean'),
+    ('Eq', 'PNR', 'min'),
+    ('Eq', 'PNR', 'median'),
+    ('Eq', 'PNR', 'max'),
+    ('Eq', 'PNR', 'sum'),
+
     ('Rival', 'P', 'mean'),
     ('Rival', 'P', 'std'),
     ('Rival', 'P', 'min'),
@@ -64,6 +70,19 @@ COLSESTADSASCENDING = [
     ('Rival', 'OERpot', 'sum'),
 ]
 
+DEFAULTNAVALUES = {
+    ('Eq', 'convocados', 'sum'): 0,
+    ('Eq', 'utilizados', 'sum'): 0,
+    ('Info', 'prorrogas', 'count'): 0,
+    ('Info', 'prorrogas', 'max'): 0,
+    ('Info', 'prorrogas', 'mean'): 0,
+    ('Info', 'prorrogas', 'median'): 0,
+    ('Info', 'prorrogas', 'min'): 0,
+    ('Info', 'prorrogas', 'std'): 0,
+    ('Info', 'prorrogas', 'sum'): 0,
+    ('Rival', 'convocados', 'sum'): 0,
+    ('Rival', 'utilizados', 'sum'): 0,
+}
 
 class TemporadaACB(object):
     """
@@ -89,6 +108,11 @@ class TemporadaACB(object):
         self.fichaJugadores = dict()
         self.fichaEntrenadores = dict()
         self.plantillas = dict()
+
+    def __repr__(self):
+        tstampStr = strftime("%Y%m%d-%H:%M:%S",self.timestamp)
+        result = f"{self.competicion} Temporada: {self.edicion} Datos: {tstampStr}"
+        return result
 
     def actualizaTemporada(self, home=None, browser=None, config=Namespace()):
         changeOrig = self.changed
@@ -345,11 +369,14 @@ class TemporadaACB(object):
         result = defaultdict(int)
         result['Lfav'] = list()
         result['Lcon'] = list()
+        result['Jjug'] = set()
         result['CasaFuera'] = {'Local': defaultdict(int), 'Visitante': defaultdict(int)}
 
         partidosAcontar = [p for p in juCal if self.Partidos[p['url']].fechaPartido < fecha] if fecha else juCal
 
         for datosCal in partidosAcontar:
+            result['Jjug'].add(int(datosCal['jornada']))
+
             abrevUsada = abrevsEq.intersection(datosCal['participantes']).pop()
             locEq = datosCal['abrev2loc'][abrevUsada]
             locRival = OtherLoc(locEq)
@@ -980,7 +1007,16 @@ def precalculaOrdenEstadsLiga(dfEstads: pd.DataFrame, listAscending=None):
 
     for col in dfEstads.columns:
         multiplicador = 1 if col in colsChangeMult else -1  # En general queremos que sea descendente
-        colAusar = multiplicador * dfEstads[col]
+
+        colWrk = dfEstads[col]
+        if (colWrk.isna().any()):
+            if (col in DEFAULTNAVALUES):
+                colWrk.fillna(value=DEFAULTNAVALUES[col], inplace=True)
+            else:
+                print(f"SMACB.TemporadaACB.precalculaOrdenEstadsLiga: Column {col} has NAs unhandled!")
+                print(colWrk)
+
+        colAusar = multiplicador * colWrk
         ordenIDX = colAusar.index[colAusar.argsort()]
         auxDict = {eq: pos for pos, eq in enumerate(ordenIDX, start=1)}
         auxSerie = pd.Series(data=auxDict)
