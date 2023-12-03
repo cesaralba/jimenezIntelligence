@@ -481,10 +481,11 @@ class PartidoACB(object):
                     self.Equipos[loc]['estads']['T2-C'] * 2 + self.Equipos[loc]['estads']['T3-C'] * 3) * 100.0
             estadsDict[loc]['ppTC'] = (self.Equipos[loc]['estads']['T2-C'] * 2 + self.Equipos[loc]['estads'][
                 'T3-C'] * 3) / estadsDict[loc]['TC-I']
+            estadsDict[loc]['PTC/PTCPot'] = (self.Equipos[loc]['estads']['T2-C'] * 2 + self.Equipos[loc]['estads'][
+                'T3-C'] * 3) / (self.Equipos[loc]['estads']['T2-I'] * 2 + self.Equipos[loc]['estads'][
+                'T3-I'] * 3) * 100.0
             estadsDict[loc]['A/TC-C'] = self.Equipos[loc]['estads']['A'] / estadsDict[loc]['TC-C'] * 100.0
             estadsDict[loc]['A/BP'] = self.Equipos[loc]['estads']['A'] / self.Equipos[loc]['estads']['BP']
-            estadsDict[loc]['RO/TC-F'] = self.Equipos[loc]['estads']['R-O'] / (
-                    estadsDict[loc]['TC-I'] - estadsDict[loc]['TC-C'])
             estadsDict[loc]['PNR'] = self.Equipos[loc]['estads']['BP'] - self.Equipos[OtherLoc(loc)]['estads']['BR']
 
             estadsDict[loc]['Segs'] = self.Equipos[loc]['estads']['Segs'] / 5
