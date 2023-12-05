@@ -1,18 +1,15 @@
 import sys
 from _operator import itemgetter
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from copy import copy
 from math import isnan
 
-import numpy as np
 import pandas as pd
-from fontTools.otlLib.builder import PairPosBuilder
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import TableStyle, Table, Paragraph, NextPageTemplate, PageBreak, Spacer
-from scipy import stats
 
 from SMACB.Constants import LocalVisitante, haGanado2esp, MARCADORESCLASIF, DESCENSOS
 from SMACB.FichaJugador import TRADPOSICION
@@ -22,13 +19,18 @@ from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, auxEtiqPartido, 
 from Utils.FechaHora import NEVER, Time2Str
 from Utils.Misc import onlySetElement, listize
 
-estadGlobales = None
-estadGlobalesOrden = None
-clasifLiga = None
+# Variables globales
+estadGlobales: pd.DataFrame | None = None
+estadGlobalesOrden: pd.DataFrame | None = None
+clasifLiga: list | None = None
+
 ESTILOS = getSampleStyleSheet()
 
 FMTECHACORTA = "%d-%m"
 DEFTABVALUE = "-"
+comparEstadistica = namedtuple('comparEstadistica',
+                               ['isAscending', 'locAbr', 'locMagn', 'locRank', 'maxMagn', 'maxAbr', 'ligaMed',
+                                'ligaStd', 'minMagn', 'minAbr', 'visAbr', 'visMagn', 'visRank'])
 
 ESTAD_MEDIA = 0
 ESTAD_MEDIANA = 1
@@ -1207,25 +1209,35 @@ def datosAnalisisEstads(tempData: TemporadaACB, datosSig: tuple):
         k: list(tempData.Calendario.abrevsEquipo(sigPartido['loc2abrev'][k]).intersection(estadGlobales.index))[0] for k
         in LocalVisitante}
 
-    print(targetAbrevs)
+    result = dict()
+    for claveEst in sorted(estadGlobales.columns):
 
-    estadsEq = {k: estadGlobales.loc[targetAbrevs[k]] for k in LocalVisitante}
-    estadsEqOrden = {k: estadGlobalesOrden.loc[targetAbrevs[k]] for k in LocalVisitante}
+        kEq, kMagn, kEst = claveEst
 
-    for claveEst in estadGlobales.columns:
+        isAscending = "A" if (claveEst in COLSESTADSASCENDING) else "D"
 
-        kEq = claveEst[0]
-        kMagn = claveEst[1]
-        kEst = claveEst[2]
-
-        if kEst != ESTADISTICOEQ:
+        excludedMagn = {'Segs', '+/-', 'V', 'haGanado', 'C', 'M', 'convocados', 'utilizados', 'local'}
+        if (kEst != ESTADISTICOEQ) or ('Info' == kEq) or (kMagn in excludedMagn):
             continue
 
-        print(f"{claveEst} -> {kEq} {kMagn}")
-        claveEst1 = (kEq, kMagn, ESTADISTICOEQ)
-        datosEqs = {k: extraeCampoYorden(estadsEq[k], estadsEqOrden[k], kEq, kMagn, kEst) for k in LocalVisitante}
+        serMagn = estadGlobales[claveEst]
+        magnMed = serMagn.mean()
+        magnStd = serMagn.std()
 
-        print(estadGlobales[[claveEst]].loc[
-                  estadGlobalesOrden[claveEst].sort_values()])  #  # print(estadGlobalesOrden[[claveEst]]) #
+        datosEqs = {k: serMagn[targetAbrevs[k]] for k in LocalVisitante}
+        datosEqsOrd = {k: int(serMagn.rank(ascending=False)[targetAbrevs[k]]) for k in LocalVisitante}
 
-    #  # pFav, pFavOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'P', ESTADISTICOEQ)  # pCon, pConOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'P', ESTADISTICOEQ)
+        serMagnMaxIdx = serMagn.idxmax()
+        serMagnMinIdx = serMagn.idxmin()
+        magnMax = serMagn[serMagnMaxIdx]
+        magnMin = serMagn[serMagnMinIdx]
+
+        newRecord = comparEstadistica(isAscending=isAscending, locAbr=targetAbrevs['Local'], locMagn=datosEqs['Local'],
+                                      locRank=datosEqsOrd['Local'], maxMagn=magnMax, maxAbr=serMagnMaxIdx,
+                                      ligaMed=magnMed, ligaStd=magnStd, minMagn=magnMin, minAbr=serMagnMinIdx,
+                                      visAbr=targetAbrevs['Visitante'], visMagn=datosEqs['Visitante'],
+                                      visRank=datosEqsOrd['Visitante'])
+
+        result[claveEst] = newRecord
+
+    return result
