@@ -215,7 +215,7 @@ class PartidoACB(object):
         celdas = list(fila.find_all("td"))
         textos = [x.get_text().strip() for x in celdas]
 
-        if (len(textos) == len(headers)):
+        if len(textos) == len(headers):
             mergedTextos = dict(zip(headers[2:], textos[2:]))
             estads = self.procesaEstadisticas(mergedTextos)
             result['estads'] = estads
@@ -285,28 +285,28 @@ class PartidoACB(object):
         def ProcesaTiempo(cadena):
             auxTemp = ExtractREGroups(cadena=cadena, regex=reTiempo)
             if auxTemp:
-                return (int(auxTemp[0]) * 60 + int(auxTemp[1]))
+                return int(auxTemp[0]) * 60 + int(auxTemp[1])
             else:
                 raise BadString("ProcesaEstadisticas:ProcesaTiempo '%s' no casa RE '%s' " % (cadena, reTiempo))
 
         def ProcesaTiros(cadena):
             auxTemp = ExtractREGroups(cadena=cadena, regex=reTiros)
             if auxTemp:
-                return (int(auxTemp[0]), int(auxTemp[1]))
+                return int(auxTemp[0]), int(auxTemp[1])
             else:
                 raise BadString("ProcesaEstadisticas:ProcesaTiros '%s' no casa RE '%s' " % (cadena, reTiros))
 
         def ProcesaRebotes(cadena):
             auxTemp = ExtractREGroups(cadena=cadena, regex=reRebotes)
             if auxTemp:
-                return (int(auxTemp[0]), int(auxTemp[1]))
+                return int(auxTemp[0]), int(auxTemp[1])
             else:
                 raise BadString("ProcesaEstadisticas:ProcesaRebotes '%s' no casa RE '%s' " % (cadena, reRebotes))
 
         def ProcesaPorcentajes(cadena):
             auxTemp = ExtractREGroups(cadena=cadena, regex=rePorcentaje)
             if auxTemp:
-                return (int(auxTemp[0]))
+                return int(auxTemp[0])
             else:
                 raise BadString("ProcesaEstadisticas:ProcesaPorcentajes '%s' no casa RE '%s' " % (cadena, rePorcentaje))
 
@@ -336,7 +336,7 @@ class PartidoACB(object):
                     print("ProcesaEstadisticas: Error: '%s'='%s' converting to INT. "
                           "URL Partido: %s -> %s" % (key, val, self.url, contadores))
 
-        return (result)
+        return result
 
     def resumenPartido(self):
         return " * J %i: %s (%s) %i - %i %s (%s) " % (
@@ -401,12 +401,12 @@ class PartidoACB(object):
             dfresult['resultado'] = dfresult['haGanado'].map(haGanado2esp)
             dfresult['jugado'] = dfresult['haJugado'].map(bool2esp)
 
-            return (dfresult)
+            return dfresult
 
         dfJugs = [jugador2dataframe(self.Jugadores[x]) for x in self.Jugadores]
         dfResult = pd.concat(dfJugs, axis=0, ignore_index=True, sort=True).astype(typesDF)
 
-        return (dfResult)
+        return dfResult
 
     def extraeEstadsJugadores(self, divTabla, estado, headers):
         filas = divTabla.find("tbody").find_all("tr")
@@ -611,4 +611,4 @@ def extractPrefijosTablaEstads(tablaEstads):
     headers = [((x[0] + "-") if x[0] else "") + x[1] for x in zip(prefixes, estheaders)]
     assert (len(set(headers)) == len(headers))
 
-    return (headers)
+    return headers
