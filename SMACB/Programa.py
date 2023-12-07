@@ -3,6 +3,7 @@ from _operator import itemgetter
 from collections import defaultdict, namedtuple
 from copy import copy
 from math import isnan
+from itertools import product
 
 import pandas as pd
 from reportlab.lib import colors
@@ -1251,60 +1252,73 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magnsAsce
                                       ligaMed=magnMed, ligaStd=magnStd, minMagn=magnUlt, minAbr=magnUltEtq,
                                       visAbr=targetAbrevs['Visitante'], visMagn=datosEqs['Visitante'],
                                       visRank=datosEqsOrd['Visitante'])
-
-        result[claveEst] = newRecord
+        claveEstReduc = kEq,kMagn
+        result[claveEstReduc] = newRecord
 
     return result
 
 
 def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple):
     datos = datosAnalisisEstadisticos(tempData, datosSig,magnsAscending=CATESTADSEQASCENDING, magn2ignore=CATESTADSEQ2IGNORE)
+    FONTSIZE = 8
+    CLAVESEQ = ['P', 'POS', 'OER', 'OERpot', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-C', 'TC-I', 'TC%',
+                'T1-C', 'T1-I', 'T1%', 'eff-t3', 't3/tc-I',  't3/tc-C',
+                'ppTC', 'PTC/PTCPot', 'R-D', 'R-O', 'REB-T', 'EffRebD', 'EffRebO',
+                'A', 'A/BP', 'A/TC-C', 'BP', 'PNR', 'BR', 'TAP-F',  'TAP-C', 'FP-F', 'FP-C']
 
     sigPartido = datosSig[0]
     targetAbrevs = {
         k: list(tempData.Calendario.abrevsEquipo(sigPartido['loc2abrev'][k]).intersection(estadGlobales.index))[0] for k
         in LocalVisitante}
 
-
-    def filasTabla(datos: dict):
+    def filasTabla(datos: dict, clavesEq:list|None=None,clavesRival:list|None=None):
         result = list()
-        for clave,dato in datos.items():
-            fila = [Paragraph(f"<para align='center'>{clave[0]}:{clave[1]:s}</para>"),
-                    Paragraph(f"<para align='center'>{dato.isAscending}</para>"),
+
+        auxClEq = clavesEq if clavesEq else [x for e,x in datos.keys() if e=="Eq"]
+        auxClRiv = clavesRival if clavesRival else auxClEq
+        listaClaves = list(product(['Eq'],auxClEq)) + list(product(['Rival'],auxClRiv))
+        for clave in listaClaves:
+            dato = datos[clave]
+            print(clave)
+            fila = [Paragraph(f"<para align='center'>{clave[0]}</para>"),
+                    Paragraph(f"<para align='center'>{clave[1]:s}</para>"),
                     Paragraph(f"<para align='right'>{dato.locMagn:3.2f} [{dato.locRank:2.0f}]</para>"),
+                    Paragraph(f"<para align='right'>{dato.visMagn:3.2f} [{dato.visRank:2.0f}]</para>"),
                     Paragraph(f"<para align='right'>{dato.maxMagn:3.2f} ({dato.maxAbr:3s})</para>"),
                     Paragraph(f"<para align='right'>{dato.ligaMed:3.2f}\u00b1{dato.ligaStd:3.2f}</para>"),
                     Paragraph(f"<para align='right'>{dato.minMagn:3.2f} ({dato.minAbr:3s})</para>"),
-                    Paragraph(f"<para align='right'>{dato.visMagn:3.2f} [{dato.visRank:2.0f}]</para>")]
+                    Paragraph(f"<para align='center'>{dato.isAscending}</para>")]
             result.append(fila)
+
         return result
 
+    ANCHOLABEL = (FONTSIZE * 0.6) * 15
+    ANCHOEQUIPO = (FONTSIZE * 0.6) * 13
+    ANCHOMAXMIN = (FONTSIZE * 0.6) * 14.5
+    ANCHOLIGA = (FONTSIZE * 0.6) * 13
+    ANCHOCD = (FONTSIZE * 0.6) * 6.5
+    LISTAANCHOS = [ANCHOCD,ANCHOLABEL, ANCHOEQUIPO, ANCHOEQUIPO, ANCHOMAXMIN, ANCHOLIGA, ANCHOMAXMIN, ANCHOCD]
 
-    filaCab = [Paragraph("<para align='center'><b>Estad</b></para>"),
-               Paragraph("<para align='center'><b>C/D</b></para>"),
+    filaCab = [None,
+               Paragraph("<para align='center'><b>Estad</b></para>"),
                Paragraph(f"<para align='center'><b>{targetAbrevs['Local']}</b></para>"),
+               Paragraph(f"<para align='center'><b>{targetAbrevs['Visitante']}</b></para>"),
                Paragraph("<para align='center'><b>Mejor</b></para>"),
-               Paragraph("<para align='center'><b>Media ACB</b></para>"),
+               Paragraph("<para align='center'><b>ACB</b></para>"),
                Paragraph("<para align='center'><b>Peor</b></para>"),
-               Paragraph(f"<para align='center'><b>{targetAbrevs['Visitante']}</b></para>")]
+               Paragraph("<para align='center'><b>C/D</b></para>")]
 
-    listaFilas = [filaCab] + filasTabla(datos)
+    listaFilas = [filaCab] + filasTabla(datos,clavesEq=CLAVESEQ)
 
     # for eqIDX in range(9):
     #     listaFilas.append(filasClasLiga[eqIDX])
     #     lista2.append(filasClasLiga[9+eqIDX])
 
-    FONTSIZE = 8
 
-    tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                         ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
+    tStyle = TableStyle([('BOX', (1, 1), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                         ('GRID', (1, 1), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
                          ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)])
 
-    # ANCHOPOS = (FONTSIZE * 0.6) * 5.3
-    # ANCHOEQUIPO = (FONTSIZE * 0.6) * 19
-    # ANCHOPARTS = (FONTSIZE * 0.6) * 4.9
-    # ANCHOPERC = (FONTSIZE * 0.6) * 7
-    # ANCHOPUNTS = (FONTSIZE * 0.6) * 6.8
 
     # ANCHOMARCAPOS = 2
     # for pos in MARCADORESCLASIF:
@@ -1319,6 +1333,6 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple):
     #                (1, 8))
     #                #[ANCHOPOS, ANCHOEQUIPO, ANCHOPARTS, ANCHOPARTS * 1.4, ANCHOPERC, ANCHOPUNTS, ANCHOPUNTS,   ANCHOPUNTS]
     tabla1 = Table(data=listaFilas, style=tStyle,
-                   colWidths=None, rowHeights=FONTSIZE + 4)
+                   colWidths=LISTAANCHOS, rowHeights=FONTSIZE + 3.2)
 
     return tabla1
