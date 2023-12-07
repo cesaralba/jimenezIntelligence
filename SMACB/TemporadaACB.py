@@ -11,7 +11,7 @@ from pickle import dump, load
 from sys import exc_info, setrecursionlimit
 from time import gmtime, strftime
 from traceback import print_exception
-from typing import Iterable
+from typing import Iterable, Any
 
 import numpy as np
 import pandas as pd
@@ -642,7 +642,7 @@ def esEstIgnorable(col: tuple, estadObj: str = 'mean', cats2ignore: Iterable | N
     return (kEst != estadObj) or (kEq == 'Info') or (kMagn in auxCats2Ignore)
 
 
-def calculaEstadsYOrdenLiga(dataTemp: TemporadaACB, estadObj: str = 'mean', catsAscending: Iterable | None = None,
+def calculaEstadsYOrdenLiga(dataTemp: TemporadaACB, fecha:Any|None = None, estadObj: str = 'mean', catsAscending: Iterable | None = None,
                             cats2ignore: Iterable | None = None):
     paramMethod = 'min'
     paramNAoption = {True: 'top', False: 'bottom'}
@@ -652,7 +652,7 @@ def calculaEstadsYOrdenLiga(dataTemp: TemporadaACB, estadObj: str = 'mean', cats
 
     auxCats2Ignore = {} if cats2ignore is None else cats2ignore
 
-    dfEstads: pd.DataFrame = dataTemp.dfEstadsLiga()
+    dfEstads: pd.DataFrame = dataTemp.dfEstadsLiga(fecha=fecha)
 
     for col in dfEstads.columns:
         kEq, kMagn, _ = col
