@@ -19,7 +19,6 @@ from .PlantillaACB import PlantillaACB
 
 templateURLficha = "http://www.acb.com/fichas/%s%i%03i.php"
 
-
 class PartidoACB(object):
 
     def __init__(self, **kwargs):
