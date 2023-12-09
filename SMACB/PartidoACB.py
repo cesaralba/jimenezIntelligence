@@ -481,11 +481,9 @@ class PartidoACB(object):
     __repr__ = __str__
 
     def estadsPartido(self):
-        print(self.Equipos)
         result = {loc: dict() for loc in LocalVisitante}
         for loc in LocalVisitante:
             result[loc].update(self.Equipos[loc]['estads'])
-        print(result)
 
         for loc in LocalVisitante:
             estads = result[loc]
