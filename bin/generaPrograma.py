@@ -7,7 +7,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import (SimpleDocTemplate, Spacer, NextPageTemplate, PageTemplate, Frame, PageBreak)
 
 from SMACB.Programa import estadsEquipoPortada, listaEquipos, paginasJugadores, reportTrayectoriaEquipos, tablaLiga, \
-    cabeceraPortada, cargaTemporada, tablaRestoJornada, tablasClasifLiga
+    cabeceraPortada, cargaTemporada, tablaRestoJornada, tablaAnalisisEstadisticos, CATESTADSEQASCENDING
 
 
 def preparaLibro(outfile, tempData, datosSig):
@@ -29,10 +29,8 @@ def preparaLibro(outfile, tempData, datosSig):
 
     story = []
 
-    (sigPartido, abrEqs, juIzda, peIzda, juDcha, peDcha, targLocal) = datosSig
+    sigPartido, abrEqs, juIzda, peIzda, juDcha, peDcha, _ = datosSig
     currJornada = int(sigPartido['jornada'])
-
-    antecedentes = {p.url for p in juIzda}.intersection({p.url for p in juDcha})
 
     story.append(cabeceraPortada(sigPartido, tempData))
 
@@ -44,7 +42,7 @@ def preparaLibro(outfile, tempData, datosSig):
         story.append(Spacer(width=120 * mm, height=1 * mm))
         story.append(trayectoria)
 
-    restoJornada = tablaRestoJornada(tempData,datosSig)
+    restoJornada = tablaRestoJornada(tempData, datosSig)
     if restoJornada:
         story.append(Spacer(width=120 * mm, height=2 * mm))
         story.append(restoJornada)
@@ -57,11 +55,25 @@ def preparaLibro(outfile, tempData, datosSig):
     # story.append(Spacer(width=120 * mm, height=2 * mm))
     # #story.append(tclas2)
 
+    story.append(NextPageTemplate('normal'))
+    story.append(PageBreak())
+
+    reqData = {
+        'Eq': ['P', 'Prec', 'POS', 'OER', 'DER', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-C', 'TC-I', 'TC%',
+               'T1-C', 'T1-I', 'T1%', 'eff-t2', 'eff-t3', 't3/tc-I', 't3/tc-C', 'ppTC', 'PTC/PTCPot', 'R-D', 'R-O',
+               'REB-T', 'EffRebD', 'EffRebO', 'A', 'A/BP', 'A/TC-C', 'BP', 'PNR', 'BR', 'TAP-F', 'TAP-C', 'FP-F',
+               'FP-C'],
+        'Rival': ['POS', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-C', 'TC-I', 'TC%', 'T1-C', 'T1-I', 'T1%',
+                  'eff-t2', 'eff-t3', 't3/tc-I', 't3/tc-C', 'ppTC', 'PTC/PTCPot', 'R-D', 'R-O', 'REB-T', 'EffRebD',
+                  'EffRebO', 'A', 'A/BP', 'A/TC-C', 'BP', 'PNR', 'BR', 'TAP-F', 'TAP-C', 'FP-F', 'FP-C']}
+    story.append(
+        tablaAnalisisEstadisticos(tempData, datosSig, magns2incl=reqData, magnsCrecientes=CATESTADSEQASCENDING))
+
     story.append(NextPageTemplate('apaisada'))
     story.append(PageBreak())
-    story.append(tablaLiga(tempData, equiposAmarcar=abrEqs,currJornada=currJornada))
+    story.append(tablaLiga(tempData, equiposAmarcar=abrEqs, currJornada=currJornada))
 
-    if (len(juIzda) + len(juDcha)):
+    if len(juIzda) + len(juDcha):
         infoJugadores = paginasJugadores(tempData, abrEqs, juIzda, juDcha)
         story.extend(infoJugadores)
 
@@ -86,8 +98,7 @@ def parse_arguments():
 
     parser.add_argument("-c", "--cachedir", dest="cachedir", action="store", required=False, env_var="ACB_CACHEDIR",
                         help="Ubicación de caché de ficheros", )
-    parser.add_argument("--locale", dest="locale", action="store", required=False, default='es_ES',
-                        help="Locale", )
+    parser.add_argument("--locale", dest="locale", action="store", required=False, default='es_ES', help="Locale", )
 
     result = parser.parse_args()
 
@@ -95,7 +106,7 @@ def parse_arguments():
 
 
 def main(args):
-    setlocale(LC_ALL,args.locale)
+    setlocale(LC_ALL, args.locale)
     tempData = cargaTemporada(args.acbfile)
 
     if args.listaEquipos:
@@ -117,5 +128,5 @@ def main(args):
 
 
 if __name__ == '__main__':
-    args = parse_arguments()
-    main(args)
+    argsCLI = parse_arguments()
+    main(argsCLI)
