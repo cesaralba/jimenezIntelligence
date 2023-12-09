@@ -24,6 +24,8 @@ from Utils.ReportLab.RLverticalText import VerticalParagraph, verticalText
 # Variables globales
 estadGlobales: pd.DataFrame | None = None
 estadGlobalesOrden: pd.DataFrame | None = None
+allMagnsInEstads: set|None = None
+
 clasifLiga: list | None = None
 
 ESTILOS = getSampleStyleSheet()
@@ -1013,10 +1015,12 @@ def datosCabEquipo(datosEq, tempData, fecha, currJornada: int = None):
 def recuperaEstadsGlobales(tempData):
     global estadGlobales
     global estadGlobalesOrden
+    global allMagnsInEstads
     if estadGlobales is None:
         estadGlobales, estadGlobalesOrden = calculaEstadsYOrdenLiga(tempData, estadObj=ESTADISTICOEQ,
                                                                     catsAscending=CATESTADSEQASCENDING,
                                                                     cats2ignore=CATESTADSEQ2IGNORE)
+        allMagnsInEstads =  { magn for _,magn,_ in estadGlobales.columns }
 
 
 def recuperaClasifLiga(tempData: TemporadaACB, fecha=None):
@@ -1216,9 +1220,8 @@ def calculaMaxMinMagn(ser: pd.Series, ser_orden: pd.Series):
     return minVal, minEtq, maxVal, maxEtq
 
 
-def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magnsAscending=None, magn2ignore=None,infoCampos:dict=REPORTLEYENDAS):
+def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2include:list, magnsAscending=None,infoCampos:dict=REPORTLEYENDAS):
     catsAscending = {} if magnsAscending is None else magnsAscending
-    catsIgnore = {} if magn2ignore is None else magn2ignore
 
     recuperaEstadsGlobales(tempData)
 
@@ -1228,18 +1231,24 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magnsAsce
         in LocalVisitante}
 
     result = dict()
-    for claveEst in sorted(estadGlobales.columns):
 
-        kEq, kMagn, _ = claveEst
+    estadsInexistentes = set()
+    clavesEnEstads=set(sorted(estadGlobales.columns))
 
-        if esEstIgnorable(claveEst, ESTADISTICOEQ, catsIgnore):
+    for claveEst in magn2include:
+
+        kEq, kMagn = claveEst
+
+        clave2use = (kEq, kMagn, ESTADISTICOEQ)
+        if clave2use not in clavesEnEstads:
+            estadsInexistentes.add(clave2use)
             continue
 
         esCreciente = esEstCreciente(kMagn, catsAscending, kEq)
         labCreciente = "C" if esCreciente else "D"
 
-        serMagn: pd.Series = estadGlobales[claveEst]
-        serMagnOrden: pd.Series = estadGlobalesOrden[claveEst]
+        serMagn: pd.Series = estadGlobales[clave2use]
+        serMagnOrden: pd.Series = estadGlobalesOrden[clave2use]
         magnMed = serMagn.mean()
         magnStd = serMagn.std()
 
@@ -1253,14 +1262,32 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magnsAsce
                                       ligaMed=magnMed, ligaStd=magnStd, minMagn=magnUlt, minAbr=magnUltEtq,
                                       visAbr=targetAbrevs['Visitante'], visMagn=datosEqs['Visitante'],
                                       visRank=datosEqsOrd['Visitante'])
-        claveEstReduc = kEq,kMagn
-        result[claveEstReduc] = newRecord
 
+        result[claveEst] = newRecord
+
+    if estadsInexistentes:
+        raise ValueError(f"datosAnalisisEstadisticos: los siguientes valores no existen: {estadsInexistentes}. " +
+                         f"Parametro: {magn2include}. Columnas posibles: {clavesEnEstads}")
     return result
 
 
-def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple):
-    datos = datosAnalisisEstadisticos(tempData, datosSig,magnsAscending=CATESTADSEQASCENDING, magn2ignore=CATESTADSEQ2IGNORE)
+def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2incl: dict | list | None=None, magnsCrecientes: list | set | None=None):
+    catsAscending = {} if magnsCrecientes is None else set(magnsCrecientes)
+
+    recuperaEstadsGlobales(tempData)
+
+    clavesEq,clavesRiv = allMagnsInEstads, allMagnsInEstads
+    if isinstance(magns2incl, list):
+        clavesEq = list(magns2incl)
+        clavesRiv = clavesEq
+    elif isinstance(magns2incl, dict):
+        clavesEq = magns2incl.get('Eq', {})
+        clavesRiv= magns2incl.get('Rival', {})
+    claves2wrk = list(product(['Eq'],clavesEq))+list(product(['Rival'],clavesRiv))
+    if len(claves2wrk) == 0:
+        raise ValueError(f"tablaAnalisisEstadisticos: No hay valores para incluir en la tabla: parametro {magns2incl}")
+
+    datos = datosAnalisisEstadisticos(tempData, datosSig,magnsAscending=catsAscending, magn2include=claves2wrk)
     FONTSIZE = 8
     CLAVESEQ = ['P', 'POS', 'OER', 'OERpot', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-C', 'TC-I', 'TC%',
                 'T1-C', 'T1-I', 'T1%', 'eff-t3', 't3/tc-I',  't3/tc-C',
@@ -1275,7 +1302,7 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple):
     def filasTabla(datos: dict, clavesEq:list|None=None,clavesRival:list|None=None):
         result = list()
 
-        auxClEq = clavesEq if clavesEq else [x for e,x in datos.keys() if e=="Eq"]
+        auxClEq = clavesEq
         auxClRiv = clavesRival if clavesRival else auxClEq
         listaClaves = list(product(['Eq'],auxClEq)) + list(product(['Rival'],auxClRiv))
         for seq,clave in enumerate(listaClaves):
@@ -1291,8 +1318,8 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple):
                     Paragraph(f"{dato.isAscending}")]
             result.append(fila)
         result[0][0] = VerticalParagraph("Equipo")
-        result[len(CLAVESEQ)-1][0] = VerticalParagraph("Rival")
-        print(len(CLAVESEQ))
+        result[len(clavesEq)-1][0] = VerticalParagraph("Rival")
+        print(len(auxClEq)+len(auxClRiv))
         return result
 
     ANCHOEQL= (FONTSIZE * 0.6) * 3
@@ -1301,7 +1328,7 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple):
     ANCHOMAXMIN = (FONTSIZE * 0.6) * 14.5
     ANCHOLIGA = (FONTSIZE * 0.6) * 13
     ANCHOCD = (FONTSIZE * 0.6) * 6
-    LISTAANCHOS = [ANCHOCD,ANCHOLABEL, ANCHOEQUIPO, ANCHOEQUIPO, ANCHOMAXMIN, ANCHOLIGA, ANCHOMAXMIN, ANCHOCD]
+    LISTAANCHOS = [ANCHOEQL,ANCHOLABEL, ANCHOEQUIPO, ANCHOEQUIPO, ANCHOMAXMIN, ANCHOLIGA, ANCHOMAXMIN, ANCHOCD]
 
     filaCab = [None,
                Paragraph("<para align='center'><b>Estad</b></para>"),
@@ -1312,7 +1339,7 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple):
                Paragraph("<para align='center'><b>Peor</b></para>"),
                None] # Paragraph("<para align='center'><b>C/D</b></para>")
 
-    listaFilas = [filaCab] + filasTabla(datos,clavesEq=CLAVESEQ)
+    listaFilas = [filaCab] + filasTabla(datos,clavesEq=clavesEq, clavesRival=clavesRiv)
 
     # for eqIDX in range(9):
     #     listaFilas.append(filasClasLiga[eqIDX])
@@ -1322,10 +1349,10 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple):
     tStyle = TableStyle([('BOX', (1, 1), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (1, 1), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
                          ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1),
-                         ('SPAN',(0,1),(0,len(CLAVESEQ))),
-                         ('BOX', (1, 1), (-1, len(CLAVESEQ)), 1.5, colors.black),
-                         ('SPAN',(0,len(CLAVESEQ)),(0,-1)),
-                         ('BOX', (1,len(CLAVESEQ)+1),(-1,-1), 1.5, colors.black),
+                         ('SPAN',(0,1),(0,len(clavesEq))),
+                         ('BOX', (1, 1), (-1, len(clavesEq)), 1.5, colors.black),
+                         ('SPAN',(0,len(clavesEq)),(0,-1)),
+                         ('BOX', (1,-len(clavesRiv)),(-1,-1), 1.5, colors.black),
                          ])
 
 
