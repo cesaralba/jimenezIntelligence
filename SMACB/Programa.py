@@ -34,7 +34,7 @@ FMTECHACORTA = "%d-%m"
 DEFTABVALUE = "-"
 comparEstadistica = namedtuple('comparEstadistica',
                                ['isAscending', 'locAbr', 'locMagn', 'locRank', 'maxMagn', 'maxAbr', 'ligaMed',
-                                'ligaStd', 'minMagn', 'minAbr', 'visAbr', 'visMagn', 'visRank'])
+                                'ligaStd', 'minMagn', 'minAbr', 'visAbr', 'visMagn', 'visRank', 'nombreMagn'])
 
 ESTAD_MEDIA = 0
 ESTAD_MEDIANA = 1
@@ -1225,6 +1225,10 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2incl
                               infoCampos: dict = REPORTLEYENDAS):
     catsAscending = {} if magnsAscending is None else magnsAscending
 
+    auxEtiqLeyenda = infoCampos
+    if infoCampos is None:
+        auxEtiqLeyenda = {magn: {'etiq': magn, 'leyenda': magn} for magn in set(magn2include)}
+
     recuperaEstadsGlobales(tempData)
 
     sigPartido = datosSig[0]
@@ -1240,6 +1244,10 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2incl
     for claveEst in magn2include:
 
         kEq, kMagn = claveEst
+        if kMagn not in auxEtiqLeyenda:
+            print(
+                f"tablaAnalisisEstadisticos.filasTabla: magnitud '{kMagn}' no está en descripciones.Usando {kMagn} para etiqueta")
+        etiq = auxEtiqLeyenda[kMagn]['etiq'] if kMagn in auxEtiqLeyenda else kMagn
 
         clave2use = (kEq, kMagn, ESTADISTICOEQ)
         if clave2use not in clavesEnEstads:
@@ -1247,7 +1255,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2incl
             continue
 
         esCreciente = esEstCreciente(kMagn, catsAscending, kEq)
-        labCreciente = "C" if esCreciente else "D"
+        labCreciente = "D" if esCreciente else "C"
 
         serMagn: pd.Series = estadGlobales[clave2use]
         serMagnOrden: pd.Series = estadGlobalesOrden[clave2use]
@@ -1259,11 +1267,11 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2incl
 
         (magnPrim, magnPrimEtq, magnUlt, magnUltEtq) = calculaMaxMinMagn(serMagn, serMagnOrden)
 
-        newRecord = comparEstadistica(isAscending=labCreciente, locAbr=targetAbrevs['Local'], locMagn=datosEqs['Local'],
-                                      locRank=datosEqsOrd['Local'], maxMagn=magnPrim, maxAbr=magnPrimEtq,
-                                      ligaMed=magnMed, ligaStd=magnStd, minMagn=magnUlt, minAbr=magnUltEtq,
-                                      visAbr=targetAbrevs['Visitante'], visMagn=datosEqs['Visitante'],
-                                      visRank=datosEqsOrd['Visitante'])
+        newRecord = comparEstadistica(nombreMagn=etiq, isAscending=labCreciente, locAbr=targetAbrevs['Local'],
+                                      locMagn=datosEqs['Local'], locRank=datosEqsOrd['Local'], maxMagn=magnPrim,
+                                      maxAbr=magnPrimEtq, ligaMed=magnMed, ligaStd=magnStd, minMagn=magnUlt,
+                                      minAbr=magnUltEtq, visAbr=targetAbrevs['Visitante'],
+                                      visMagn=datosEqs['Visitante'], visRank=datosEqsOrd['Visitante'])
 
         result[claveEst] = newRecord
 
@@ -1303,10 +1311,11 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2inc
 
         auxClEq = clavesEquipo
         auxClRiv = clavesRival if clavesRival else auxClEq
+
         listaClaves = list(product(['Eq'], auxClEq)) + list(product(['Rival'], auxClRiv))
         for clave in listaClaves:
             dato = datosAmostrar[clave]
-            fila = [None, Paragraph(f"<para align='center'>{clave[1]:s}</para>"),
+            fila = [None, Paragraph(f"<para align='center'>{dato.nombreMagn:s}</para>"),
                     Paragraph(f"<para align='right'>{dato.locMagn:3.2f} [{dato.locRank:2.0f}]</para>"),
                     Paragraph(f"<para align='right'>{dato.visMagn:3.2f} [{dato.visRank:2.0f}]</para>"),
                     Paragraph(f"<para align='right'>{dato.maxMagn:3.2f} ({dato.maxAbr:3s})</para>"),
@@ -1331,8 +1340,7 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2inc
                Paragraph(f"<para align='center'><b>{targetAbrevs['Visitante']}</b></para>"),
                Paragraph("<para align='center'><b>Mejor</b></para>"),
                Paragraph("<para align='center'><b>ACB</b></para>"),
-               Paragraph("<para align='center'><b>Peor</b></para>"),
-               None]
+               Paragraph("<para align='center'><b>Peor</b></para>"), None]
 
     listaFilas = [filaCab] + filasTabla(datos, clavesEquipo=clavesEq, clavesRival=clavesRiv)
 

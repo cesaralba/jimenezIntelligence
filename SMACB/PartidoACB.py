@@ -494,7 +494,7 @@ class PartidoACB(object):
             avanzadas['Rival'] = self.Equipos[OtherLoc(loc)]['abrev']
             avanzadas['Segs'] = estads['Segs'] / 5
 
-            avanzadas['Priv'] = other['P']
+            avanzadas['Prec'] = other['P']
             avanzadas['Ptot'] = estads['P'] + other['P']
             avanzadas['Vict'] = estads['P'] > other['P']
             avanzadas['POS'] = estads['T2-I'] + estads['T3-I'] + (estads['T1-I'] * 0.44) + estads['BP'] - estads['R-O']
@@ -521,8 +521,9 @@ class PartidoACB(object):
             avanzadas['t3/tc-C'] = estads['T3-C'] / avanzadas['TC-C'] * 100.0
 
             auxEqPuntCanastas = (estads['T2-C'] * 2 + estads['T3-C'] * 3)
-            avanzadas['eff-t2'] = estads['T2-C'] * 2 / auxEqPuntCanastas * 100.0
-            avanzadas['eff-t3'] = estads['T3-C'] * 3 / auxEqPuntCanastas * 100.0
+            avanzadas['eff-t2'] = estads['T1-C'] * 2 / estads['P'] * 100.0
+            avanzadas['eff-t2'] = estads['T2-C'] * 2 / estads['P'] * 100.0
+            avanzadas['eff-t3'] = estads['T3-C'] * 3 / estads['P'] * 100.0
             avanzadas['ppTC'] = auxEqPuntCanastas / avanzadas['TC-I']
             avanzadas['PTC/PTCPot'] = auxEqPuntCanastas / (estads['T2-I'] * 2 + estads['T3-I'] * 3) * 100.0
 

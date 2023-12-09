@@ -7,8 +7,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import (SimpleDocTemplate, Spacer, NextPageTemplate, PageTemplate, Frame, PageBreak)
 
 from SMACB.Programa import estadsEquipoPortada, listaEquipos, paginasJugadores, reportTrayectoriaEquipos, tablaLiga, \
-    cabeceraPortada, cargaTemporada, tablaRestoJornada, tablaAnalisisEstadisticos, \
-    CATESTADSEQASCENDING
+    cabeceraPortada, cargaTemporada, tablaRestoJornada, tablaAnalisisEstadisticos, CATESTADSEQASCENDING
 
 
 def preparaLibro(outfile, tempData, datosSig):
@@ -60,11 +59,12 @@ def preparaLibro(outfile, tempData, datosSig):
     story.append(PageBreak())
 
     reqData = {
-        'Eq': ['P', 'POS', 'OER', 'OERpot', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-C', 'TC-I', 'TC%', 'T1-C',
-               'T1-I', 'T1%', 'eff-t3', 't3/tc-I', 't3/tc-C', 'ppTC', 'PTC/PTCPot', 'R-D', 'R-O', 'REB-T', 'EffRebD',
-               'EffRebO', 'A', 'A/BP', 'A/TC-C', 'BP', 'PNR', 'BR', 'TAP-F', 'TAP-C', 'FP-F', 'FP-C'],
-        'Rival': ['P', 'POS', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-C', 'TC-I', 'TC%', 'T1-C', 'T1-I',
-                  'T1%', 'eff-t3', 't3/tc-I', 't3/tc-C', 'ppTC', 'PTC/PTCPot', 'R-D', 'R-O', 'REB-T', 'EffRebD',
+        'Eq': ['P', 'Prec', 'POS', 'OER', 'DER', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-C', 'TC-I', 'TC%',
+               'T1-C', 'T1-I', 'T1%', 'eff-t2', 'eff-t3', 't3/tc-I', 't3/tc-C', 'ppTC', 'PTC/PTCPot', 'R-D', 'R-O',
+               'REB-T', 'EffRebD', 'EffRebO', 'A', 'A/BP', 'A/TC-C', 'BP', 'PNR', 'BR', 'TAP-F', 'TAP-C', 'FP-F',
+               'FP-C'],
+        'Rival': ['POS', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-C', 'TC-I', 'TC%', 'T1-C', 'T1-I', 'T1%',
+                  'eff-t2', 'eff-t3', 't3/tc-I', 't3/tc-C', 'ppTC', 'PTC/PTCPot', 'R-D', 'R-O', 'REB-T', 'EffRebD',
                   'EffRebO', 'A', 'A/BP', 'A/TC-C', 'BP', 'PNR', 'BR', 'TAP-F', 'TAP-C', 'FP-F', 'FP-C']}
     story.append(
         tablaAnalisisEstadisticos(tempData, datosSig, magns2incl=reqData, magnsCrecientes=CATESTADSEQASCENDING))

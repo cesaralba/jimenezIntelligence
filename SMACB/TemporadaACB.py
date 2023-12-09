@@ -46,7 +46,7 @@ ALLCATS = {'+/-', 'A', 'A/BP', 'A/TC-C', 'BP', 'BR', 'C', 'DER', 'DERpot', 'EffR
 
 CATESTADSEQ2IGNORE = {'+/-', 'C', 'convocados', 'haGanado', 'local', 'M', 'Segs', 'utilizados', 'V'}
 # 'FP-C' Faltas recibidas, 'FP-F' Faltas cometidas, 'TAP-C' Tapones recibidos, 'TAP-F' Tapones hechos
-CATESTADSEQASCENDING = {'BP', 'FP-F', 'TAP-C', 'PNR'}
+CATESTADSEQASCENDING = {'DER', 'DERpot', 'BP', 'FP-F', 'TAP-C', 'PNR'}
 
 DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 0, ('Info', 'prorrogas', 'count'): 0,
                    ('Info', 'prorrogas', 'max'): 0, ('Info', 'prorrogas', 'mean'): 0,
@@ -643,8 +643,8 @@ def esEstIgnorable(col: tuple, estadObj: str = 'mean', cats2ignore: Iterable | N
     return (kEst != estadObj) or (kEq == 'Info') or (kMagn in auxCats2Ignore)
 
 
-def calculaEstadsYOrdenLiga(dataTemp: TemporadaACB, fecha:Any|None = None, estadObj: str = 'mean', catsAscending: Iterable | None = None,
-                            cats2ignore: Iterable | None = None):
+def calculaEstadsYOrdenLiga(dataTemp: TemporadaACB, fecha: Any | None = None, estadObj: str = 'mean',
+                            catsAscending: Iterable | None = None, cats2ignore: Iterable | None = None):
     paramMethod = 'min'
     paramNAoption = {True: 'top', False: 'bottom'}
 
