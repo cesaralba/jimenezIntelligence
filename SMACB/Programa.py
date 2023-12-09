@@ -2,8 +2,8 @@ import sys
 from _operator import itemgetter
 from collections import defaultdict, namedtuple
 from copy import copy
-from math import isnan
 from itertools import product
+from math import isnan
 
 import pandas as pd
 from reportlab.lib import colors
@@ -16,15 +16,15 @@ from SMACB.Constants import LocalVisitante, haGanado2esp, MARCADORESCLASIF, DESC
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, auxEtiqPartido, equipo2clasif, CATESTADSEQ2IGNORE, \
-    CATESTADSEQASCENDING, calculaEstadsYOrdenLiga, esEstCreciente, esEstIgnorable
+    CATESTADSEQASCENDING, calculaEstadsYOrdenLiga, esEstCreciente
 from Utils.FechaHora import NEVER, Time2Str
 from Utils.Misc import onlySetElement, listize
-from Utils.ReportLab.RLverticalText import VerticalParagraph, verticalText
+from Utils.ReportLab.RLverticalText import VerticalParagraph
 
 # Variables globales
 estadGlobales: pd.DataFrame | None = None
 estadGlobalesOrden: pd.DataFrame | None = None
-allMagnsInEstads: set|None = None
+allMagnsInEstads: set | None = None
 
 clasifLiga: list | None = None
 
@@ -1020,7 +1020,7 @@ def recuperaEstadsGlobales(tempData):
         estadGlobales, estadGlobalesOrden = calculaEstadsYOrdenLiga(tempData, estadObj=ESTADISTICOEQ,
                                                                     catsAscending=CATESTADSEQASCENDING,
                                                                     cats2ignore=CATESTADSEQ2IGNORE)
-        allMagnsInEstads =  { magn for _,magn,_ in estadGlobales.columns }
+        allMagnsInEstads = {magn for _, magn, _ in estadGlobales.columns}
 
 
 def recuperaClasifLiga(tempData: TemporadaACB, fecha=None):
@@ -1134,7 +1134,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
 def tablasClasifLiga(tempData: TemporadaACB):
     def datosTablaClasif(clasif: list):
         result = list()
-        for pos, eq in enumerate(clasif):
+        for posic, eq in enumerate(clasif):
             nombEq = sorted(eq['nombresEq'], key=lambda n: len(n))[0]
             victs = eq.get('V', 0)
             derrs = eq.get('D', 0)
@@ -1144,7 +1144,7 @@ def tablasClasifLiga(tempData: TemporadaACB):
             puntC = eq.get('Pcon', 0)
             diffP = puntF - puntC
 
-            fila = [Paragraph(f"<para align='right'>{pos + 1}</para>"),
+            fila = [Paragraph(f"<para align='right'>{posic + 1}</para>"),
                     Paragraph(f"<para align='left'>{nombEq}</para>"), Paragraph(f"<para align='right'>{jugs}</para>"),
                     Paragraph(f"<para align='center'>{victs:2}-{derrs:2}</para>"),
                     Paragraph(f"<para align='right'>{ratio:3.0f}%</para>"),
@@ -1154,12 +1154,12 @@ def tablasClasifLiga(tempData: TemporadaACB):
         return result
 
     def firstBalNeg(clasif: list):
-        for pos, eq in enumerate(clasif):
+        for posic, eq in enumerate(clasif):
             victs = eq.get('V', 0)
             derrs = eq.get('D', 0)
 
             if derrs > victs:
-                return pos + 1
+                return posic + 1
         return None
 
     recuperaClasifLiga(tempData)
@@ -1207,11 +1207,12 @@ def tablasClasifLiga(tempData: TemporadaACB):
 
     return tabla1
 
+
 def calculaMaxMinMagn(ser: pd.Series, ser_orden: pd.Series):
-    def getValYEtq(ser, ser_orden, targ_orden):
-        numOrdenTarg = (ser_orden == targ_orden).sum()
-        etiqTarg = f"x{numOrdenTarg}" if numOrdenTarg > 1 else ser_orden[ser_orden == targ_orden].index[0]
-        valTarg = ser[ser_orden == targ_orden].iloc[0]
+    def getValYEtq(serie, serie_orden, targ_orden):
+        numOrdenTarg = (serie_orden == targ_orden).sum()
+        etiqTarg = f"x{numOrdenTarg}" if numOrdenTarg > 1 else serie_orden[serie_orden == targ_orden].index[0]
+        valTarg = serie[serie_orden == targ_orden].iloc[0]
         return valTarg, etiqTarg
 
     maxVal, maxEtq = getValYEtq(ser, ser_orden, ser_orden.max())
@@ -1220,7 +1221,8 @@ def calculaMaxMinMagn(ser: pd.Series, ser_orden: pd.Series):
     return minVal, minEtq, maxVal, maxEtq
 
 
-def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2include:list, magnsAscending=None,infoCampos:dict=REPORTLEYENDAS):
+def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2include: list, magnsAscending=None,
+                              infoCampos: dict = REPORTLEYENDAS):
     catsAscending = {} if magnsAscending is None else magnsAscending
 
     recuperaEstadsGlobales(tempData)
@@ -1233,7 +1235,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2incl
     result = dict()
 
     estadsInexistentes = set()
-    clavesEnEstads=set(sorted(estadGlobales.columns))
+    clavesEnEstads = set(sorted(estadGlobales.columns))
 
     for claveEst in magn2include:
 
@@ -1266,50 +1268,45 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2incl
         result[claveEst] = newRecord
 
     if estadsInexistentes:
-        raise ValueError(f"datosAnalisisEstadisticos: los siguientes valores no existen: {estadsInexistentes}. " +
-                         f"Parametro: {magn2include}. Columnas posibles: {clavesEnEstads}")
+        raise ValueError(
+            f"datosAnalisisEstadisticos: los siguientes valores no existen: {estadsInexistentes}. " + f"Parametro: {magn2include}. Columnas posibles: {clavesEnEstads}")
     return result
 
 
-def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2incl: dict | list | None=None, magnsCrecientes: list | set | None=None):
+def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2incl: dict | list | None = None,
+                              magnsCrecientes: list | set | None = None):
     catsAscending = {} if magnsCrecientes is None else set(magnsCrecientes)
 
     recuperaEstadsGlobales(tempData)
 
-    clavesEq,clavesRiv = allMagnsInEstads, allMagnsInEstads
+    clavesEq, clavesRiv = allMagnsInEstads, allMagnsInEstads
     if isinstance(magns2incl, list):
         clavesEq = list(magns2incl)
         clavesRiv = clavesEq
     elif isinstance(magns2incl, dict):
         clavesEq = magns2incl.get('Eq', {})
-        clavesRiv= magns2incl.get('Rival', {})
-    claves2wrk = list(product(['Eq'],clavesEq))+list(product(['Rival'],clavesRiv))
+        clavesRiv = magns2incl.get('Rival', {})
+    claves2wrk = list(product(['Eq'], clavesEq)) + list(product(['Rival'], clavesRiv))
     if len(claves2wrk) == 0:
         raise ValueError(f"tablaAnalisisEstadisticos: No hay valores para incluir en la tabla: parametro {magns2incl}")
 
-    datos = datosAnalisisEstadisticos(tempData, datosSig,magnsAscending=catsAscending, magn2include=claves2wrk)
+    datos = datosAnalisisEstadisticos(tempData, datosSig, magnsAscending=catsAscending, magn2include=claves2wrk)
     FONTSIZE = 8
-    CLAVESEQ = ['P', 'POS', 'OER', 'OERpot', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-C', 'TC-I', 'TC%',
-                'T1-C', 'T1-I', 'T1%', 'eff-t3', 't3/tc-I',  't3/tc-C',
-                'ppTC', 'PTC/PTCPot', 'R-D', 'R-O', 'REB-T', 'EffRebD', 'EffRebO',
-                'A', 'A/BP', 'A/TC-C', 'BP', 'PNR', 'BR', 'TAP-F',  'TAP-C', 'FP-F', 'FP-C']
 
     sigPartido = datosSig[0]
     targetAbrevs = {
         k: list(tempData.Calendario.abrevsEquipo(sigPartido['loc2abrev'][k]).intersection(estadGlobales.index))[0] for k
         in LocalVisitante}
 
-    def filasTabla(datos: dict, clavesEq:list|None=None,clavesRival:list|None=None):
+    def filasTabla(datosAmostrar: dict, clavesEquipo: list | None = None, clavesRival: list | None = None):
         result = list()
 
-        auxClEq = clavesEq
+        auxClEq = clavesEquipo
         auxClRiv = clavesRival if clavesRival else auxClEq
-        listaClaves = list(product(['Eq'],auxClEq)) + list(product(['Rival'],auxClRiv))
-        for seq,clave in enumerate(listaClaves):
-            dato = datos[clave]
-            print(clave)
-            fila = [None,
-                    Paragraph(f"<para align='center'>{clave[1]:s}</para>"),
+        listaClaves = list(product(['Eq'], auxClEq)) + list(product(['Rival'], auxClRiv))
+        for clave in listaClaves:
+            dato = datosAmostrar[clave]
+            fila = [None, Paragraph(f"<para align='center'>{clave[1]:s}</para>"),
                     Paragraph(f"<para align='right'>{dato.locMagn:3.2f} [{dato.locRank:2.0f}]</para>"),
                     Paragraph(f"<para align='right'>{dato.visMagn:3.2f} [{dato.visRank:2.0f}]</para>"),
                     Paragraph(f"<para align='right'>{dato.maxMagn:3.2f} ({dato.maxAbr:3s})</para>"),
@@ -1318,43 +1315,36 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2inc
                     Paragraph(f"{dato.isAscending}")]
             result.append(fila)
         result[0][0] = VerticalParagraph("Equipo")
-        result[len(clavesEq)-1][0] = VerticalParagraph("Rival")
-        print(len(auxClEq)+len(auxClRiv))
+        result[len(clavesEquipo) - 1][0] = VerticalParagraph("Rival")
         return result
 
-    ANCHOEQL= (FONTSIZE * 0.6) * 3
+    ANCHOEQL = (FONTSIZE * 0.6) * 3
     ANCHOLABEL = (FONTSIZE * 0.6) * 15
     ANCHOEQUIPO = (FONTSIZE * 0.6) * 13
     ANCHOMAXMIN = (FONTSIZE * 0.6) * 14.5
     ANCHOLIGA = (FONTSIZE * 0.6) * 13
     ANCHOCD = (FONTSIZE * 0.6) * 6
-    LISTAANCHOS = [ANCHOEQL,ANCHOLABEL, ANCHOEQUIPO, ANCHOEQUIPO, ANCHOMAXMIN, ANCHOLIGA, ANCHOMAXMIN, ANCHOCD]
+    LISTAANCHOS = [ANCHOEQL, ANCHOLABEL, ANCHOEQUIPO, ANCHOEQUIPO, ANCHOMAXMIN, ANCHOLIGA, ANCHOMAXMIN, ANCHOCD]
 
-    filaCab = [None,
-               Paragraph("<para align='center'><b>Estad</b></para>"),
+    filaCab = [None, Paragraph("<para align='center'><b>Estad</b></para>"),
                Paragraph(f"<para align='center'><b>{targetAbrevs['Local']}</b></para>"),
                Paragraph(f"<para align='center'><b>{targetAbrevs['Visitante']}</b></para>"),
                Paragraph("<para align='center'><b>Mejor</b></para>"),
                Paragraph("<para align='center'><b>ACB</b></para>"),
                Paragraph("<para align='center'><b>Peor</b></para>"),
-               None] # Paragraph("<para align='center'><b>C/D</b></para>")
+               None]
 
-    listaFilas = [filaCab] + filasTabla(datos,clavesEq=clavesEq, clavesRival=clavesRiv)
+    listaFilas = [filaCab] + filasTabla(datos, clavesEquipo=clavesEq, clavesRival=clavesRiv)
 
     # for eqIDX in range(9):
     #     listaFilas.append(filasClasLiga[eqIDX])
     #     lista2.append(filasClasLiga[9+eqIDX])
 
-
     tStyle = TableStyle([('BOX', (1, 1), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (1, 1), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
-                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1),
-                         ('SPAN',(0,1),(0,len(clavesEq))),
-                         ('BOX', (1, 1), (-1, len(clavesEq)), 1.5, colors.black),
-                         ('SPAN',(0,len(clavesEq)),(0,-1)),
-                         ('BOX', (1,-len(clavesRiv)),(-1,-1), 1.5, colors.black),
-                         ])
-
+                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1), ('SPAN', (0, 1), (0, len(clavesEq))),
+                         ('BOX', (1, 1), (-1, len(clavesEq)), 1.5, colors.black), ('SPAN', (0, len(clavesEq)), (0, -1)),
+                         ('BOX', (1, -len(clavesRiv)), (-1, -1), 1.5, colors.black), ])
 
     # ANCHOMARCAPOS = 2
     # for pos in MARCADORESCLASIF:
@@ -1368,6 +1358,6 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2inc
     #     tStyle.add("LINEABOVE", (0, posFirstNegBal), (-1, posFirstNegBal), ANCHOMARCAPOS, colors.black, "squared",
     #                (1, 8))
     #                #[ANCHOPOS, ANCHOEQUIPO, ANCHOPARTS, ANCHOPARTS * 1.4, ANCHOPERC, ANCHOPUNTS, ANCHOPUNTS,   ANCHOPUNTS]
-    tabla1 = Table(data=listaFilas, style=tStyle,  colWidths=LISTAANCHOS, rowHeights=FONTSIZE + 3.2)
+    tabla1 = Table(data=listaFilas, style=tStyle, colWidths=LISTAANCHOS, rowHeights=FONTSIZE + 3.2)
 
     return tabla1
