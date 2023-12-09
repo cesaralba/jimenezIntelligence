@@ -1,34 +1,40 @@
 import sys
 from _operator import itemgetter
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from copy import copy
+from itertools import product
 from math import isnan
 
-import numpy as np
 import pandas as pd
-from fontTools.otlLib.builder import PairPosBuilder
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import TableStyle, Table, Paragraph, NextPageTemplate, PageBreak, Spacer
-from scipy import stats
 
-from SMACB.Constants import LocalVisitante, haGanado2esp, MARCADORESCLASIF, DESCENSOS
+from SMACB.Constants import LocalVisitante, haGanado2esp, MARCADORESCLASIF, DESCENSOS, REPORTLEYENDAS
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
-from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, auxEtiqPartido, equipo2clasif, \
-    precalculaOrdenEstadsLiga, COLSESTADSASCENDING
+from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, auxEtiqPartido, equipo2clasif, CATESTADSEQ2IGNORE, \
+    CATESTADSEQASCENDING, calculaEstadsYOrdenLiga, esEstCreciente
 from Utils.FechaHora import NEVER, Time2Str
 from Utils.Misc import onlySetElement, listize
+from Utils.ReportLab.RLverticalText import VerticalParagraph
 
-estadGlobales = None
-estadGlobalesOrden = None
-clasifLiga = None
+# Variables globales
+estadGlobales: pd.DataFrame | None = None
+estadGlobalesOrden: pd.DataFrame | None = None
+allMagnsInEstads: set | None = None
+
+clasifLiga: list | None = None
+
 ESTILOS = getSampleStyleSheet()
 
 FMTECHACORTA = "%d-%m"
 DEFTABVALUE = "-"
+comparEstadistica = namedtuple('comparEstadistica',
+                               ['isAscending', 'locAbr', 'locMagn', 'locRank', 'maxMagn', 'maxAbr', 'ligaMed',
+                                'ligaStd', 'minMagn', 'minAbr', 'visAbr', 'visMagn', 'visRank', 'nombreMagn'])
 
 ESTAD_MEDIA = 0
 ESTAD_MEDIANA = 1
@@ -79,11 +85,11 @@ INFOESTADSEQ = {('Eq', 'P'): {'etiq': 'PF', 'formato': 'float'}, ('Rival', 'P'):
                 ('Eq', 'T3'): {'etiq': 'T3', 'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
                 ('Eq', 'TC'): {'etiq': 'TC', 'generador': GENERADORETTIRO(tiro='C', entero=False, orden=True)},
                 ('Eq', 'ppTC'): {'etiq': 'P / TC-I', 'formato': 'float'},
-                ('PTC/PTCPot'): {'etiq': '%PPot', 'formato': 'float'},
+                ('Eq', 'PTC/PTCPot'): {'etiq': '%PPot', 'formato': 'float'},
                 ('Eq', 't3/tc-I'): {'etiq': 'T3-I / TC-I', 'formato': 'float'},
                 ('Eq', 'FP-F'): {'etiq': 'F com', 'formato': 'float'},
                 ('Eq', 'FP-C'): {'etiq': 'F rec', 'formato': 'float'},
-                ('Eq', 'T1'): {'etiq': 'T3', 'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
+                ('Eq', 'T1'): {'etiq': 'T1', 'generador': GENERADORETTIRO(tiro='1', entero=False, orden=True)},
                 ('Eq', 'REB'): {'etiq': 'Rebs', 'ancho': 17, 'generador': GENERADORETREBOTE(entero=False, orden=True)},
                 ('Eq', 'EffRebD'): {'etiq': 'F rec', 'formato': 'float'},
                 ('Eq', 'EffRebO'): {'etiq': 'F rec', 'formato': 'float'}, ('Eq', 'A'): {'formato': 'float'},
@@ -95,6 +101,7 @@ INFOESTADSEQ = {('Eq', 'P'): {'etiq': 'PF', 'formato': 'float'}, ('Rival', 'P'):
                 ('Rival', 'T3'): {'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
                 ('Rival', 'TC'): {'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
                 ('Rival', 'ppTC'): {'etiq': 'P / TC-I', 'formato': 'float'},
+                ('Rival', 'PTC/PTCPot'): {'etiq': '%PPot', 'formato': 'float'},
                 ('Rival', 't3/tc-I'): {'etiq': 'T3-I / TC-I', 'formato': 'float'},
                 ('Rival', 'T1'): {'etiq': 'TL', 'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
                 ('Rival', 'REB'): {'etiq': 'Rebs', 'ancho': 17,
@@ -180,13 +187,15 @@ INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
                  ('UltimoPart', 'TAP-F'): {'etiq': 'Tp R', 'ancho': 4, 'formato': 'entero'}, }
 
 
-def auxCalculaBalanceStr(record: dict, addPendientes: bool = False, currJornada: int = None, addPendJornada: bool = False) -> str:
+def auxCalculaBalanceStr(record: dict, addPendientes: bool = False, currJornada: int = None,
+                         addPendJornada: bool = False) -> str:
     textoAux = ""
     if currJornada is not None:
         pendJornada = currJornada not in record['Jjug']
-        pendientes = any([(p not in record['Jjug']) for p in range(1,currJornada)])
+        pendientes = any([(p not in record['Jjug']) for p in range(1, currJornada)])
         adelantados = any([p > currJornada for p in record['Jjug']])
-        textoAux = ""+("J" if (pendJornada and addPendJornada) else "")+ ("P" if pendientes else "")+("A" if adelantados else "")
+        textoAux = "" + ("J" if (pendJornada and addPendJornada) else "") + ("P" if pendientes else "") + (
+            "A" if adelantados else "")
 
     strPendiente = f" ({textoAux})" if (addPendientes and textoAux) else ""
     victorias = record.get('V', 0)
@@ -425,9 +434,9 @@ def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
 <b>Pos</b>:&nbsp;{pos:.2f}({posOrd:.0f}) <b>/</b> 
 <b>OER</b>:&nbsp;{OER:.2f}({OEROrd:.0f}) <b>/</b> 
 <b>DER</b>:&nbsp;{DER:.2f}({DEROrd:.0f}) <b>/</b>
-<b>T2</b>:&nbsp;{T2C:.2f}({T2IOrd:.0f})/{T2I:.2f}({T2IOrd:.0f})&nbsp;{T2pc:.2f}%({T2pcOrd:.0f}) <b>/</b> 
-<b>T3</b>:&nbsp;{T3C:.2f}({T3IOrd:.0f})/{T3I:.2f}({T3IOrd:.0f})&nbsp;{T3pc:.2f}%({T3pcOrd:.0f}) <b>/</b>
-<b>TC</b>:&nbsp;{TCC:.2f}({TCIOrd:.0f})/{TCI:.2f}({TCIOrd:.0f})&nbsp;{TCpc:.2f}%({TCpcOrd:.0f}) <b>/</b> 
+<b>T2</b>:&nbsp;{T2C:.2f}({T2COrd:.0f})/{T2I:.2f}({T2IOrd:.0f})&nbsp;{T2pc:.2f}%({T2pcOrd:.0f}) <b>/</b> 
+<b>T3</b>:&nbsp;{T3C:.2f}({T3COrd:.0f})/{T3I:.2f}({T3IOrd:.0f})&nbsp;{T3pc:.2f}%({T3pcOrd:.0f}) <b>/</b>
+<b>TC</b>:&nbsp;{TCC:.2f}({TCCOrd:.0f})/{TCI:.2f}({TCIOrd:.0f})&nbsp;{TCpc:.2f}%({TCpcOrd:.0f}) <b>/</b> 
 <b>P&nbsp;por&nbsp;TC-I</b>:&nbsp;{ppTC:.2f}({ppTCOrd:.0f}) <b>/</b> <b>%PPot</b>:&nbsp;{PPOTpc:.2f}({PPOTpcOrd:.0f}) <b>/</b>  
 <b>T3-I/TC-I</b>&nbsp;{ratT3:.2f}%({ratT3Ord:.0f}) <b>/</b>
 <b>F&nbsp;com</b>:&nbsp;{Fcom:.2f}({FcomOrd:.0f})  <b>/</b> <b>F&nbsp;rec</b>:&nbsp;{Frec:.2f}({FrecOrd:.0f})  <b>/</b> 
@@ -440,9 +449,9 @@ def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
 <b>PNR</b>:&nbsp;{PNR:.2f}({PNROrd:.0f})<br/>
 
 <B>RIVAL</B> 
-<b>T2</b>:&nbsp;{rT2C:.2f}({rT2IOrd:.0f})/{rT2I:.2f}({rT2IOrd:.0f})&nbsp;{rT2pc:.2f}%({rT2pcOrd:.0f}) <b>/</b> 
-<b>T3</b>:&nbsp;{rT3C:.2f}({rT3IOrd:.0f})/{rT3I:.2f}({rT3IOrd:.0f})&nbsp;{rT3pc:.2f}%({rT3pcOrd:.0f}) <b>/</b>
-<b>TC</b>:&nbsp;{rTCC:.2f}({rTCIOrd:.0f})/{rTCI:.2f}({rTCIOrd:.0f})&nbsp;{rTCpc:.2f}%({rTCpcOrd:.0f}) <b>/</b> 
+<b>T2</b>:&nbsp;{rT2C:.2f}({rT2IOrd:.0f})/{rT2I:.2f}({rT2COrd:.0f})&nbsp;{rT2pc:.2f}%({rT2pcOrd:.0f}) <b>/</b> 
+<b>T3</b>:&nbsp;{rT3C:.2f}({rT3IOrd:.0f})/{rT3I:.2f}({rT3COrd:.0f})&nbsp;{rT3pc:.2f}%({rT3pcOrd:.0f}) <b>/</b>
+<b>TC</b>:&nbsp;{rTCC:.2f}({rTCIOrd:.0f})/{rTCI:.2f}({rTCCOrd:.0f})&nbsp;{rTCpc:.2f}%({rTCpcOrd:.0f}) <b>/</b> 
 <b>P&nbsp;por&nbsp;TC-I</b>:&nbsp;{rppTC:.2f}({rppTCOrd:.0f}) <b>/</b>  <b>%PPot</b>:&nbsp;{rPPOTpc:.2f}({rPPOTpcOrd:.0f}) <b>/</b>  
 <b>T3-I/TC-I</b>&nbsp;{rratT3:.2f}%({rratT3Ord:.0f}) <b>/</b>
 <b>TL</b>:&nbsp;{rT1C:.2f}({rT1COrd:.0f})/{rT1I:.2f}({rT1IOrd:.0f})&nbsp;{rT1pc:.2f}%({rT1pcOrd:.0f}) <b>/</b> 
@@ -540,7 +549,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     return result
 
 
-def datosTablaLiga(tempData: TemporadaACB, currJornada: int=None):
+def datosTablaLiga(tempData: TemporadaACB, currJornada: int = None):
     """
     Calcula los datos que rellenarán la tabla de liga así como las posiciones de los partidos jugados y pendientes para
     darles formato
@@ -611,7 +620,8 @@ def datosTablaLiga(tempData: TemporadaACB, currJornada: int=None):
                     pVisit = part['equipos']['Visitante']['puntos']
                     texto = f"J:{jornada}<br/><b>{pLocal}-{pVisit}</b>"
             else:
-                auxTexto = auxCalculaBalanceStr(datosEq, addPendientes=True, currJornada=currJornada,addPendJornada=True)
+                auxTexto = auxCalculaBalanceStr(datosEq, addPendientes=True, currJornada=currJornada,
+                                                addPendJornada=True)
                 texto = f"<b>{auxTexto}</b>"
             fila.append(Paragraph(texto, style=estCelda))
 
@@ -748,7 +758,8 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
     if isinstance(partido, PartidoACB):
         # Ya ha habido partido por lo que podemos calcular trayectoria anterior y resultado
         clasifAux = datosTemp.clasifEquipo(abrRival, partido['fechaPartido'])
-        clasifStr = auxCalculaBalanceStr(clasifAux,addPendientes=True,currJornada=int(partido['jornada']),addPendJornada=False)
+        clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=int(partido['jornada']),
+                                         addPendJornada=False)
         strRival = f"{strFecha}: {textRival} ({clasifStr})"
         marcador = {loc: str(partido.DatosSuministrados['resultado'][loc]) for loc in LocalVisitante}
         for loc in LocalVisitante:
@@ -882,7 +893,7 @@ def tablasJugadoresEquipo(jugDF):
     return result
 
 
-def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None,currJornada:int=None):
+def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None, currJornada: int = None):
     CELLPAD = 0.3 * mm
     FONTSIZE = 9
 
@@ -969,8 +980,8 @@ def cabeceraPortada(partido, tempData):
         f"<para align='center' fontName='Helvetica' fontSize=20 leading=22><b>{compo}</b> {edicion} - " + f"J: <b>{j}</b><br/>{fh}</para>",
         style)
 
-    cabLocal = datosCabEquipo(datosLocal, tempData, partido['fechaPartido'],currJornada=int(j))
-    cabVisit = datosCabEquipo(datosVisit, tempData, partido['fechaPartido'],currJornada=int(j))
+    cabLocal = datosCabEquipo(datosLocal, tempData, partido['fechaPartido'], currJornada=int(j))
+    cabVisit = datosCabEquipo(datosVisit, tempData, partido['fechaPartido'], currJornada=int(j))
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black)])
@@ -986,14 +997,14 @@ def cargaTemporada(fname):
     return result
 
 
-def datosCabEquipo(datosEq, tempData, fecha,currJornada:int=None):
+def datosCabEquipo(datosEq, tempData, fecha, currJornada: int = None):
     recuperaClasifLiga(tempData, fecha)
 
     # TODO: Imagen (descargar imagen de escudo y plantarla)
     nombre = datosEq['nombcorto']
 
     clasifAux = equipo2clasif(clasifLiga, datosEq['abrev'])
-    clasifStr = auxCalculaBalanceStr(clasifAux,addPendientes=True,currJornada=currJornada)
+    clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=currJornada)
 
     result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b></para>"),
               Paragraph(f"<para align='center' fontSize='14'>{clasifStr}</para>")]
@@ -1004,9 +1015,12 @@ def datosCabEquipo(datosEq, tempData, fecha,currJornada:int=None):
 def recuperaEstadsGlobales(tempData):
     global estadGlobales
     global estadGlobalesOrden
+    global allMagnsInEstads
     if estadGlobales is None:
-        estadGlobales = tempData.dfEstadsLiga()
-        estadGlobalesOrden = precalculaOrdenEstadsLiga(estadGlobales, COLSESTADSASCENDING)
+        estadGlobales, estadGlobalesOrden = calculaEstadsYOrdenLiga(tempData, estadObj=ESTADISTICOEQ,
+                                                                    catsAscending=CATESTADSEQASCENDING,
+                                                                    cats2ignore=CATESTADSEQ2IGNORE)
+        allMagnsInEstads = {magn for _, magn, _ in estadGlobales.columns}
 
 
 def recuperaClasifLiga(tempData: TemporadaACB, fecha=None):
@@ -1042,11 +1056,11 @@ def datosRestoJornada(tempData: TemporadaACB, datosSig: tuple):
 
 
 def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
-    def infoEq(eqData: dict, jornada:int):
+    def infoEq(eqData: dict, jornada: int):
         abrev = eqData['abrev']
 
         clasifAux = equipo2clasif(clasifLiga, abrev)
-        clasifStr = auxCalculaBalanceStr(clasifAux,addPendientes=True,currJornada=jornada,addPendJornada=False)
+        clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=jornada, addPendJornada=False)
         formatoIn, formatoOut = ('<b>', '</b>') if eqData['haGanado'] else ('', '')
         formato = "{fIn}{nombre}{fOut} [{balance}]"
         result = formato.format(nombre=eqData['nombcorto'], balance=clasifStr, fIn=formatoIn, fOut=formatoOut)
@@ -1064,7 +1078,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
     def etFecha(tStamp: pd.Timestamp, fechaRef: pd.Timestamp = None):
         tFormato = "%d-%m-%Y"
         if fechaRef and abs((tStamp - fechaRef).days) <= 3:
-            tFormato = "%a %m@%H:%M"
+            tFormato = "%a %d@%H:%M"
         result = tStamp.strftime(tFormato)
         return result
 
@@ -1073,7 +1087,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
         for p in sorted(datos, key=itemgetter('fechaPartido')):
             info = {'pendiente': p['pendiente'], 'fecha': etFecha(p['fechaPartido'], tstampRef)}
             for loc in LocalVisitante:
-                info[loc] = infoEq(p['equipos'][loc],jornada=jornada)
+                info[loc] = infoEq(p['equipos'][loc], jornada=jornada)
             if not p['pendiente']:
                 info['resultado'] = infoRes(p)
 
@@ -1120,7 +1134,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
 def tablasClasifLiga(tempData: TemporadaACB):
     def datosTablaClasif(clasif: list):
         result = list()
-        for pos, eq in enumerate(clasif):
+        for posic, eq in enumerate(clasif):
             nombEq = sorted(eq['nombresEq'], key=lambda n: len(n))[0]
             victs = eq.get('V', 0)
             derrs = eq.get('D', 0)
@@ -1130,7 +1144,7 @@ def tablasClasifLiga(tempData: TemporadaACB):
             puntC = eq.get('Pcon', 0)
             diffP = puntF - puntC
 
-            fila = [Paragraph(f"<para align='right'>{pos + 1}</para>"),
+            fila = [Paragraph(f"<para align='right'>{posic + 1}</para>"),
                     Paragraph(f"<para align='left'>{nombEq}</para>"), Paragraph(f"<para align='right'>{jugs}</para>"),
                     Paragraph(f"<para align='center'>{victs:2}-{derrs:2}</para>"),
                     Paragraph(f"<para align='right'>{ratio:3.0f}%</para>"),
@@ -1140,22 +1154,22 @@ def tablasClasifLiga(tempData: TemporadaACB):
         return result
 
     def firstBalNeg(clasif: list):
-        for pos,eq in enumerate(clasif):
+        for posic, eq in enumerate(clasif):
             victs = eq.get('V', 0)
             derrs = eq.get('D', 0)
 
             if derrs > victs:
-                return pos+1
+                return posic + 1
         return None
 
     recuperaClasifLiga(tempData)
     filasClasLiga = datosTablaClasif(clasifLiga)
 
     filaCab = [Paragraph("<para align='center'><b>Po</b></para>"),
-        Paragraph("<para align='center'><b>Equipo</b></para>"), Paragraph("<para align='center'><b>J</b></para>"),
-        Paragraph("<para align='center'><b>V-D</b></para>"), Paragraph("<para align='center'><b>%</b></para>"),
-        Paragraph("<para align='center'><b>PF</b></para>"), Paragraph("<para align='center'><b>PC</b></para>"),
-        Paragraph("<para align='center'><b>Df</b></para>")]
+               Paragraph("<para align='center'><b>Equipo</b></para>"),
+               Paragraph("<para align='center'><b>J</b></para>"), Paragraph("<para align='center'><b>V-D</b></para>"),
+               Paragraph("<para align='center'><b>%</b></para>"), Paragraph("<para align='center'><b>PF</b></para>"),
+               Paragraph("<para align='center'><b>PC</b></para>"), Paragraph("<para align='center'><b>Df</b></para>")]
 
     lista1 = [filaCab] + filasClasLiga
 
@@ -1175,12 +1189,11 @@ def tablasClasifLiga(tempData: TemporadaACB):
     ANCHOPERC = (FONTSIZE * 0.6) * 7
     ANCHOPUNTS = (FONTSIZE * 0.6) * 6.8
 
-
     ANCHOMARCAPOS = 2
     for pos in MARCADORESCLASIF:
         commH = "LINEBELOW"
         incr = 0 if pos >= 0 else -1
-        tStyle.add(commH, (0, pos + incr), (-1 , pos + incr), ANCHOMARCAPOS, colors.black)
+        tStyle.add(commH, (0, pos + incr), (-1, pos + incr), ANCHOMARCAPOS, colors.black)
 
     # Balance negativo
     posFirstNegBal = firstBalNeg(clasifLiga)
@@ -1191,5 +1204,168 @@ def tablasClasifLiga(tempData: TemporadaACB):
     tabla1 = Table(data=lista1, style=tStyle,
                    colWidths=[ANCHOPOS, ANCHOEQUIPO, ANCHOPARTS, ANCHOPARTS * 1.4, ANCHOPERC, ANCHOPUNTS, ANCHOPUNTS,
                               ANCHOPUNTS], rowHeights=FONTSIZE + 4)
+
+    return tabla1
+
+
+def calculaMaxMinMagn(ser: pd.Series, ser_orden: pd.Series):
+    def getValYEtq(serie, serie_orden, targ_orden):
+        numOrdenTarg = (serie_orden == targ_orden).sum()
+        etiqTarg = f"x{numOrdenTarg}" if numOrdenTarg > 1 else serie_orden[serie_orden == targ_orden].index[0]
+        valTarg = serie[serie_orden == targ_orden].iloc[0]
+        return valTarg, etiqTarg
+
+    maxVal, maxEtq = getValYEtq(ser, ser_orden, ser_orden.max())
+    minVal, minEtq = getValYEtq(ser, ser_orden, ser_orden.min())
+
+    return minVal, minEtq, maxVal, maxEtq
+
+
+def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2include: list, magnsAscending=None,
+                              infoCampos: dict = REPORTLEYENDAS):
+    catsAscending = {} if magnsAscending is None else magnsAscending
+
+    auxEtiqLeyenda = infoCampos
+    if infoCampos is None:
+        auxEtiqLeyenda = {magn: {'etiq': magn, 'leyenda': magn} for magn in set(magn2include)}
+
+    recuperaEstadsGlobales(tempData)
+
+    sigPartido = datosSig[0]
+    targetAbrevs = {
+        k: list(tempData.Calendario.abrevsEquipo(sigPartido['loc2abrev'][k]).intersection(estadGlobales.index))[0] for k
+        in LocalVisitante}
+
+    result = dict()
+
+    estadsInexistentes = set()
+    clavesEnEstads = set(sorted(estadGlobales.columns))
+
+    for claveEst in magn2include:
+
+        kEq, kMagn = claveEst
+        if kMagn not in auxEtiqLeyenda:
+            print(
+                f"tablaAnalisisEstadisticos.filasTabla: magnitud '{kMagn}' no está en descripciones.Usando {kMagn} para etiqueta")
+        etiq = auxEtiqLeyenda[kMagn]['etiq'] if kMagn in auxEtiqLeyenda else kMagn
+
+        clave2use = (kEq, kMagn, ESTADISTICOEQ)
+        if clave2use not in clavesEnEstads:
+            estadsInexistentes.add(clave2use)
+            continue
+
+        esCreciente = esEstCreciente(kMagn, catsAscending, kEq)
+        labCreciente = "D" if esCreciente else "C"
+
+        serMagn: pd.Series = estadGlobales[clave2use]
+        serMagnOrden: pd.Series = estadGlobalesOrden[clave2use]
+        magnMed = serMagn.mean()
+        magnStd = serMagn.std()
+
+        datosEqs = {k: serMagn[targetAbrevs[k]] for k in LocalVisitante}
+        datosEqsOrd = {k: int(serMagnOrden[targetAbrevs[k]]) for k in LocalVisitante}
+
+        (magnPrim, magnPrimEtq, magnUlt, magnUltEtq) = calculaMaxMinMagn(serMagn, serMagnOrden)
+
+        newRecord = comparEstadistica(nombreMagn=etiq, isAscending=labCreciente, locAbr=targetAbrevs['Local'],
+                                      locMagn=datosEqs['Local'], locRank=datosEqsOrd['Local'], maxMagn=magnPrim,
+                                      maxAbr=magnPrimEtq, ligaMed=magnMed, ligaStd=magnStd, minMagn=magnUlt,
+                                      minAbr=magnUltEtq, visAbr=targetAbrevs['Visitante'],
+                                      visMagn=datosEqs['Visitante'], visRank=datosEqsOrd['Visitante'])
+
+        result[claveEst] = newRecord
+
+    if estadsInexistentes:
+        raise ValueError(
+            f"datosAnalisisEstadisticos: los siguientes valores no existen: {estadsInexistentes}. " + f"Parametro: {magn2include}. Columnas posibles: {clavesEnEstads}")
+    return result
+
+
+def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2incl: dict | list | None = None,
+                              magnsCrecientes: list | set | None = None):
+    catsAscending = {} if magnsCrecientes is None else set(magnsCrecientes)
+
+    recuperaEstadsGlobales(tempData)
+
+    clavesEq, clavesRiv = allMagnsInEstads, allMagnsInEstads
+    if isinstance(magns2incl, list):
+        clavesEq = list(magns2incl)
+        clavesRiv = clavesEq
+    elif isinstance(magns2incl, dict):
+        clavesEq = magns2incl.get('Eq', {})
+        clavesRiv = magns2incl.get('Rival', {})
+    claves2wrk = list(product(['Eq'], clavesEq)) + list(product(['Rival'], clavesRiv))
+    if len(claves2wrk) == 0:
+        raise ValueError(f"tablaAnalisisEstadisticos: No hay valores para incluir en la tabla: parametro {magns2incl}")
+
+    datos = datosAnalisisEstadisticos(tempData, datosSig, magnsAscending=catsAscending, magn2include=claves2wrk)
+    FONTSIZE = 8
+
+    sigPartido = datosSig[0]
+    targetAbrevs = {
+        k: list(tempData.Calendario.abrevsEquipo(sigPartido['loc2abrev'][k]).intersection(estadGlobales.index))[0] for k
+        in LocalVisitante}
+
+    def filasTabla(datosAmostrar: dict, clavesEquipo: list | None = None, clavesRival: list | None = None):
+        result = list()
+
+        auxClEq = clavesEquipo
+        auxClRiv = clavesRival if clavesRival else auxClEq
+
+        listaClaves = list(product(['Eq'], auxClEq)) + list(product(['Rival'], auxClRiv))
+        for clave in listaClaves:
+            dato = datosAmostrar[clave]
+            fila = [None, Paragraph(f"<para align='center'>{dato.nombreMagn:s}</para>"),
+                    Paragraph(f"<para align='right'>{dato.locMagn:3.2f} [{dato.locRank:2.0f}]</para>"),
+                    Paragraph(f"<para align='right'>{dato.visMagn:3.2f} [{dato.visRank:2.0f}]</para>"),
+                    Paragraph(f"<para align='right'>{dato.maxMagn:3.2f} ({dato.maxAbr:3s})</para>"),
+                    Paragraph(f"<para align='right'>{dato.ligaMed:3.2f}\u00b1{dato.ligaStd:3.2f}</para>"),
+                    Paragraph(f"<para align='right'>{dato.minMagn:3.2f} ({dato.minAbr:3s})</para>"),
+                    Paragraph(f"{dato.isAscending}")]
+            result.append(fila)
+        result[0][0] = VerticalParagraph("Equipo")
+        result[len(clavesEquipo) - 1][0] = VerticalParagraph("Rival")
+        return result
+
+    ANCHOEQL = (FONTSIZE * 0.6) * 3
+    ANCHOLABEL = (FONTSIZE * 0.6) * 15
+    ANCHOEQUIPO = (FONTSIZE * 0.6) * 13
+    ANCHOMAXMIN = (FONTSIZE * 0.6) * 14.5
+    ANCHOLIGA = (FONTSIZE * 0.6) * 13
+    ANCHOCD = (FONTSIZE * 0.6) * 6
+    LISTAANCHOS = [ANCHOEQL, ANCHOLABEL, ANCHOEQUIPO, ANCHOEQUIPO, ANCHOMAXMIN, ANCHOLIGA, ANCHOMAXMIN, ANCHOCD]
+
+    filaCab = [None, Paragraph("<para align='center'><b>Estad</b></para>"),
+               Paragraph(f"<para align='center'><b>{targetAbrevs['Local']}</b></para>"),
+               Paragraph(f"<para align='center'><b>{targetAbrevs['Visitante']}</b></para>"),
+               Paragraph("<para align='center'><b>Mejor</b></para>"),
+               Paragraph("<para align='center'><b>ACB</b></para>"),
+               Paragraph("<para align='center'><b>Peor</b></para>"), None]
+
+    listaFilas = [filaCab] + filasTabla(datos, clavesEquipo=clavesEq, clavesRival=clavesRiv)
+
+    # for eqIDX in range(9):
+    #     listaFilas.append(filasClasLiga[eqIDX])
+    #     lista2.append(filasClasLiga[9+eqIDX])
+
+    tStyle = TableStyle([('BOX', (1, 1), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                         ('GRID', (1, 1), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
+                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1), ('SPAN', (0, 1), (0, len(clavesEq))),
+                         ('BOX', (1, 1), (-1, len(clavesEq)), 1.5, colors.black), ('SPAN', (0, len(clavesEq)), (0, -1)),
+                         ('BOX', (1, -len(clavesRiv)), (-1, -1), 1.5, colors.black), ])
+
+    # ANCHOMARCAPOS = 2
+    # for pos in MARCADORESCLASIF:
+    #     commH = "LINEBELOW"
+    #     incr = 0 if pos >= 0 else -1
+    #     tStyle.add(commH, (0, pos + incr), (-1, pos + incr), ANCHOMARCAPOS, colors.black)
+    #
+    # # Balance negativo
+    # posFirstNegBal = firstBalNeg(clasifLiga)
+    # if posFirstNegBal is not None:
+    #     tStyle.add("LINEABOVE", (0, posFirstNegBal), (-1, posFirstNegBal), ANCHOMARCAPOS, colors.black, "squared",
+    #                (1, 8))
+    #                #[ANCHOPOS, ANCHOEQUIPO, ANCHOPARTS, ANCHOPARTS * 1.4, ANCHOPERC, ANCHOPUNTS, ANCHOPUNTS,   ANCHOPUNTS]
+    tabla1 = Table(data=listaFilas, style=tStyle, colWidths=LISTAANCHOS, rowHeights=FONTSIZE + 3.2)
 
     return tabla1
