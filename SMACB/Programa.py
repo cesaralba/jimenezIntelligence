@@ -12,13 +12,14 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import TableStyle, Table, Paragraph, NextPageTemplate, PageBreak, Spacer
 
-from SMACB.Constants import LocalVisitante, haGanado2esp, MARCADORESCLASIF, DESCENSOS
+from SMACB.Constants import LocalVisitante, haGanado2esp, MARCADORESCLASIF, DESCENSOS, REPORTLEYENDAS
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, auxEtiqPartido, equipo2clasif, CATESTADSEQ2IGNORE, \
     CATESTADSEQASCENDING, calculaEstadsYOrdenLiga, esEstCreciente, esEstIgnorable
 from Utils.FechaHora import NEVER, Time2Str
 from Utils.Misc import onlySetElement, listize
+from Utils.ReportLab.RLverticalText import VerticalParagraph, verticalText
 
 # Variables globales
 estadGlobales: pd.DataFrame | None = None
@@ -1215,7 +1216,7 @@ def calculaMaxMinMagn(ser: pd.Series, ser_orden: pd.Series):
     return minVal, minEtq, maxVal, maxEtq
 
 
-def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magnsAscending=None, magn2ignore=None):
+def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magnsAscending=None, magn2ignore=None,infoCampos:dict=REPORTLEYENDAS):
     catsAscending = {} if magnsAscending is None else magnsAscending
     catsIgnore = {} if magn2ignore is None else magn2ignore
 
@@ -1277,26 +1278,29 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple):
         auxClEq = clavesEq if clavesEq else [x for e,x in datos.keys() if e=="Eq"]
         auxClRiv = clavesRival if clavesRival else auxClEq
         listaClaves = list(product(['Eq'],auxClEq)) + list(product(['Rival'],auxClRiv))
-        for clave in listaClaves:
+        for seq,clave in enumerate(listaClaves):
             dato = datos[clave]
             print(clave)
-            fila = [Paragraph(f"<para align='center'>{clave[0]}</para>"),
+            fila = [None,
                     Paragraph(f"<para align='center'>{clave[1]:s}</para>"),
                     Paragraph(f"<para align='right'>{dato.locMagn:3.2f} [{dato.locRank:2.0f}]</para>"),
                     Paragraph(f"<para align='right'>{dato.visMagn:3.2f} [{dato.visRank:2.0f}]</para>"),
                     Paragraph(f"<para align='right'>{dato.maxMagn:3.2f} ({dato.maxAbr:3s})</para>"),
                     Paragraph(f"<para align='right'>{dato.ligaMed:3.2f}\u00b1{dato.ligaStd:3.2f}</para>"),
                     Paragraph(f"<para align='right'>{dato.minMagn:3.2f} ({dato.minAbr:3s})</para>"),
-                    Paragraph(f"<para align='center'>{dato.isAscending}</para>")]
+                    Paragraph(f"{dato.isAscending}")]
             result.append(fila)
-
+        result[0][0] = VerticalParagraph("Equipo")
+        result[len(CLAVESEQ)-1][0] = VerticalParagraph("Rival")
+        print(len(CLAVESEQ))
         return result
 
+    ANCHOEQL= (FONTSIZE * 0.6) * 3
     ANCHOLABEL = (FONTSIZE * 0.6) * 15
     ANCHOEQUIPO = (FONTSIZE * 0.6) * 13
     ANCHOMAXMIN = (FONTSIZE * 0.6) * 14.5
     ANCHOLIGA = (FONTSIZE * 0.6) * 13
-    ANCHOCD = (FONTSIZE * 0.6) * 6.5
+    ANCHOCD = (FONTSIZE * 0.6) * 6
     LISTAANCHOS = [ANCHOCD,ANCHOLABEL, ANCHOEQUIPO, ANCHOEQUIPO, ANCHOMAXMIN, ANCHOLIGA, ANCHOMAXMIN, ANCHOCD]
 
     filaCab = [None,
@@ -1306,7 +1310,7 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple):
                Paragraph("<para align='center'><b>Mejor</b></para>"),
                Paragraph("<para align='center'><b>ACB</b></para>"),
                Paragraph("<para align='center'><b>Peor</b></para>"),
-               Paragraph("<para align='center'><b>C/D</b></para>")]
+               None] # Paragraph("<para align='center'><b>C/D</b></para>")
 
     listaFilas = [filaCab] + filasTabla(datos,clavesEq=CLAVESEQ)
 
@@ -1317,7 +1321,12 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple):
 
     tStyle = TableStyle([('BOX', (1, 1), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (1, 1), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
-                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)])
+                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1),
+                         ('SPAN',(0,1),(0,len(CLAVESEQ))),
+                         ('BOX', (1, 1), (-1, len(CLAVESEQ)), 1.5, colors.black),
+                         ('SPAN',(0,len(CLAVESEQ)),(0,-1)),
+                         ('BOX', (1,len(CLAVESEQ)+1),(-1,-1), 1.5, colors.black),
+                         ])
 
 
     # ANCHOMARCAPOS = 2
@@ -1332,7 +1341,6 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple):
     #     tStyle.add("LINEABOVE", (0, posFirstNegBal), (-1, posFirstNegBal), ANCHOMARCAPOS, colors.black, "squared",
     #                (1, 8))
     #                #[ANCHOPOS, ANCHOEQUIPO, ANCHOPARTS, ANCHOPARTS * 1.4, ANCHOPERC, ANCHOPUNTS, ANCHOPUNTS,   ANCHOPUNTS]
-    tabla1 = Table(data=listaFilas, style=tStyle,
-                   colWidths=LISTAANCHOS, rowHeights=FONTSIZE + 3.2)
+    tabla1 = Table(data=listaFilas, style=tStyle,  colWidths=LISTAANCHOS, rowHeights=FONTSIZE + 3.2)
 
     return tabla1
