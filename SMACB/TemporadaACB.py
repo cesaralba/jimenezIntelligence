@@ -38,10 +38,11 @@ COLSESTADSASCENDING = [('Info', 'prorrogas', 'mean'), ('Info', 'prorrogas', 'sum
                        ('Rival', 'OERpot', 'mean'), ('Rival', 'OERpot', 'min'), ('Rival', 'OERpot', 'median'),
                        ('Rival', 'OERpot', 'max'), ('Rival', 'OERpot', 'sum'), ]
 
-ALLCATS = {'+/-', 'A', 'A/BP', 'A/TC-C', 'BP', 'BR', 'C', 'convocados', 'eff-t2', 'eff-t3', 'EffRebD', 'EffRebO',
-           'FP-C', 'FP-F', 'haGanado', 'local', 'M', 'OER', 'OERpot', 'P', 'PNR', 'POS', 'ppTC', 'PTC/PTCPot', 'R-D',
-           'R-O', 'REB-T', 'RO/TC-F', 'Segs', 'T1%', 'T1-C', 'T1-I', 'T2%', 'T2-C', 'T2-I', 't2/tc-C', 't2/tc-I', 'T3%',
-           'T3-C', 'T3-I', 't3/tc-C', 't3/tc-I', 'TAP-C', 'TAP-F', 'TC%', 'TC-C', 'TC-I', 'utilizados', 'V'}
+ALLCATS = {'+/-', 'A', 'A/BP', 'A/TC-C', 'BP', 'BR', 'C', 'DER', 'DERpot', 'EffRebD', 'EffRebO', 'FP-C', 'FP-F', 'M',
+           'OER', 'OERpot', 'P', 'PNR', 'POS', 'POStot', 'PTC/PTCPot', 'Priv', 'Ptot', 'R-D', 'R-O', 'REB-T', 'RO/TC-F',
+           'Segs', 'T1%', 'T1-C', 'T1-I', 'T2%', 'T2-C', 'T2-I', 'T3%', 'T3-C', 'T3-I', 'TAP-C', 'TAP-F', 'TC%', 'TC-C',
+           'TC-I', 'V', 'Vict', 'convocados', 'eff-t2', 'eff-t3', 'haGanado', 'local', 'ppTC', 't2/tc-C', 't2/tc-I',
+           't3/tc-C', 't3/tc-I', 'utilizados'}
 
 CATESTADSEQ2IGNORE = {'+/-', 'C', 'convocados', 'haGanado', 'local', 'M', 'Segs', 'utilizados', 'V'}
 # 'FP-C' Faltas recibidas, 'FP-F' Faltas cometidas, 'TAP-C' Tapones recibidos, 'TAP-F' Tapones hechos
