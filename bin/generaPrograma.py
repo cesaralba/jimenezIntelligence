@@ -55,6 +55,14 @@ def preparaLibro(outfile, tempData, datosSig):
     # story.append(Spacer(width=120 * mm, height=2 * mm))
     # #story.append(tclas2)
 
+    story.append(NextPageTemplate('apaisada'))
+    story.append(PageBreak())
+    story.append(tablaLiga(tempData, equiposAmarcar=abrEqs, currJornada=currJornada))
+
+    if len(juIzda) + len(juDcha):
+        infoJugadores = paginasJugadores(tempData, abrEqs, juIzda, juDcha)
+        story.extend(infoJugadores)
+
     story.append(NextPageTemplate('normal'))
     story.append(PageBreak())
 
@@ -68,14 +76,6 @@ def preparaLibro(outfile, tempData, datosSig):
                   'EffRebO', 'A', 'A/BP', 'A/TC-C', 'BP', 'PNR', 'BR', 'TAP-F', 'TAP-C', 'FP-F', 'FP-C']}
     story.append(
         tablaAnalisisEstadisticos(tempData, datosSig, magns2incl=reqData, magnsCrecientes=CATESTADSEQASCENDING))
-
-    story.append(NextPageTemplate('apaisada'))
-    story.append(PageBreak())
-    story.append(tablaLiga(tempData, equiposAmarcar=abrEqs, currJornada=currJornada))
-
-    if len(juIzda) + len(juDcha):
-        infoJugadores = paginasJugadores(tempData, abrEqs, juIzda, juDcha)
-        story.extend(infoJugadores)
 
     doc.build(story)
 
