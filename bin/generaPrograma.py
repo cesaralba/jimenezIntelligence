@@ -7,7 +7,8 @@ from reportlab.lib.units import mm
 from reportlab.platypus import (SimpleDocTemplate, Spacer, NextPageTemplate, PageTemplate, Frame, PageBreak)
 
 from SMACB.Programa import estadsEquipoPortada, listaEquipos, paginasJugadores, reportTrayectoriaEquipos, tablaLiga, \
-    cabeceraPortada, cargaTemporada, tablaRestoJornada, tablaAnalisisEstadisticos, CATESTADSEQASCENDING
+    cabeceraPortada, cargaTemporada, tablaRestoJornada, tablaAnalisisEstadisticos
+from SMACB.Constants import CATESTADSEQASCENDING
 
 
 def preparaLibro(outfile, tempData, datosSig):

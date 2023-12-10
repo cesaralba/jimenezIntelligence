@@ -38,16 +38,6 @@ COLSESTADSASCENDING = [('Info', 'prorrogas', 'mean'), ('Info', 'prorrogas', 'sum
                        ('Rival', 'OERpot', 'mean'), ('Rival', 'OERpot', 'min'), ('Rival', 'OERpot', 'median'),
                        ('Rival', 'OERpot', 'max'), ('Rival', 'OERpot', 'sum'), ]
 
-ALLCATS = {'+/-', 'A', 'A/BP', 'A/TC-C', 'BP', 'BR', 'C', 'DER', 'DERpot', 'EffRebD', 'EffRebO', 'FP-C', 'FP-F', 'M',
-           'OER', 'OERpot', 'P', 'PNR', 'POS', 'POStot', 'PTC/PTCPot', 'Priv', 'Ptot', 'R-D', 'R-O', 'REB-T', 'RO/TC-F',
-           'Segs', 'T1%', 'T1-C', 'T1-I', 'T2%', 'T2-C', 'T2-I', 'T3%', 'T3-C', 'T3-I', 'TAP-C', 'TAP-F', 'TC%', 'TC-C',
-           'TC-I', 'V', 'Vict', 'convocados', 'eff-t2', 'eff-t3', 'haGanado', 'local', 'ppTC', 't2/tc-C', 't2/tc-I',
-           't3/tc-C', 't3/tc-I', 'utilizados'}
-
-CATESTADSEQ2IGNORE = {'+/-', 'C', 'convocados', 'haGanado', 'local', 'M', 'Segs', 'utilizados', 'V'}
-# 'FP-C' Faltas recibidas, 'FP-F' Faltas cometidas, 'TAP-C' Tapones recibidos, 'TAP-F' Tapones hechos
-CATESTADSEQASCENDING = {'DER', 'DERpot', 'BP', 'FP-F', 'TAP-C', 'PNR'}
-
 DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 0, ('Info', 'prorrogas', 'count'): 0,
                    ('Info', 'prorrogas', 'max'): 0, ('Info', 'prorrogas', 'mean'): 0,
                    ('Info', 'prorrogas', 'median'): 0, ('Info', 'prorrogas', 'min'): 0, ('Info', 'prorrogas', 'std'): 0,
