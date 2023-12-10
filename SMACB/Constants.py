@@ -48,7 +48,7 @@ ALLCATS = {'+/-', 'A', 'A/BP', 'A/TC-C', 'BP', 'BR', 'C', 'DER', 'DERpot', 'EffR
            'TC-I', 'V', 'Vict', 'convocados', 'eff-t2', 'eff-t3', 'haGanado', 'local', 'ppTC', 't2/tc-C', 't2/tc-I',
            't3/tc-C', 't3/tc-I', 'utilizados'}
 CATESTADSEQ2IGNORE = {'+/-', 'C', 'convocados', 'haGanado', 'local', 'M', 'Segs', 'utilizados', 'V'}
-CATESTADSEQASCENDING = {'DER', 'DERpot', 'BP', 'FP-F', 'TAP-C', 'PNR'}
+CATESTADSEQASCENDING = {'DER', 'DERpot', 'Prec',  'BP', 'FP-F', 'TAP-C', 'PNR'}
 
 REPORTLEYENDAS = {'+/-': {'etiq': '+/-', 'leyenda': 'Cambio en la anotación con él en el campo', 'formato': '{.2f}'},
                   'A': {'etiq': 'A', 'leyenda': 'Asistencias', 'formato': '{:.2f}'},
