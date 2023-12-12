@@ -16,7 +16,8 @@ from SMACB.Constants import LocalVisitante, haGanado2esp, MARCADORESCLASIF, DESC
     CATESTADSEQ2IGNORE, CATESTADSEQASCENDING
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
-from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, auxEtiqPartido, equipo2clasif, calculaEstadsYOrdenLiga, esEstCreciente
+from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, auxEtiqPartido, equipo2clasif, calculaEstadsYOrdenLiga, \
+    esEstCreciente
 from Utils.FechaHora import NEVER, Time2Str
 from Utils.Misc import onlySetElement, listize
 from Utils.ReportLab.RLverticalText import VerticalParagraph
@@ -777,10 +778,11 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
 
 def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
     CELLPAD = 0.15 * mm
-    FONTSIZE = 9
+    FONTSIZE = 8.5
 
     filasPrecedentes = set()
-
+    j17izda = None
+    j17dcha = None
     listaTrayectoria = datosMezclaPartJugados(tempData, abrEqs, juIzda, juDcha)
     listaFuturos = datosMezclaPartJugados(tempData, abrEqs, peIzda, peDcha)
 
@@ -805,6 +807,12 @@ def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
         datosIzda, _ = f.get('izda', ['', None])
         datosDcha, _ = f.get('dcha', ['', None])
         jornada = f['J']
+        if jornada == '17':
+            if 'izda' in f:
+                j17izda = i
+            if 'dcha' in f:
+                j17dcha = i
+
         if f.get('precedente', False):
             if i == 0:  # Es el partido que vamos a tratar, no tiene sentido incluirlo
                 continue
@@ -825,16 +833,21 @@ def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
     for fNum in filasPrecedentes:
         tStyle.add("BACKGROUND", (0, fNum), (-1, fNum), colors.lightgrey)
     for fNum, _ in enumerate(listaFuturos, start=len(listaTrayectoria)):
+        if fNum == j17izda:
+            tStyle.add("LINEBELOW", (0, fNum), (2, fNum), 0.75 * mm, colors.black, "squared", (1, 8))
+        if fNum == j17dcha:
+            tStyle.add("LINEBELOW", (-3, fNum), (-1, fNum), 0.75 * mm, colors.black, "squared", (1, 8))
+
         tStyle.add("SPAN", (0, fNum), (1, fNum))
         tStyle.add("SPAN", (-2, fNum), (-1, fNum))
 
     ANCHORESULTADO = (FONTSIZE * 0.6) * 13
-    ANCHOETPARTIDO = (FONTSIZE * 0.6) * 32
-    ANCHOJORNADA = ((FONTSIZE + 1) * 0.6) * 4
+    ANCHOETPARTIDO = (FONTSIZE * 0.6) * 35
+    ANCHOJORNADA = ((FONTSIZE + 1) * 0.6) * 5
 
     t = Table(data=filas, style=tStyle,
               colWidths=[ANCHORESULTADO, ANCHOETPARTIDO, ANCHOJORNADA, ANCHOETPARTIDO, ANCHORESULTADO],
-              rowHeights=FONTSIZE + 4)
+              rowHeights=FONTSIZE + 4.5)
 
     return t
 
