@@ -1198,7 +1198,7 @@ def datosTablaClasif(tempData: TemporadaACB, datosSig: tuple) -> list[filaTablaC
     return result
 
 
-def tablasClasifLiga(tempData: TemporadaACB, datosSig: tuple):
+def tablaClasifLiga(tempData: TemporadaACB, datosSig: tuple):
     FONTPARA = 8.5
     FONTSIZE = 8
 
@@ -1266,7 +1266,8 @@ def tablasClasifLiga(tempData: TemporadaACB, datosSig: tuple):
     listaTablas = [Table(data=listasClas[t], style=listasStyles[t], colWidths=listaAnchos, rowHeights=FONTSIZE + 4) for
                    t in range(2)]
 
-    return listaTablas
+    result = Table(data=[listaTablas])
+    return result
 
 
 def calculaMaxMinMagn(ser: pd.Series, ser_orden: pd.Series):

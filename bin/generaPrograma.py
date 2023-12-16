@@ -8,7 +8,7 @@ from reportlab.platypus import (SimpleDocTemplate, Spacer, NextPageTemplate, Pag
 
 from SMACB.Constants import CATESTADSEQASCENDING
 from SMACB.Programa import listaEquipos, paginasJugadores, reportTrayectoriaEquipos, tablaLiga, \
-    cabeceraPortada, cargaTemporada, tablaRestoJornada, tablaAnalisisEstadisticos, tablasClasifLiga
+    cabeceraPortada, cargaTemporada, tablaRestoJornada, tablaAnalisisEstadisticos, tablaClasifLiga
 
 
 def preparaLibro(outfile, tempData, datosSig):
@@ -28,39 +28,28 @@ def preparaLibro(outfile, tempData, datosSig):
                             bottomMargin=5 * mm, )
     doc.addPageTemplates([pagNormal, pagApaisada])
 
-    story = []
+    story = list()
 
     sigPartido, abrEqs, juIzda, peIzda, juDcha, peDcha, _ = datosSig
     currJornada = int(sigPartido['jornada'])
 
     story.append(cabeceraPortada(sigPartido, tempData))
-
     story.append(Spacer(width=120 * mm, height=2 * mm))
-    # story.append(estadsEquipoPortada(tempData, abrEqs))
+
+    tabClasif = tablaClasifLiga(tempData, datosSig)
+    story.append(tabClasif)
+    story.append(Spacer(width=120 * mm, height=2 * mm))
 
     trayectoria = reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha)
     if trayectoria:
-        story.append(Spacer(width=120 * mm, height=1 * mm))
         story.append(trayectoria)
+        story.append(Spacer(width=120 * mm, height=1 * mm))
 
     restoJornada = tablaRestoJornada(tempData, datosSig)
     if restoJornada:
         story.append(Spacer(width=120 * mm, height=2 * mm))
         story.append(restoJornada)
 
-    story.append(Spacer(width=120 * mm, height=2 * mm))
-    tclas1, tclas2 = tablasClasifLiga(tempData, datosSig)
-    story.append(tclas1)
-    story.append(Spacer(width=120 * mm, height=2 * mm))
-    story.append(tclas2)
-
-    # story.append(NextPageTemplate('normal'))
-    # story.append(PageBreak())
-    #
-    # tclas1 = tablasClasifLiga(tempData)  # , tclas2
-    # story.append(tclas1)
-    # story.append(Spacer(width=120 * mm, height=2 * mm))
-    # #story.append(tclas2)
 
     story.append(NextPageTemplate('apaisada'))
     story.append(PageBreak())
