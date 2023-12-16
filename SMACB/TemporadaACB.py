@@ -25,19 +25,6 @@ from .FichaJugador import FichaJugador
 from .PartidoACB import PartidoACB
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB
 
-COLSESTADSASCENDING = [('Info', 'prorrogas', 'mean'), ('Info', 'prorrogas', 'sum'), ('Eq', 'BP', 'mean'),
-                       ('Eq', 'BP', 'min'), ('Eq', 'BP', 'median'), ('Eq', 'BP', 'max'), ('Eq', 'BP', 'sum'),
-                       ('Eq', 'TAP-C', 'mean'), ('Eq', 'TAP-C', 'min'), ('Eq', 'TAP-C', 'median'),
-                       ('Eq', 'TAP-C', 'max'), ('Eq', 'TAP-C', 'sum'), ('Eq', 'FP-C', 'mean'), ('Eq', 'FP-C', 'min'),
-                       ('Eq', 'FP-C', 'median'), ('Eq', 'FP-C', 'max'), ('Eq', 'FP-C', 'sum'), ('Eq', 'PNR', 'mean'),
-                       ('Eq', 'PNR', 'min'), ('Eq', 'PNR', 'median'), ('Eq', 'PNR', 'max'), ('Eq', 'PNR', 'sum'),
-
-                       ('Rival', 'P', 'mean'), ('Rival', 'P', 'std'), ('Rival', 'P', 'min'), ('Rival', 'P', 'median'),
-                       ('Rival', 'P', 'max'), ('Rival', 'P', 'sum'), ('Rival', 'OER', 'mean'), ('Rival', 'OER', 'min'),
-                       ('Rival', 'OER', 'median'), ('Rival', 'OER', 'max'), ('Rival', 'OER', 'sum'),
-                       ('Rival', 'OERpot', 'mean'), ('Rival', 'OERpot', 'min'), ('Rival', 'OERpot', 'median'),
-                       ('Rival', 'OERpot', 'max'), ('Rival', 'OERpot', 'sum'), ]
-
 DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 0, ('Info', 'prorrogas', 'count'): 0,
                    ('Info', 'prorrogas', 'max'): 0, ('Info', 'prorrogas', 'mean'): 0,
                    ('Info', 'prorrogas', 'median'): 0, ('Info', 'prorrogas', 'min'): 0, ('Info', 'prorrogas', 'std'): 0,

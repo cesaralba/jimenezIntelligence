@@ -521,7 +521,7 @@ class PartidoACB(object):
             avanzadas['t3/tc-C'] = estads['T3-C'] / avanzadas['TC-C'] * 100.0
 
             auxEqPuntCanastas = (estads['T2-C'] * 2 + estads['T3-C'] * 3)
-            avanzadas['eff-t2'] = estads['T1-C'] * 2 / estads['P'] * 100.0
+            avanzadas['eff-t1'] = estads['T1-C'] * 1 / estads['P'] * 100.0
             avanzadas['eff-t2'] = estads['T2-C'] * 2 / estads['P'] * 100.0
             avanzadas['eff-t3'] = estads['T3-C'] * 3 / estads['P'] * 100.0
             avanzadas['ppTC'] = auxEqPuntCanastas / avanzadas['TC-I']

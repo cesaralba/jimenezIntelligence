@@ -59,6 +59,8 @@ REPORTLEYENDAS = {'+/-': {'etiq': '+/-', 'leyenda': 'Cambio en la anotación con
                   'BR': {'etiq': 'BR', 'leyenda': 'Balones robados', 'formato': '{:.2f}'},
                   'C': {'etiq': 'C', 'leyenda': 'Contraataques', 'formato': '{:.2f}'},
                   'convocados': {'etiq': 'Conv', 'leyenda': 'Jugadores en la convocatoria', 'formato': '{:.2f}'},
+                  'eff-t1': {'etiq': '% Puntos TL', 'leyenda': 'Porcentaje de puntos de tiro libre',
+                             'formato': '{:.2f}%'},
                   'eff-t2': {'etiq': '% Puntos 2', 'leyenda': 'Porcentaje de puntos por tiro de 2',
                              'formato': '{:.2f}%'},
                   'eff-t3': {'etiq': '% Puntos 3', 'leyenda': 'Porcentaje de puntos por tiro de 3',
