@@ -1387,7 +1387,7 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2inc
         result[0][0] = VerticalParagraph("Equipo")
         result[len(clavesEquipo) - 1][0] = VerticalParagraph("Rival")
         return result
-    # [14.399999999999999, 81.6, 62.4, 62.4, 69.6, 62.4, 69.6]
+
     ANCHOEQL = 14.2
     ANCHOLABEL = 85.4
     ANCHOEQUIPO = 59
@@ -1395,7 +1395,6 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2inc
     ANCHOLIGA = 64.6
 
     LISTAANCHOS = [ANCHOEQL, ANCHOLABEL, ANCHOEQUIPO, ANCHOEQUIPO, ANCHOMAXMIN, ANCHOLIGA, ANCHOMAXMIN]
-    print(LISTAANCHOS)
 
     filaCab = [None, Paragraph("<para align='center'><b>Estad</b></para>"),
                Paragraph(f"<para align='center'><b>{targetAbrevs['Local']}</b></para>"),
