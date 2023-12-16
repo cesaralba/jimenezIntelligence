@@ -1377,32 +1377,32 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2inc
         listaClaves = list(product(['Eq'], auxClEq)) + list(product(['Rival'], auxClRiv))
         for clave in listaClaves:
             dato = datosAmostrar[clave]
-            fila = [None, Paragraph(f"<para align='center'>{dato.nombreMagn:s}</para>"),
+            fila = [None, Paragraph(f"<para align='left'>[{dato.isAscending}] {dato.nombreMagn:s}</para>"),
                     Paragraph(f"<para align='right'>{dato.locMagn:3.2f} [{dato.locRank:2.0f}]</para>"),
                     Paragraph(f"<para align='right'>{dato.visMagn:3.2f} [{dato.visRank:2.0f}]</para>"),
                     Paragraph(f"<para align='right'>{dato.maxMagn:3.2f} ({dato.maxAbr:3s})</para>"),
                     Paragraph(f"<para align='right'>{dato.ligaMed:3.2f}\u00b1{dato.ligaStd:3.2f}</para>"),
-                    Paragraph(f"<para align='right'>{dato.minMagn:3.2f} ({dato.minAbr:3s})</para>"),
-                    Paragraph(f"{dato.isAscending}")]
+                    Paragraph(f"<para align='right'>{dato.minMagn:3.2f} ({dato.minAbr:3s})</para>")]
             result.append(fila)
         result[0][0] = VerticalParagraph("Equipo")
         result[len(clavesEquipo) - 1][0] = VerticalParagraph("Rival")
         return result
+    # [14.399999999999999, 81.6, 62.4, 62.4, 69.6, 62.4, 69.6]
+    ANCHOEQL = 14.2
+    ANCHOLABEL = 85.4
+    ANCHOEQUIPO = 59
+    ANCHOMAXMIN = 69.1
+    ANCHOLIGA = 64.6
 
-    ANCHOEQL = (FONTSIZE * 0.6) * 3
-    ANCHOLABEL = (FONTSIZE * 0.6) * 15
-    ANCHOEQUIPO = (FONTSIZE * 0.6) * 13
-    ANCHOMAXMIN = (FONTSIZE * 0.6) * 14.5
-    ANCHOLIGA = (FONTSIZE * 0.6) * 13
-    ANCHOCD = (FONTSIZE * 0.6) * 6
-    LISTAANCHOS = [ANCHOEQL, ANCHOLABEL, ANCHOEQUIPO, ANCHOEQUIPO, ANCHOMAXMIN, ANCHOLIGA, ANCHOMAXMIN, ANCHOCD]
+    LISTAANCHOS = [ANCHOEQL, ANCHOLABEL, ANCHOEQUIPO, ANCHOEQUIPO, ANCHOMAXMIN, ANCHOLIGA, ANCHOMAXMIN]
+    print(LISTAANCHOS)
 
     filaCab = [None, Paragraph("<para align='center'><b>Estad</b></para>"),
                Paragraph(f"<para align='center'><b>{targetAbrevs['Local']}</b></para>"),
                Paragraph(f"<para align='center'><b>{targetAbrevs['Visitante']}</b></para>"),
                Paragraph("<para align='center'><b>Mejor</b></para>"),
                Paragraph("<para align='center'><b>ACB</b></para>"),
-               Paragraph("<para align='center'><b>Peor</b></para>"), None]
+               Paragraph("<para align='center'><b>Peor</b></para>")]
 
     listaFilas = [filaCab] + filasTabla(datos, clavesEquipo=clavesEq, clavesRival=clavesRiv)
 
