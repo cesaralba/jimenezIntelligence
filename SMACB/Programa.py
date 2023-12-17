@@ -13,7 +13,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import TableStyle, Table, Paragraph, NextPageTemplate, PageBreak, Spacer
 
 from SMACB.Constants import LocalVisitante, haGanado2esp, MARCADORESCLASIF, DESCENSOS, REPORTLEYENDAS, \
-    CATESTADSEQ2IGNORE, CATESTADSEQASCENDING
+    CATESTADSEQ2IGNORE, CATESTADSEQASCENDING, DEFAULTNUMFORMAT, RANKFORMAT
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, auxEtiqPartido, equipo2clasif, calculaEstadsYOrdenLiga, \
@@ -38,8 +38,9 @@ colEq = colors.rgb2cmyk(CANTGREYEQ, CANTGREYEQ, CANTGREYEQ)
 FMTECHACORTA = "%d-%m"
 DEFTABVALUE = "-"
 filaComparEstadistica = namedtuple('filaComparEstadistica',
-                                   ['isAscending', 'locAbr', 'locMagn', 'locRank', 'maxMagn', 'maxAbr', 'ligaMed',
-                                    'ligaStd', 'minMagn', 'minAbr', 'visAbr', 'visMagn', 'visRank', 'nombreMagn'])
+                                   ['magn', 'isAscending', 'locAbr', 'locMagn', 'locRank', 'maxMagn', 'maxAbr',
+                                    'ligaMed', 'ligaStd', 'minMagn', 'minAbr', 'visAbr', 'visMagn', 'visRank',
+                                    'nombreMagn', 'formatoMagn'])
 
 filaTablaClasif = namedtuple('filaTablaClasif',
                              ['posic', 'nombre', 'jugs', 'victs', 'derrs', 'ratio', 'puntF', 'puntC', 'diffP',
@@ -1287,7 +1288,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2incl
                               infoCampos: dict = REPORTLEYENDAS):
     catsAscending = {} if magnsAscending is None else magnsAscending
 
-    auxEtiqLeyenda = infoCampos
+    auxEtiqLeyenda = infoCampos if infoCampos else dict()
     if infoCampos is None:
         auxEtiqLeyenda = {magn: {'etiq': magn, 'leyenda': magn} for magn in set(magn2include)}
 
@@ -1306,10 +1307,14 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2incl
     for claveEst in magn2include:
 
         kEq, kMagn = claveEst
+
         if kMagn not in auxEtiqLeyenda:
             print(
                 f"tablaAnalisisEstadisticos.filasTabla: magnitud '{kMagn}' no está en descripciones.Usando {kMagn} para etiqueta")
-        etiq = auxEtiqLeyenda[kMagn]['etiq'] if kMagn in auxEtiqLeyenda else kMagn
+        descrMagn = auxEtiqLeyenda.get(kMagn, dict())
+
+        etiq = descrMagn.get('etiq', kMagn)
+        formatoMagn = descrMagn.get('formato', DEFAULTNUMFORMAT)
 
         clave2use = (kEq, kMagn, ESTADISTICOEQ)
         if clave2use not in clavesEnEstads:
@@ -1329,11 +1334,12 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2incl
 
         (magnPrim, magnPrimEtq, magnUlt, magnUltEtq) = calculaMaxMinMagn(serMagn, serMagnOrden)
 
-        newRecord = filaComparEstadistica(nombreMagn=etiq, isAscending=labCreciente, locAbr=targetAbrevs['Local'],
-                                          locMagn=datosEqs['Local'], locRank=datosEqsOrd['Local'], maxMagn=magnPrim,
-                                          maxAbr=magnPrimEtq, ligaMed=magnMed, ligaStd=magnStd, minMagn=magnUlt,
-                                          minAbr=magnUltEtq, visAbr=targetAbrevs['Visitante'],
-                                          visMagn=datosEqs['Visitante'], visRank=datosEqsOrd['Visitante'])
+        newRecord = filaComparEstadistica(magn=kMagn, nombreMagn=etiq, isAscending=labCreciente,
+                                          locAbr=targetAbrevs['Local'], locMagn=datosEqs['Local'],
+                                          locRank=datosEqsOrd['Local'], maxMagn=magnPrim, maxAbr=magnPrimEtq,
+                                          ligaMed=magnMed, ligaStd=magnStd, minMagn=magnUlt, minAbr=magnUltEtq,
+                                          visAbr=targetAbrevs['Visitante'], visMagn=datosEqs['Visitante'],
+                                          visRank=datosEqsOrd['Visitante'], formatoMagn=formatoMagn)
 
         result[claveEst] = newRecord
 
@@ -1377,12 +1383,22 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2inc
         listaClaves = list(product(['Eq'], auxClEq)) + list(product(['Rival'], auxClRiv))
         for clave in listaClaves:
             dato = datosAmostrar[clave]
+            valLocMagn = dato.formatoMagn.format(dato.locMagn)
+            valLocRank = RANKFORMAT.format(dato.locRank)
+            valVisMagn = dato.formatoMagn.format(dato.visMagn)
+            valVisRank = RANKFORMAT.format(dato.visRank)
+
+            valMinMagn = dato.formatoMagn.format(dato.minMagn)
+            valMaxMagn = dato.formatoMagn.format(dato.maxMagn)
+            valACBmed = dato.formatoMagn.format(dato.ligaMed)
+            valACBstd = dato.formatoMagn.format(dato.ligaStd)
+
             fila = [None, Paragraph(f"<para align='left'>[{dato.isAscending}] {dato.nombreMagn:s}</para>"),
-                    Paragraph(f"<para align='right'>{dato.locMagn:3.2f} [{dato.locRank:2.0f}]</para>"),
-                    Paragraph(f"<para align='right'>{dato.visMagn:3.2f} [{dato.visRank:2.0f}]</para>"),
-                    Paragraph(f"<para align='right'>{dato.maxMagn:3.2f} ({dato.maxAbr:3s})</para>"),
-                    Paragraph(f"<para align='right'>{dato.ligaMed:3.2f}\u00b1{dato.ligaStd:3.2f}</para>"),
-                    Paragraph(f"<para align='right'>{dato.minMagn:3.2f} ({dato.minAbr:3s})</para>")]
+                    Paragraph(f"<para align='right'>{valLocMagn} [{valLocRank}]</para>"),
+                    Paragraph(f"<para align='right'>{valVisMagn} [{valVisRank}]</para>"),
+                    Paragraph(f"<para align='right'>{valMaxMagn} ({dato.maxAbr:3s})</para>"),
+                    Paragraph(f"<para align='right'>{valACBmed}\u00b1{valACBstd}</para>"),
+                    Paragraph(f"<para align='right'>{valMinMagn} ({dato.minAbr:3s})</para>")]
             result.append(fila)
         result[0][0] = VerticalParagraph("Equipo")
         result[len(clavesEquipo) - 1][0] = VerticalParagraph("Rival")
@@ -1390,9 +1406,9 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2inc
 
     ANCHOEQL = 14.2
     ANCHOLABEL = 85.4
-    ANCHOEQUIPO = 59
-    ANCHOMAXMIN = 69.1
-    ANCHOLIGA = 64.6
+    ANCHOEQUIPO = 65.5
+    ANCHOMAXMIN = 78.9
+    ANCHOLIGA = 80.2
 
     LISTAANCHOS = [ANCHOEQL, ANCHOLABEL, ANCHOEQUIPO, ANCHOEQUIPO, ANCHOMAXMIN, ANCHOLIGA, ANCHOMAXMIN]
 
