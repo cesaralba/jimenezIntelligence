@@ -1424,8 +1424,11 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2inc
     tStyle = TableStyle([('BOX', (1, 1), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (1, 1), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
                          ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1), ('SPAN', (0, 1), (0, len(clavesEq))),
-                         ('BOX', (1, 1), (-1, len(clavesEq)), 1.5, colors.black), ('SPAN', (0, len(clavesEq)), (0, -1)),
-                         ('BOX', (1, -len(clavesRiv)), (-1, -1), 1.5, colors.black), ])
+                         ('BOX', (1, 1), (-1, len(clavesEq)), 2, colors.black), ('SPAN', (0, len(clavesEq)), (0, -1)),
+                         ('BOX', (1, -len(clavesRiv)), (-1, -1), 2, colors.black),
+                         #                         ("LINEABOVE", (1, -len(clavesRiv)), (-1, -len(clavesRiv)), 2, colors.black),
+                         # ('BOX', (0, 1), (-1,len(clavesEq)), 3, colors.green)
+                         ]) # ("BOX", (0, 1), (0, -1), 2, colors.black),
 
     tabla1 = Table(data=listaFilas, style=tStyle, colWidths=LISTAANCHOS, rowHeights=FONTSIZE + 3.2)
 
