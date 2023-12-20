@@ -38,13 +38,14 @@ colEq = colors.rgb2cmyk(CANTGREYEQ, CANTGREYEQ, CANTGREYEQ)
 FMTECHACORTA = "%d-%m"
 DEFTABVALUE = "-"
 filaComparEstadistica = namedtuple('filaComparEstadistica',
-                                   ['magn', 'isAscending', 'locAbr', 'locMagn', 'locRank', 'maxMagn', 'maxAbr',
-                                    'ligaMed', 'ligaStd', 'minMagn', 'minAbr', 'visAbr', 'visMagn', 'visRank',
-                                    'nombreMagn', 'formatoMagn'])
+                                   ['magn', 'isAscending', 'locAbr', 'locMagn', 'locRank', 'locHigh', 'maxMagn',
+                                    'maxAbr', 'maxHigh', 'ligaMed', 'ligaStd', 'minMagn', 'minAbr', 'minHigh', 'visAbr',
+                                    'visMagn', 'visRank', 'visHigh', 'nombreMagn', 'formatoMagn'])
 
 filaTablaClasif = namedtuple('filaTablaClasif',
                              ['posic', 'nombre', 'jugs', 'victs', 'derrs', 'ratio', 'puntF', 'puntC', 'diffP',
                               'resalta'])
+tuplaMaxMinMagn = namedtuple('tuplaMaxMinMagn', ['minVal', 'minEtq', 'minAbrevs', 'maxVal', 'maxEtq', 'maxAbrevs'])
 
 ESTAD_MEDIA = 0
 ESTAD_MEDIANA = 1
@@ -303,6 +304,10 @@ def auxKeyDorsal(f, col):
     result = -1 if dato == "00" else int(dato)
 
     return result
+
+
+def auxBold(data):
+    return f"<b>{data}</b>"
 
 
 def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estiloTablaBaseOps, formatos=None,
@@ -1273,24 +1278,25 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: tuple):
 
 def calculaMaxMinMagn(ser: pd.Series, ser_orden: pd.Series):
     def getValYEtq(serie, serie_orden, targ_orden):
-        numOrdenTarg = (serie_orden == targ_orden).sum()
+        auxSerTargOrden: pd.Series = (serie_orden == targ_orden)
+        numOrdenTarg = auxSerTargOrden.sum()
+        abrevs = set(auxSerTargOrden[auxSerTargOrden].index)
         etiqTarg = f"x{numOrdenTarg}" if numOrdenTarg > 1 else serie_orden[serie_orden == targ_orden].index[0]
         valTarg = serie[serie_orden == targ_orden].iloc[0]
-        return valTarg, etiqTarg
+        return valTarg, etiqTarg, abrevs
 
-    maxVal, maxEtq = getValYEtq(ser, ser_orden, ser_orden.max())
-    minVal, minEtq = getValYEtq(ser, ser_orden, ser_orden.min())
+    maxVal, maxEtq, maxAbrevs = getValYEtq(ser, ser_orden, ser_orden.min())
+    minVal, minEtq, minAbrevs = getValYEtq(ser, ser_orden,
+                                           ser_orden.max())  # Mejor cuanto el orden sea menor 1 mejor > 18 peor
 
-    return minVal, minEtq, maxVal, maxEtq
+    return tuplaMaxMinMagn(minVal=minVal, minEtq=minEtq, minAbrevs=minAbrevs, maxVal=maxVal, maxEtq=maxEtq,
+                           maxAbrevs=maxAbrevs)
 
 
 def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2include: list, magnsAscending=None,
                               infoCampos: dict = REPORTLEYENDAS):
-    catsAscending = {} if magnsAscending is None else magnsAscending
-
+    catsAscending = magnsAscending if magnsAscending else set()
     auxEtiqLeyenda = infoCampos if infoCampos else dict()
-    if infoCampos is None:
-        auxEtiqLeyenda = {magn: {'etiq': magn, 'leyenda': magn} for magn in set(magn2include)}
 
     recuperaEstadsGlobales(tempData)
 
@@ -1332,14 +1338,20 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2incl
         datosEqs = {k: serMagn[targetAbrevs[k]] for k in LocalVisitante}
         datosEqsOrd = {k: int(serMagnOrden[targetAbrevs[k]]) for k in LocalVisitante}
 
-        (magnPrim, magnPrimEtq, magnUlt, magnUltEtq) = calculaMaxMinMagn(serMagn, serMagnOrden)
+        infoMaxMinMagn = calculaMaxMinMagn(serMagn, serMagnOrden)
+
+        resaltaLocal = datosEqsOrd['Local'] < datosEqsOrd['Visitante']
+        resaltaMax = bool(infoMaxMinMagn.maxAbrevs.intersection(targetAbrevs.values()))
+        resaltaMin = bool(infoMaxMinMagn.minAbrevs.intersection(targetAbrevs.values()))
 
         newRecord = filaComparEstadistica(magn=kMagn, nombreMagn=etiq, isAscending=labCreciente,
-                                          locAbr=targetAbrevs['Local'], locMagn=datosEqs['Local'],
-                                          locRank=datosEqsOrd['Local'], maxMagn=magnPrim, maxAbr=magnPrimEtq,
-                                          ligaMed=magnMed, ligaStd=magnStd, minMagn=magnUlt, minAbr=magnUltEtq,
-                                          visAbr=targetAbrevs['Visitante'], visMagn=datosEqs['Visitante'],
-                                          visRank=datosEqsOrd['Visitante'], formatoMagn=formatoMagn)
+                                          locAbr=targetAbrevs['Local'], locMagn=datosEqs['Local'], locHigh=resaltaLocal,
+                                          locRank=datosEqsOrd['Local'], maxMagn=infoMaxMinMagn.maxVal,
+                                          maxAbr=infoMaxMinMagn.maxEtq, maxHigh=resaltaMax, ligaMed=magnMed,
+                                          ligaStd=magnStd, minMagn=infoMaxMinMagn.minVal, minAbr=infoMaxMinMagn.minEtq,
+                                          minHigh=resaltaMin, visAbr=targetAbrevs['Visitante'],
+                                          visMagn=datosEqs['Visitante'], visRank=datosEqsOrd['Visitante'],
+                                          visHigh=not (resaltaLocal), formatoMagn=formatoMagn)
 
         result[claveEst] = newRecord
 
@@ -1383,15 +1395,21 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2inc
         listaClaves = list(product(['Eq'], auxClEq)) + list(product(['Rival'], auxClRiv))
         for clave in listaClaves:
             dato = datosAmostrar[clave]
-            valLocMagn = dato.formatoMagn.format(dato.locMagn)
+
+            auxLocMagn = dato.formatoMagn.format(dato.locMagn)
             valLocRank = RANKFORMAT.format(dato.locRank)
-            valVisMagn = dato.formatoMagn.format(dato.visMagn)
+            auxVisMagn = dato.formatoMagn.format(dato.visMagn)
             valVisRank = RANKFORMAT.format(dato.visRank)
 
-            valMinMagn = dato.formatoMagn.format(dato.minMagn)
-            valMaxMagn = dato.formatoMagn.format(dato.maxMagn)
+            valLocMagn = auxBold(auxLocMagn) if dato.locHigh else auxLocMagn
+            valVisMagn = auxBold(auxVisMagn) if dato.visHigh else auxVisMagn
+
+            auxMinMagn = dato.formatoMagn.format(dato.minMagn)
+            auxMaxMagn = dato.formatoMagn.format(dato.maxMagn)
             valACBmed = dato.formatoMagn.format(dato.ligaMed)
             valACBstd = dato.formatoMagn.format(dato.ligaStd)
+            valMinMagn = auxBold(auxMinMagn) if dato.minHigh else auxMinMagn
+            valMaxMagn = auxBold(auxMaxMagn) if dato.maxHigh else auxMaxMagn
 
             fila = [None, Paragraph(f"<para align='left'>[{dato.isAscending}] {dato.nombreMagn:s}</para>"),
                     Paragraph(f"<para align='right'>{valLocMagn} [{valLocRank}]</para>"),
@@ -1425,10 +1443,7 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2inc
                          ('GRID', (1, 1), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
                          ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1), ('SPAN', (0, 1), (0, len(clavesEq))),
                          ('BOX', (1, 1), (-1, len(clavesEq)), 2, colors.black), ('SPAN', (0, len(clavesEq)), (0, -1)),
-                         ('BOX', (1, -len(clavesRiv)), (-1, -1), 2, colors.black),
-                         #                         ("LINEABOVE", (1, -len(clavesRiv)), (-1, -len(clavesRiv)), 2, colors.black),
-                         # ('BOX', (0, 1), (-1,len(clavesEq)), 3, colors.green)
-                         ]) # ("BOX", (0, 1), (0, -1), 2, colors.black),
+                         ('BOX', (1, -len(clavesRiv)), (-1, -1), 2, colors.black), ])
 
     tabla1 = Table(data=listaFilas, style=tStyle, colWidths=LISTAANCHOS, rowHeights=FONTSIZE + 3.2)
 
