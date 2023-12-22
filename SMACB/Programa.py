@@ -1328,7 +1328,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2incl
             continue
 
         esCreciente = esEstCreciente(kMagn, catsAscending, kEq)
-        labCreciente = "D" if esCreciente else "C"
+        labCreciente = "C" if esCreciente else "D"
 
         serMagn: pd.Series = estadGlobales[clave2use]
         serMagnOrden: pd.Series = estadGlobalesOrden[clave2use]

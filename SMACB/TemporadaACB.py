@@ -604,12 +604,12 @@ def esEstCreciente(estName: str, catsCrecientes: set | dict | list | None = None
     """
     Devuelve si una columna de estadísticas es ascendente (mejor cuanto menos) o no
     :param estName: Nombre del estadístico a comprobar (de una lista)
-    :param catsCrecientes: lista de estadísticos que son ascendentes
+    :param catsCrecientes: lista de estadísticos que son ascendentes (mejor cuanto menos: puntos encajados o balones perdidos)
     :param meother: si se trata de mi equipo o del rival (invierte el orden)
     :return: bool
     """
     auxCreciente = {} if catsCrecientes is None else catsCrecientes
-    return (meother == "Eq") != (estName in auxCreciente)
+    return (meother == "Eq") == (estName in auxCreciente)
 
 
 def esEstIgnorable(col: tuple, estadObj: str = 'mean', cats2ignore: Iterable | None = None):
@@ -647,7 +647,7 @@ def calculaEstadsYOrdenLiga(dataTemp: TemporadaACB, fecha: Any | None = None, es
     for asctype in targetCols:
         interestingCols = targetCols[asctype]
         auxDF = dfEstads[interestingCols]
-        auxDFranks = auxDF.rank(axis=0, method=paramMethod, na_option=paramNAoption[asctype], ascending=not asctype)
+        auxDFranks = auxDF.rank(axis=0, method=paramMethod, na_option=paramNAoption[asctype], ascending= asctype)
         rankDF[asctype] = auxDFranks
 
     result = dfEstads[colList]
