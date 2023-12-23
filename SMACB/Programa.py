@@ -16,7 +16,7 @@ from SMACB.Constants import LocalVisitante, haGanado2esp, MARCADORESCLASIF, DESC
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, auxEtiqPartido, equipo2clasif, CATESTADSEQ2IGNORE, \
-    CATESTADSEQASCENDING, calculaEstadsYOrdenLiga, esEstCreciente
+    CATESTADSEQASCENDING, calculaEstadsYOrdenLiga, esEstCreciente, infoSigPartido
 from Utils.FechaHora import NEVER, Time2Str
 from Utils.Misc import onlySetElement, listize
 from Utils.ReportLab.RLverticalText import VerticalParagraph
@@ -775,14 +775,14 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
     return strRival, strResultado
 
 
-def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
+def reportTrayectoriaEquipos(tempData:TemporadaACB, sigPartido:infoSigPartido ):
     CELLPAD = 0.15 * mm
     FONTSIZE = 9
-
+#abrEqs, juIzda, juDcha, peIzda, peDcha
     filasPrecedentes = set()
 
-    listaTrayectoria = datosMezclaPartJugados(tempData, abrEqs, juIzda, juDcha)
-    listaFuturos = datosMezclaPartJugados(tempData, abrEqs, peIzda, peDcha)
+    listaTrayectoria = datosMezclaPartJugados(tempData, sigPartido.abrevLV, sigPartido.jugLocal, sigPartido.jugVis)
+    listaFuturos = datosMezclaPartJugados(tempData, sigPartido.abrevLV, sigPartido.pendLocal, sigPartido.pendVis)
 
     filas = []
 
@@ -966,7 +966,8 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None, currJornada: int = No
     return t
 
 
-def cabeceraPortada(partido, tempData):
+def cabeceraPortada(datosSig:infoSigPartido, tempData:TemporadaACB):
+    partido = datosSig.sigPartido
     datosLocal = partido['equipos']['Local']
     datosVisit = partido['equipos']['Visitante']
     compo = partido['cod_competicion']
