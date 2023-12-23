@@ -657,11 +657,14 @@ def listaEquipos(tempData, beQuiet=False):
     sys.exit(0)
 
 
-def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
-    print(type(partsIzda[0]))
-    return None
-    partsIzdaAux = copy(partsIzda)
-    partsDchaAux = copy(partsDcha)
+def datosMezclaPartJugados(tempData:TemporadaACB, abrevs, partsIzda, partsDcha):
+    if isinstance(partsIzda[0],str):
+        partsIzdaAux = [ tempData.Partidos[u] for u in partsIzda]
+        partsDchaAux = [ tempData.Partidos[u] for u in partsDcha]
+    else:
+        partsIzdaAux = copy(partsIzda)
+        partsDchaAux = copy(partsDcha)
+
     lineas = list()
 
     abrIzda, abrDcha = abrevs
