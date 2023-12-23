@@ -299,7 +299,7 @@ class TemporadaACB(object):
         result = pd.concat([auxIdentsDF, auxEstadisticosDF], axis=1)
         return result
 
-    def sigPartido(self, abrEq:str) -> infoSigPartido:
+    def sigPartido(self, abrEq: str) -> infoSigPartido:
         """
         Devuelve el siguiente partido de un equipo y los anteriores y siguientes del equipo y su próximo rival
         :param abrEq: abreviatura del equipo objetivo

@@ -655,10 +655,10 @@ def listaEquipos(tempData, beQuiet=False):
     sys.exit(0)
 
 
-def datosMezclaPartJugados(tempData:TemporadaACB, abrevs, partsIzda, partsDcha):
-    if isinstance(partsIzda[0],str):
-        partsIzdaAux = [ tempData.Partidos[u] for u in partsIzda]
-        partsDchaAux = [ tempData.Partidos[u] for u in partsDcha]
+def datosMezclaPartJugados(tempData: TemporadaACB, abrevs, partsIzda, partsDcha):
+    if isinstance(partsIzda[0], str):
+        partsIzdaAux = [tempData.Partidos[u] for u in partsIzda]
+        partsDchaAux = [tempData.Partidos[u] for u in partsDcha]
     else:
         partsIzdaAux = copy(partsIzda)
         partsDchaAux = copy(partsDcha)
@@ -778,10 +778,10 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
     return strRival, strResultado
 
 
-def reportTrayectoriaEquipos(tempData:TemporadaACB, sigPartido:infoSigPartido ):
+def reportTrayectoriaEquipos(tempData: TemporadaACB, sigPartido: infoSigPartido):
     CELLPAD = 0.15 * mm
     FONTSIZE = 9
-#abrEqs, juLocal, juVisit, peIzda, peDcha
+
     filasPrecedentes = set()
 
     listaTrayectoria = datosMezclaPartJugados(tempData, sigPartido.abrevLV, sigPartido.jugLocal, sigPartido.jugVis)
@@ -969,7 +969,7 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None, currJornada: int = No
     return t
 
 
-def cabeceraPortada(datosSig:infoSigPartido, tempData:TemporadaACB):
+def cabeceraPortada(datosSig: infoSigPartido, tempData: TemporadaACB):
     partido = datosSig.sigPartido
     datosLocal = partido['equipos']['Local']
     datosVisit = partido['equipos']['Visitante']
