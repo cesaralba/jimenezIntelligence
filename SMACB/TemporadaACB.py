@@ -32,6 +32,41 @@ DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 
                    ('Rival', 'utilizados', 'sum'): 0, }
 
 
+def auxJorFech2periodo(dfTemp):
+    periodoAct = 0
+    jornada = dict()
+    claveMin = dict()
+    claveMax = dict()
+    curVal = None
+    jf2periodo = defaultdict(lambda: defaultdict(int))
+
+    dfPairs = dfTemp.apply(lambda r: (r['fechaPartido'].date(), r['jornada']), axis=1).unique()
+    for p in sorted(list(dfPairs)):
+        if curVal is None or curVal[1] != p[1]:
+            if curVal:
+                periodoAct += 1
+
+            curVal = p
+            jornada[periodoAct] = p[1]
+            claveMin[periodoAct] = p[0]
+            claveMax[periodoAct] = p[0]
+
+        else:
+            claveMax[periodoAct] = p[0]
+        jf2periodo[p[1]][p[0]] = periodoAct
+
+    p2k = {p: (("%s" % claveMin[p]) + (("\na %s" % claveMax[p]) if (claveMin[p] != claveMax[p]) else "") + (
+            "\n(J:%2i)" % jornada[p])) for p in jornada}
+
+    result = dict()
+    for j in jf2periodo:
+        result[j] = dict()
+        for d in jf2periodo[j]:
+            result[j][d] = p2k[jf2periodo[j][d]]
+
+    return result
+
+
 class TemporadaACB(object):
     '''
     Aglutina calendario y lista de partidos
@@ -198,47 +233,13 @@ class TemporadaACB(object):
 
     def extraeDataframeJugadores(self, listaURLPartidos=None):
 
-        def jorFech2periodo(dfTemp):
-            periodoAct = 0
-            jornada = dict()
-            claveMin = dict()
-            claveMax = dict()
-            curVal = None
-            jf2periodo = defaultdict(lambda: defaultdict(int))
-
-            dfPairs = dfTemp.apply(lambda r: (r['fechaPartido'].date(), r['jornada']), axis=1).unique()
-            for p in sorted(list(dfPairs)):
-                if curVal is None or curVal[1] != p[1]:
-                    if curVal:
-                        periodoAct += 1
-
-                    curVal = p
-                    jornada[periodoAct] = p[1]
-                    claveMin[periodoAct] = p[0]
-                    claveMax[periodoAct] = p[0]
-
-                else:
-                    claveMax[periodoAct] = p[0]
-                jf2periodo[p[1]][p[0]] = periodoAct
-
-            p2k = {p: (("%s" % claveMin[p]) + (("\na %s" % claveMax[p]) if (claveMin[p] != claveMax[p]) else "") + (
-                    "\n(J:%2i)" % jornada[p])) for p in jornada}
-
-            result = dict()
-            for j in jf2periodo:
-                result[j] = dict()
-                for d in jf2periodo[j]:
-                    result[j][d] = p2k[jf2periodo[j][d]]
-
-            return result
-
         listaURLs = listaURLPartidos or self.Partidos.keys()
 
         dfPartidos = [self.Partidos[pURL].jugadoresAdataframe() for pURL in listaURLs]
 
         dfResult = pd.concat(dfPartidos, axis=0, ignore_index=True, sort=True)
 
-        periodos = jorFech2periodo(dfResult)
+        periodos = auxJorFech2periodo(dfResult)
 
         dfResult['periodo'] = dfResult.apply(lambda r: periodos[r['jornada']][r['fechaPartido'].date()], axis=1)
 
