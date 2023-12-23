@@ -658,6 +658,8 @@ def listaEquipos(tempData, beQuiet=False):
 
 
 def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
+    print(type(partsIzda[0]))
+    return None
     partsIzdaAux = copy(partsIzda)
     partsDchaAux = copy(partsDcha)
     lineas = list()
