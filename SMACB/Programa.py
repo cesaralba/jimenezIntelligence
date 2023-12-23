@@ -983,7 +983,7 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None, currJornada: int = No
         tStyle.add("LINEBELOW", (0, firstNegBal), (firstNegBal, firstNegBal), ANCHOMARCAPOS, colors.black, "squared",
                    (1, 8))
 
-    # Marca la clase
+    # Marca los partidos del tipo (jugados o pendientes) que tenga menos
     claveJuPe = 'ju' if len(coordsJuPe['ju']) <= len(coordsJuPe['pe']) else 'pe'
     CANTGREYJUPE = .90
     colP = colors.rgb2cmyk(CANTGREYJUPE, CANTGREYJUPE, CANTGREYJUPE)
