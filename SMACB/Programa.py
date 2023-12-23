@@ -744,8 +744,8 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
     result = []
 
     if len(juIzda):
-        datosIzda = datosJugadores(tempData, abrEqs[0], juIzda)
-        tablasJugadIzda = tablasJugadoresEquipo(datosIzda)
+        datosDcha = datosJugadores(tempData, abrEqs[0], juIzda)
+        tablasJugadIzda = tablasJugadoresEquipo(datosDcha)
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
@@ -756,13 +756,13 @@ def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
             result.append(NextPageTemplate('apaisada'))
 
     if len(juDcha):
-        datosIzda = datosJugadores(tempData, abrEqs[1], juDcha)
-        tablasJugadIzda = tablasJugadoresEquipo(datosIzda)
+        datosDcha = datosJugadores(tempData, abrEqs[1], juDcha)
+        tablasJugadDcha = tablasJugadoresEquipo(datosDcha)
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
 
-        for (infoTabla, t) in tablasJugadIzda:
+        for (infoTabla, t) in tablasJugadDcha:
             result.append(Spacer(100 * mm, 2 * mm))
             result.append(NextPageTemplate('apaisada'))
             result.append(t)
@@ -1285,9 +1285,9 @@ def calculaMaxMinMagn(ser: pd.Series, ser_orden: pd.Series):
         valTarg = serie[serie_orden == targ_orden].iloc[0]
         return valTarg, etiqTarg, abrevs
 
+    # Mejor cuanto el orden sea menor: 1 mejor > 18 peor
     maxVal, maxEtq, maxAbrevs = getValYEtq(ser, ser_orden, ser_orden.min())
-    minVal, minEtq, minAbrevs = getValYEtq(ser, ser_orden,
-                                           ser_orden.max())  # Mejor cuanto el orden sea menor 1 mejor > 18 peor
+    minVal, minEtq, minAbrevs = getValYEtq(ser, ser_orden, ser_orden.max())
 
     return tuplaMaxMinMagn(minVal=minVal, minEtq=minEtq, minAbrevs=minAbrevs, maxVal=maxVal, maxEtq=maxEtq,
                            maxAbrevs=maxAbrevs)
