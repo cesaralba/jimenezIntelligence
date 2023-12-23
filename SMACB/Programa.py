@@ -713,29 +713,29 @@ def datosMezclaPartJugados(tempData:TemporadaACB, abrevs, partsIzda, partsDcha):
     return lineas
 
 
-def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
+def paginasJugadores(tempData, abrEqs, juLocal, juVisit):
     result = []
 
-    if len(juIzda):
-        datosIzda = datosJugadores(tempData, abrEqs[0], juIzda)
-        tablasJugadIzda = tablasJugadoresEquipo(datosIzda)
+    if len(juLocal):
+        datosLocal = datosJugadores(tempData, abrEqs[0], juLocal)
+        tablasJugadLocal = tablasJugadoresEquipo(datosLocal)
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
 
-        for (infoTabla, t) in tablasJugadIzda:
+        for (infoTabla, t) in tablasJugadLocal:
             result.append(Spacer(100 * mm, 2 * mm))
             result.append(t)
             result.append(NextPageTemplate('apaisada'))
 
-    if len(juDcha):
-        datosIzda = datosJugadores(tempData, abrEqs[1], juDcha)
-        tablasJugadIzda = tablasJugadoresEquipo(datosIzda)
+    if len(juVisit):
+        datosVisit = datosJugadores(tempData, abrEqs[1], juVisit)
+        tablasJugadVisit = tablasJugadoresEquipo(datosVisit)
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
 
-        for (infoTabla, t) in tablasJugadIzda:
+        for (infoTabla, t) in tablasJugadVisit:
             result.append(Spacer(100 * mm, 2 * mm))
             result.append(NextPageTemplate('apaisada'))
             result.append(t)
@@ -781,7 +781,7 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
 def reportTrayectoriaEquipos(tempData:TemporadaACB, sigPartido:infoSigPartido ):
     CELLPAD = 0.15 * mm
     FONTSIZE = 9
-#abrEqs, juIzda, juDcha, peIzda, peDcha
+#abrEqs, juLocal, juVisit, peIzda, peDcha
     filasPrecedentes = set()
 
     listaTrayectoria = datosMezclaPartJugados(tempData, sigPartido.abrevLV, sigPartido.jugLocal, sigPartido.jugVis)
