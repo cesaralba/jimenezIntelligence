@@ -4,8 +4,9 @@ Created on Jan 4, 2018
 @author: calba
 """
 
+from _operator import itemgetter
 from argparse import Namespace
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from copy import copy
 from pickle import dump, load
 from sys import exc_info, setrecursionlimit
@@ -56,6 +57,9 @@ DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 
                    ('Info', 'prorrogas', 'median'): 0, ('Info', 'prorrogas', 'min'): 0, ('Info', 'prorrogas', 'std'): 0,
                    ('Info', 'prorrogas', 'sum'): 0, ('Rival', 'convocados', 'sum'): 0,
                    ('Rival', 'utilizados', 'sum'): 0, }
+
+infoSigPartido = namedtuple('infoSigPartido',
+                            ['sigPartido', 'abrevLV', 'jugLocal', 'pendLocal', 'jugVis', 'pendVis', 'eqIsLocal'])
 
 
 class TemporadaACB(object):
@@ -301,11 +305,11 @@ class TemporadaACB(object):
         result = pd.concat([auxIdentsDF, auxEstadisticosDF], axis=1)
         return result
 
-    def sigPartido(self, abrEq) -> (dict, tuple, list, list, list, list, bool):
+    def sigPartido(self, abrEq: str) -> infoSigPartido:
         """
         Devuelve el siguiente partido de un equipo y los anteriores y siguientes del equipo y su próximo rival
         :param abrEq: abreviatura del equipo objetivo
-        :return: tupla con los siguientes valores
+        :return: tupla infoSigPartido
         * Información del siguiente partido
         * Tupla con las abrevs del equipo local y visit del siguiente
         * Partidos pasados del eq local
@@ -315,24 +319,26 @@ class TemporadaACB(object):
         * Si la abrev objetivo es local (True) o visit (False)
         """
         juCal, peCal = self.Calendario.partidosEquipo(abrEq)
-        peOrd = sorted([p for p in peCal], key=lambda x: x['fechaPartido'])
+        peOrd = sorted([p for p in peCal], key=itemgetter('fechaPartido'))
 
-        juOrdTem = sorted([self.Partidos[p['url']] for p in juCal], key=lambda x: x.fechaPartido)
+        juOrdTem = sorted([p['url'] for p in juCal], key=lambda u: self.Partidos[u].fechaPartido)
 
         sigPart = peOrd.pop(0)
         abrevsEq = self.Calendario.abrevsEquipo(abrEq)
         abrRival = sigPart['participantes'].difference(abrevsEq).pop()
         juRivCal, peRivCal = self.Calendario.partidosEquipo(abrRival)
 
-        peRivOrd = sorted([p for p in peRivCal if p['jornada'] != sigPart['jornada']], key=lambda x: x['fechaPartido'])
-        juRivTem = sorted([self.Partidos[p['url']] for p in juRivCal], key=lambda x: x.fechaPartido)
+        peRivOrd = sorted([p for p in peRivCal if p['jornada'] != sigPart['jornada']], key=itemgetter('fechaPartido'))
+        juRivTem = sorted([p['url'] for p in juRivCal], key=lambda u: self.Partidos[u].fechaPartido)
 
         eqIsLocal = sigPart['loc2abrev']['Local'] in abrevsEq
         juIzda, peIzda, juDcha, peDcha = (juOrdTem, peOrd, juRivTem, peRivOrd) if eqIsLocal else (
             juRivTem, peRivOrd, juOrdTem, peOrd)
         resAbrevs = (abrEq, abrRival) if eqIsLocal else (abrRival, abrEq)
 
-        return sigPart, resAbrevs, juIzda, peIzda, juDcha, peDcha, eqIsLocal
+        result = infoSigPartido(sigPartido=sigPart, abrevLV=resAbrevs, jugLocal=juIzda, pendLocal=peIzda, jugVis=juDcha,
+                                pendVis=peDcha, eqIsLocal=eqIsLocal)
+        return result
 
     def clasifEquipo(self, abrEq: str, fecha=None):
         """
