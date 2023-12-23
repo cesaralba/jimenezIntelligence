@@ -30,17 +30,19 @@ def preparaLibro(outfile, tempData, datosSig):
 
     story = list()
 
+    # infoSigPartido = namedtuple('infoSigPartido',
+    #                         ['sigPartido', 'abrevLV', 'jugLocal', 'pendLocal', 'jugVis', 'pendVis', 'eqIsLocal'])
     sigPartido, abrEqs, juIzda, peIzda, juDcha, peDcha, _ = datosSig
     currJornada = int(sigPartido['jornada'])
 
-    story.append(cabeceraPortada(sigPartido, tempData))
+    story.append(cabeceraPortada(datosSig, tempData))
     story.append(Spacer(width=120 * mm, height=2 * mm))
 
     tabClasif = tablaClasifLiga(tempData, datosSig)
     story.append(tabClasif)
     story.append(Spacer(width=120 * mm, height=2 * mm))
 
-    trayectoria = reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha)
+    trayectoria = reportTrayectoriaEquipos(tempData, datosSig)
     if trayectoria:
         story.append(trayectoria)
         story.append(Spacer(width=120 * mm, height=1 * mm))

@@ -16,8 +16,9 @@ from SMACB.Constants import LocalVisitante, haGanado2esp, MARCADORESCLASIF, DESC
     CATESTADSEQ2IGNORE, CATESTADSEQASCENDING, DEFAULTNUMFORMAT, RANKFORMAT
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
+
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, auxEtiqPartido, equipo2clasif, calculaEstadsYOrdenLiga, \
-    esEstCreciente
+    esEstCreciente, infoSigPartido
 from Utils.FechaHora import NEVER, Time2Str
 from Utils.Misc import onlySetElement, listize
 from Utils.ReportLab.RLverticalText import VerticalParagraph
@@ -543,9 +544,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
 
     abrevsEq = tempData.Calendario.abrevsEquipo(abrEq)
 
-    urlPartsJug = [p.url for p in partJug]
-
-    auxDF = tempData.extraeDataframeJugadores(listaURLPartidos=urlPartsJug)
+    auxDF = tempData.extraeDataframeJugadores(listaURLPartidos=partJug)
 
     jugDF = auxDF.loc[auxDF['CODequipo'].isin(abrevsEq)]
 
@@ -687,9 +686,14 @@ def listaEquipos(tempData, beQuiet=False):
     sys.exit(0)
 
 
-def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
-    partsIzdaAux = copy(partsIzda)
-    partsDchaAux = copy(partsDcha)
+def datosMezclaPartJugados(tempData: TemporadaACB, abrevs, partsIzda, partsDcha):
+    if isinstance(partsIzda[0], str):
+        partsIzdaAux = [tempData.Partidos[u] for u in partsIzda]
+        partsDchaAux = [tempData.Partidos[u] for u in partsDcha]
+    else:
+        partsIzdaAux = copy(partsIzda)
+        partsDchaAux = copy(partsDcha)
+
     lineas = list()
 
     abrIzda, abrDcha = abrevs
@@ -740,29 +744,29 @@ def datosMezclaPartJugados(tempData, abrevs, partsIzda, partsDcha):
     return lineas
 
 
-def paginasJugadores(tempData, abrEqs, juIzda, juDcha):
+def paginasJugadores(tempData, abrEqs, juLocal, juVisit):
     result = []
 
-    if len(juIzda):
-        datosDcha = datosJugadores(tempData, abrEqs[0], juIzda)
-        tablasJugadIzda = tablasJugadoresEquipo(datosDcha)
+    if len(juLocal):
+        datosLocal = datosJugadores(tempData, abrEqs[0], juLocal)
+        tablasJugadLocal = tablasJugadoresEquipo(datosLocal)
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
 
-        for (infoTabla, t) in tablasJugadIzda:
+        for (infoTabla, t) in tablasJugadLocal:
             result.append(Spacer(100 * mm, 2 * mm))
             result.append(t)
             result.append(NextPageTemplate('apaisada'))
 
-    if len(juDcha):
-        datosDcha = datosJugadores(tempData, abrEqs[1], juDcha)
-        tablasJugadDcha = tablasJugadoresEquipo(datosDcha)
+    if len(juVisit):
+        datosVisit = datosJugadores(tempData, abrEqs[1], juVisit)
+        tablasJugadVisit = tablasJugadoresEquipo(datosVisit)
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
 
-        for (infoTabla, t) in tablasJugadDcha:
+        for (infoTabla, t) in tablasJugadVisit:
             result.append(Spacer(100 * mm, 2 * mm))
             result.append(NextPageTemplate('apaisada'))
             result.append(t)
@@ -805,15 +809,17 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
     return strRival, strResultado
 
 
-def reportTrayectoriaEquipos(tempData, abrEqs, juIzda, juDcha, peIzda, peDcha):
+def reportTrayectoriaEquipos(tempData: TemporadaACB, sigPartido: infoSigPartido):
     CELLPAD = 0.15 * mm
     FONTSIZE = 8.5
 
     filasPrecedentes = set()
+
     j17izda = None
     j17dcha = None
-    listaTrayectoria = datosMezclaPartJugados(tempData, abrEqs, juIzda, juDcha)
-    listaFuturos = datosMezclaPartJugados(tempData, abrEqs, peIzda, peDcha)
+
+    listaTrayectoria = datosMezclaPartJugados(tempData, sigPartido.abrevLV, sigPartido.jugLocal, sigPartido.jugVis)
+    listaFuturos = datosMezclaPartJugados(tempData, sigPartido.abrevLV, sigPartido.pendLocal, sigPartido.pendVis)
 
     filas = []
 
@@ -1006,7 +1012,8 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None, currJornada: int = No
     return t
 
 
-def cabeceraPortada(partido, tempData):
+def cabeceraPortada(datosSig: infoSigPartido, tempData: TemporadaACB):
+    partido = datosSig.sigPartido
     datosLocal = partido['equipos']['Local']
     datosVisit = partido['equipos']['Visitante']
     compo = partido['cod_competicion']
