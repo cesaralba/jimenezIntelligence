@@ -7,7 +7,7 @@ from math import isnan
 
 import pandas as pd
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import TableStyle, Table, Paragraph, NextPageTemplate, PageBreak, Spacer
@@ -286,12 +286,14 @@ def auxEtFecha(f, col, formato=FMTECHACORTA):
     return result
 
 
-def auxFindTargetAbrevs(tempData:TemporadaACB,datosSig: infoSigPartido,):
+def auxFindTargetAbrevs(tempData: TemporadaACB, datosSig: infoSigPartido, ):
     sigPartido = datosSig.sigPartido
-    result = { k: list(tempData.Calendario.abrevsEquipo(sigPartido['loc2abrev'][k]).intersection(estadGlobales.index))[0] for k
-        in LocalVisitante}
+    result = {k: list(tempData.Calendario.abrevsEquipo(sigPartido['loc2abrev'][k]).intersection(estadGlobales.index))[0]
+              for k in LocalVisitante}
 
     return result
+
+
 def auxMapDict(f, col, lookup):
     if f is None:
         return "-"
@@ -1219,7 +1221,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
 
     recuperaEstadsGlobales(tempData)
 
-    targetAbrevs = auxFindTargetAbrevs(tempData,datosSig)
+    targetAbrevs = auxFindTargetAbrevs(tempData, datosSig)
 
     result = dict()
 
@@ -1282,6 +1284,7 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     catsAscending = {} if magnsCrecientes is None else set(magnsCrecientes)
 
     recuperaEstadsGlobales(tempData)
+    targetAbrevs = auxFindTargetAbrevs(tempData, datosSig)
 
     clavesEq, clavesRiv = allMagnsInEstads, allMagnsInEstads
     if isinstance(magns2incl, list):
@@ -1297,7 +1300,9 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     datos = datosAnalisisEstadisticos(tempData, datosSig, magnsAscending=catsAscending, magn2include=claves2wrk)
     FONTSIZE = 8
 
-    targetAbrevs = auxFindTargetAbrevs(tempData, datosSig)
+    headerStyle = ParagraphStyle('tabEstadsHeader', fontSize=FONTSIZE + 2, alignment=TA_CENTER, leading=12)
+    rowHeaderStyle = ParagraphStyle('tabEstadsRowHeader', fontSize=FONTSIZE, alignment=TA_LEFT, leading=10)
+    cellStyle = ParagraphStyle('tabEstadsCell', fontSize=FONTSIZE, alignment=TA_RIGHT, leading=10)
 
     def filasTabla(datosAmostrar: dict, clavesEquipo: list | None = None, clavesRival: list | None = None):
         result = list()
@@ -1324,42 +1329,41 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
             valMinMagn = auxBold(auxMinMagn) if dato.minHigh else auxMinMagn
             valMaxMagn = auxBold(auxMaxMagn) if dato.maxHigh else auxMaxMagn
 
-            fila = [None, Paragraph(f"<para align='left'>[{dato.isAscending}] {dato.nombreMagn:s}</para>"),
-                    Paragraph(f"<para align='right'>{valLocMagn} [{valLocRank}]</para>"),
-                    Paragraph(f"<para align='right'>{valVisMagn} [{valVisRank}]</para>"),
-                    Paragraph(f"<para align='right'>{valMaxMagn} ({dato.maxAbr:3s})</para>"),
-                    Paragraph(f"<para align='right'>{valACBmed}\u00b1{valACBstd}</para>"),
-                    Paragraph(f"<para align='right'>{valMinMagn} ({dato.minAbr:3s})</para>")]
+            fila = [None, Paragraph(f"[{dato.isAscending}] {auxBold(dato.nombreMagn):s}", style=rowHeaderStyle),
+                    Paragraph(f"{valLocMagn} [{valLocRank}]", style=cellStyle),
+                    Paragraph(f"{valVisMagn} [{valVisRank}]", style=cellStyle),
+                    Paragraph(f"{valMaxMagn} ({dato.maxAbr:3s})", style=cellStyle),
+                    Paragraph(f"{valACBmed}\u00b1{valACBstd}", style=cellStyle),
+                    Paragraph(f"{valMinMagn} ({dato.minAbr:3s})", style=cellStyle)]
             result.append(fila)
         result[0][0] = VerticalParagraph("Equipo")
         result[len(clavesEquipo) - 1][0] = VerticalParagraph("Rival")
         return result
 
     ANCHOEQL = 14.2
-    ANCHOLABEL = 85.4
-    ANCHOEQUIPO = 65.5
-    ANCHOMAXMIN = 78.9
-    ANCHOLIGA = 80.2
+    ANCHOLABEL = 68.4
+    ANCHOEQUIPO = 55.5
+    ANCHOMAXMIN = 68.9
+    ANCHOLIGA = 65.2
 
     LISTAANCHOS = [ANCHOEQL, ANCHOLABEL, ANCHOEQUIPO, ANCHOEQUIPO, ANCHOMAXMIN, ANCHOLIGA, ANCHOMAXMIN]
 
-    filaCab = [None, Paragraph("<para align='center'><b>Estad</b></para>"),
-               Paragraph(f"<para align='center'><b>{targetAbrevs['Local']}</b></para>"),
-               Paragraph(f"<para align='center'><b>{targetAbrevs['Visitante']}</b></para>"),
-               Paragraph("<para align='center'><b>Mejor</b></para>"),
-               Paragraph("<para align='center'><b>ACB</b></para>"),
-               Paragraph("<para align='center'><b>Peor</b></para>")]
+    filaCab = [None, Paragraph(auxBold("Estad"), style=headerStyle),
+               Paragraph(auxBold(f"{targetAbrevs['Local']}"), style=headerStyle),
+               Paragraph(auxBold(f"{targetAbrevs['Visitante']}"), style=headerStyle),
+               Paragraph(auxBold("Mejor"), style=headerStyle), Paragraph(auxBold("ACB"), style=headerStyle),
+               Paragraph(auxBold("Peor"), style=headerStyle), ]
 
     listaFilas = [filaCab] + filasTabla(datos, clavesEquipo=clavesEq, clavesRival=clavesRiv)
 
     tStyle = TableStyle([('BOX', (1, 1), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                         ('GRID', (1, 1), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
-                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1), ('SPAN', (0, 1), (0, len(clavesEq))),
+                         ('GRID', (1, 1), (-1, -1), 0.5, colors.black), ('SPAN', (0, 1), (0, len(clavesEq))),
                          ('BOX', (1, 1), (-1, len(clavesEq)), 2, colors.black), ('SPAN', (0, len(clavesEq)), (0, -1)),
-                         ('LEFTPADDING', (0, 0), (-1, -1), 3), ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-                         ('BOX', (1, -len(clavesRiv)), (-1, -1), 2, colors.black), ])
+                         ('LEFTPADDING', (0, 0), (-1, -1), 3), ('RIGHTPADDING', (0, 0), (-1, -1), 3), (
+                         'BOX', (1, -len(clavesRiv)), (-1, -1), 2,
+                         colors.black), ])  # ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),('LEADING', (0, 0), (-1, -1), FONTSIZE)
 
-    tabla1 = Table(data=listaFilas, style=tStyle, colWidths=LISTAANCHOS, rowHeights=FONTSIZE + 3.2)
+    tabla1 = Table(data=listaFilas, style=tStyle, colWidths=LISTAANCHOS, rowHeights=11.2)
 
     return tabla1
 
