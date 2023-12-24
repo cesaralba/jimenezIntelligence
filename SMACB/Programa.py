@@ -888,10 +888,10 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None, currJornada: int = No
 
     # Balance negativo
     if firstNegBal is not None:
-        tStyle.add("LINEAFTER", (firstNegBal, 0), (firstNegBal, firstNegBal), ANCHOMARCAPOS, colors.black, "squared",
-                   (1, 8))
-        tStyle.add("LINEBELOW", (0, firstNegBal), (firstNegBal, firstNegBal), ANCHOMARCAPOS, colors.black, "squared",
-                   (1, 8))
+        tStyle.add("LINEAFTER", (firstNegBal - 1, 0), (firstNegBal - 1, firstNegBal - 1), ANCHOMARCAPOS, colors.black,
+                   "squared", (2, 8))
+        tStyle.add("LINEBELOW", (0, firstNegBal - 1), (firstNegBal - 1, firstNegBal - 1), ANCHOMARCAPOS, colors.black,
+                   "squared", (2, 8))
 
     # Marca los partidos del tipo (jugados o pendientes) que tenga menos
     claveJuPe = 'ju' if len(coordsJuPe['ju']) <= len(coordsJuPe['pe']) else 'pe'
