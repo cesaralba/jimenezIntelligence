@@ -1143,6 +1143,7 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: tuple):
 
     lStyle = [('BOX', (0, 0), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
               ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE * 0.8),
+              ('LEFTPADDING', (0, 0), (-1, -1), 3), ('RIGHTPADDING', (0, 0), (-1, -1), 3),
               ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1)]
 
     listasClas = [[filaCab], [filaCab]]
