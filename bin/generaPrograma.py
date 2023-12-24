@@ -7,8 +7,9 @@ from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
 from reportlab.platypus import (SimpleDocTemplate, Spacer, NextPageTemplate, PageTemplate, Frame, PageBreak)
 
-from SMACB.Programa import estadsEquipoPortada, listaEquipos, paginasJugadores, reportTrayectoriaEquipos, tablaLiga, \
-    cabeceraPortada, cargaTemporada, tablaRestoJornada, tablaAnalisisEstadisticos, CATESTADSEQASCENDING
+from SMACB.Constants import CATESTADSEQASCENDING
+from SMACB.Programa import listaEquipos, paginasJugadores, reportTrayectoriaEquipos, tablaLiga, cabeceraPortada, \
+    cargaTemporada, tablaAnalisisEstadisticos, tablaClasifLiga, bloqueRestoJYBasics
 
 
 def preparaLibro(outfile, tempData, datosSig):
@@ -24,53 +25,30 @@ def preparaLibro(outfile, tempData, datosSig):
                                autoNextPageTemplate='apaisada')
 
     doc = SimpleDocTemplate(filename=outfile, pagesize=A4, bottomup=0, verbosity=4, initialFontName='Helvetica',
-                            initialLeading=5 * mm, leftMargin=5 * mm, rightMargin=5 * mm, topMargin=5 * mm,
+                            initialLeading=2 * mm, leftMargin=3 * mm, rightMargin=3 * mm, topMargin=5 * mm,
                             bottomMargin=5 * mm, )
     doc.addPageTemplates([pagNormal, pagApaisada])
 
-    story = []
+    story = list()
 
-    # infoSigPartido = namedtuple('infoSigPartido',
-    #                         ['sigPartido', 'abrevLV', 'jugLocal', 'pendLocal', 'jugVis', 'pendVis', 'eqIsLocal'])
-    sigPartido, abrEqs, juIzda, peIzda, juDcha, peDcha, _ = datosSig
+    sigPartido, abrEqs, juIzda, _, juDcha, _, _ = datosSig
     currJornada = int(sigPartido['jornada'])
 
     story.append(cabeceraPortada(datosSig, tempData))
-
     story.append(Spacer(width=120 * mm, height=2 * mm))
-    story.append(estadsEquipoPortada(tempData, abrEqs))
+
+    tabEstadsBasicas = bloqueRestoJYBasics(tempData, datosSig)
+    story.append(tabEstadsBasicas)
+    story.append(Spacer(width=120 * mm, height=2 * mm))
+
+    tabClasif = tablaClasifLiga(tempData, datosSig)
+    story.append(tabClasif)
+    story.append(Spacer(width=120 * mm, height=2 * mm))
 
     trayectoria = reportTrayectoriaEquipos(tempData, datosSig)
     if trayectoria:
-        story.append(Spacer(width=120 * mm, height=1 * mm))
         story.append(trayectoria)
-
-    restoJornada = tablaRestoJornada(tempData, datosSig)
-    if restoJornada:
-        story.append(Spacer(width=120 * mm, height=2 * mm))
-        story.append(restoJornada)
-
-    # story.append(NextPageTemplate('normal'))
-    # story.append(PageBreak())
-    #
-    # tclas1 = tablasClasifLiga(tempData)  # , tclas2
-    # story.append(tclas1)
-    # story.append(Spacer(width=120 * mm, height=2 * mm))
-    # #story.append(tclas2)
-
-    story.append(NextPageTemplate('normal'))
-    story.append(PageBreak())
-
-    reqData = {
-        'Eq': ['P', 'Prec', 'POS', 'OER', 'DER', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-C', 'TC-I', 'TC%',
-               'T1-C', 'T1-I', 'T1%', 'eff-t2', 'eff-t3', 't3/tc-I', 't3/tc-C', 'ppTC', 'PTC/PTCPot', 'R-D', 'R-O',
-               'REB-T', 'EffRebD', 'EffRebO', 'A', 'A/BP', 'A/TC-C', 'BP', 'PNR', 'BR', 'TAP-F', 'TAP-C', 'FP-F',
-               'FP-C'],
-        'Rival': ['POS', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-C', 'TC-I', 'TC%', 'T1-C', 'T1-I', 'T1%',
-                  'eff-t2', 'eff-t3', 't3/tc-I', 't3/tc-C', 'ppTC', 'PTC/PTCPot', 'R-D', 'R-O', 'REB-T', 'EffRebD',
-                  'EffRebO', 'A', 'A/BP', 'A/TC-C', 'BP', 'PNR', 'BR', 'TAP-F', 'TAP-C', 'FP-F', 'FP-C']}
-    story.append(
-        tablaAnalisisEstadisticos(tempData, datosSig, magns2incl=reqData, magnsCrecientes=CATESTADSEQASCENDING))
+        story.append(Spacer(width=120 * mm, height=1 * mm))
 
     story.append(NextPageTemplate('apaisada'))
     story.append(PageBreak())
@@ -79,6 +57,20 @@ def preparaLibro(outfile, tempData, datosSig):
     if len(juIzda) + len(juDcha):
         infoJugadores = paginasJugadores(tempData, abrEqs, juIzda, juDcha)
         story.extend(infoJugadores)
+
+    story.append(NextPageTemplate('normal'))
+    story.append(PageBreak())
+
+    reqData = {
+        'Eq': ['P', 'Prec', 'POS', 'OER', 'DER', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-C', 'TC-I', 'TC%',
+               'T1-C', 'T1-I', 'T1%', 'eff-t1', 'eff-t2', 'eff-t3', 't3/tc-I', 't3/tc-C', 'ppTC', 'PTC/PTCPot', 'R-D',
+               'R-O', 'REB-T', 'EffRebD', 'EffRebO', 'A', 'A/BP', 'A/TC-C', 'BP', 'PNR', 'BR', 'TAP-F', 'TAP-C', 'FP-F',
+               'FP-C'],
+        'Rival': ['POS', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-C', 'TC-I', 'TC%', 'T1-C', 'T1-I', 'T1%',
+                  'eff-t1', 'eff-t2', 'eff-t3', 't3/tc-I', 't3/tc-C', 'ppTC', 'PTC/PTCPot', 'R-D', 'R-O', 'REB-T', 'A',
+                  'A/BP', 'A/TC-C', 'BP', 'PNR', 'BR', 'TAP-F', 'TAP-C', 'FP-F', 'FP-C']}
+    story.append(
+        tablaAnalisisEstadisticos(tempData, datosSig, magns2incl=reqData, magnsCrecientes=CATESTADSEQASCENDING))
 
     doc.build(story)
 

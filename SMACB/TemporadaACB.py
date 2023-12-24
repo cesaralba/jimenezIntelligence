@@ -29,29 +29,6 @@ from SMACB.FichaJugador import FichaJugador
 from SMACB.PartidoACB import PartidoACB
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB
 
-COLSESTADSASCENDING = [('Info', 'prorrogas', 'mean'), ('Info', 'prorrogas', 'sum'), ('Eq', 'BP', 'mean'),
-                       ('Eq', 'BP', 'min'), ('Eq', 'BP', 'median'), ('Eq', 'BP', 'max'), ('Eq', 'BP', 'sum'),
-                       ('Eq', 'TAP-C', 'mean'), ('Eq', 'TAP-C', 'min'), ('Eq', 'TAP-C', 'median'),
-                       ('Eq', 'TAP-C', 'max'), ('Eq', 'TAP-C', 'sum'), ('Eq', 'FP-C', 'mean'), ('Eq', 'FP-C', 'min'),
-                       ('Eq', 'FP-C', 'median'), ('Eq', 'FP-C', 'max'), ('Eq', 'FP-C', 'sum'), ('Eq', 'PNR', 'mean'),
-                       ('Eq', 'PNR', 'min'), ('Eq', 'PNR', 'median'), ('Eq', 'PNR', 'max'), ('Eq', 'PNR', 'sum'),
-
-                       ('Rival', 'P', 'mean'), ('Rival', 'P', 'std'), ('Rival', 'P', 'min'), ('Rival', 'P', 'median'),
-                       ('Rival', 'P', 'max'), ('Rival', 'P', 'sum'), ('Rival', 'OER', 'mean'), ('Rival', 'OER', 'min'),
-                       ('Rival', 'OER', 'median'), ('Rival', 'OER', 'max'), ('Rival', 'OER', 'sum'),
-                       ('Rival', 'OERpot', 'mean'), ('Rival', 'OERpot', 'min'), ('Rival', 'OERpot', 'median'),
-                       ('Rival', 'OERpot', 'max'), ('Rival', 'OERpot', 'sum'), ]
-
-ALLCATS = {'+/-', 'A', 'A/BP', 'A/TC-C', 'BP', 'BR', 'C', 'DER', 'DERpot', 'EffRebD', 'EffRebO', 'FP-C', 'FP-F', 'M',
-           'OER', 'OERpot', 'P', 'PNR', 'POS', 'POStot', 'PTC/PTCPot', 'Priv', 'Ptot', 'R-D', 'R-O', 'REB-T', 'RO/TC-F',
-           'Segs', 'T1%', 'T1-C', 'T1-I', 'T2%', 'T2-C', 'T2-I', 'T3%', 'T3-C', 'T3-I', 'TAP-C', 'TAP-F', 'TC%', 'TC-C',
-           'TC-I', 'V', 'Vict', 'convocados', 'eff-t2', 'eff-t3', 'haGanado', 'local', 'ppTC', 't2/tc-C', 't2/tc-I',
-           't3/tc-C', 't3/tc-I', 'utilizados'}
-
-CATESTADSEQ2IGNORE = {'+/-', 'C', 'convocados', 'haGanado', 'local', 'M', 'Segs', 'utilizados', 'V'}
-# 'FP-C' Faltas recibidas, 'FP-F' Faltas cometidas, 'TAP-C' Tapones recibidos, 'TAP-F' Tapones hechos
-CATESTADSEQASCENDING = {'DER', 'DERpot', 'BP', 'FP-F', 'TAP-C', 'PNR'}
-
 DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 0, ('Info', 'prorrogas', 'count'): 0,
                    ('Info', 'prorrogas', 'max'): 0, ('Info', 'prorrogas', 'mean'): 0,
                    ('Info', 'prorrogas', 'median'): 0, ('Info', 'prorrogas', 'min'): 0, ('Info', 'prorrogas', 'std'): 0,
@@ -60,6 +37,41 @@ DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 
 
 infoSigPartido = namedtuple('infoSigPartido',
                             ['sigPartido', 'abrevLV', 'jugLocal', 'pendLocal', 'jugVis', 'pendVis', 'eqIsLocal'])
+
+
+def auxJorFech2periodo(dfTemp):
+    periodoAct = 0
+    jornada = dict()
+    claveMin = dict()
+    claveMax = dict()
+    curVal = None
+    jf2periodo = defaultdict(lambda: defaultdict(int))
+
+    dfPairs = dfTemp.apply(lambda r: (r['fechaPartido'].date(), r['jornada']), axis=1).unique()
+    for p in sorted(list(dfPairs)):
+        if curVal is None or curVal[1] != p[1]:
+            if curVal:
+                periodoAct += 1
+
+            curVal = p
+            jornada[periodoAct] = p[1]
+            claveMin[periodoAct] = p[0]
+            claveMax[periodoAct] = p[0]
+
+        else:
+            claveMax[periodoAct] = p[0]
+        jf2periodo[p[1]][p[0]] = periodoAct
+
+    p2k = {p: (("%s" % claveMin[p]) + (("\na %s" % claveMax[p]) if (claveMin[p] != claveMax[p]) else "") + (
+            "\n(J:%2i)" % jornada[p])) for p in jornada}
+
+    result = dict()
+    for j in jf2periodo:
+        result[j] = dict()
+        for d in jf2periodo[j]:
+            result[j][d] = p2k[jf2periodo[j][d]]
+
+    return result
 
 
 class TemporadaACB(object):
@@ -231,47 +243,13 @@ class TemporadaACB(object):
 
     def extraeDataframeJugadores(self, listaURLPartidos=None):
 
-        def jorFech2periodo(dfTemp):
-            periodoAct = 0
-            jornada = dict()
-            claveMin = dict()
-            claveMax = dict()
-            curVal = None
-            jf2periodo = defaultdict(lambda: defaultdict(int))
-
-            dfPairs = dfTemp.apply(lambda r: (r['fechaPartido'].date(), r['jornada']), axis=1).unique()
-            for p in sorted(list(dfPairs)):
-                if curVal is None or curVal[1] != p[1]:
-                    if curVal:
-                        periodoAct += 1
-
-                    curVal = p
-                    jornada[periodoAct] = p[1]
-                    claveMin[periodoAct] = p[0]
-                    claveMax[periodoAct] = p[0]
-
-                else:
-                    claveMax[periodoAct] = p[0]
-                jf2periodo[p[1]][p[0]] = periodoAct
-
-            p2k = {p: (("%s" % claveMin[p]) + (("\na %s" % claveMax[p]) if (claveMin[p] != claveMax[p]) else "") + (
-                    "\n(J:%2i)" % jornada[p])) for p in jornada}
-
-            result = dict()
-            for j in jf2periodo:
-                result[j] = dict()
-                for d in jf2periodo[j]:
-                    result[j][d] = p2k[jf2periodo[j][d]]
-
-            return result
-
         listaURLs = listaURLPartidos or self.Partidos.keys()
 
         dfPartidos = [self.Partidos[pURL].jugadoresAdataframe() for pURL in listaURLs]
 
         dfResult = pd.concat(dfPartidos, axis=0, ignore_index=True, sort=True)
 
-        periodos = jorFech2periodo(dfResult)
+        periodos = auxJorFech2periodo(dfResult)
 
         dfResult['periodo'] = dfResult.apply(lambda r: periodos[r['jornada']][r['fechaPartido'].date()], axis=1)
 
@@ -728,12 +706,12 @@ def esEstCreciente(estName: str, catsCrecientes: set | dict | list | None = None
     """
     Devuelve si una columna de estadísticas es ascendente (mejor cuanto menos) o no
     :param estName: Nombre del estadístico a comprobar (de una lista)
-    :param catsCrecientes: lista de estadísticos que son ascendentes
+    :param catsCrecientes: lista de estadísticos que son ascendentes (mejor cuanto menos: puntos encajados o balones perdidos)
     :param meother: si se trata de mi equipo o del rival (invierte el orden)
     :return: bool
     """
     auxCreciente = {} if catsCrecientes is None else catsCrecientes
-    return (meother == "Eq") != (estName in auxCreciente)
+    return (meother == "Eq") == (estName in auxCreciente)
 
 
 def esEstIgnorable(col: tuple, estadObj: str = 'mean', cats2ignore: Iterable | None = None):
@@ -771,7 +749,7 @@ def calculaEstadsYOrdenLiga(dataTemp: TemporadaACB, fecha: Any | None = None, es
     for asctype in targetCols:
         interestingCols = targetCols[asctype]
         auxDF = dfEstads[interestingCols]
-        auxDFranks = auxDF.rank(axis=0, method=paramMethod, na_option=paramNAoption[asctype], ascending=not asctype)
+        auxDFranks = auxDF.rank(axis=0, method=paramMethod, na_option=paramNAoption[asctype], ascending= asctype)
         rankDF[asctype] = auxDFranks
 
     result = dfEstads[colList]
