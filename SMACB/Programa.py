@@ -998,7 +998,7 @@ def recuperaClasifLiga(tempData: TemporadaACB, fecha=None):
         mitadEqs = numEqs // 2
 
 
-def datosRestoJornada(tempData: TemporadaACB, datosSig: tuple):
+def datosRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     """
     Devuelve la lista de partidos de la jornada a la que corresponde  el partidos siguiente del equipo objetivo
     :param tempData: datos descargados de ACB (ya cargados, no el fichero)
@@ -1006,7 +1006,7 @@ def datosRestoJornada(tempData: TemporadaACB, datosSig: tuple):
     :return: lista con información sobre partidos sacada del Calendario
     """
     result = list()
-    sigPartido = datosSig[0]
+    sigPartido = datosSig.sigPartido
     jornada = int(sigPartido['jornada'])
     calJornada = tempData.Calendario.Jornadas[jornada]
 
@@ -1023,7 +1023,7 @@ def datosRestoJornada(tempData: TemporadaACB, datosSig: tuple):
     return result
 
 
-def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
+def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     def infoEq(eqData: dict, jornada: int):
         abrev = eqData['abrev']
 
@@ -1063,7 +1063,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
         return intData
 
     # Data preparation
-    sigPartido = datosSig[0]
+    sigPartido = datosSig.sigPartido
     jornada = int(sigPartido['jornada'])
     recuperaClasifLiga(tempData)
     drj = datosRestoJornada(tempData, datosSig)
@@ -1100,9 +1100,9 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
     return t
 
 
-def datosTablaClasif(tempData: TemporadaACB, datosSig: tuple) -> list[filaTablaClasif]:
+def datosTablaClasif(tempData: TemporadaACB, datosSig: infoSigPartido) -> list[filaTablaClasif]:
     # Data preparation
-    sigPartido = datosSig[0]
+    sigPartido = datosSig.sigPartido
     abrsEqs = sigPartido['participantes']
     jornada = int(sigPartido['jornada'])
     recuperaClasifLiga(tempData)
@@ -1129,7 +1129,7 @@ def datosTablaClasif(tempData: TemporadaACB, datosSig: tuple) -> list[filaTablaC
     return result
 
 
-def tablaClasifLiga(tempData: TemporadaACB, datosSig: tuple):
+def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
     FONTPARA = 8.5
     FONTSIZE = 8
 
@@ -1144,7 +1144,7 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: tuple):
         return result
 
     recuperaClasifLiga(tempData)
-    filasClasLiga = datosTablaClasif(clasifLiga, datosSig)
+    filasClasLiga = datosTablaClasif(tempData, datosSig)
     posFirstNegBal = auxCalculaFirstBalNeg(clasifLiga)
     filasAresaltar = list()
     filaCab = [Paragraph("<para align='center'><b>#</b></para>"),
@@ -1365,8 +1365,8 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
                          ('GRID', (1, 1), (-1, -1), 0.5, colors.black), ('SPAN', (0, 1), (0, len(clavesEq))),
                          ('BOX', (1, 1), (-1, len(clavesEq)), 2, colors.black), ('SPAN', (0, len(clavesEq)), (0, -1)),
                          ('LEFTPADDING', (0, 0), (-1, -1), 3), ('RIGHTPADDING', (0, 0), (-1, -1), 3), (
-                         'BOX', (1, -len(clavesRiv)), (-1, -1), 2,
-                         colors.black), ])  # ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),('LEADING', (0, 0), (-1, -1), FONTSIZE)
+                             'BOX', (1, -len(clavesRiv)), (-1, -1), 2,
+                             colors.black), ])  # ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),('LEADING', (0, 0), (-1, -1), FONTSIZE)
 
     tabla1 = Table(data=listaFilas, style=tStyle, colWidths=LISTAANCHOS, rowHeights=11.2)
 
