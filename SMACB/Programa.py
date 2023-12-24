@@ -16,7 +16,6 @@ from SMACB.Constants import LocalVisitante, haGanado2esp, MARCADORESCLASIF, DESC
     CATESTADSEQ2IGNORE, CATESTADSEQASCENDING, DEFAULTNUMFORMAT, RANKFORMAT
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
-
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, auxEtiqPartido, equipo2clasif, calculaEstadsYOrdenLiga, \
     esEstCreciente, infoSigPartido
 from Utils.FechaHora import NEVER, Time2Str
@@ -379,8 +378,11 @@ def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estil
     return t
 
 
-def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
+def datosEstadsBasicas(tempData: TemporadaACB, infoEq: dict):
     recuperaEstadsGlobales(tempData)
+
+    abrev = infoEq['abrev']
+    nombreCorto = infoEq.get('nombcorto', abrev)
 
     targAbrev = list(tempData.Calendario.abrevsEquipo(abrev).intersection(estadGlobales.index))[0]
     if not targAbrev:
@@ -390,144 +392,47 @@ def datosEstadsEquipoPortada(tempData: TemporadaACB, abrev: str):
     estadsEq = estadGlobales.loc[targAbrev]
     estadsEqOrden = estadGlobalesOrden.loc[targAbrev]
 
-    pFav, pFavOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'P', ESTADISTICOEQ)
-    pCon, pConOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'P', ESTADISTICOEQ)
+    pFav, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'P', ESTADISTICOEQ)
+    pCon, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'P', ESTADISTICOEQ)
 
-    pos, posOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'POS', ESTADISTICOEQ)
-    OER, OEROrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'OER', ESTADISTICOEQ)
-    OERpot, OERpotOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'OERpot', ESTADISTICOEQ)
-    DER, DEROrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'OER', ESTADISTICOEQ)
+    T2C, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T2-C', ESTADISTICOEQ)
+    T2I, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T2-I', ESTADISTICOEQ)
+    T2pc, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T2%', ESTADISTICOEQ)
+    T3C, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T3-C', ESTADISTICOEQ)
+    T3I, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T3-I', ESTADISTICOEQ)
+    T3pc, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T3%', ESTADISTICOEQ)
+    TCC, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'TC-C', ESTADISTICOEQ)
+    TCI, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'TC-I', ESTADISTICOEQ)
+    TCpc, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'TC%', ESTADISTICOEQ)
+    T1C, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T1-C', ESTADISTICOEQ)
+    T1I, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T1-I', ESTADISTICOEQ)
+    T1pc, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T1%', ESTADISTICOEQ)
 
-    T2C, T2COrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T2-C', ESTADISTICOEQ)
-    T2I, T2IOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T2-I', ESTADISTICOEQ)
-    T2pc, T2pcOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T2%', ESTADISTICOEQ)
-    T3C, T3COrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T3-C', ESTADISTICOEQ)
-    T3I, T3IOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T3-I', ESTADISTICOEQ)
-    T3pc, T3pcOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T3%', ESTADISTICOEQ)
-    TCC, TCCOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'TC-C', ESTADISTICOEQ)
-    TCI, TCIOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'TC-I', ESTADISTICOEQ)
-    TCpc, TCpcOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'TC%', ESTADISTICOEQ)
-    ppTC, ppTCOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'ppTC', ESTADISTICOEQ)
-    PPOTpc, PPOTpcOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'PTC/PTCPot', ESTADISTICOEQ)
-    ratT3, ratT3Ord = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 't3/tc-I', ESTADISTICOEQ)
-    Fcom, FcomOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'FP-F', ESTADISTICOEQ)
-    Frec, FrecOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'FP-F', ESTADISTICOEQ)
-    T1C, T1COrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T1-C', ESTADISTICOEQ)
-    T1I, T1IOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T1-I', ESTADISTICOEQ)
-    T1pc, T1pcOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'T1%', ESTADISTICOEQ)
+    Fcom, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'FP-F', ESTADISTICOEQ)
+    Frec, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'FP-F', ESTADISTICOEQ)
 
-    RebD, RebDOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'R-D', ESTADISTICOEQ)
-    RebO, RebOOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'R-O', ESTADISTICOEQ)
-    RebT, RebTOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'REB-T', ESTADISTICOEQ)
-    EffRebD, EffRebDOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'EffRebD', ESTADISTICOEQ)
-    EffRebO, EffRebOOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'EffRebO', ESTADISTICOEQ)
+    RebD, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'R-D', ESTADISTICOEQ)
+    RebO, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'R-O', ESTADISTICOEQ)
+    RebT, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'REB-T', ESTADISTICOEQ)
 
-    A, AOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'A', ESTADISTICOEQ)
-    BP, BPOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'BP', ESTADISTICOEQ)
-    BR, BROrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'BR', ESTADISTICOEQ)
-    ApBP, ApBPOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'A/BP', ESTADISTICOEQ)
-    ApTCC, ApTCCOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'A/TC-C', ESTADISTICOEQ)
-    PNR, PNROrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'PNR', ESTADISTICOEQ)
-
-    ### Valores del equipo rival
-
-    rT2C, rT2COrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'T2-C', ESTADISTICOEQ)
-    rT2I, rT2IOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'T2-I', ESTADISTICOEQ)
-    rT2pc, rT2pcOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'T2%', ESTADISTICOEQ)
-    rT3C, rT3COrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'T3-C', ESTADISTICOEQ)
-    rT3I, rT3IOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'T3-I', ESTADISTICOEQ)
-    rT3pc, rT3pcOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'T3%', ESTADISTICOEQ)
-    rTCC, rTCCOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'TC-C', ESTADISTICOEQ)
-    rTCI, rTCIOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'TC-I', ESTADISTICOEQ)
-    rTCpc, rTCpcOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'TC%', ESTADISTICOEQ)
-    rppTC, rppTCOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'ppTC', ESTADISTICOEQ)
-    rPPOTpc, rPPOTpcOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'PTC/PTCPot', ESTADISTICOEQ)
-
-    rratT3, rratT3Ord = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 't3/tc-I', ESTADISTICOEQ)
-    rT1C, rT1COrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'T1-C', ESTADISTICOEQ)
-    rT1I, rT1IOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'T1-I', ESTADISTICOEQ)
-    rT1pc, rT1pcOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'T1%', ESTADISTICOEQ)
-
-    rRebD, rRebDOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'R-D', ESTADISTICOEQ)
-    rRebO, rRebOOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'R-O', ESTADISTICOEQ)
-    rRebT, rRebTOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'REB-T', ESTADISTICOEQ)
-
-    rA, rAOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'A', ESTADISTICOEQ)
-    rBP, rBPOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'BP', ESTADISTICOEQ)
-    rBR, rBROrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'BR', ESTADISTICOEQ)
-    rApBP, rApBPOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'A/BP', ESTADISTICOEQ)
-    rApTCC, rApTCCOrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'A/TC-C', ESTADISTICOEQ)
-    rPNR, rPNROrd = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'PNR', ESTADISTICOEQ)
-
-    ###
+    A, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'A', ESTADISTICOEQ)
+    BP, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'BP', ESTADISTICOEQ)
+    BR, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'BR', ESTADISTICOEQ)
+    PNR, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'PNR', ESTADISTICOEQ)
 
     resultEq = f"""
-<b>PF</b>:&nbsp;{pFav:.2f}({pFavOrd:.0f}) <b>/</b> 
-<b>PC</b>:&nbsp;{pCon:.2f}({pConOrd:.0f}) <b>/</b>
-<b>Pos</b>:&nbsp;{pos:.2f}({posOrd:.0f}) <b>/</b> 
-<b>OER</b>:&nbsp;{OER:.2f}({OEROrd:.0f}) <b>/</b> 
-<b>DER</b>:&nbsp;{DER:.2f}({DEROrd:.0f}) <b>/</b>
-<b>T2</b>:&nbsp;{T2C:.2f}({T2COrd:.0f})/{T2I:.2f}({T2IOrd:.0f})&nbsp;{T2pc:.2f}%({T2pcOrd:.0f}) <b>/</b> 
-<b>T3</b>:&nbsp;{T3C:.2f}({T3COrd:.0f})/{T3I:.2f}({T3IOrd:.0f})&nbsp;{T3pc:.2f}%({T3pcOrd:.0f}) <b>/</b>
-<b>TC</b>:&nbsp;{TCC:.2f}({TCCOrd:.0f})/{TCI:.2f}({TCIOrd:.0f})&nbsp;{TCpc:.2f}%({TCpcOrd:.0f}) <b>/</b> 
-<b>P&nbsp;por&nbsp;TC-I</b>:&nbsp;{ppTC:.2f}({ppTCOrd:.0f}) <b>/</b> <b>%PPot</b>:&nbsp;{PPOTpc:.2f}({PPOTpcOrd:.0f}) <b>/</b>  
-<b>T3-I/TC-I</b>&nbsp;{ratT3:.2f}%({ratT3Ord:.0f}) <b>/</b>
-<b>F&nbsp;com</b>:&nbsp;{Fcom:.2f}({FcomOrd:.0f})  <b>/</b> <b>F&nbsp;rec</b>:&nbsp;{Frec:.2f}({FrecOrd:.0f})  <b>/</b> 
-<b>TL</b>:&nbsp;{T1C:.2f}({T1COrd:.0f})/{T1I:.2f}({T1IOrd:.0f})&nbsp;{T1pc:.2f}%({T1pcOrd:.0f}) <b>/</b>
-<b>Reb</b>:&nbsp;{RebD:.2f}({RebDOrd:.0f})+{RebO:.2f}({RebOOrd:.0f})&nbsp;{RebT:.2f}({RebTOrd:.0f}) <b>/</b> 
-<b>EffRD</b>:&nbsp;{EffRebD:.2f}%({EffRebDOrd:.0f}) <b>EffRO</b>:&nbsp;{EffRebO:.2f}%({EffRebOOrd:.0f}) <b>/</b>
-<b>A</b>:&nbsp;{A:.2f}({AOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{BP:.2f}({BPOrd:.0f}) <b>/</b> 
-<b>BR</b>:&nbsp;{BR:.2f}({BROrd:.0f}) <b>/</b> 
-<b>A/BP</b>:&nbsp;{ApBP:.2f}({ApBPOrd:.0f}) <b>/</b> <b>A/Can</b>:&nbsp;{ApTCC:.2f}%({ApTCCOrd:.0f}) <b>/</b>
-<b>PNR</b>:&nbsp;{PNR:.2f}({PNROrd:.0f})<br/>
-
-<B>RIVAL</B> 
-<b>T2</b>:&nbsp;{rT2C:.2f}({rT2IOrd:.0f})/{rT2I:.2f}({rT2COrd:.0f})&nbsp;{rT2pc:.2f}%({rT2pcOrd:.0f}) <b>/</b> 
-<b>T3</b>:&nbsp;{rT3C:.2f}({rT3IOrd:.0f})/{rT3I:.2f}({rT3COrd:.0f})&nbsp;{rT3pc:.2f}%({rT3pcOrd:.0f}) <b>/</b>
-<b>TC</b>:&nbsp;{rTCC:.2f}({rTCIOrd:.0f})/{rTCI:.2f}({rTCCOrd:.0f})&nbsp;{rTCpc:.2f}%({rTCpcOrd:.0f}) <b>/</b> 
-<b>P&nbsp;por&nbsp;TC-I</b>:&nbsp;{rppTC:.2f}({rppTCOrd:.0f}) <b>/</b>  <b>%PPot</b>:&nbsp;{rPPOTpc:.2f}({rPPOTpcOrd:.0f}) <b>/</b>  
-<b>T3-I/TC-I</b>&nbsp;{rratT3:.2f}%({rratT3Ord:.0f}) <b>/</b>
-<b>TL</b>:&nbsp;{rT1C:.2f}({rT1COrd:.0f})/{rT1I:.2f}({rT1IOrd:.0f})&nbsp;{rT1pc:.2f}%({rT1pcOrd:.0f}) <b>/</b> 
-<b>Reb</b>:&nbsp;{rRebD:.2f}({rRebDOrd:.0f})+{rRebO:.2f}({rRebOOrd:.0f})&nbsp;{rRebT:.2f}({rRebTOrd:.0f}) <b>/</b>
-<b>A</b>:&nbsp;{rA:.2f}({rAOrd:.0f}) <b>/</b> <b>BP</b>:&nbsp;{rBP:.2f}({rBPOrd:.0f}) <b>/</b> 
-<b>BR</b>:&nbsp;{rBR:.2f}({rBROrd:.0f}) <b>/</b> <b>A/BP</b>:&nbsp;{rApBP:.2f}({rApBPOrd:.0f}) <b>/</b> 
-<b>A/Can</b>:&nbsp;{rApTCC:.2f}%({rApTCCOrd:.0f}) <b>/</b>
-<b>PNR</b>:&nbsp;{rPNR:.2f}({rPNROrd:.0f})
+<b>{nombreCorto}</b>&nbsp;[{abrev}]     
+<b>PF</b>:&nbsp;{pFav:.2f} <b>/</b> <b>PC</b>:&nbsp;{pCon:.2f} <b>/</b>
+<b>T2</b>:&nbsp;{T2C:.2f}/{T2I:.2f}&nbsp;{T2pc:.2f}% <b>/</b> 
+<b>T3</b>:&nbsp;{T3C:.2f}/{T3I:.2f}&nbsp;{T3pc:.2f}% <b>/</b>
+<b>TC</b>:&nbsp;{TCC:.2f}/{TCI:.2f}&nbsp;{TCpc:.2f}% <b>/</b> 
+<b>TL</b>:&nbsp;{T1C:.2f}/{T1I:.2f}&nbsp;{T1pc:.2f}% <b>/</b>
+<b>Reb</b>:&nbsp;{RebD:.2f}+{RebO:.2f}&nbsp;{RebT:.2f} <b>/</b>
+<b>A</b>:&nbsp;{A:.2f} <b>/</b> <b>BP</b>:&nbsp;{BP:.2f} <b>/</b> <b>PNR</b>:&nbsp;{PNR:.2f} <b>/</b> <b>BR</b>:&nbsp;{BR:.2f} <b>/</b>   
+<b>F&nbsp;com</b>:&nbsp;{Fcom:.2f}  <b>/</b> <b>F&nbsp;rec</b>:&nbsp;{Frec:.2f} 
 """
 
     return resultEq
-
-
-def estadsEquipoPortada(tempData: TemporadaACB, abrevs: list):
-    datLocal = datosEstadsEquipoPortada(tempData, abrevs[0])
-    datVisitante = datosEstadsEquipoPortada(tempData, abrevs[1])
-
-    style = ParagraphStyle('Normal', align='left', fontName='Helvetica', fontSize=10, leading=11, )
-
-    parLocal = Paragraph(datLocal, style)
-    parVisit = Paragraph(datVisitante, style)
-
-    tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                         ('GRID', (0, 0), (-1, -1), 0.5, colors.black)])
-    t = Table(data=[[parLocal, parVisit]], colWidths=[100 * mm, 100 * mm], style=tStyle)
-
-    return t
-
-
-def estadsEquipoPortada_df(tempData: TemporadaACB, abrevs: list):
-    datLocal = datosEstadsEquipoPortada(tempData, abrevs[0])
-    datVisitante = datosEstadsEquipoPortada(tempData, abrevs[1])
-
-    style = ParagraphStyle('Normal', align='left', fontName='Helvetica', fontSize=10, leading=11, )
-
-    parLocal = Paragraph(datLocal, style)
-    parVisit = Paragraph(datVisitante, style)
-
-    tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                         ('GRID', (0, 0), (-1, -1), 0.5, colors.black)])
-    t = Table(data=[[parLocal, parVisit]], colWidths=[100 * mm, 100 * mm], style=tStyle)
-
-    return t
 
 
 def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
@@ -810,7 +715,6 @@ def partidoTrayectoria(partido, abrevs, datosTemp):
 
 
 def reportTrayectoriaEquipos(tempData: TemporadaACB, sigPartido: infoSigPartido):
-    CELLPAD = 0.15 * mm
     FONTSIZE = 8.5
 
     filasPrecedentes = set()
@@ -1171,12 +1075,13 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
 
     FONTSIZE = 9
 
-    tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
-                         ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1), ("SPAN", (0, 0), (-1, 0))])
+                         ('LEFTPADDING', (0, 0), (-1, -1), 3), ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+                         ('LEADING', (0, 0), (-1, -1), 0), ("SPAN", (0, 0), (-1, 0))])
 
-    ANCHOEQUIPO = (FONTSIZE * 0.6) * 24
-    ANCHOCENTRO = ((FONTSIZE + 1) * 0.6) * 14
+    ANCHOEQUIPO = 128
+    ANCHOCENTRO = 75
     t = Table(data=filas, style=tStyle, colWidths=[ANCHOEQUIPO, ANCHOCENTRO, ANCHOEQUIPO], rowHeights=FONTSIZE + 4)
 
     return t
@@ -1455,3 +1360,38 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2inc
     tabla1 = Table(data=listaFilas, style=tStyle, colWidths=LISTAANCHOS, rowHeights=FONTSIZE + 3.2)
 
     return tabla1
+
+
+def tablaEstadsBasicas(tempData: TemporadaACB, datosSig: infoSigPartido):
+    sigPartido = datosSig.sigPartido
+
+    datos = {loc: datosEstadsBasicas(tempData, sigPartido['equipos'][loc]) for loc in LocalVisitante}
+
+    style = ParagraphStyle('Normal', align='left', fontName='Helvetica', fontSize=9, leading=9.8, )
+
+    datosTabla = [[Paragraph(datos[loc], style)] for loc in LocalVisitante]
+    tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                         ('LEFTPADDING', (0, 0), (-1, -1), 3), ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+                         ('GRID', (0, 0), (-1, -1), 0.5, colors.black), ('LEADING', (0, 0), (-1, -1), 0)])
+
+    t = Table(data=datosTabla, colWidths=[77 * mm], rowHeights=20.5 * mm, style=tStyle)
+
+    return t
+
+
+def bloqueRestoJYBasics(tempData: TemporadaACB, datosSig: infoSigPartido):
+    tabEBasics = tablaEstadsBasicas(tempData, datosSig)
+    tabRestoJ = tablaRestoJornada(tempData, datosSig)
+
+    tStyle = TableStyle(
+        [('VALIGN', (0, 0), (-1, -1), 'MIDDLE'), ('LEADING', (0, 0), (-1, -1), 0), ('LEFTPADDING', (0, 0), (-1, -1), 3),
+         ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+
+         ])
+
+    datosTabla = [[tabRestoJ, tabEBasics]]
+    anchoCols = [118 * mm, 77 * mm]
+
+    t = Table(data=datosTabla, colWidths=anchoCols, style=tStyle)
+
+    return t
