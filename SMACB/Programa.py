@@ -286,6 +286,12 @@ def auxEtFecha(f, col, formato=FMTECHACORTA):
     return result
 
 
+def auxFindTargetAbrevs(tempData:TemporadaACB,datosSig: infoSigPartido,):
+    sigPartido = datosSig.sigPartido
+    result = { k: list(tempData.Calendario.abrevsEquipo(sigPartido['loc2abrev'][k]).intersection(estadGlobales.index))[0] for k
+        in LocalVisitante}
+
+    return result
 def auxMapDict(f, col, lookup):
     if f is None:
         return "-"
@@ -1206,17 +1212,14 @@ def calculaMaxMinMagn(ser: pd.Series, ser_orden: pd.Series):
                            maxAbrevs=maxAbrevs)
 
 
-def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2include: list, magnsAscending=None,
+def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, magn2include: list, magnsAscending=None,
                               infoCampos: dict = REPORTLEYENDAS):
     catsAscending = magnsAscending if magnsAscending else set()
     auxEtiqLeyenda = infoCampos if infoCampos else dict()
 
     recuperaEstadsGlobales(tempData)
 
-    sigPartido = datosSig[0]
-    targetAbrevs = {
-        k: list(tempData.Calendario.abrevsEquipo(sigPartido['loc2abrev'][k]).intersection(estadGlobales.index))[0] for k
-        in LocalVisitante}
+    targetAbrevs = auxFindTargetAbrevs(tempData,datosSig)
 
     result = dict()
 
@@ -1274,7 +1277,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magn2incl
     return result
 
 
-def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2incl: dict | list | None = None,
+def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, magns2incl: dict | list | None = None,
                               magnsCrecientes: list | set | None = None):
     catsAscending = {} if magnsCrecientes is None else set(magnsCrecientes)
 
@@ -1294,10 +1297,7 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2inc
     datos = datosAnalisisEstadisticos(tempData, datosSig, magnsAscending=catsAscending, magn2include=claves2wrk)
     FONTSIZE = 8
 
-    sigPartido = datosSig[0]
-    targetAbrevs = {
-        k: list(tempData.Calendario.abrevsEquipo(sigPartido['loc2abrev'][k]).intersection(estadGlobales.index))[0] for k
-        in LocalVisitante}
+    targetAbrevs = auxFindTargetAbrevs(tempData, datosSig)
 
     def filasTabla(datosAmostrar: dict, clavesEquipo: list | None = None, clavesRival: list | None = None):
         result = list()
@@ -1356,6 +1356,7 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: tuple, magns2inc
                          ('GRID', (1, 1), (-1, -1), 0.5, colors.black), ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),
                          ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1), ('SPAN', (0, 1), (0, len(clavesEq))),
                          ('BOX', (1, 1), (-1, len(clavesEq)), 2, colors.black), ('SPAN', (0, len(clavesEq)), (0, -1)),
+                         ('LEFTPADDING', (0, 0), (-1, -1), 3), ('RIGHTPADDING', (0, 0), (-1, -1), 3),
                          ('BOX', (1, -len(clavesRiv)), (-1, -1), 2, colors.black), ])
 
     tabla1 = Table(data=listaFilas, style=tStyle, colWidths=LISTAANCHOS, rowHeights=FONTSIZE + 3.2)
