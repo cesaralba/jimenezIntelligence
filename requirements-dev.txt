@@ -1,13 +1,39 @@
 # Librerias para dev
 pytest
+  pluggy==1.3.0
+
 flake8
-ipython
-ipdb
-watchdog
-isort
 flake8-isort
-ipykernel
-matplotlib
+isort
+
 setuptools
 pylint
-seaborn
+  dill==0.3.7
+  platformdirs==4.0.0
+  tomlkit==0.12.3
+
+#IPython
+ipdb
+ipython
+  prompt-toolkit==3.0.41
+    wcwidth==0.2.12
+  stack-data==0.6.3
+  traitlets==5.13.0
+jedi==0.19.1
+comm==0.2.0
+pygments==2.17.2
+tornado==6.3.3
+ipykernel
+  psutil==5.9.6
+  pyzmq==25.1.1
+debugpy==1.8.0
+executing==2.0.1
+jupyter_client==8.6.0
+jupyter_core==5.5.0
+asttokens==2.4.1
+nest-asyncio==1.5.8
+
+watchdog
+
+pipdeptree
+graphviz
