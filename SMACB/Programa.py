@@ -430,14 +430,19 @@ def datosEstadsBasicas(tempData: TemporadaACB, infoEq: dict):
 
     resultEq = f"""
 <b>{nombreCorto}</b>&nbsp;[{abrev}]     
-<b>PF</b>:&nbsp;{pFav:.2f} <b>/</b> <b>PC</b>:&nbsp;{pCon:.2f} <b>/</b>
-<b>T2</b>:&nbsp;{T2C:.2f}/{T2I:.2f}&nbsp;{T2pc:.2f}% <b>/</b> 
+<b>PF</b>:&nbsp;{pFav:.2f} <b>/</b>
+<b>PC</b>:&nbsp;{pCon:.2f} <b>/</b>
+<b>T2</b>:&nbsp;{T2C:.2f}/{T2I:.2f}&nbsp;{T2pc:.2f}% <b>/</b>
 <b>T3</b>:&nbsp;{T3C:.2f}/{T3I:.2f}&nbsp;{T3pc:.2f}% <b>/</b>
-<b>TC</b>:&nbsp;{TCC:.2f}/{TCI:.2f}&nbsp;{TCpc:.2f}% <b>/</b> 
+<b>TC</b>:&nbsp;{TCC:.2f}/{TCI:.2f}&nbsp;{TCpc:.2f}% <b>/</b>
 <b>TL</b>:&nbsp;{T1C:.2f}/{T1I:.2f}&nbsp;{T1pc:.2f}% <b>/</b>
 <b>Reb</b>:&nbsp;{RebD:.2f}+{RebO:.2f}&nbsp;{RebT:.2f} <b>/</b>
-<b>A</b>:&nbsp;{A:.2f} <b>/</b> <b>BP</b>:&nbsp;{BP:.2f} <b>/</b> <b>PNR</b>:&nbsp;{PNR:.2f} <b>/</b> <b>BR</b>:&nbsp;{BR:.2f} <b>/</b>   
-<b>F&nbsp;com</b>:&nbsp;{Fcom:.2f}  <b>/</b> <b>F&nbsp;rec</b>:&nbsp;{Frec:.2f} 
+<b>A</b>:&nbsp;{A:.2f} <b>/</b>
+<b>BP</b>:&nbsp;{BP:.2f} <b>/</b>
+<b>PNR</b>:&nbsp;{PNR:.2f} <b>/</b>
+<b>BR</b>:&nbsp;{BR:.2f} <b>/</b>
+<b>F&nbsp;com</b>:&nbsp;{Fcom:.2f}  <b>/</b>
+<b>F&nbsp;rec</b>:&nbsp;{Frec:.2f}
 """
 
     return resultEq
