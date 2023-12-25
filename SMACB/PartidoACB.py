@@ -1,5 +1,7 @@
 import re
 from argparse import Namespace
+from copy import copy
+from itertools import product
 from time import gmtime
 from traceback import print_exc
 
@@ -118,7 +120,7 @@ class PartidoACB(object):
                         continue
                     else:
                         if cachedTeam is None:
-                            cachedTeam = PlantillaACB(id=datosJug['IDequipo'], edicion=datosJug['temporada'])
+                            cachedTeam = PlantillaACB(teamId=datosJug['IDequipo'], edicion=datosJug['temporada'])
 
                     nombreRetoc = RetocaNombreJugador(datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug[
                         'nombre']
@@ -433,19 +435,27 @@ class PartidoACB(object):
                 self.Equipos[estado]['Entrenador'] = datos['codigo']
 
     def partidoAdataframe(self):
-        infoCols = ['jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'VictoriaLocal', 'url',
+        infoCols = ['jornada', 'Pabellon', 'Asistencia', 'prorrogas', 'VictoriaLocal', 'url',
                     'competicion', 'temporada', 'idPartido']
         equipoCols = ['id', 'Nombre', 'abrev']
 
         infoDict = {k: self.__getattribute__(k) for k in infoCols}
+        infoDict['fechaHoraPartido'] = self.__getattribute__('fechaPartido')
+        infoDict['fechaPartido'] = (infoDict['fechaHoraPartido']).date()
 
         estadsDict = {loc: dict() for loc in self.Equipos}
 
         for loc in LocalVisitante:
             for col in equipoCols:
                 estadsDict[loc][col] = self.Equipos[loc][col]
+                other = OtherLoc(loc)
+                estadsDict[loc][f"RIV{col}"] = self.Equipos[other][col]
+
             estadsDict[loc]['local'] = loc == 'Local'
             estadsDict[loc]['haGanado'] = self.DatosSuministrados['equipos'][loc]['haGanado']
+            estadsDict[loc]['etiqPartido'] = "{locres}{abrev}{victoderr}".format(
+                locres=("v" if estadsDict[loc]['local'] else "@"), abrev=estadsDict[loc]['RIVabrev'],
+                victoderr=("+" if estadsDict[loc]['haGanado'] else "-"))
             estadsDict[loc]['convocados'] = len(self.Equipos[loc]['Jugadores'])
             estadsDict[loc]['utilizados'] = len(
                 [j for j in self.Equipos[loc]['Jugadores'] if self.Jugadores[j]['haJugado']])
@@ -456,7 +466,11 @@ class PartidoACB(object):
             estadsDict[loc].update(estadsPart[loc])
 
         infoDict['Ptot'] = estadsDict['Local']['P'] + estadsDict[OtherLoc('Local')]['P']
+        infoDict['Ftot'] = estadsDict['Local']['FP-C'] + estadsDict[OtherLoc('Local')]['FP-C']
         infoDict['POStot'] = estadsDict['Local']['POS'] + estadsDict[OtherLoc('Local')]['POS']
+
+        infoDict['ratio40min'] = 40 / (40 + (infoDict['prorrogas'] * 5))
+        infoDict['label'] = "-".join(map(lambda k: estadsDict[k[0]][k[1]], product(LocalVisitante, ['abrev'])))
 
         estadsDF = pd.DataFrame.from_dict(data=estadsDict, orient='index')
 
@@ -468,6 +482,14 @@ class PartidoACB(object):
         result.index = result['Info', 'url']
         result.index.name = 'url'
         return result
+
+    def resumenPartido(self):
+        return " * J %i: %s (%s) %i - %i %s (%s) " % (self.jornada, self.EquiposCalendario['Local'],
+                                                      self.CodigosCalendario['Local'],
+                                                      self.ResultadoCalendario['Local'],
+                                                      self.ResultadoCalendario['Visitante'],
+                                                      self.EquiposCalendario['Visitante'],
+                                                      self.CodigosCalendario['Visitante'])
 
     def __str__(self):
         return "J %02i: [%s] %s (%s) %i - %i %s (%s)" % (
@@ -495,6 +517,7 @@ class PartidoACB(object):
             avanzadas['Segs'] = estads['Segs'] / 5
 
             avanzadas['Prec'] = other['P']
+
             avanzadas['Ptot'] = estads['P'] + other['P']
             avanzadas['Vict'] = estads['P'] > other['P']
             avanzadas['POS'] = estads['T2-I'] + estads['T3-I'] + (estads['T1-I'] * 0.44) + estads['BP'] - estads['R-O']

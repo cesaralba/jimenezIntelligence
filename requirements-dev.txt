@@ -35,8 +35,5 @@ nest-asyncio==1.5.8
 
 watchdog
 
-
-
 pipdeptree
 graphviz
-

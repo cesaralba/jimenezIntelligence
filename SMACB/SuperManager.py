@@ -7,7 +7,7 @@ from pickle import dump, load
 
 import mechanicalsoup
 import pandas as pd
-from babel.numbers import decimal
+from babel.numbers import format_decimal
 from bs4 import BeautifulSoup
 from mechanicalsoup import LinkNotFoundError
 from time import gmtime
@@ -501,7 +501,7 @@ class SuperManagerACB(object):
         # for codigo, nombres in datosACB.tradJugadores['id2nombres'].items():
         #     self.addTraduccionJugador(codigo, nombres)
 
-        for codigo, nombres in datosACB.Calendario.tradEquipos['c2n'].items():
+        for codigo, nombres in datosACB.tradEquipos['c2n'].items():
             if (codigo not in self.traducciones['equipos']['c2n']):
                 self.changed = True
             for nombre in nombres:
@@ -510,7 +510,7 @@ class SuperManagerACB(object):
                 self.traducciones['equipos']['n2c'][nombre].add(codigo)
                 self.traducciones['equipos']['c2n'][codigo].add(nombre)
 
-        for id, codigos in datosACB.Calendario.tradEquipos['i2c'].items():
+        for id, codigos in datosACB.tradEquipos['i2c'].items():
             if (id not in self.traducciones['equipos']['i2c']):
                 self.changed = True
             for codigo in codigos:
@@ -519,7 +519,7 @@ class SuperManagerACB(object):
                 self.traducciones['equipos']['i2c'][id].add(codigo)
                 self.traducciones['equipos']['c2i'][codigo].add(id)
 
-        for id, nombres in datosACB.Calendario.tradEquipos['i2n'].items():
+        for id, nombres in datosACB.tradEquipos['i2n'].items():
             if (id not in self.traducciones['equipos']['i2n']):
                 self.changed = True
             for nombre in nombres:
@@ -562,7 +562,7 @@ class ResultadosJornadas(object):
         self.equipo2socio = dict()
 
         self.types = {'asistencias': int, 'broker': int, 'key': str, 'puntos': int, 'rebotes': int, 'triples': int,
-                      'valJornada': decimal.Decimal}
+                      'valJornada': format_decimal.Decimal}
 
         for team in supermanager.jornadas[jornada].data:
             datosJor = supermanager.jornadas[jornada].data[team]

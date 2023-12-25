@@ -1,7 +1,10 @@
+import logging
 import re
 from argparse import Namespace
 from collections import defaultdict
 from copy import deepcopy, copy
+
+logger = logging.getLogger()
 
 import pandas as pd
 from time import gmtime
@@ -85,10 +88,11 @@ class CalendarioACB(object):
         return result
 
     def descargaCalendario(self, home=None, browser=None, config=Namespace()):
+        logger.info(f"descargaCalendario")
         if self.url is None:
             pagCalendario = DescargaPagina(self.urlbase, home=home, browser=browser, config=config)
             pagCalendarioData = pagCalendario['data']
-            divTemporadas = pagCalendarioData.find("div", {"class": "listado_temporada"})
+            divTemporadas = pagCalendarioData.find("div", {"class": "desplegable_temporada"})
 
             currYear = divTemporadas.find('div', {"class": "elemento"})['data-t2v-id']
 
@@ -107,17 +111,17 @@ class CalendarioACB(object):
 
             pagYearData = pagYear['data']
 
-            divCompos = pagYearData.find("div", {"class": "listado_competicion"})
+            divCompos = pagYearData.find("div", {"class": "desplegable_competicion"})
             listaCompos = {x['data-t2v-id']: x.get_text() for x in divCompos.find_all('div', {"class": "elemento"})}
             compoClaves = compo2clave(listaCompos)
 
-            priCompoID = divCompos.find('div', {"class": "elemento"})['data-t2v-id']
+            priCompoID = divCompos.find('div', {"class": "elemento_seleccionado"}).find('input')['value']
 
             if self.competicion not in compoClaves:
-                listaComposTxt = ["{k} = '{label}'".format(k=x, label=listaCompos[compoClaves[x]]) for x in
-                                  compoClaves]
-                raise KeyError("Compo solicitada {compo} no disponible. Disponibles: {listaCompos}".format(
-                    compo=self.competicion, listaCompos=", ".join(listaComposTxt)))
+                listaComposTxt = ["{k} = '{label}'".format(k=x, label=listaCompos[compoClaves[x]]) for x in compoClaves]
+                raise KeyError(
+                    "Compo solicitada {compo} no disponible. Disponibles: {listaCompos}".format(compo=self.competicion,
+                        listaCompos=", ".join(listaComposTxt)))
 
             self.url = template_CALENDARIOFULL.format(year=self.edicion, compoID=compoClaves[self.competicion])
 
@@ -181,8 +185,8 @@ class CalendarioACB(object):
             divsEq = divPartido.find_all("div", {"class": eqUbic})
             infoEq = procesaDivsEquipo(divsEq)
             auxDatos.update(infoEq)
-            self.nuevaTraduccionEquipo2Codigo(nombres=[infoEq['nomblargo'], infoEq['nombcorto']],
-                                              abrev=infoEq['abrev'], id=None)
+            self.nuevaTraduccionEquipo2Codigo(nombres=[infoEq['nomblargo'], infoEq['nombcorto']], abrev=infoEq['abrev'],
+                                              id=None)
             datosPartEqs[eqUbic.capitalize()] = auxDatos
 
         resultado['equipos'] = datosPartEqs
@@ -424,7 +428,7 @@ def recuperaPartidosEquipo(idEquipo, home=None, browser=None, config=Namespace()
 
     urlDest = template_PARTIDOSEQUIPO.format(idequipo=idEquipo)
 
-    partidosPage = DescargaPagina(dest=urlDest, browser=browser, config=config)
+    partidosPage = DescargaPagina(dest=urlDest, home=home, browser=browser, config=config)
 
     if partidosPage is None:
         return None

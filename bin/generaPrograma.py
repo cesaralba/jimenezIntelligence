@@ -1,4 +1,5 @@
 import sys
+
 from locale import setlocale, LC_ALL
 
 from configargparse import ArgumentParser

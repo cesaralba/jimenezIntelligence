@@ -1,19 +1,22 @@
+import logging
 from argparse import Namespace
 from collections import defaultdict
+from time import gmtime
 
 import bs4
-from time import gmtime
 
 from Utils.LoggedDict import LoggedDict, DictOfLoggedDict
 from Utils.Web import creaBrowser, DescargaPagina, getObjID, MergeURL
 from .Constants import URL_BASE
 
+logger = logging.getLogger()
+
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
 
 
 class PlantillaACB(object):
-    def __init__(self, id, **kwargs):
-        self.id = id
+    def __init__(self, teamId, **kwargs):
+        self.id = teamId
         self.edicion = kwargs.get('edicion', None)
         self.URL = generaURLPlantilla(self)
         self.timestamp = None
@@ -117,6 +120,7 @@ def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=Namespace
     if browser is None:
         browser = creaBrowser(config)
     try:
+        logging.debug(f"descargaURLplantilla: downloading {urlPlantilla} ")
         pagPlant = DescargaPagina(urlPlantilla, home=home, browser=browser, config=config)
 
         result = procesaPlantillaDescargada(pagPlant, otrosNombres=otrosNombres)
@@ -148,9 +152,8 @@ def procesaPlantillaDescargada(plantDesc, otrosNombres: dict = None):
     """
     auxTraducciones = otrosNombres or dict()
 
-    result = {'jugadores': dict(), 'tecnicos': dict()}
+    result = {'jugadores': dict(), 'tecnicos': dict(), 'club': extraeDatosClub(plantDesc)}
 
-    result['club'] = extraeDatosClub(plantDesc)
     fichaData = plantDesc['data']
 
     cosasUtiles = fichaData.find(name='section', attrs={'class': 'contenido_central_equipo'})
@@ -250,31 +253,41 @@ def encuentraUltEdicion(plantDesc):
     return result
 
 
-def descargaPlantillasCabecera(browser=None, config=Namespace()):
+def descargaPlantillasCabecera(browser=None, config=Namespace(), edicion=None, listaIDs=None):
     """
     Descarga los contenidos de las plantillas y los procesa. Servirá para alimentar las plantillas de TemporadaACB
     :param browser:
     :param config:
-    :param jugId2nombre:
+    :param edicion:
+    :param listaIDs: IDs to be considered
     :return:
     """
+
+    if listaIDs is None:
+        listaIDs = []
+
     result = dict()
     if browser is None:
         browser = creaBrowser(config)
 
-    paginaRaiz = DescargaPagina(dest=URL_BASE, browser=browser, config=config)
+    urlClubes = generaURLClubes(edicion)
+    paginaRaiz = DescargaPagina(dest=urlClubes, browser=browser, config=config)
 
     if paginaRaiz is None:
-        raise Exception("Incapaz de descargar %s" % URL_BASE)
+        raise ConnectionError("Incapaz de descargar %s" % URL_BASE)
 
     raizData = paginaRaiz['data']
-    divLogos = raizData.find('div', {'class': 'contenedor_logos_equipos'})
+    divLogos = raizData.find('section', {'class': 'contenedora_clubes'})
 
-    for eqLink in divLogos.find_all('a', {'class': 'equipo_logo'}):
+    for artLink in divLogos.find_all('article'):
+        eqLink = artLink.find('div').find('a')
         urlLink = eqLink['href']
         urlFull = MergeURL(browser.get_url(), urlLink)
 
         idEq = getObjID(objURL=urlFull, clave='id')
+
+        if listaIDs and idEq not in listaIDs:
+            continue
 
         result[idEq] = descargaURLplantilla(urlFull)
 
@@ -286,6 +299,19 @@ def generaURLPlantilla(plantilla):
     params = ['/club', 'plantilla', 'id', plantilla.id]
     if plantilla.edicion is not None:
         params += ['temporada_id', plantilla.edicion]
+
+    urlSTR = "/".join(params)
+
+    result = MergeURL(URL_BASE, urlSTR)
+
+    return result
+
+
+def generaURLClubes(edicion=None):
+    # https://www.acb.com/club/index/temporada_id/2015
+    params = ['/club', 'index']
+    if edicion is not None:
+        params += ['temporada_id', edicion]
 
     urlSTR = "/".join(params)
 

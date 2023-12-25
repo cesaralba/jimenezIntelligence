@@ -29,12 +29,5 @@ Pillow==10.1.0
 
 XlsxWriter==3.1.9
 
-#Guesser
-#distributed
-#joblib
-
-#Programas
-#fpdf
 reportlab==4.0.8
 #Dependencias (añadidas por vulnerabilidades detectadas)
-

@@ -1,8 +1,8 @@
-'''
+"""
 Created on Jan 4, 2018
 
 @author: calba
-'''
+"""
 
 from _operator import itemgetter
 from argparse import Namespace
@@ -14,16 +14,19 @@ from time import gmtime, strftime
 from traceback import print_exception
 from typing import Iterable, Any
 
+import logging
+logger = logging.getLogger()
+
 import numpy as np
 import pandas as pd
 
 from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Pandas import combinaPDindexes
 from Utils.Web import creaBrowser
-from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
-from .Constants import OtherLoc, EqRival, OtherTeam, LOCALNAMES, LocalVisitante
-from .FichaJugador import FichaJugador
-from .PartidoACB import PartidoACB
+from SMACB.CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
+from SMACB.Constants import OtherLoc, EqRival, OtherTeam, LOCALNAMES, LocalVisitante
+from SMACB.FichaJugador import FichaJugador
+from SMACB.PartidoACB import PartidoACB
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB
 
 DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 0, ('Info', 'prorrogas', 'count'): 0,
@@ -78,9 +81,9 @@ def auxJorFech2periodo(dfTemp):
 
 
 class TemporadaACB(object):
-    '''
+    """
     Aglutina calendario y lista de partidos
-    '''
+    """
 
     # TODO: función __str__
 
@@ -117,10 +120,6 @@ class TemporadaACB(object):
             browser.open(URL_BASE)
 
         self.Calendario.actualizaCalendario(browser=browser, config=config)
-        self.actualizaPlantillas(browser=browser, config=config)
-
-        if 'procesabio' in config and config.procesaBio:
-            self.descargaFichas = True
 
         partidosBajados = set()
 
@@ -145,6 +144,9 @@ class TemporadaACB(object):
                 break
 
         self.changed = self.changed | (len(partidosBajados) > 0)
+
+        if self.descargaPlantillas:
+            self.actualizaPlantillas(browser=browser, config=config)
 
         if self.changed != changeOrig:
             self.timestamp = gmtime()
@@ -174,7 +176,7 @@ class TemporadaACB(object):
         aux = copy(self)
 
         # Clean stuff that shouldn't be saved
-        for atributo in ('changed'):
+        for atributo in {'changed'}:
             if hasattr(aux, atributo):
                 aux.__delattr__(atributo)
 
@@ -187,7 +189,7 @@ class TemporadaACB(object):
         aux = load(open(filename, "rb"))
 
         for atributo in aux.__dict__.keys():
-            if atributo in ('changed'):
+            if atributo in {'changed'}:
                 continue
             self.__setattr__(atributo, aux.__getattribute__(atributo))
 
@@ -198,9 +200,13 @@ class TemporadaACB(object):
 
         for codJ, datosJug in nuevoPartido.Jugadores.items():
             if codJ not in self.fichaJugadores:
-                nuevaFicha = FichaJugador.fromURL(datosJug['linkPersona'], home=browser.get_url(), browser=browser,
-                                                  config=config)
-                self.fichaJugadores[codJ] = nuevaFicha
+                try:
+                    nuevaFicha = FichaJugador.fromURL(datosJug['linkPersona'], home=browser.get_url(), browser=browser,                                                  config=config)
+                    self.fichaJugadores[codJ] = nuevaFicha
+                except AttributeError as exc:
+                    print("SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido: something happened",exc)
+                    print(datosJug)
+                    raise exc
 
             elif refrescaFichas:
                 self.fichaJugadores[codJ] = self.fichaJugadores[codJ].actualizaFicha(browser=browser, config=config)
@@ -253,7 +259,7 @@ class TemporadaACB(object):
 
         dfResult['periodo'] = dfResult.apply(lambda r: periodos[r['jornada']][r['fechaPartido'].date()], axis=1)
 
-        return (dfResult)
+        return dfResult
 
     def dfEstadsJugadores(self, dfDatosPartidos: pd.DataFrame, abrEq: str = None):
         COLDROPPER = ['jornada', 'temporada']
@@ -432,20 +438,19 @@ class TemporadaACB(object):
         return result
 
     def dfPartidosLV2ER(self, partidos: pd.DataFrame, abrEq: str = None):
-        COLSINFO = ['jornada', 'fechaPartido', 'Pabellon', 'Asistencia', 'prorrogas', 'url', 'competicion', 'temporada',
-                    'idPartido', 'Ptot', 'POStot']
 
         finalDFlist = []
 
         if abrEq:
-            idEq = list(self.Calendario.tradEquipos['c2i'][abrEq])[0]
+            idEq = self.tradEqAbrev2Id(abrEq)
             partidosEq = partidos.loc[(partidos['Local', 'id'] == idEq) | (partidos['Visitante', 'id'] == idEq)]
 
             for esLocal in [True, False]:
                 tagEq, tagRival = ('Local', 'Visitante') if esLocal else ('Visitante', 'Local')
 
                 auxDFlocal = partidosEq.loc[(partidosEq['Local', 'id'] == idEq) == esLocal]
-                infoDF = auxDFlocal['Info'][COLSINFO]
+                infoDF = auxDFlocal['Info']
+
                 eqDF = auxDFlocal[tagEq]
                 rivalDF = auxDFlocal[tagRival]
 
@@ -453,7 +458,7 @@ class TemporadaACB(object):
                 finalDFlist.append(auxDF)
         else:
             for loc in LocalVisitante:
-                infoDF = partidos['Info'][COLSINFO]
+                infoDF = partidos['Info']
                 eqDF = partidos[loc]
                 rivalDF = partidos[OtherLoc(loc)]
 
@@ -537,6 +542,98 @@ class TemporadaACB(object):
 
         return result
 
+    def mergeTrayectoriaEquipos(self,abrevs,partsIzda,partsDcha):
+        """
+        Devuelve la trayectoria comparada entre 2 equipos para poder hacer una tabla entre ellos
+        :param abrevs: dupla con las abrev del equipo de la izda (o 1 o...) y el de la derecha (o
+                       2 o ...)
+        :param partsIzda: lista de partidos del eq de la izda ordenados por fecha)
+        :param partsDcha: lista de partidos del eq de la dcha ordenados por fecha)
+
+        :return: lista de diccionarios con los siguientes campos: Izda: URL (en ACB) del partido de
+                 la izda; Dcha: URL del part de la dcha, J: Jornada del partido, precedente: si es
+                 un enfrentamiento entre ambos equipos
+        """
+
+        partsIzdaAux = copy(partsIzda)
+        partsDchaAux = copy(partsDcha)
+        lineas = list()
+
+        abrIzda, abrDcha = abrevs
+        abrevsIzda = self.Calendario.abrevsEquipo(abrIzda)
+        abrevsDcha = self.Calendario.abrevsEquipo(abrDcha)
+        abrevsPartido = set().union(abrevsIzda).union(abrevsDcha)
+
+        while (len(partsIzdaAux) + len(partsDchaAux)) > 0:
+            bloque = dict()
+
+            try:
+                auxPriPartIzda = partsIzdaAux[0] #List izda is not empty
+                priPartIzda = self.Partidos[auxPriPartIzda]
+            except IndexError:
+                dato = partsDchaAux.pop(0)
+                bloque['J'] = dato['jornada']
+                bloque['dcha'] = dato.url if hasattr(dato,'url') else dato
+                bloque['precedente'] = False
+                lineas.append(bloque)
+                continue
+
+            try:
+                auxPriPartDcha = partsDchaAux[0] #List dcha is not empty
+                priPartDcha = self.Partidos[auxPriPartDcha]
+            except IndexError:
+                dato = partsIzdaAux.pop(0)
+                bloque['J'] = dato['jornada']
+                bloque['izda'] = dato.url if hasattr(dato,'url') else dato
+                bloque['precedente'] = False
+                lineas.append(bloque)
+                continue
+
+            bloque = dict()
+            if priPartIzda['jornada'] == priPartDcha['jornada']:
+                bloque['J'] = priPartIzda['jornada']
+
+                datoI = partsIzdaAux.pop(0)
+                datoD = partsDchaAux.pop(0)
+
+                bloque['izda'] = datoI.url if isinstance(datoI,PartidoACB) else datoI
+                bloque['dcha'] = datoD.url if isinstance(datoD,PartidoACB) else datoD
+
+                abrevsPartIzda = priPartIzda.CodigosCalendario if isinstance(priPartIzda, PartidoACB) else priPartIzda['loc2abrev']
+
+                bloque['precedente'] = (len(abrevsPartido.intersection(abrevsPartIzda.values())) == 2)
+
+            else:
+                if (priPartIzda['fechaPartido'], priPartIzda['jornada']) < (
+                        priPartDcha['fechaPartido'], priPartDcha['jornada']):
+                    bloque['J'] = priPartIzda['jornada']
+                    dato= partsIzdaAux.pop(0)
+                    bloque['precedente'] = False
+                    bloque['izda'] = dato.url if hasattr(dato,'url') else dato
+                else:
+                    bloque['J'] = priPartDcha['jornada']
+                    dato = partsDchaAux.pop(0)
+                    bloque['precedente'] = False
+                    bloque['dcha'] = dato.url if hasattr(dato,'url') else dato
+
+            lineas.append(bloque)
+
+        return lineas
+
+    @property
+    def tradEquipos(self):
+        return self.Calendario.tradEquipos
+
+    def tradEqAbrev2Id(self, abrev):
+        aux = self.tradEquipos['c2i'][abrev]
+        if (len(aux)) == 0:
+            self.tradEquipos['c2i'].pop(abrev)
+            raise KeyError(f"There is no team with acronym {abrev}")
+        result = list(aux)[0]
+        return result
+
+    def idEquipos(self):
+        return list(self.tradEquipos['i2c'].keys())
 
 def calculaTempStats(datos, clave, filtroFechas=None):
     if clave not in datos:

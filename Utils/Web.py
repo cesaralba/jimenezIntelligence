@@ -5,7 +5,9 @@ from urllib.parse import (parse_qs, unquote, urlencode, urljoin, urlparse,
                           urlunparse)
 
 from mechanicalsoup import StatefulBrowser
-
+import logging
+logger = logging.getLogger()
+from time import time
 
 def DescargaPagina(dest, home=None, browser=None, config=Namespace()):
     """
@@ -16,20 +18,30 @@ def DescargaPagina(dest, home=None, browser=None, config=Namespace()):
     :param config: Namespace de configuración (de argparse) para manipular ciertas características del browser
     :return: Diccionario con página bajada y metadatos varios
     """
+    timeIn = time()
     if browser is None:
         browser = creaBrowser(config)
 
     if home is None:
-        browser.open(dest)
+        target= dest
+        logger.debug(f"DescargaPagina: no home {target}")
+        browser.open(target)
     elif dest.startswith('/'):
-        newDest = MergeURL(home, dest)
-        browser.open(newDest)
+        target = MergeURL(home, dest)
+        logger.debug(f"DescargaPagina: home abs link {target}")
+        browser.open(target)
     else:
         browser.open(home)
-        browser.follow_link(dest)
+        target= dest
+        logger.debug(f"DescargaPagina: home rel link {target}")
+        browser.follow_link(target)
 
     source = browser.get_url()
     content = browser.get_current_page()
+    timeOut = time()
+    timeDL = timeOut - timeIn
+
+    logger.debug("DescargaPagina: downloaded %s (%f)",target,timeDL)
 
     return {'source': source, 'data': content, 'timestamp': gmtime(), 'home': home, 'browser': browser,
             'config': config}
