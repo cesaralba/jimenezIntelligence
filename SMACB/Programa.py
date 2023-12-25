@@ -17,7 +17,7 @@ from SMACB.Constants import LocalVisitante, haGanado2esp, MARCADORESCLASIF, DESC
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, auxEtiqPartido, equipo2clasif, calculaEstadsYOrdenLiga, \
-    esEstCreciente, infoSigPartido
+    esEstCreciente, infoSigPartido, infoClasifEquipo
 from Utils.FechaHora import NEVER, Time2Str
 from Utils.Misc import onlySetElement, listize
 from Utils.ReportLab.RLverticalText import VerticalParagraph
@@ -198,13 +198,13 @@ INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
                  ('UltimoPart', 'TAP-F'): {'etiq': 'Tp R', 'ancho': 4, 'formato': 'entero'}, }
 
 
-def auxCalculaBalanceStrSuf(record: dict, addPendientes: bool = False, currJornada: int = None,
+def auxCalculaBalanceStrSuf(record: infoClasifEquipo, addPendientes: bool = False, currJornada: int = None,
                             addPendJornada: bool = False) -> str:
     textoAux = ""
     if currJornada is not None:
-        pendJornada = currJornada not in record['Jjug']
-        pendientes = any([(p not in record['Jjug']) for p in range(1, currJornada)])
-        adelantados = any([p > currJornada for p in record['Jjug']])
+        pendJornada = currJornada not in record.Jjug
+        pendientes = any([(p not in record.Jjug) for p in range(1, currJornada)])
+        adelantados = any([p > currJornada for p in record.Jjug])
         textoAux = "" + ("J" if (pendJornada and addPendJornada) else "") + ("P" if pendientes else "") + (
             "A" if adelantados else "")
 
@@ -213,20 +213,20 @@ def auxCalculaBalanceStrSuf(record: dict, addPendientes: bool = False, currJorna
     return strPendiente
 
 
-def auxCalculaBalanceStr(record: dict, addPendientes: bool = False, currJornada: int = None,
+def auxCalculaBalanceStr(record: infoClasifEquipo, addPendientes: bool = False, currJornada: int = None,
                          addPendJornada: bool = False) -> str:
     strPendiente = auxCalculaBalanceStrSuf(record, addPendientes, currJornada, addPendJornada)
-    victorias = record.get('V', 0)
-    derrotas = record.get('D', 0)
+    victorias = record.V
+    derrotas = record.D
     texto = f"{victorias}-{derrotas}{strPendiente}"
 
     return texto
 
 
-def auxCalculaFirstBalNeg(clasif: list):
+def auxCalculaFirstBalNeg(clasif: list[infoClasifEquipo]):
     for posic, eq in enumerate(clasif):
-        victs = eq.get('V', 0)
-        derrs = eq.get('D', 0)
+        victs = eq.V
+        derrs = eq.D
 
         if derrs > victs:
             return posic + 1
@@ -537,13 +537,13 @@ def datosTablaLiga(tempData: TemporadaACB, currJornada: int = None):
 
     # En la clasificación está el contenido de los márgenes, de las diagonales y el orden de presentación
     # de los equipos
-    seqIDs = [(pos, list(equipo['idEq'])[0]) for pos, equipo in enumerate(clasifLiga)]
+    seqIDs = [(pos, list(equipo.idEq)[0]) for pos, equipo in enumerate(clasifLiga)]
 
     datosTabla = []
     id2pos = dict()
 
     cabFila = [Paragraph('<b>Casa/Fuera</b>', style=estCelda)] + [
-        Paragraph('<b>' + list(clasifLiga[pos]['abrevsEq'])[0] + '</b>', style=estCelda) for pos, _ in seqIDs] + [
+        Paragraph('<b>' + list(clasifLiga[pos].abrevsEq)[0] + '</b>', style=estCelda) for pos, _ in seqIDs] + [
                   Paragraph('<b>Como local</b>', style=estCelda)]
     datosTabla.append(cabFila)
 
@@ -552,8 +552,8 @@ def datosTablaLiga(tempData: TemporadaACB, currJornada: int = None):
 
         id2pos[idLocal] = pos
         fila = []
-        nombreCorto = sorted(datosEq['nombresEq'], key=lambda n: len(n))[0]
-        abrev = list(datosEq['abrevsEq'])[0]
+        nombreCorto = sorted(datosEq.nombresEq, key=lambda n: len(n))[0]
+        abrev = list(datosEq.abrevsEq)[0]
         fila.append(Paragraph(f"{nombreCorto} (<b>{abrev}</b>)", style=estCelda))
         for _, idVisit in seqIDs:
             if idLocal != idVisit:  # Partido, la otra se usa para poner el balance
@@ -575,12 +575,12 @@ def datosTablaLiga(tempData: TemporadaACB, currJornada: int = None):
                 texto = f"<b>{auxTexto}</b>"
             fila.append(Paragraph(texto, style=estCelda))
 
-        fila.append(Paragraph(auxCalculaBalanceStr(datosEq['CasaFuera']['Local']), style=estCelda))
+        fila.append(Paragraph(auxCalculaBalanceStr(datosEq.CasaFuera['Local']), style=estCelda))
         datosTabla.append(fila)
 
     filaBalFuera = [Paragraph('<b>Como visitante</b>', style=estCelda)]
     for pos, idLocal in seqIDs:
-        filaBalFuera.append(Paragraph(auxCalculaBalanceStr(clasifLiga[pos]['CasaFuera']['Visitante']), style=estCelda))
+        filaBalFuera.append(Paragraph(auxCalculaBalanceStr(clasifLiga[pos].CasaFuera['Visitante']), style=estCelda))
     filaBalFuera.append([])
     datosTabla.append(filaBalFuera)
 
@@ -917,8 +917,8 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None, currJornada: int = No
     if equiposAmarcar is not None:
 
         parEqs = set(listize(equiposAmarcar))
-        seqIDs = [(pos, equipo['abrevsEq']) for pos, equipo in enumerate(clasifLiga) if
-                  equipo['abrevsEq'].intersection(parEqs)]
+        seqIDs = [(pos, equipo.abrevsEq) for pos, equipo in enumerate(clasifLiga) if
+                  equipo.abrevsEq.intersection(parEqs)]
 
         for pos, _ in seqIDs:
             tStyle.add("BACKGROUND", (pos + 1, 0), (pos + 1, 0), colEq)
@@ -998,7 +998,7 @@ def recuperaClasifLiga(tempData: TemporadaACB, fecha=None):
         mitadEqs = numEqs // 2
 
 
-def datosRestoJornada(tempData: TemporadaACB, datosSig: tuple):
+def datosRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     """
     Devuelve la lista de partidos de la jornada a la que corresponde  el partidos siguiente del equipo objetivo
     :param tempData: datos descargados de ACB (ya cargados, no el fichero)
@@ -1006,7 +1006,7 @@ def datosRestoJornada(tempData: TemporadaACB, datosSig: tuple):
     :return: lista con información sobre partidos sacada del Calendario
     """
     result = list()
-    sigPartido = datosSig[0]
+    sigPartido = datosSig.sigPartido
     jornada = int(sigPartido['jornada'])
     calJornada = tempData.Calendario.Jornadas[jornada]
 
@@ -1023,7 +1023,7 @@ def datosRestoJornada(tempData: TemporadaACB, datosSig: tuple):
     return result
 
 
-def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
+def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     def infoEq(eqData: dict, jornada: int):
         abrev = eqData['abrev']
 
@@ -1063,7 +1063,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
         return intData
 
     # Data preparation
-    sigPartido = datosSig[0]
+    sigPartido = datosSig.sigPartido
     jornada = int(sigPartido['jornada'])
     recuperaClasifLiga(tempData)
     drj = datosRestoJornada(tempData, datosSig)
@@ -1100,26 +1100,26 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: tuple):
     return t
 
 
-def datosTablaClasif(tempData: TemporadaACB, datosSig: tuple) -> list[filaTablaClasif]:
+def datosTablaClasif(tempData: TemporadaACB, datosSig: infoSigPartido) -> list[filaTablaClasif]:
     # Data preparation
-    sigPartido = datosSig[0]
+    sigPartido = datosSig.sigPartido
     abrsEqs = sigPartido['participantes']
     jornada = int(sigPartido['jornada'])
     recuperaClasifLiga(tempData)
 
     result = list()
     for posic, eq in enumerate(clasifLiga):
-        nombEqAux = sorted(eq['nombresEq'], key=lambda n: len(n))[0]
+        nombEqAux = sorted(eq.nombresEq, key=lambda n: len(n))[0]
         notaClas = auxCalculaBalanceStrSuf(record=eq, addPendientes=True, currJornada=jornada, addPendJornada=True)
         nombEq = f"{nombEqAux}{notaClas}"
-        victs = eq.get('V', 0)
-        derrs = eq.get('D', 0)
+        victs = eq.V
+        derrs = eq.D
         jugs = victs + derrs
         ratio = (100.0 * victs / jugs) if (jugs != 0) else 0.0
-        puntF = eq.get('Pfav', 0)
-        puntC = eq.get('Pcon', 0)
+        puntF = eq.Pfav
+        puntC = eq.Pcon
         diffP = puntF - puntC
-        resaltaFila = bool(abrsEqs.intersection(eq['abrevsEq']))
+        resaltaFila = bool(abrsEqs.intersection(eq.abrevsEq))
 
         fila = filaTablaClasif(posic=posic + 1, nombre=nombEq, jugs=jugs, victs=victs, derrs=derrs, ratio=ratio,
                                puntF=puntF, puntC=puntC, diffP=diffP, resalta=resaltaFila)
@@ -1129,7 +1129,7 @@ def datosTablaClasif(tempData: TemporadaACB, datosSig: tuple) -> list[filaTablaC
     return result
 
 
-def tablaClasifLiga(tempData: TemporadaACB, datosSig: tuple):
+def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
     FONTPARA = 8.5
     FONTSIZE = 8
 
@@ -1144,7 +1144,7 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: tuple):
         return result
 
     recuperaClasifLiga(tempData)
-    filasClasLiga = datosTablaClasif(clasifLiga, datosSig)
+    filasClasLiga = datosTablaClasif(tempData, datosSig)
     posFirstNegBal = auxCalculaFirstBalNeg(clasifLiga)
     filasAresaltar = list()
     filaCab = [Paragraph("<para align='center'><b>#</b></para>"),
@@ -1365,8 +1365,8 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
                          ('GRID', (1, 1), (-1, -1), 0.5, colors.black), ('SPAN', (0, 1), (0, len(clavesEq))),
                          ('BOX', (1, 1), (-1, len(clavesEq)), 2, colors.black), ('SPAN', (0, len(clavesEq)), (0, -1)),
                          ('LEFTPADDING', (0, 0), (-1, -1), 3), ('RIGHTPADDING', (0, 0), (-1, -1), 3), (
-                         'BOX', (1, -len(clavesRiv)), (-1, -1), 2,
-                         colors.black), ])  # ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),('LEADING', (0, 0), (-1, -1), FONTSIZE)
+                             'BOX', (1, -len(clavesRiv)), (-1, -1), 2,
+                             colors.black), ])  # ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),('LEADING', (0, 0), (-1, -1), FONTSIZE)
 
     tabla1 = Table(data=listaFilas, style=tStyle, colWidths=LISTAANCHOS, rowHeights=11.2)
 
