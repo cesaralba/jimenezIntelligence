@@ -35,6 +35,12 @@ DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 
 infoSigPartido = namedtuple('infoSigPartido',
                             ['sigPartido', 'abrevLV', 'jugLocal', 'pendLocal', 'jugVis', 'pendVis', 'eqIsLocal'])
 
+infoClasifEquipo = namedtuple('infoClasifEquipo',
+                              ['Jug', 'V', 'D', 'Pfav', 'Pcon', 'Lfav', 'Lcon', 'Jjug', 'CasaFuera', 'idEq',
+                               'nombresEq', 'abrevsEq', 'ratioV', 'ratioVent'])
+infoClasifBase = namedtuple(typename='infoClasifEquipo', field_names=['Jug', 'V', 'D', 'Pfav', 'Pcon'],
+                            defaults=(0, 0, 0, 0, 0))
+
 
 def auxJorFech2periodo(dfTemp):
     periodoAct = 0
@@ -312,7 +318,7 @@ class TemporadaACB(object):
                                 pendVis=peDcha, eqIsLocal=eqIsLocal)
         return result
 
-    def clasifEquipo(self, abrEq: str, fecha=None):
+    def clasifEquipo(self, abrEq: str, fecha=None) -> infoClasifEquipo:
         """
         Extrae los datos necesarios para calcular la clasificación de un equipo hasta determinada fecha
         :param abrEq: Abreviatura del equipo en cuestión, puede ser cualquiera de las que haya tenido
@@ -321,16 +327,17 @@ class TemporadaACB(object):
         """
         abrevsEq = self.Calendario.abrevsEquipo(abrEq)
         juCal, _ = self.Calendario.partidosEquipo(abrEq)
-        result = defaultdict(int)
-        result['Lfav'] = list()
-        result['Lcon'] = list()
-        result['Jjug'] = set()
-        result['CasaFuera'] = {'Local': defaultdict(int), 'Visitante': defaultdict(int)}
+        auxResult = defaultdict(int)
+        auxResult['Lfav'] = list()
+        auxResult['Lcon'] = list()
+        auxResult['Jjug'] = set()
+        auxResult['auxCasaFuera'] = {'Local': defaultdict(int), 'Visitante': defaultdict(int)}
+        auxResult['CasaFuera'] = dict()
 
         partidosAcontar = [p for p in juCal if self.Partidos[p['url']].fechaPartido < fecha] if fecha else juCal
 
         for datosCal in partidosAcontar:
-            result['Jjug'].add(int(datosCal['jornada']))
+            auxResult['Jjug'].add(int(datosCal['jornada']))
 
             abrevUsada = abrevsEq.intersection(datosCal['participantes']).pop()
             locEq = datosCal['abrev2loc'][abrevUsada]
@@ -340,23 +347,34 @@ class TemporadaACB(object):
             datosRival = datosCal['equipos'][locRival]
             claveRes = 'V' if datosEq['haGanado'] else 'D'
 
-            result['Jug'] += 1
-            result[claveRes] += 1
-            result['CasaFuera'][locEq][claveRes] += 1
+            auxResult['Jug'] += 1
+            auxResult[claveRes] += 1
+            auxResult['auxCasaFuera'][locEq][claveRes] += 1
 
-            result['Pfav'] += datosEq['puntos']
-            result['Lfav'].append(datosEq['puntos'])
+            auxResult['Pfav'] += datosEq['puntos']
+            auxResult['Lfav'].append(datosEq['puntos'])
 
-            result['Pcon'] += datosRival['puntos']
-            result['Lcon'].append(datosRival['puntos'])
+            auxResult['Pcon'] += datosRival['puntos']
+            auxResult['Lcon'].append(datosRival['puntos'])
 
-        result['idEq'] = self.Calendario.tradEquipos['c2i'][abrEq]
-        result['nombresEq'] = self.Calendario.tradEquipos['c2n'][abrEq]
-        result['abrevsEq'] = abrevsEq
+        auxResult['idEq'] = self.Calendario.tradEquipos['c2i'][abrEq]
+        auxResult['nombresEq'] = self.Calendario.tradEquipos['c2n'][abrEq]
+        auxResult['abrevsEq'] = abrevsEq
 
+        for k in ['Jug', 'V', 'D', 'Pfav', 'Pcon']:
+            if k not in auxResult:
+                auxResult[k] = 0
+        for loc in LocalVisitante:
+            auxResult['CasaFuera'][loc] = infoClasifBase(**auxResult['auxCasaFuera'][loc])
+        auxResult.pop('auxCasaFuera')
+        auxResult['ratioV'] = auxResult['V'] / auxResult['Jug'] if auxResult['Jug'] else 0.0
+        auxResult['ratioVent'] = ((auxResult['Pfav'] - auxResult['Pcon']) / auxResult['Jug']) if auxResult[
+            'Jug'] else 0.0
+
+        result = infoClasifEquipo(**auxResult)
         return result
 
-    def clasifLiga(self, fecha=None):
+    def clasifLiga(self, fecha=None) -> list[infoClasifEquipo]:
         result = sorted(
             [self.clasifEquipo(list(cSet)[0], fecha=fecha) for cSet in self.Calendario.tradEquipos['i2c'].values()],
             key=lambda x: entradaClas2k(x), reverse=True)
@@ -591,7 +609,7 @@ def calculaVars(temporada, clave, useStd=True, filtroFechas=None):
     return result
 
 
-def entradaClas2k(ent: dict) -> tuple:
+def entradaClas2k(ent: infoClasifEquipo) -> tuple:
     """
     Dado un resultado de Temporada.getClasifEquipo)
 
@@ -599,10 +617,7 @@ def entradaClas2k(ent: dict) -> tuple:
     :return: tupla (ratio Vict/Jugados, Vict, Ventaja/Jugados, Pfavor)
     """
 
-    ratioV = ent.get('V', 0) / ent.get('Jug') if ent.get('Jug', 0) else 0.0
-    ratioVent = ((ent.get('Pfav', 0) - ent.get('Pcon', 0)) / ent.get('Jug')) if ent.get('Jug', 0) else 0.0
-
-    result = (ratioV, ent.get('V', 0), ratioVent, ent.get('Pfav', 0))
+    result = (ent.ratioV, ent.V, ent.ratioVent, ent.Pfav)
 
     return result
 
@@ -654,7 +669,7 @@ def calculaEstadsYOrdenLiga(dataTemp: TemporadaACB, fecha: Any | None = None, es
     for asctype in targetCols:
         interestingCols = targetCols[asctype]
         auxDF = dfEstads[interestingCols]
-        auxDFranks = auxDF.rank(axis=0, method=paramMethod, na_option=paramNAoption[asctype], ascending= asctype)
+        auxDFranks = auxDF.rank(axis=0, method=paramMethod, na_option=paramNAoption[asctype], ascending=asctype)
         rankDF[asctype] = auxDFranks
 
     result = dfEstads[colList]
@@ -710,7 +725,7 @@ def equipo2clasif(clasifLiga, abrEq):
     result = None
 
     for eqData in clasifLiga:
-        if abrEq in eqData['abrevsEq']:
+        if abrEq in eqData.abrevsEq:
             return eqData
 
     return result
