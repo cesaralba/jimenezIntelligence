@@ -568,7 +568,8 @@ class TemporadaACB(object):
             bloque = dict()
 
             try:
-                priPartIzda = partsIzdaAux[0] #List izda is not empty
+                auxPriPartIzda = partsIzdaAux[0] #List izda is not empty
+                priPartIzda = self.Partidos[auxPriPartIzda]
             except IndexError:
                 dato = partsDchaAux.pop(0)
                 bloque['J'] = dato['jornada']
@@ -578,7 +579,8 @@ class TemporadaACB(object):
                 continue
 
             try:
-                priPartDcha = partsDchaAux[0] #List dcha is not empty
+                auxPriPartDcha = partsDchaAux[0] #List dcha is not empty
+                priPartDcha = self.Partidos[auxPriPartDcha]
             except IndexError:
                 dato = partsIzdaAux.pop(0)
                 bloque['J'] = dato['jornada']
