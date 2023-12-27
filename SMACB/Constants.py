@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 from babel.numbers import decimal
 
 from Utils.Misc import BadParameters
@@ -31,6 +33,7 @@ bool2esp = {True: "S", False: "N"}
 haGanado2esp = {True: "V", False: "D"}
 titular2esp = {True: "T", False: "B"}
 local2esp = {True: "L", False: "V"}
+local2espLargo = {True: "Local", False: "Visitante"}
 
 LocalVisitante = ('Local', 'Visitante')
 EqRival = ('Eq', 'Rival')
@@ -157,3 +160,26 @@ def OtherTeam(team):
         return 'Eq'
     else:
         raise BadParameters("OtherTeam: '%s' provided. It only accept 'Eq' or 'Rival'" % team)
+
+
+infoSigPartido = namedtuple(typename='infoSigPartido',
+                            field_names=['sigPartido', 'abrevLV', 'jugLocal', 'pendLocal', 'jugVis', 'pendVis',
+                                         'eqIsLocal'], defaults=[None, None, None, None, None, None, None, ])
+infoClasifEquipo = namedtuple('infoClasifEquipo',
+                              ['Jug', 'V', 'D', 'Pfav', 'Pcon', 'Lfav', 'Lcon', 'Jjug', 'CasaFuera', 'idEq',
+                               'nombresEq', 'abrevsEq', 'ratioV', 'ratioVent'])
+infoClasifBase = namedtuple(typename='infoClasifEquipo', field_names=['Jug', 'V', 'D', 'Pfav', 'Pcon'],
+                            defaults=(0, 0, 0, 0, 0))
+infoPartLV = namedtuple(typename='infoPartLV', field_names=['Local', 'Visitante'], defaults=[None, None])
+infoEqCalendario = namedtuple(typename='infoEqCalendario',
+                              field_names=['icono', 'imageTit', 'haGanado', 'abrev', 'nomblargo', 'nombcorto',
+                                           'puntos'], defaults=[None, None, None, None, None, None, None])
+
+filaTrayectoriaEq = namedtuple(typename='filaTrayectoriaEq',
+                               field_names=['fechaPartido', 'jornada', 'cod_edicion', 'cod_competicion', 'equipoMe',
+                                            'equipoRival', 'esLocal', 'haGanado', 'pendiente', 'url', 'abrevEqs',
+                                            'resultado'],
+                               defaults=[None, None, None, None, None, None, None, None, None, None, None, None])
+filaMergeTrayectoria = namedtuple(typename='filaMergeTrayectoria',
+                                  field_names=['jornada', 'izda', 'dcha', 'precedente'],
+                                  defaults=[None, None, None, None])
