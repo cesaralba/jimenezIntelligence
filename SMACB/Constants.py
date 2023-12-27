@@ -33,7 +33,7 @@ bool2esp = {True: "S", False: "N"}
 haGanado2esp = {True: "V", False: "D"}
 titular2esp = {True: "T", False: "B"}
 local2esp = {True: "L", False: "V"}
-local2espLargo = {True:"Local" , False: "Visitante"}
+local2espLargo = {True: "Local", False: "Visitante"}
 
 LocalVisitante = ('Local', 'Visitante')
 EqRival = ('Eq', 'Rival')
@@ -162,8 +162,9 @@ def OtherTeam(team):
         raise BadParameters("OtherTeam: '%s' provided. It only accept 'Eq' or 'Rival'" % team)
 
 
-infoSigPartido = namedtuple('infoSigPartido',
-                            ['sigPartido', 'abrevLV', 'jugLocal', 'pendLocal', 'jugVis', 'pendVis', 'eqIsLocal'])
+infoSigPartido = namedtuple(typename='infoSigPartido',
+                            field_names=['sigPartido', 'abrevLV', 'jugLocal', 'pendLocal', 'jugVis', 'pendVis',
+                                         'eqIsLocal'], defaults=[None, None, None, None, None, None, None, ])
 infoClasifEquipo = namedtuple('infoClasifEquipo',
                               ['Jug', 'V', 'D', 'Pfav', 'Pcon', 'Lfav', 'Lcon', 'Jjug', 'CasaFuera', 'idEq',
                                'nombresEq', 'abrevsEq', 'ratioV', 'ratioVent'])
@@ -173,7 +174,6 @@ infoPartLV = namedtuple(typename='infoPartLV', field_names=['Local', 'Visitante'
 infoEqCalendario = namedtuple(typename='infoEqCalendario',
                               field_names=['icono', 'imageTit', 'haGanado', 'abrev', 'nomblargo', 'nombcorto',
                                            'puntos'], defaults=[None, None, None, None, None, None, None])
-
 
 filaTrayectoriaEq = namedtuple(typename='filaTrayectoriaEq',
                                field_names=['fechaPartido', 'jornada', 'cod_edicion', 'cod_competicion', 'equipoMe',

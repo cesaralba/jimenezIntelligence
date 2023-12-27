@@ -635,7 +635,7 @@ def paginasJugadores(tempData, abrEqs, juLocal, juVisit):
     return result
 
 
-def partidoTrayectoria(partido: Constants.filaTrayectoriaEq, datosTemp:TemporadaACB):
+def partidoTrayectoria(partido: Constants.filaTrayectoriaEq, datosTemp: TemporadaACB):
     datoFecha = partido.fechaPartido
     strFecha = partido.fechaPartido.strftime(FMTECHACORTA) if datoFecha != NEVER else "TBD"
     etiqLoc = "vs " if partido.esLocal else "@"
@@ -890,7 +890,7 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None, currJornada: int = No
     return t
 
 
-def cabeceraPortada(datosSig: infoSigPartido, tempData: TemporadaACB):
+def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
     partido = datosSig.sigPartido
     datosLocal = partido['equipos']['Local']
     datosVisit = partido['equipos']['Visitante']

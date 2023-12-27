@@ -1,5 +1,4 @@
 import sys
-
 from locale import setlocale, LC_ALL
 
 from configargparse import ArgumentParser
@@ -34,7 +33,7 @@ def preparaLibro(outfile, tempData, datosSig):
     sigPartido, abrEqs, juIzda, _, juDcha, _, _ = datosSig
     currJornada = int(sigPartido['jornada'])
 
-    story.append(cabeceraPortada(datosSig, tempData))
+    story.append(cabeceraPortada(tempData, datosSig))
     story.append(Spacer(width=120 * mm, height=2 * mm))
 
     tabEstadsBasicas = bloqueRestoJYBasics(tempData, datosSig)

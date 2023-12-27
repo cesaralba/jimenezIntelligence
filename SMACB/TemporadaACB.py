@@ -313,8 +313,8 @@ class TemporadaACB(object):
             juRivTem, peRivOrd, juOrdTem, peOrd)
         resAbrevs = (abrEq, abrRival) if eqIsLocal else (abrRival, abrEq)
 
-        result = infoSigPartido(sigPartido=sigPart, abrevLV=resAbrevs, jugLocal=juIzda, pendLocal=peIzda, jugVis=juDcha,
-                                pendVis=peDcha, eqIsLocal=eqIsLocal)
+        result = infoSigPartido(sigPartido=sigPart, abrevLV=resAbrevs, eqIsLocal=eqIsLocal, jugLocal=juIzda,
+                                pendLocal=peIzda, jugVis=juDcha, pendVis=peDcha, )
         return result
 
     def clasifEquipo(self, abrEq: str, fecha=None) -> infoClasifEquipo:
