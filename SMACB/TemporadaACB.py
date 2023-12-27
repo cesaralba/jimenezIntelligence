@@ -24,8 +24,8 @@ from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Pandas import combinaPDindexes
 from Utils.Web import creaBrowser
 from SMACB.CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
-from SMACB.Constants import OtherLoc, EqRival, OtherTeam, LOCALNAMES, LocalVisitante, infoSigPartido, infoClasifEquipo, \
-    infoClasifBase, infoPartLV, infoEqCalendario, filaTrayectoriaEq, filaMergeTrayectoria
+from SMACB.Constants import (OtherLoc, EqRival, OtherTeam, LOCALNAMES, LocalVisitante, infoSigPartido, infoClasifEquipo,
+                             infoClasifBase, infoPartLV, infoEqCalendario, filaTrayectoriaEq, filaMergeTrayectoria)
 from SMACB.FichaJugador import FichaJugador
 from SMACB.PartidoACB import PartidoACB
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB
@@ -841,8 +841,7 @@ def auxEtiqPartido(tempData: TemporadaACB, rivalAbr, esLocal=None, locEq=None, u
 
     ordenNombre = -1 if usaLargo else 0
 
-    nombre = rivalAbr if usaAbr else sorted(tempData.Calendario.tradEquipos['c2n'][rivalAbr], key=lambda n: len(n))[
-        ordenNombre]
+    nombre = rivalAbr if usaAbr else sorted(tempData.Calendario.tradEquipos['c2n'][rivalAbr], key=len)[ordenNombre]
 
     result = f"{prefLoc}{nombre}"
 

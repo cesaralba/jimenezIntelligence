@@ -33,6 +33,7 @@ bool2esp = {True: "S", False: "N"}
 haGanado2esp = {True: "V", False: "D"}
 titular2esp = {True: "T", False: "B"}
 local2esp = {True: "L", False: "V"}
+local2espLargo = {True:"Local" , False: "Visitante"}
 
 LocalVisitante = ('Local', 'Visitante')
 EqRival = ('Eq', 'Rival')
@@ -172,6 +173,8 @@ infoPartLV = namedtuple(typename='infoPartLV', field_names=['Local', 'Visitante'
 infoEqCalendario = namedtuple(typename='infoEqCalendario',
                               field_names=['icono', 'imageTit', 'haGanado', 'abrev', 'nomblargo', 'nombcorto',
                                            'puntos'], defaults=[None, None, None, None, None, None, None])
+
+
 filaTrayectoriaEq = namedtuple(typename='filaTrayectoriaEq',
                                field_names=['fechaPartido', 'jornada', 'cod_edicion', 'cod_competicion', 'equipoMe',
                                             'equipoRival', 'esLocal', 'haGanado', 'pendiente', 'url', 'abrevEqs',
