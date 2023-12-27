@@ -641,7 +641,7 @@ class TemporadaACB(object):
                     bloque['precedente'] = False
                     bloque['izda'] = dato
                 else:
-                    bloque['J'] = priPartDcha.jornada
+                    bloque['jornada'] = priPartDcha.jornada
                     dato = partsDchaAux.pop(0)
                     bloque['precedente'] = False
                     bloque['dcha'] = dato
