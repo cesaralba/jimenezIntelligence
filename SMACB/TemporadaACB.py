@@ -4,9 +4,10 @@ Created on Jan 4, 2018
 @author: calba
 """
 
+import logging
 from _operator import itemgetter
 from argparse import Namespace
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from copy import copy
 from pickle import dump, load
 from sys import exc_info, setrecursionlimit
@@ -14,7 +15,6 @@ from time import gmtime, strftime
 from traceback import print_exception
 from typing import Iterable, Any
 
-import logging
 logger = logging.getLogger()
 
 import numpy as np
@@ -24,7 +24,8 @@ from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Pandas import combinaPDindexes
 from Utils.Web import creaBrowser
 from SMACB.CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
-from SMACB.Constants import OtherLoc, EqRival, OtherTeam, LOCALNAMES, LocalVisitante
+from SMACB.Constants import OtherLoc, EqRival, OtherTeam, LOCALNAMES, LocalVisitante, infoSigPartido, infoClasifEquipo, \
+    infoClasifBase, infoPartLV, infoEqCalendario, filaTrayectoriaEq, filaMergeTrayectoria
 from SMACB.FichaJugador import FichaJugador
 from SMACB.PartidoACB import PartidoACB
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB
@@ -34,15 +35,6 @@ DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 
                    ('Info', 'prorrogas', 'median'): 0, ('Info', 'prorrogas', 'min'): 0, ('Info', 'prorrogas', 'std'): 0,
                    ('Info', 'prorrogas', 'sum'): 0, ('Rival', 'convocados', 'sum'): 0,
                    ('Rival', 'utilizados', 'sum'): 0, }
-
-infoSigPartido = namedtuple('infoSigPartido',
-                            ['sigPartido', 'abrevLV', 'jugLocal', 'pendLocal', 'jugVis', 'pendVis', 'eqIsLocal'])
-
-infoClasifEquipo = namedtuple('infoClasifEquipo',
-                              ['Jug', 'V', 'D', 'Pfav', 'Pcon', 'Lfav', 'Lcon', 'Jjug', 'CasaFuera', 'idEq',
-                               'nombresEq', 'abrevsEq', 'ratioV', 'ratioVent'])
-infoClasifBase = namedtuple(typename='infoClasifEquipo', field_names=['Jug', 'V', 'D', 'Pfav', 'Pcon'],
-                            defaults=(0, 0, 0, 0, 0))
 
 
 def auxJorFech2periodo(dfTemp):
@@ -201,10 +193,11 @@ class TemporadaACB(object):
         for codJ, datosJug in nuevoPartido.Jugadores.items():
             if codJ not in self.fichaJugadores:
                 try:
-                    nuevaFicha = FichaJugador.fromURL(datosJug['linkPersona'], home=browser.get_url(), browser=browser,                                                  config=config)
+                    nuevaFicha = FichaJugador.fromURL(datosJug['linkPersona'], home=browser.get_url(), browser=browser,
+                                                      config=config)
                     self.fichaJugadores[codJ] = nuevaFicha
                 except AttributeError as exc:
-                    print("SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido: something happened",exc)
+                    print("SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido: something happened", exc)
                     print(datosJug)
                     raise exc
 
@@ -542,81 +535,118 @@ class TemporadaACB(object):
 
         return result
 
-    def mergeTrayectoriaEquipos(self,abrevs,partsIzda,partsDcha):
+    def trayectoriaEquipo(self, abrev: str) -> list[filaTrayectoriaEq]:
+        """
+        Produce una lista con la información de todos los partidos conocidos (jugados o por jugar) de un equipo
+        :param abrev: abreviatura del equipo
+        :return: lista de partidos.
+        """
+        auxResultado = list()
+        targetAbrevs = self.Calendario.abrevsEquipo(abrev)
+        juCal, peCal = self.Calendario.partidosEquipo(abrev)
+
+        def EqCalendario2NT(data: dict) -> infoEqCalendario:
+            auxDict = {k: v for k, v in data.items() if k in infoEqCalendario._fields}
+            result = infoEqCalendario(**auxDict)
+            return result
+
+        for p in juCal + peCal:
+            abrevAUsar = (p['participantes'].intersection(targetAbrevs)).pop()
+            loc = p['abrev2loc'][abrevAUsar]
+            auxEntry = dict()
+            auxEntry['fechaPartido'] = p['fechaPartido'] if p['pendiente'] else self.Partidos[p['url']].fechaPartido
+            auxEntry['jornada'] = p['jornada']
+            auxEntry['cod_edicion'] = p['cod_edicion']
+            auxEntry['cod_competicion'] = p['cod_competicion']
+            auxEntry['pendiente'] = p['pendiente']
+
+            auxEntry['esLocal'] = (loc == 'Local')
+            if not (p['pendiente']):
+                auxEntry['haGanado'] = p['resultado'][loc] > p['resultado'][OtherLoc(loc)]
+                auxEntry['resultado'] = infoPartLV(**p['resultado'])
+                auxEntry['url'] = p['url']
+            auxEntry['abrevEqs'] = infoPartLV(**p['loc2abrev'])
+
+            auxEntry['equipoMe'] = EqCalendario2NT(p['equipos'][loc])
+            auxEntry['equipoRival'] = EqCalendario2NT(p['equipos'][OtherLoc(loc)])
+            auxResultado.append(filaTrayectoriaEq(**auxEntry))
+
+        result = sorted(auxResultado, key=lambda x: x.fechaPartido)
+        return result
+
+    def mergeTrayectoriaEquipos(self, abrevIzda: str, abrevDcha: str, incluyeJugados: bool = True,
+                                incluyePendientes: bool = True) -> list[filaMergeTrayectoria]:
         """
         Devuelve la trayectoria comparada entre 2 equipos para poder hacer una tabla entre ellos
-        :param abrevs: dupla con las abrev del equipo de la izda (o 1 o...) y el de la derecha (o
-                       2 o ...)
-        :param partsIzda: lista de partidos del eq de la izda ordenados por fecha)
-        :param partsDcha: lista de partidos del eq de la dcha ordenados por fecha)
-
-        :return: lista de diccionarios con los siguientes campos: Izda: URL (en ACB) del partido de
-                 la izda; Dcha: URL del part de la dcha, J: Jornada del partido, precedente: si es
-                 un enfrentamiento entre ambos equipos
+        :param abrevIzda: abreviatura del equipo que aparecerá a la izda (cualquiera)
+        :param abrevDcha: abreviatura del equipo que aparecerá a la dcha (cualquiera)
+        :param incluyeJugados: True si quiere incluir los partidos ya jugados
+        :param incluyePendientes: True si quiere incluir los partidos pendientes
+        :return:
         """
 
-        partsIzdaAux = copy(partsIzda)
-        partsDchaAux = copy(partsDcha)
+        partsIzda = self.trayectoriaEquipo(abrevIzda)
+        partsDcha = self.trayectoriaEquipo(abrevDcha)
+
+        cond2incl = lambda p: ((p.pendiente and incluyePendientes) or (not (p.pendiente) and incluyeJugados))
+        partsIzdaAux = [p for p in partsIzda if cond2incl(p)]
+        partsDchaAux = [p for p in partsDcha if cond2incl(p)]
+
         lineas = list()
 
-        abrIzda, abrDcha = abrevs
-        abrevsIzda = self.Calendario.abrevsEquipo(abrIzda)
-        abrevsDcha = self.Calendario.abrevsEquipo(abrDcha)
+        abrevsIzda = self.Calendario.abrevsEquipo(abrevIzda)
+        abrevsDcha = self.Calendario.abrevsEquipo(abrevDcha)
         abrevsPartido = set().union(abrevsIzda).union(abrevsDcha)
 
         while (len(partsIzdaAux) + len(partsDchaAux)) > 0:
             bloque = dict()
 
             try:
-                auxPriPartIzda = partsIzdaAux[0] #List izda is not empty
-                priPartIzda = self.Partidos[auxPriPartIzda]
+                priPartIzda = partsIzdaAux[0]  # List izda is not empty
             except IndexError:
                 dato = partsDchaAux.pop(0)
-                bloque['J'] = dato['jornada']
-                bloque['dcha'] = dato.url if hasattr(dato,'url') else dato
+                bloque['jornada'] = dato.jornada
+                bloque['dcha'] = dato
                 bloque['precedente'] = False
-                lineas.append(bloque)
+                lineas.append(filaMergeTrayectoria(**bloque))
                 continue
 
             try:
-                auxPriPartDcha = partsDchaAux[0] #List dcha is not empty
-                priPartDcha = self.Partidos[auxPriPartDcha]
+                priPartDcha = partsDchaAux[0]  # List dcha is not empty
             except IndexError:
                 dato = partsIzdaAux.pop(0)
-                bloque['J'] = dato['jornada']
-                bloque['izda'] = dato.url if hasattr(dato,'url') else dato
+                bloque['jornada'] = dato.jornada
+                bloque['dcha'] = dato
                 bloque['precedente'] = False
-                lineas.append(bloque)
+                lineas.append(filaMergeTrayectoria(**bloque))
                 continue
 
-            bloque = dict()
-            if priPartIzda['jornada'] == priPartDcha['jornada']:
-                bloque['J'] = priPartIzda['jornada']
+            if priPartIzda.jornada == priPartDcha.jornada:
+                bloque['jornada'] = priPartIzda.jornada
 
                 datoI = partsIzdaAux.pop(0)
                 datoD = partsDchaAux.pop(0)
 
-                bloque['izda'] = datoI.url if isinstance(datoI,PartidoACB) else datoI
-                bloque['dcha'] = datoD.url if isinstance(datoD,PartidoACB) else datoD
+                bloque['izda'] = datoI
+                bloque['dcha'] = datoD
 
-                abrevsPartIzda = priPartIzda.CodigosCalendario if isinstance(priPartIzda, PartidoACB) else priPartIzda['loc2abrev']
+                abrevsPartIzda = {priPartIzda.abrevEqs.Local, priPartIzda.abrevEqs.Visitante}
 
-                bloque['precedente'] = (len(abrevsPartido.intersection(abrevsPartIzda.values())) == 2)
+                bloque['precedente'] = (len(abrevsPartido.intersection(abrevsPartIzda)) == 2)
 
             else:
-                if (priPartIzda['fechaPartido'], priPartIzda['jornada']) < (
-                        priPartDcha['fechaPartido'], priPartDcha['jornada']):
-                    bloque['J'] = priPartIzda['jornada']
-                    dato= partsIzdaAux.pop(0)
+                if (priPartIzda.fechaPartido, priPartIzda.jornada) < (priPartDcha.fechaPartido, priPartDcha.jornada):
+                    bloque['jornada'] = priPartIzda.jornada
+                    dato = partsIzdaAux.pop(0)
                     bloque['precedente'] = False
-                    bloque['izda'] = dato.url if hasattr(dato,'url') else dato
+                    bloque['izda'] = dato
                 else:
-                    bloque['J'] = priPartDcha['jornada']
+                    bloque['J'] = priPartDcha.jornada
                     dato = partsDchaAux.pop(0)
                     bloque['precedente'] = False
-                    bloque['dcha'] = dato.url if hasattr(dato,'url') else dato
+                    bloque['dcha'] = dato
 
-            lineas.append(bloque)
+            lineas.append(filaMergeTrayectoria(**bloque))
 
         return lineas
 
@@ -634,6 +664,7 @@ class TemporadaACB(object):
 
     def idEquipos(self):
         return list(self.tradEquipos['i2c'].keys())
+
 
 def calculaTempStats(datos, clave, filtroFechas=None):
     if clave not in datos:
