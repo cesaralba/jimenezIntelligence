@@ -600,6 +600,7 @@ class TemporadaACB(object):
 
         while (len(partsIzdaAux) + len(partsDchaAux)) > 0:
             bloque = dict()
+            bloque['precedente'] = False
 
             try:
                 priPartIzda = partsIzdaAux[0]  # List izda is not empty
@@ -607,7 +608,6 @@ class TemporadaACB(object):
                 dato = partsDchaAux.pop(0)
                 bloque['jornada'] = dato.jornada
                 bloque['dcha'] = dato
-                bloque['precedente'] = False
                 lineas.append(filaMergeTrayectoria(**bloque))
                 continue
 
@@ -617,7 +617,6 @@ class TemporadaACB(object):
                 dato = partsIzdaAux.pop(0)
                 bloque['jornada'] = dato.jornada
                 bloque['dcha'] = dato
-                bloque['precedente'] = False
                 lineas.append(filaMergeTrayectoria(**bloque))
                 continue
 
@@ -638,10 +637,9 @@ class TemporadaACB(object):
                 if (priPartIzda.fechaPartido, priPartIzda.jornada) < (priPartDcha.fechaPartido, priPartDcha.jornada):
                     bloque['jornada'] = priPartIzda.jornada
                     dato = partsIzdaAux.pop(0)
-                    bloque['precedente'] = False
                     bloque['izda'] = dato
                 else:
-                    bloque['J'] = priPartDcha.jornada
+                    bloque['jornada'] = priPartDcha.jornada
                     dato = partsDchaAux.pop(0)
                     bloque['precedente'] = False
                     bloque['dcha'] = dato
