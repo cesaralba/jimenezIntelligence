@@ -553,7 +553,7 @@ def datosTablaLiga(tempData: TemporadaACB, currJornada: int = None):
 
         id2pos[idLocal] = pos
         fila = []
-        nombreCorto = sorted(datosEq.nombresEq, key=lambda n: len(n))[0]
+        nombreCorto = sorted(datosEq.nombresEq, key=len)[0]
         abrev = list(datosEq.abrevsEq)[0]
         fila.append(Paragraph(f"{nombreCorto} (<b>{abrev}</b>)", style=estCelda))
         for _, idVisit in seqIDs:
@@ -1070,7 +1070,7 @@ def datosTablaClasif(tempData: TemporadaACB, datosSig: infoSigPartido) -> list[f
 
     result = list()
     for posic, eq in enumerate(clasifLiga):
-        nombEqAux = sorted(eq.nombresEq, key=lambda n: len(n))[0]
+        nombEqAux = sorted(eq.nombresEq, key=len)[0]
         notaClas = auxCalculaBalanceStrSuf(record=eq, addPendientes=True, currJornada=jornada, addPendJornada=True)
         nombEq = f"{nombEqAux}{notaClas}"
         victs = eq.V
