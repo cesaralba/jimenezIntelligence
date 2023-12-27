@@ -6,7 +6,7 @@ from matplotlib.dates import DateFormatter
 
 from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import TemporadaACB
-from SMACB.Constants import OtherTeam
+from SMACB.Constants import OtherTeam, infoSigPartido
 from Utils.Misc import listize
 from .preparaDatos import teamMatch, calculaEstadisticosPartidos
 
@@ -174,19 +174,30 @@ def teamsTrayectoryDataframe(dataTemp:TemporadaACB,dfGames:pd.DataFrame,abrev1:s
     :return:
     """
 
-    (sig1, abrEqs1, juI1, _, juD1, _, targLocal) = dataTemp.sigPartido(abrev1)
-
+    aux1 = dataTemp.sigPartido(abrev1)
+    sig1= aux1.sigPartido
+    abrEqs1=aux1.abrevLV
+    juI1=aux1.jugLocal
+    juD1=aux1.jugVis
+    targLocal=aux1.eqIsLocal
     gamesTemp1 = juI1 if targLocal else juD1
     if set(abrEqs1) == {abrev1,abrev2}:
         gamesTemp2 = juD1 if targLocal else juI1
     else:
-        (sig2, _, juIzda2, _, juDcha2, _, targLocal2) = dataTemp.sigPartido(abrev2)
+        aux2=dataTemp.sigPartido(abrev2)
+        sig2=aux2.sigPartido
+
+        juIzda2=aux2.jugLocal
+        juDcha2=aux2.jugVis
+        targLocal2=aux2.eqIsLocal
+
         gamesTemp2 = juIzda2 if targLocal2 else juDcha2
 
         print("Games in the middle!!!")
         #TODO: Show proper warning
 
-    lineas = dataTemp.mergeTrayectoriaEquipos((abrev1,abrev2),gamesTemp1, gamesTemp2)
+    lineas = dataTemp.mergeTrayectoriaEquipos(abrev1,abrev2,True,False)
+    print(lineas)
 
     gameFilters = find_filters(dfGames,abrev1,abrev2)
 
@@ -195,11 +206,12 @@ def teamsTrayectoryDataframe(dataTemp:TemporadaACB,dfGames:pd.DataFrame,abrev1:s
 
     dfList = []
     for linData in lineas:
+        print(linData)
         df1 = df2 = None
-        url1=linData.get('izda',None)
+        url1=linData.izda.url
         if url1:
             df1 = gamesDF1[gamesDF1[('Info','url')]==url1].reset_index()
-        url2=linData.get('dcha',None)
+        url2=linData.dcha.url
         if url2:
             df2 = gamesDF2[gamesDF2[('Info','url')]==url2].reset_index()
 
