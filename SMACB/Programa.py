@@ -635,7 +635,7 @@ def paginasJugadores(tempData, abrEqs, juLocal, juVisit):
     return result
 
 
-def partidoTrayectoria(partido: Constants.filaTrayectoriaEq, datosTemp):
+def partidoTrayectoria(partido: Constants.filaTrayectoriaEq, datosTemp:TemporadaACB):
     datoFecha = partido.fechaPartido
     strFecha = partido.fechaPartido.strftime(FMTECHACORTA) if datoFecha != NEVER else "TBD"
     etiqLoc = "vs " if partido.esLocal else "@"
