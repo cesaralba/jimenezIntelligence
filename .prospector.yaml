@@ -1,0 +1,22 @@
+output-format: grouped
+
+strictness: veryhigh
+test-warnings: false
+doc-warnings: false
+member-warnings: true
+inherits:
+  - default
+ignore-paths: []
+autodetect: false
+max-line-length: 120
+
+pycodestyle:
+  disable:
+  - N801
+  - N802
+  - N806
+  - N816
+
+pylint:
+  disable:
+  - invalid-name
