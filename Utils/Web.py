@@ -66,11 +66,13 @@ def ComposeURL(url, argsToAdd=None, argsToRemove=None):
     urlGetParams = ExtraeGetParams(url)
 
     newParams = urlGetParams
-    for k in argsToAdd:
-        newParams[k] = argsToAdd[k]
+    if argsToAdd:
+        for k in argsToAdd:
+            newParams[k] = argsToAdd[k]
 
-    for k in argsToRemove:
-        newParams.pop(k)
+    if argsToRemove:
+        for k in argsToRemove:
+            newParams.pop(k)
 
     urlparams = urlencode(newParams)
 

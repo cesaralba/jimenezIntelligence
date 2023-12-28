@@ -89,8 +89,9 @@ class LoggedDict:
             result = "{  " + "".join([f"{k.__repr__()}: {v}" for k, v in auxResult.items()]) + "}"
         else:
             claves = sorted(auxResult.keys())
-            result = "{ " + SEPRPR.join([f"{k.__repr__()}: {auxResult[k]}" for k in claves[
-                                                                                    :-1]]) + SEPRPR + f"{claves[-1].__repr__()}: {auxResult[claves[-1]]}" + "\n}"
+            result = ("{ " +
+                      SEPRPR.join([f"{k.__repr__()}: {auxResult[k]}" for k in claves[:-1]]) +
+                      SEPRPR + f"{claves[-1].__repr__()}: {auxResult[claves[-1]]}" + "\n}")
         return result
 
 
@@ -152,15 +153,15 @@ class DictOfLoggedDict:
     def addExclusion(self, *kargs):
         self.exclusions.update(set(kargs))
 
-        for k in self.current:
-            self.current[k].addExclusion(set(kargs))
+        for v in self.current.values():
+            v.addExclusion(set(kargs))
         # TOTHINK: Qué hacer con los valores almacenados y que han quedado excluidos?
 
     def removeExclusion(self, *kargs):
         self.exclusions.remove(set(kargs).intersection(self.exclusions))
 
-        for k in self.current:
-            self.current[k].removeExclusion(set(kargs))
+        for v in self.current.values():
+            v.removeExclusion(set(kargs))
 
     def extractKey(self, key, default=None):
         result = {k: v.get(key, default=default) for k, v in self.current.items()}
@@ -170,7 +171,7 @@ class DictOfLoggedDict:
     def subkeys(self):
         auxList = []
 
-        for k, v in self.current.items():
+        for v in self.current.values():
             auxList = auxList + list(v.keys())
 
         return set(auxList)
@@ -194,13 +195,13 @@ class DictOfLoggedDict:
 
 
 def vuelcaLoggedDict(k, v, indent=2):
-    AUXSEP = ("\n" + " " * (indent + 1))
+    AUXSEP = "\n" + " " * (indent + 1)
     vSplit = v.split('\n')
 
     if len(vSplit) == 1:
-        result = (" " * indent) + f"{k.__repr__()}: {v}"
+        result = (" " * indent) + f"{repr(k)}: {v}"
     else:
-        result = (" " * (indent - 2)) + f"{k.__repr__()}: {vSplit[0]}" + AUXSEP
+        result = (" " * (indent - 2)) + f"{repr(k)}: {vSplit[0]}" + AUXSEP
         result = result + AUXSEP.join(vSplit[1:])
         result = result + " " * (indent + 1)
 
