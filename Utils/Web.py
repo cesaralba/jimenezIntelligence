@@ -1,13 +1,13 @@
+import logging
 import re
 from argparse import Namespace
-from time import gmtime
-from urllib.parse import (parse_qs, unquote, urlencode, urljoin, urlparse,
-                          urlunparse)
+from time import gmtime, time
+from urllib.parse import (parse_qs, unquote, urlencode, urljoin, urlparse, urlunparse)
 
 from mechanicalsoup import StatefulBrowser
-import logging
+
 logger = logging.getLogger()
-from time import time
+
 
 def DescargaPagina(dest, home=None, browser=None, config=Namespace()):
     """
@@ -23,17 +23,17 @@ def DescargaPagina(dest, home=None, browser=None, config=Namespace()):
         browser = creaBrowser(config)
 
     if home is None:
-        target= dest
-        logger.debug(f"DescargaPagina: no home {target}")
+        target = dest
+        logger.debug("DescargaPagina: no home %s", target)
         browser.open(target)
     elif dest.startswith('/'):
         target = MergeURL(home, dest)
-        logger.debug(f"DescargaPagina: home abs link {target}")
+        logger.debug("DescargaPagina: home abs link  %s", target)
         browser.open(target)
     else:
         browser.open(home)
-        target= dest
-        logger.debug(f"DescargaPagina: home rel link {target}")
+        target = dest
+        logger.debug("DescargaPagina: home rel link  %s", target)
         browser.follow_link(target)
 
     source = browser.get_url()
@@ -41,10 +41,10 @@ def DescargaPagina(dest, home=None, browser=None, config=Namespace()):
     timeOut = time()
     timeDL = timeOut - timeIn
 
-    logger.debug("DescargaPagina: downloaded %s (%f)",target,timeDL)
+    logger.debug("DescargaPagina: downloaded %s (%f)", target, timeDL)
 
-    return {'source': source, 'data': content, 'timestamp': gmtime(), 'home': home, 'browser': browser,
-            'config': config}
+    return {'source': source, 'data': content, 'timestamp': gmtime(), 'home': home, 'browser': browser, 'config': config
+            }
 
 
 def ExtraeGetParams(url):
@@ -54,12 +54,12 @@ def ExtraeGetParams(url):
 
     urlcomps = parse_qs(urlparse(unquote(url)).query)
     result = {}
-    for i in urlcomps:
-        result[i] = urlcomps[i][0]
+    for i, v in urlcomps.items():
+        result[i] = v[0]
     return result
 
 
-def ComposeURL(url, argsToAdd=None, argsToRemove=[]):
+def ComposeURL(url, argsToAdd=None, argsToRemove=None):
     if not (argsToAdd or argsToRemove):
         return url
 
@@ -91,10 +91,7 @@ def MergeURL(base, link):
 
 
 def creaBrowser(config=Namespace()):
-    browser = StatefulBrowser(soup_config={'features': "html.parser"},
-                              raise_on_404=True,
-                              user_agent="SMparser",
-                              )
+    browser = StatefulBrowser(soup_config={'features': "html.parser"}, raise_on_404=True, user_agent="SMparser", )
 
     if 'verbose' in config:
         browser.set_verbose(config.verbose)
@@ -115,8 +112,8 @@ def getObjID(objURL, clave='id', defaultresult=sentinel):
 
     if REid:
         return REid.group('id')
-    else:
-        if defaultresult is sentinel:
-            raise ValueError("getObjID '%s' no casa patrón '%s' para clave '%s'" % (objURL, PATid, clave))
-        else:
-            return defaultresult
+
+    if defaultresult is sentinel:
+        raise ValueError(f"getObjID '{objURL}' no casa patrón '{PATid}' para clave '{clave}'")
+
+    return defaultresult
