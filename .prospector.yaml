@@ -6,7 +6,8 @@ doc-warnings: false
 member-warnings: true
 inherits:
   - default
-ignore-paths: []
+ignore-paths:
+  - fixers
 autodetect: false
 max-line-length: 120
 
@@ -14,9 +15,11 @@ pycodestyle:
   disable:
   - N801
   - N802
+  - N803
   - N806
   - N816
 
 pylint:
   disable:
   - invalid-name
+  - use-list-literal
