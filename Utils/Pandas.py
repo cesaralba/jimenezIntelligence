@@ -11,16 +11,19 @@ def combinaPDindexes(indexData, sep="-"):
 
 
 def NumberToLetters(q):
-    q = q
+    aux = q
     result = ''
-    while q >= 0:
-        remain = q % 26
+    while aux >= 0:
+        remain = aux % 26
         result = chr(remain + 65) + result
-        q = (q // 26) - 1
+        aux = (aux // 26) - 1
     return result
 
 
 def AllCells(sheet, offsetColumnas=0, offsetFilas=0):
-    result = "%s%i:%s%i" % (NumberToLetters(sheet.dim_colmin + offsetColumnas), sheet.dim_rowmin + offsetFilas + 1,
-                            NumberToLetters(sheet.dim_colmax), sheet.dim_rowmax + 1)
+    result = (f"{NumberToLetters(sheet.dim_colmin + offsetColumnas)}"
+              f"{sheet.dim_rowmin + offsetFilas + 1}"
+              ":"
+              f"{NumberToLetters(sheet.dim_colmax)}{sheet.dim_rowmax + 1}")
+
     return result
