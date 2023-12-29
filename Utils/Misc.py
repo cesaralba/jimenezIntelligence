@@ -32,8 +32,8 @@ def ExtractREGroups(cadena, regex="."):
 
     if datos:
         return datos.groups()
-    else:
-        return None
+
+    return None
 
 
 def ReadFile(filename):
@@ -50,16 +50,15 @@ def ReadFile(filename):
 
 
 def CuentaClaves(x):
-    if (type(x) is not dict) and (type(x) is not defaultdict):
+    if not isinstance(x, (dict, defaultdict)):
         raise ValueError("CuentaClaves: necesita un diccionario")
 
     resultado = defaultdict(int)
 
-    for clave in x:
-        valor = x[clave]
+    for clave, valor in x.items():
 
-        if (type(valor) is not dict) and (type(valor) is not defaultdict):
-            print("CuentaClaves: objeto de clave '%s' no es un diccionario" % clave)
+        if not isinstance(valor, (dict, defaultdict)):
+            print(f"CuentaClaves: objeto de clave '{clave}' no es un diccionario")
             continue
 
         for subclave in valor:
@@ -69,20 +68,19 @@ def CuentaClaves(x):
 
 
 def Valores2Claves(x):
-    if (type(x) is not dict) and (type(x) is not defaultdict):
+    if not isinstance(x, (dict, defaultdict)):
         raise ValueError("CuentaClaves: necesita un diccionario")
 
     resultado = defaultdict(set)
 
-    for clave in x:
-        valor = x[clave]
+    for clave, valor in x.items():
         (resultado[valor]).add(clave)
 
     return resultado
 
 
 def DumpDict(x, claves=None):
-    if (type(x) is not dict) and (type(x) is not defaultdict):
+    if not isinstance(x, (dict, defaultdict)):
         raise ValueError("CuentaClaves: necesita un diccionario")
 
     if claves:
@@ -90,13 +88,18 @@ def DumpDict(x, claves=None):
     else:
         clavesOk = x.keys()
 
-    result = ["%s -> %s" % (clave, x[clave]) for clave in clavesOk]
+    result = [f"{clave} -> {x[clave]}" for clave in clavesOk]
 
     return "\n".join(result)
 
 
 def Seg2Tiempo(x):
-    return "%i:%02i" % (x // 60, x % 60)
+    mins = x // 60
+    segs = x % 60
+
+    result = f"{mins: .0f}" ":" f"{segs: 02.0f}"
+
+    return result
 
 
 def SubSet(lista, idx):
@@ -132,8 +135,8 @@ def generaDefaultDict(listaClaves, tipoFinal):
     def actGenera(objLen, tipo):
         if objLen == 1:
             return defaultdict((tipo))
-        else:
-            return defaultdict(lambda: actGenera(objLen - 1, tipo))
+
+        return defaultdict(lambda: actGenera(objLen - 1, tipo))
 
     return actGenera(len(listaClaves), tipoFinal)
 
@@ -155,14 +158,16 @@ def normalize_data_structs(data, **kwargs):
     """
 
     if isinstance(data, str):
-        return (data.lower() if kwargs.get('lowercase_strings', False) else data)
-    elif isinstance(data, list):
+        return data.lower() if kwargs.get('lowercase_strings', False) else data
+
+    if isinstance(data, list):
         result = [normalize_data_structs(x, **kwargs) for x in data]
-        return (sorted(result) if kwargs.get('sort_lists', False) else result)
-    elif isinstance(data, dict):
+        return sorted(result) if kwargs.get('sort_lists', False) else result
+
+    if isinstance(data, dict):
         return {k: normalize_data_structs(data[k], **kwargs) for k in sorted(data.keys())}
-    else:
-        return data
+
+    return data
 
 
 def listize(param):

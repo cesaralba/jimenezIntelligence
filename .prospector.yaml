@@ -8,6 +8,7 @@ inherits:
   - default
 ignore-paths:
   - fixers
+  - Utils/combinatorics.py
 autodetect: false
 max-line-length: 120
 
@@ -18,6 +19,7 @@ pycodestyle:
   - N803
   - N806
   - N816
+  - E126
 
 pylint:
   disable:

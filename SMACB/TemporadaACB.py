@@ -15,21 +15,22 @@ from time import gmtime, strftime
 from traceback import print_exception
 from typing import Any, Iterable
 
-logger = logging.getLogger()
-
 import numpy as np
 import pandas as pd
 
-from Utils.FechaHora import fechaParametro2pddatetime
-from Utils.Pandas import combinaPDindexes
-from Utils.Web import creaBrowser
 from SMACB.CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
-from SMACB.Constants import (OtherLoc, EqRival, OtherTeam, LOCALNAMES, LocalVisitante, infoSigPartido, infoClasifEquipo,
-                             infoClasifBase, infoPartLV, infoEqCalendario, filaTrayectoriaEq, filaMergeTrayectoria
+from SMACB.Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoClasifBase, infoClasifEquipo,
+                             infoEqCalendario, infoPartLV, infoSigPartido, LOCALNAMES, LocalVisitante, OtherLoc,
+                             OtherTeam,
                              )
 from SMACB.FichaJugador import FichaJugador
 from SMACB.PartidoACB import PartidoACB
+from Utils.FechaHora import fechaParametro2pddatetime
+from Utils.Pandas import combinaPDindexes
+from Utils.Web import creaBrowser
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB
+
+logger = logging.getLogger()
 
 DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 0, ('Info', 'prorrogas', 'count'): 0,
                    ('Info', 'prorrogas', 'max'): 0, ('Info', 'prorrogas', 'mean'): 0,
@@ -475,7 +476,7 @@ class TemporadaACB(object):
         else:
             estadPartidos = dfEstadsPartidosEq
 
-        resultSinProrogas = auxCalculaEstadsSubDataframe(estadPartidos.drop(columns=(COLDROPPER + [colProrrogas])))
+        resultSinProrogas = auxCalculaEstadsSubDataframe(estadPartidos.drop(columns=COLDROPPER + [colProrrogas]))
 
         # Sólo cuenta prórrogas de partidos donde ha habido
         if estadPartidos[colProrrogas].sum() != 0:
@@ -526,8 +527,7 @@ class TemporadaACB(object):
         # Todos los partidos de la liga hasta fecha
         dfTodosPartidos = self.dataFramePartidosLV(fecha)
 
-        for idEq in self.Calendario.tradEquipos[
-            'i2c'].values():  # Se usa id porque es único para equipos y la abr puede cambiar
+        for idEq in self.Calendario.tradEquipos['i2c'].values():  # Se usa idEq porque la abr puede cambiar durante temp
             abrevEq = next(iter(idEq))  # Coge una abr cualquiera que corresponda al id. (se usa
             # abrev porque esas son fáciles de asociar a equipos)
             dfPartidosEq = self.dfPartidosLV2ER(dfTodosPartidos, abrevEq)
@@ -562,8 +562,8 @@ class TemporadaACB(object):
             auxEntry['cod_competicion'] = p['cod_competicion']
             auxEntry['pendiente'] = p['pendiente']
 
-            auxEntry['esLocal'] = (loc == 'Local')
-            if not (p['pendiente']):
+            auxEntry['esLocal'] = loc == 'Local'
+            if not p['pendiente']:
                 auxEntry['haGanado'] = p['resultado'][loc] > p['resultado'][OtherLoc(loc)]
                 auxEntry['resultado'] = infoPartLV(**p['resultado'])
                 auxEntry['url'] = p['url']
@@ -591,7 +591,9 @@ class TemporadaACB(object):
         partsIzda = self.trayectoriaEquipo(abrevIzda)
         partsDcha = self.trayectoriaEquipo(abrevDcha)
 
-        cond2incl = lambda p: ((p.pendiente and incluyePendientes) or (not (p.pendiente) and incluyeJugados))
+        def cond2incl(p):
+            return (p.pendiente and incluyePendientes) or (not p.pendiente and incluyeJugados)
+
         partsIzdaAux = [p for p in partsIzda if cond2incl(p)]
         partsDchaAux = [p for p in partsDcha if cond2incl(p)]
 
@@ -634,7 +636,7 @@ class TemporadaACB(object):
 
                 abrevsPartIzda = {priPartIzda.abrevEqs.Local, priPartIzda.abrevEqs.Visitante}
 
-                bloque['precedente'] = (len(abrevsPartido.intersection(abrevsPartIzda)) == 2)
+                bloque['precedente'] = len(abrevsPartido.intersection(abrevsPartIzda)) == 2
 
             else:
                 if (priPartIzda.fechaPartido, priPartIzda.jornada) < (priPartDcha.fechaPartido, priPartDcha.jornada):
@@ -870,9 +872,8 @@ def extraeCampoYorden(estads: pd.DataFrame, estadsOrden: pd.DataFrame, eq: str =
 
     if targetCol not in estads.index:
         valCorrectos = ", ".join(sorted(estads.index).map(str))
-        raise KeyError(
-                f"extraeCampoYorden: parametros para dato '{targetCol}' desconocidos. Referencias válidas: "
-                f"{valCorrectos}")
+        raise KeyError(f"extraeCampoYorden: parametros para dato '{targetCol}' desconocidos. Referencias válidas: "
+                       f"{valCorrectos}")
 
     valor = estads.loc[targetCol]
     orden = estadsOrden.loc[targetCol]
