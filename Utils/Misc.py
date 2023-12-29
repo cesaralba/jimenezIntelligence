@@ -93,15 +93,6 @@ def DumpDict(x, claves=None):
     return "\n".join(result)
 
 
-def Seg2Tiempo(x):
-    mins = x // 60
-    segs = x % 60
-
-    result = f"{mins: .0f}" ":" f"{segs: 02.0f}"
-
-    return result
-
-
 def SubSet(lista, idx):
     if not idx:
         return []

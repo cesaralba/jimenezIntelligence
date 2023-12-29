@@ -21,8 +21,8 @@ from SMACB.FichaJugador import TRADPOSICION
 from SMACB.TemporadaACB import (auxEtiqPartido, calculaEstadsYOrdenLiga, equipo2clasif, esEstCreciente,
                                 extraeCampoYorden, TemporadaACB
                                 )
-from Utils.FechaHora import NEVER, Time2Str
-from Utils.Misc import listize, onlySetElement, Seg2Tiempo
+from Utils.FechaHora import NEVER, Seg2Tiempo, Time2Str
+from Utils.Misc import listize, onlySetElement
 from Utils.ReportLab.RLverticalText import VerticalParagraph
 
 # Variables globales
