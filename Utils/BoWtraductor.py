@@ -1,14 +1,13 @@
 import re
-
-from _collections import defaultdict
 from unicodedata import normalize
+from _collections import defaultdict
 
 from .Misc import cosaCorta, cosaLarga, listize, onlySetElement
 
 NORMADEFECTO = 'NFKD'
 
 
-class BoWTraductor(object):
+class BoWTraductor():
     """
     Clase genérica para un traductor k->v.
     """
@@ -57,36 +56,35 @@ class BoWTraductor(object):
                 auxRes = self.TradNormalizadas[valNorm]
                 return onlySetElement(auxRes)
 
-            else:
-                bowx = CreaBoW(valNorm)
-                resultList = [(vny, self.vn2bow[vny], CompareBagsOfWords(bowx, self.vn2bow[vny])) for vny in
-                              self.vn2bow.keys() if CompareBagsOfWords(bowx, self.vn2bow[vny]) > 0]
+            bowx = CreaBoW(valNorm)
+            resultList = [(vny, vnyVal, CompareBagsOfWords(bowx, vnyVal)) for vny, vnyVal in
+                          self.vn2bow.items() if CompareBagsOfWords(bowx, vnyVal) > 0]
 
-                fullMatch = [x for x in resultList if len(bowx) == x[2]]
+            fullMatch = [x for x in resultList if len(bowx) == x[2]]
+
+            if fullMatch:
+                auxRes = set()
+                for sol in fullMatch:
+                    auxRes = auxRes.union(self.TradNormalizadas[sol[0]])
+                return onlySetElement(auxRes)
+
+            if umbral and resultList:
+                # TODO: work this out
+
+                fullMatch = set()
+                candidates = defaultdict(set)
+                for vny, bowy, coincidences in resultList:
+                    if bowx == bowy or bowx.intersection(bowy) == bowx:
+                        fullMatch = fullMatch.union(self.TradNormalizadas[vny])
+                    else:
+                        candidates[coincidences] = candidates[coincidences].union(self.TradNormalizadas[vny])
 
                 if fullMatch:
-                    auxRes = set()
-                    for sol in fullMatch:
-                        auxRes = auxRes.union(self.TradNormalizadas[sol[0]])
-                    return onlySetElement(auxRes)
+                    return onlySetElement(fullMatch)
 
-                if umbral and resultList:
-                    # TODO: work this out
-
-                    fullMatch = set()
-                    candidates = defaultdict(set)
-                    for vny, bowy, coincidences in resultList:
-                        if bowx == bowy or bowx.intersection(bowy) == bowx:
-                            fullMatch = fullMatch.union(self.TradNormalizadas[vny])
-                        else:
-                            candidates[coincidences] = candidates[coincidences].union(self.TradNormalizadas[vny])
-
-                    if fullMatch:
-                        return onlySetElement(fullMatch)
-
-                    elif candidates:
-                        print(candidates)
-                        return candidates
+                if candidates:
+                    print(candidates)
+                    return candidates
 
         return None
 
@@ -115,7 +113,7 @@ def CreaBoW(x):
 def CompareBagsOfWords(x, y):
     def setize(x):
         if not isinstance(x, (set, str, bytes)):
-            raise TypeError("Esperaba cadena o set: %s -> %s" % (x, type(x)))
+            raise TypeError(f"Esperaba cadena o set: {x} -> {type(x)}")
         return x if isinstance(x, set) else set(x.split())
 
     bogx = setize(x)
@@ -159,9 +157,9 @@ def RetocaNombreJugador(x):
     REjug = re.match(PATjug, x)
 
     if REjug:
-        return "%s %s" % (REjug['nombre'], REjug['apell'])
-    else:
-        return x
+        return f"{REjug['nombre']} {REjug['apell']}"
+
+    return x
 
 
 def comparaNombresPersonas(fr1, fr2, umbral=1):
@@ -171,7 +169,8 @@ def comparaNombresPersonas(fr1, fr2, umbral=1):
         # print("CAP compPref",pref1,type(pref1),pref2,type(pref2))
         if pref1 == pref2:
             return result + len(pref1)
-        elif len(pref1) == 0 or len(pref2) == 0:
+
+        if len(pref1) == 0 or len(pref2) == 0:
             return result
 
         prefLargo = cosaLarga(pref1, pref2)
@@ -239,7 +238,7 @@ def esSigla(cadena):
 
 
 def hazSigla(cadena):
-    result = "%c." % cadena[0]
+    result = f"{cadena[0]}."
     return result
 
 
