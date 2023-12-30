@@ -1,6 +1,5 @@
 import re
 from argparse import Namespace
-from copy import copy
 from itertools import product
 from time import gmtime
 from traceback import print_exc
@@ -11,16 +10,16 @@ from babel.numbers import parse_number
 from bs4 import Tag
 
 from Utils.BoWtraductor import RetocaNombreJugador
-from Utils.FechaHora import PATRONFECHAHORA, PATRONFECHA
+from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams, getObjID
-from .Constants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp, titular2esp, OtherLoc, LocalVisitante)
+from .Constants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp)
 from .PlantillaACB import PlantillaACB
 
 templateURLficha = "http://www.acb.com/fichas/%s%i%03i.php"
 
 
-class PartidoACB(object):
+class PartidoACB():
 
     def __init__(self, **kwargs):
         self.jornada = None
@@ -99,18 +98,20 @@ class PartidoACB(object):
         divCabecera = pagina.find("div", {"class": "contenedora_info_principal"})
         self.procesaDivCabecera(divCabecera)
 
-        for l, tRes in zip(LocalVisitante, tablasPartido.find_all("section", {"class": "partido"})):
+        for loc, tRes in zip(LocalVisitante, tablasPartido.find_all("section", {"class": "partido"})):
             colHeaders = extractPrefijosTablaEstads(tRes)
-            self.extraeEstadsJugadores(tRes, l, colHeaders)
+            self.extraeEstadsJugadores(tRes, loc, colHeaders)
 
             cachedTeam = None
             newPendientes = list()
-            if self.pendientes[l]:
-                for datosJug in self.pendientes[l]:
+            if self.pendientes[loc]:
+                for datosJug in self.pendientes[loc]:
                     if datosJug['nombre'] == '':
-                        datosJugTxt = "{localidad} Eq: '{equipo}' Dorsal: {dorsal} {posicion}".format(
-                            localidad=("Local" if datosJug['esLocal'] else "Visit"), equipo=datosJug['equipo'],
-                            dorsal=datosJug['dorsal'], posicion=("Jugador" if datosJug['esJugador'] else "Entrenador"))
+                        localidad = ("Local" if datosJug['esLocal'] else "Visit")
+                        equipo = datosJug['equipo']
+                        dorsal = datosJug['dorsal']
+                        posicion = ("Jugador" if datosJug['esJugador'] else "Entrenador")
+                        datosJugTxt = f"{localidad} Eq: '{equipo}' Dorsal: {dorsal} {posicion}"
                         print(f"(W) Partido: {self} -> {datosJugTxt}: Datos insuficientes para encontrar ID.")
                         newPendientes.append(datosJug)
                         if datosJug['esJugador']:
@@ -118,9 +119,9 @@ class PartidoACB(object):
                             raiser = True
 
                         continue
-                    else:
-                        if cachedTeam is None:
-                            cachedTeam = PlantillaACB(teamId=datosJug['IDequipo'], edicion=datosJug['temporada'])
+
+                    if cachedTeam is None:
+                        cachedTeam = PlantillaACB(teamId=datosJug['IDequipo'], edicion=datosJug['temporada'])
 
                     nombreRetoc = RetocaNombreJugador(datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug[
                         'nombre']
@@ -133,20 +134,21 @@ class PartidoACB(object):
 
                         if datosJug['esJugador']:
                             self.Jugadores[datosJug['codigo']] = datosJug
-                            (self.Equipos[l]['Jugadores']).append(datosJug['codigo'])
+                            (self.Equipos[loc]['Jugadores']).append(datosJug['codigo'])
                         elif datosJug.get('entrenador', False):
                             self.Entrenadores[datosJug['codigo']] = datosJug
-                            self.Equipos[l]['Entrenador'] = datosJug['codigo']
-                        self.aprendidos[l].append(newCode)
+                            self.Equipos[loc]['Entrenador'] = datosJug['codigo']
+                        self.aprendidos[loc].append(newCode)
                     else:
-                        print("Imposible encontrar ID. Partido: %s. %s" % (self, datosJug))
+                        print(f"Imposible encontrar ID. Partido: {self}. {datosJug}")
                         newPendientes.append(datosJug)
                         raiser = True
 
-                self.pendientes[l] = newPendientes
+                self.pendientes[loc] = newPendientes
             if raiser:
-                raise ValueError("procesaPartido: Imposible encontrar (%i) código(s) para (%s) en partido '%s': %s" % (
-                    len(newPendientes), l, self.url, newPendientes))
+                raise ValueError(
+                    f"procesaPartido: Imposible encontrar ({len(newPendientes)}) código(s) para ({loc}) en partido '"
+                    f"{self.url}': {newPendientes}")
 
         return divCabecera
 
@@ -182,17 +184,17 @@ class PartidoACB(object):
         parciales = list(zip(*auxParciales))
         abrevs = [p.get_text() for p in divParciales.find_all("td", {"class": "equipo"})]
 
-        for l, p in zip(LocalVisitante, puntos):
-            self.Equipos[l]['Puntos'] = p
+        for loc, pts in zip(LocalVisitante, puntos):
+            self.Equipos[loc]['Puntos'] = pts
         self.ResultadosParciales = parciales
         self.VictoriaLocal = self.Equipos['Local']['Puntos'] > self.Equipos['Visitante']['Puntos']
 
-        for l, e in zip(LocalVisitante, equipos):
-            self.Equipos[l]['id'] = getObjID(e[0])
-            self.Equipos[l]['Nombre'] = e[1]
+        for loc, eq in zip(LocalVisitante, equipos):
+            self.Equipos[loc]['id'] = getObjID(eq[0])
+            self.Equipos[loc]['Nombre'] = eq[1]
 
-        for l, a in zip(LocalVisitante, abrevs):
-            self.Equipos[l]['abrev'] = a
+        for loc, abrev in zip(LocalVisitante, abrevs):
+            self.Equipos[loc]['abrev'] = abrev
 
     def procesaLineaTablaEstadistica(self, fila, headers, estado):
         result = dict()
@@ -207,7 +209,7 @@ class PartidoACB(object):
         result['IDrival'] = self.Equipos[OtherLoc(estado)]['id']
         result['url'] = self.url
         result['estado'] = estado
-        result['esLocal'] = (estado == "Local")
+        result['esLocal'] = estado == "Local"
         result['haGanado'] = self.ResultadoCalendario[estado] > self.ResultadoCalendario[OtherLoc(estado)]
 
         filaClass = fila.attrs.get('class', '')
@@ -231,9 +233,8 @@ class PartidoACB(object):
 
                     if estads['P'] != self.Equipos[estado]['Puntos']:
                         print(estads, self.Equipos[estado])
-                        raise ValueError("ProcesaLineaTablaEstadistica: TOTAL '%s' puntos '%i' "
-                                         "no casan con encabezado '%i' " % (
-                                             estado, estads['P'], self.Equipos[estado]['Puntos']))
+                        raise ValueError(f"ProcesaLineaTablaEstadistica: TOTAL '{estado}' puntos '{estads['P']}' "
+                                         f"no casan con encabezado '{self.Equipos[estado]['Puntos']}'")
             else:  # Jugadores
                 result['esJugador'] = True
                 result['entrenador'] = False
@@ -249,7 +250,7 @@ class PartidoACB(object):
                     result['dorsal'] = REdorsal['dorsal']
                     result['esTitular'] = REdorsal['titular'] == '*'
                 else:
-                    raise ValueError("Texto dorsal '%s' no casa RE '%s'" % (textoDorsal, PATdorsal))
+                    raise ValueError(f"Texto dorsal '{textoDorsal}' no casa RE '{PATdorsal}'")
 
                 celNombre = mergedCells['Nombre']
                 result['nombre'] = celNombre.get_text()
@@ -286,29 +287,29 @@ class PartidoACB(object):
             auxTemp = ExtractREGroups(cadena=cadena, regex=reTiempo)
             if auxTemp:
                 return int(auxTemp[0]) * 60 + int(auxTemp[1])
-            else:
-                raise BadString("ProcesaEstadisticas:ProcesaTiempo '%s' no casa RE '%s' " % (cadena, reTiempo))
+
+            raise BadString(f"ProcesaEstadisticas:ProcesaTiempo '{cadena}' no casa RE '{reTiempo}'")
 
         def ProcesaTiros(cadena):
             auxTemp = ExtractREGroups(cadena=cadena, regex=reTiros)
             if auxTemp:
                 return int(auxTemp[0]), int(auxTemp[1])
-            else:
-                raise BadString("ProcesaEstadisticas:ProcesaTiros '%s' no casa RE '%s' " % (cadena, reTiros))
+
+            raise BadString(f"ProcesaEstadisticas:ProcesaTiros '{cadena}' no casa RE '{reTiros}'")
 
         def ProcesaRebotes(cadena):
             auxTemp = ExtractREGroups(cadena=cadena, regex=reRebotes)
             if auxTemp:
                 return int(auxTemp[0]), int(auxTemp[1])
-            else:
-                raise BadString("ProcesaEstadisticas:ProcesaRebotes '%s' no casa RE '%s' " % (cadena, reRebotes))
+
+            raise BadString(f"ProcesaEstadisticas:ProcesaRebotes '{cadena}' no casa RE '{reRebotes}'")
 
         def ProcesaPorcentajes(cadena):
             auxTemp = ExtractREGroups(cadena=cadena, regex=rePorcentaje)
             if auxTemp:
                 return int(auxTemp[0])
-            else:
-                raise BadString("ProcesaEstadisticas:ProcesaPorcentajes '%s' no casa RE '%s' " % (cadena, rePorcentaje))
+
+            raise BadString(f"ProcesaEstadisticas:ProcesaPorcentajes '{cadena}' no casa RE '{rePorcentaje}'")
 
         for key in contadores.keys():
             val = contadores[key]
@@ -333,21 +334,16 @@ class PartidoACB(object):
                 except ValueError:
                     result[key] = None
                     print_exc()
-                    print("ProcesaEstadisticas: Error: '%s'='%s' converting to INT. "
-                          "URL Partido: %s -> %s" % (key, val, self.url, contadores))
+                    print(f"ProcesaEstadisticas: Error: '{key}'='{val}' converting to INT. "
+                          f"URL Partido: {self.url} -> {contadores}")
 
         return result
 
-    def resumenPartido(self):
-        return " * J %i: %s (%s) %i - %i %s (%s) " % (
-            self.jornada, self.EquiposCalendario['Local'], self.CodigosCalendario['Local'],
-            self.ResultadoCalendario['Local'], self.ResultadoCalendario['Visitante'],
-            self.EquiposCalendario['Visitante'], self.CodigosCalendario['Visitante'])
-
-    def jugadoresAdataframe(self):
+    def jugadoresAdataframe(self) -> pd.DataFrame:
         typesDF = {'competicion': 'object', 'temporada': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
                    'esTitular': 'bool', 'haJugado': 'bool', 'titular': 'category', 'haGanado': 'bool', 'enActa': 'bool',
-                   'Vsm': 'float64'}
+                   'Vsm': 'float64'
+                   }
 
         # 'equipo': 'object', 'CODequipo': 'object', 'rival': 'object', 'CODrival': 'object', 'dorsal': 'object'
         # 'nombre': 'object', 'codigo': 'object'
@@ -403,7 +399,7 @@ class PartidoACB(object):
 
             return dfresult
 
-        dfJugs = [jugador2dataframe(self.Jugadores[x]) for x in self.Jugadores]
+        dfJugs = [jugador2dataframe(x) for x in self.Jugadores.values()]
         dfResult = pd.concat(dfJugs, axis=0, ignore_index=True, sort=True).astype(typesDF)
 
         return dfResult
@@ -434,13 +430,13 @@ class PartidoACB(object):
                 self.Entrenadores[datos['codigo']] = datos
                 self.Equipos[estado]['Entrenador'] = datos['codigo']
 
-    def partidoAdataframe(self):
-        infoCols = ['jornada', 'Pabellon', 'Asistencia', 'prorrogas', 'VictoriaLocal', 'url',
-                    'competicion', 'temporada', 'idPartido']
+    def partidoAdataframe(self) -> pd.DataFrame:
+        infoCols = ['jornada', 'Pabellon', 'Asistencia', 'prorrogas', 'VictoriaLocal', 'url', 'competicion',
+                    'temporada', 'idPartido']
         equipoCols = ['id', 'Nombre', 'abrev']
 
-        infoDict = {k: self.__getattribute__(k) for k in infoCols}
-        infoDict['fechaHoraPartido'] = self.__getattribute__('fechaPartido')
+        infoDict = {k: getattr(self, k) for k in infoCols}
+        infoDict['fechaHoraPartido'] = getattr(self, 'fechaPartido')
         infoDict['fechaPartido'] = (infoDict['fechaHoraPartido']).date()
 
         estadsDict = {loc: dict() for loc in self.Equipos}
@@ -453,12 +449,13 @@ class PartidoACB(object):
 
             estadsDict[loc]['local'] = loc == 'Local'
             estadsDict[loc]['haGanado'] = self.DatosSuministrados['equipos'][loc]['haGanado']
-            estadsDict[loc]['etiqPartido'] = "{locres}{abrev}{victoderr}".format(
-                locres=("v" if estadsDict[loc]['local'] else "@"), abrev=estadsDict[loc]['RIVabrev'],
-                victoderr=("+" if estadsDict[loc]['haGanado'] else "-"))
+            locres = ("v" if estadsDict[loc]['local'] else "@")
+            abrev = estadsDict[loc]['RIVabrev']
+            victoderr = ("+" if estadsDict[loc]['haGanado'] else "-")
+            estadsDict[loc]['etiqPartido'] = f"{locres}{abrev}{victoderr}"
             estadsDict[loc]['convocados'] = len(self.Equipos[loc]['Jugadores'])
             estadsDict[loc]['utilizados'] = len(
-                [j for j in self.Equipos[loc]['Jugadores'] if self.Jugadores[j]['haJugado']])
+                    [j for j in self.Equipos[loc]['Jugadores'] if self.Jugadores[j]['haJugado']])
 
         estadsPart = self.estadsPartido()
 
@@ -484,18 +481,16 @@ class PartidoACB(object):
         return result
 
     def resumenPartido(self):
-        return " * J %i: %s (%s) %i - %i %s (%s) " % (self.jornada, self.EquiposCalendario['Local'],
-                                                      self.CodigosCalendario['Local'],
-                                                      self.ResultadoCalendario['Local'],
-                                                      self.ResultadoCalendario['Visitante'],
-                                                      self.EquiposCalendario['Visitante'],
-                                                      self.CodigosCalendario['Visitante'])
+        return (f" * J {self.jornada}: {self.EquiposCalendario['Local']} ({self.CodigosCalendario['Local']})"
+                f"{self.ResultadoCalendario['Local']} - {self.ResultadoCalendario['Visitante']} "
+                f"{self.EquiposCalendario['Visitante']} ({self.CodigosCalendario['Visitante']}) ")
 
     def __str__(self):
         return "J %02i: [%s] %s (%s) %i - %i %s (%s)" % (
-            self.jornada, self.fechaPartido, self.EquiposCalendario['Local']['nomblargo'],
-            self.CodigosCalendario['Local'], self.ResultadoCalendario['Local'], self.ResultadoCalendario['Visitante'],
-            self.EquiposCalendario['Visitante']['nomblargo'], self.CodigosCalendario['Visitante'])
+                self.jornada, self.fechaPartido, self.EquiposCalendario['Local']['nomblargo'],
+                self.CodigosCalendario['Local'], self.ResultadoCalendario['Local'],
+                self.ResultadoCalendario['Visitante'], self.EquiposCalendario['Visitante']['nomblargo'],
+                self.CodigosCalendario['Visitante'])
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -543,7 +538,7 @@ class PartidoACB(object):
             avanzadas['t2/tc-C'] = estads['T2-C'] / avanzadas['TC-C'] * 100.0
             avanzadas['t3/tc-C'] = estads['T3-C'] / avanzadas['TC-C'] * 100.0
 
-            auxEqPuntCanastas = (estads['T2-C'] * 2 + estads['T3-C'] * 3)
+            auxEqPuntCanastas = estads['T2-C'] * 2 + estads['T3-C'] * 3
             avanzadas['eff-t1'] = estads['T1-C'] * 1 / estads['P'] * 100.0
             avanzadas['eff-t2'] = estads['T2-C'] * 2 / estads['P'] * 100.0
             avanzadas['eff-t3'] = estads['T3-C'] * 3 / estads['P'] * 100.0
@@ -593,7 +588,7 @@ def GeneraURLpartido(link):
     liurlcomps = ExtraeGetParams(link2process)
     CheckParameters(liurlcomps)
     return templateURLficha % (
-        liurlcomps['cod_competicion'], int(liurlcomps['cod_edicion']), int(liurlcomps['partido']))
+            liurlcomps['cod_competicion'], int(liurlcomps['cod_edicion']), int(liurlcomps['partido']))
 
 
 def extractPrefijosTablaEstads(tablaEstads):

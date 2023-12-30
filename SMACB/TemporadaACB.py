@@ -879,4 +879,3 @@ def extraeCampoYorden(estads: pd.DataFrame, estadsOrden: pd.DataFrame, eq: str =
     orden = estadsOrden.loc[targetCol]
 
     return valor, orden
-
