@@ -20,7 +20,8 @@ parser.add('-f', dest='saveanyway', action="store_true", env_var='SM_SAVEANYWAY'
            help='Graba el fichero aunque no haya habido cambios', default=False)
 
 parser.add('-e', dest='edicion', action="store", env_var='SM_EDICION', required=False,
-           help='Año de la temporada (para 2015-2016 sería 2016). La ACB empieza en 1983. La copa se referencia por el año menor ',
+           help=('Año de la temporada (para 2015-2016 sería 2016). La ACB empieza en 1983. '
+                 'La copa se referencia por el año menor '),
            default=None)
 parser.add('-c', dest='competicion', action="store", env_var='SM_COMPETICION', required=False,
            choices=['LACB', 'COPA', 'SCOPA'], help='Clave de la competición: Liga=LACB, Copa=COPA, Supercopa=SCOPA',

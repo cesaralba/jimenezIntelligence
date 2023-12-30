@@ -1,14 +1,11 @@
-from copy import copy
-
 import matplotlib.pyplot as plt
 import pandas as pd
 from matplotlib.dates import DateFormatter
 
-from SMACB.PartidoACB import PartidoACB
+from SMACB.Constants import OtherTeam
 from SMACB.TemporadaACB import TemporadaACB
-from SMACB.Constants import OtherTeam, infoSigPartido
 from Utils.Misc import listize
-from .preparaDatos import teamMatch, calculaEstadisticosPartidos
+from .preparaDatos import calculaEstadisticosPartidos, teamMatch
 
 REQCABS = [('Eq', 'abrev'), ('Rival', 'abrev')]
 COLOREQ1 = 'red'
@@ -28,7 +25,8 @@ DEFAULTALPHA = 1.0
 DEFAULTLINESTYLE = '-'
 DEFAULTMARKER = ''
 
-#TODO: All this will break when some team changes sponsor and the acronym changes.
+
+# TODO: All this will break when some team changes sponsor and the acronym changes.
 
 def dibujaTodo(ax, dfTodo, etiq=('Eq', 'P_por40m'), team1='RMB', team2='LNT'):
     x1 = dfTodo[teamMatch(dfTodo, team1, teamOnly=True)][etiq].index
@@ -84,7 +82,8 @@ def find_filters(dfSorted, abrev1, abrev2):
 
 
 def plotEstads(ax, dfEstads: pd.DataFrame, categ, estads, target='Eq', prefijo='', color=DEFAULTCOLOR,
-               markers=DEFAULTMARKER, alpha: float = DEFAULTALPHA, linestyle=DEFAULTLINESTYLE):
+               markers=DEFAULTMARKER, alpha: float = DEFAULTALPHA, linestyle=DEFAULTLINESTYLE
+               ):
     estads2wrk = listize(estads)
     colnames = [(target, categ, x) for x in estads2wrk]
     labels = buildLabels(prefijo, categ, estads2wrk)
@@ -99,7 +98,8 @@ def plotEstads(ax, dfEstads: pd.DataFrame, categ, estads, target='Eq', prefijo='
 
 
 def plotTrayEquipo(ax, dfEstads: pd.DataFrame, categ, target='Eq', prefijo='', color=DEFAULTCOLOR, marker=DEFAULTMARKER,
-                   alpha: float = DEFAULTALPHA, linestyle=DEFAULTLINESTYLE):
+                   alpha: float = DEFAULTALPHA, linestyle=DEFAULTLINESTYLE
+                   ):
     col2show = (target, categ)
     dfEstads[col2show].plot(kind='line', c=color, ls=linestyle, label=prefijo, ax=ax, marker=marker, alpha=alpha)
 
@@ -110,7 +110,8 @@ def plotAntecedentes(ax: plt.Axes, dfEstads: pd.DataFrame, color=DEFAULTCOLOR, l
 
 
 def plotRestOfGames(ax: plt.Axes, dfEstads: pd.DataFrame, categ, target='Eq', color=DEFAULTCOLOR, marker=DEFAULTMARKER,
-                    alpha: float = DEFAULTALPHA):
+                    alpha: float = DEFAULTALPHA
+                    ):
     targetCol = (target, categ)
     ax.scatter(x=dfEstads.index.to_list(), y=dfEstads[[targetCol]], alpha=alpha, c=color, marker=marker)
 
@@ -131,8 +132,7 @@ def dibujaCategoria(dfPartidos, abrev1, abrev2, categ, target='Eq'):
 
     fig, ejes = plt.subplots()
 
-    plotEstads(ax=ejes, dfEstads=datos_Liga, estads=COLSESTADAVG, categ=categ, target=target, prefijo='ACB',
-               alpha=0.2)
+    plotEstads(ax=ejes, dfEstads=datos_Liga, estads=COLSESTADAVG, categ=categ, target=target, prefijo='ACB', alpha=0.2)
     plotEstads(ax=ejes, dfEstads=datos_Eq1, estads=COLSESTADMEDIAN, categ=categ, target=target, color=COLOREQ1,
                alpha=0.4, markers=MARKERSTADMEDIAN, linestyle=STYLEEQ1)
     plotEstads(ax=ejes, dfEstads=datos_Eq2, estads=COLSESTADMEDIAN, categ=categ, target=target, color=COLOREQ2,
@@ -154,13 +154,14 @@ def dibujaCategoria(dfPartidos, abrev1, abrev2, categ, target='Eq'):
     ejes.yaxis.set_label_text(categ)
 
     # TODO: Tabla con indicación del partido del equipo
-    #TODO: Leyendas
+    # TODO: Leyendas
     return fig, ejes
+
 
 # TODO: Kde de las categorías
 # TODO: Scatterplot eff of/def
 
-def teamsTrayectoryDataframe(dataTemp:TemporadaACB,dfGames:pd.DataFrame,abrev1:str,abrev2:str):
+def teamsTrayectoryDataframe(dataTemp: TemporadaACB, dfGames: pd.DataFrame, abrev1: str, abrev2: str):
     """
     Dado una colección de datos de temporada, un dataframe con resultados de los partidos y las brevs de 2 equipos
 
@@ -175,31 +176,30 @@ def teamsTrayectoryDataframe(dataTemp:TemporadaACB,dfGames:pd.DataFrame,abrev1:s
     """
 
     aux1 = dataTemp.sigPartido(abrev1)
-    sig1= aux1.sigPartido
-    abrEqs1=aux1.abrevLV
-    juI1=aux1.jugLocal
-    juD1=aux1.jugVis
-    targLocal=aux1.eqIsLocal
+    sig1 = aux1.sigPartido
+    abrEqs1 = aux1.abrevLV
+    juI1 = aux1.jugLocal
+    juD1 = aux1.jugVis
+    targLocal = aux1.eqIsLocal
     gamesTemp1 = juI1 if targLocal else juD1
-    if set(abrEqs1) == {abrev1,abrev2}:
+    if set(abrEqs1) == {abrev1, abrev2}:
         gamesTemp2 = juD1 if targLocal else juI1
     else:
-        aux2=dataTemp.sigPartido(abrev2)
-        sig2=aux2.sigPartido
+        aux2 = dataTemp.sigPartido(abrev2)
+        sig2 = aux2.sigPartido
 
-        juIzda2=aux2.jugLocal
-        juDcha2=aux2.jugVis
-        targLocal2=aux2.eqIsLocal
+        juIzda2 = aux2.jugLocal
+        juDcha2 = aux2.jugVis
+        targLocal2 = aux2.eqIsLocal
 
         gamesTemp2 = juIzda2 if targLocal2 else juDcha2
 
-        print("Games in the middle!!!")
-        #TODO: Show proper warning
+        print("Games in the middle!!!")  # TODO: Show proper warning
 
-    lineas = dataTemp.mergeTrayectoriaEquipos(abrev1,abrev2,True,False)
+    lineas = dataTemp.mergeTrayectoriaEquipos(abrev1, abrev2, True, False)
     print(lineas)
 
-    gameFilters = find_filters(dfGames,abrev1,abrev2)
+    gameFilters = find_filters(dfGames, abrev1, abrev2)
 
     gamesDF1 = dfGames[gameFilters['games1']]
     gamesDF2 = dfGames[gameFilters['games2']]
@@ -208,14 +208,14 @@ def teamsTrayectoryDataframe(dataTemp:TemporadaACB,dfGames:pd.DataFrame,abrev1:s
     for linData in lineas:
         print(linData)
         df1 = df2 = None
-        url1=linData.izda.url
+        url1 = linData.izda.url
         if url1:
-            df1 = gamesDF1[gamesDF1[('Info','url')]==url1].reset_index()
-        url2=linData.dcha.url
+            df1 = gamesDF1[gamesDF1[('Info', 'url')] == url1].reset_index()
+        url2 = linData.dcha.url
         if url2:
-            df2 = gamesDF2[gamesDF2[('Info','url')]==url2].reset_index()
+            df2 = gamesDF2[gamesDF2[('Info', 'url')] == url2].reset_index()
 
-        mergedDF = pd.concat([df1,df2],axis=1,keys=['Eq1','Eq2'])
+        mergedDF = pd.concat([df1, df2], axis=1, keys=['Eq1', 'Eq2'])
 
         dfList.append(mergedDF)
 
@@ -223,8 +223,9 @@ def teamsTrayectoryDataframe(dataTemp:TemporadaACB,dfGames:pd.DataFrame,abrev1:s
 
     return result
 
-def datosTablaAux(dfMerged:pd.DataFrame,categ,abrevsDuple,target='Eq',categLabel=None,formatCat="{:.2f}"):
-    if(len(abrevsDuple)) != 2:
+
+def datosTablaAux(dfMerged: pd.DataFrame, categ, abrevsDuple, target='Eq', categLabel=None, formatCat="{:.2f}"):
+    if (len(abrevsDuple)) != 2:
         raise ValueError(f"datosTablaAux: abrevsDuple {abrevsDuple} len must be 2. Current:{len(abrevsDuple)}")
 
     abrevTeam = dict()
@@ -232,30 +233,30 @@ def datosTablaAux(dfMerged:pd.DataFrame,categ,abrevsDuple,target='Eq',categLabel
     abrevTeam['Eq2'] = abrevsDuple[1]
     auxCateg = categ if categLabel is None else categLabel
 
-    colList=[]
+    colList = []
     colNames = []
     formats = dict()
 
-    diffJornadas= ~((dfMerged[('Eq1', 'Info', 'jornada')]==dfMerged[ ('Eq2', 'Info', 'jornada')]).all())
+    diffJornadas = ~((dfMerged[('Eq1', 'Info', 'jornada')] == dfMerged[('Eq2', 'Info', 'jornada')]).all())
     if ~diffJornadas:
-        colList.append(('Eq1','Info','jornada'))
+        colList.append(('Eq1', 'Info', 'jornada'))
         colNames.append('J')
         formats['J'] = "{!i:2}"
-    for team in ['Eq1','Eq2']:
+    for team in ['Eq1', 'Eq2']:
         abrev = abrevTeam[team]
         if diffJornadas:
-            colList.append((team,'Info','jornada'))
+            colList.append((team, 'Info', 'jornada'))
             colNames.append(f"{abrev} J")
             formats[f"{abrev} J"] = "{:2i}".format
 
-        colList.append((team,target,'etiqPartido'))
+        colList.append((team, target, 'etiqPartido'))
         colNames.append(f"{abrev} Part")
-        colList.append((team,target,categ))
+        colList.append((team, target, categ))
         colNames.append(f"{abrev} {auxCateg}")
         formats[f"{abrev} {auxCateg}"] = formatCat
 
-    data2show=dfMerged[colList]
-    data2show.columns=colNames
-    result=data2show.style.format(formatter=formats,na_rep="")
+    data2show = dfMerged[colList]
+    data2show.columns = colNames
+    result = data2show.style.format(formatter=formats, na_rep="")
 
     return result

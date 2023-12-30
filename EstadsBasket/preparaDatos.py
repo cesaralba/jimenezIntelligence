@@ -2,7 +2,7 @@ from itertools import product
 
 import pandas as pd
 
-from SMACB.Constants import LocalVisitante, EqRival
+from SMACB.Constants import EqRival, LocalVisitante
 from SMACB.TemporadaACB import TemporadaACB
 
 COLFECHAPARTIDO = ('Info', 'fechaPartido')
@@ -24,12 +24,13 @@ COLSSTATEQ4STATS = ['haGanado', 'convocados', 'utilizados', 'Segs', 'P', 'T2-C',
 
 
 def dfPartidos2serieFechas(dfPartidos: pd.DataFrame, colFecha=COLFECHAPARTIDO, abrEq=None,
-                           datosTemp: TemporadaACB = None):
+                           datosTemp: TemporadaACB = None
+                           ):
     listaPartidos = dfPartidos
     if abrEq:
         if datosTemp is None:
             raise ValueError(
-                f"dfPartidos2serieFechas: si se suministra abreviatura '{abrEq}' se requiere info de temporada")
+                    f"dfPartidos2serieFechas: si se suministra abreviatura '{abrEq}' se requiere info de temporada")
 
         idEq = datosTemp.tradEqAbrev2Id(abrEq)
         listaPartidos = dfPartidos[teamMatch(dfPartidos, idEq, field='id', teamOnly=True)]

@@ -3,16 +3,16 @@ import re
 from argparse import Namespace
 from collections import defaultdict
 from copy import copy, deepcopy
-
-logger = logging.getLogger()
+from time import gmtime
 
 import pandas as pd
-from time import gmtime
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA
 from Utils.Misc import FORMATOtimestamp, listize
 from Utils.Web import DescargaPagina, getObjID, MergeURL
 from .Constants import URL_BASE
+
+logger = logging.getLogger()
 
 calendario_URLBASE = "http://www.acb.com/calendario"
 template_URLFICHA = "http://www.acb.com/fichas/%s%i%03i.php"
