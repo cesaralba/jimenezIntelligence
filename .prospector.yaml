@@ -28,4 +28,4 @@ pylint:
   - use-dict-literal
 
 vulture:
-  run: false
+  run: true
