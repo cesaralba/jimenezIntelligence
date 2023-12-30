@@ -26,3 +26,6 @@ pylint:
   - invalid-name
   - use-list-literal
   - use-dict-literal
+
+vulture:
+  run: false

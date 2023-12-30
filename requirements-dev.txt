@@ -38,6 +38,7 @@ asttokens==2.4.1
 nest-asyncio==1.5.8
 
 prospector==1.10.3
+#pre-commit==3.6.0
 
 watchdog
 
