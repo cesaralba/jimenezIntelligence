@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
+import sys
 from argparse import Namespace
 from collections import defaultdict
-from typing import Iterable
 from copy import copy, deepcopy
 from pickle import dump, load
 from time import gmtime
-import sys
+from typing import Iterable
 
 import mechanicalsoup
 import pandas as pd
