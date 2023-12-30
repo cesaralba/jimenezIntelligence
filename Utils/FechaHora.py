@@ -63,6 +63,6 @@ def Seg2Tiempo(x):
     mins = x // 60
     segs = x % 60
 
-    result = f"{mins:d}" ":" f"{segs:02d}"
+    result = f"{mins:.0f}" ":" f"{segs:02.0f}"
 
     return result
