@@ -366,9 +366,8 @@ def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estil
         if 'formato' in colSpec:
             etiqFormato = colSpec['formato']
             if etiqFormato not in formatos:
-                raise KeyError(
-                        f"auxGeneraTabla: columna '{colkey}': formato '{etiqFormato}' desconocido. "
-                        f"Formatos conocidos: {formatos}")
+                raise KeyError(f"auxGeneraTabla: columna '{colkey}': formato '{etiqFormato}' desconocido. "
+                               f"Formatos conocidos: {formatos}")
             formatSpec = formatos[etiqFormato]
 
             if 'numero' in formatSpec:

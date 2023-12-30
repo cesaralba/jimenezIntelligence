@@ -35,9 +35,9 @@ def dfPartidos2serieFechas(dfPartidos: pd.DataFrame, colFecha=COLFECHAPARTIDO, a
         idEq = datosTemp.tradEqAbrev2Id(abrEq)
         listaPartidos = dfPartidos[teamMatch(dfPartidos, idEq, field='id', teamOnly=True)]
 
-    if (colFecha in listaPartidos.columns):
+    if colFecha in listaPartidos.columns:
         auxResult = pd.Series(listaPartidos[colFecha].unique())
-    elif (colFecha in listaPartidos.index.names):
+    elif colFecha in listaPartidos.index.names:
         if isinstance(listaPartidos.index, pd.Index):
             auxResult = pd.Series(listaPartidos.index.to_series().unique())
         elif isinstance(listaPartidos.index, pd.MultiIndex):

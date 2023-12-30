@@ -29,7 +29,7 @@ UMBRALbusquedaDistancia = 1  # La comparación debe ser >
 CALENDARIOEQUIPOS = dict()
 
 
-class CalendarioACB(object):
+class CalendarioACB():
 
     def __init__(self, urlbase=calendario_URLBASE, **kwargs):
         self.timestamp = gmtime()

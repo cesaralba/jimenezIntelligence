@@ -59,9 +59,9 @@ class FichaJugador():
         newData = descargaURLficha(self.URL, home=home, browser=browser, config=config)
 
         for k in CLAVESFICHA:
-            if getattr(self,k) != newData[k]:
+            if getattr(self, k) != newData[k]:
                 changes = True
-                setattr(self,k, newData[k])
+                setattr(self, k, newData[k])
 
         if newData['urlFoto'] not in self.fotos:
             changes = True
@@ -129,17 +129,17 @@ class FichaJugador():
         for k in vars(other).keys():
             if k in CLAVESAIGNORAR:
                 continue
-            if not hasattr(other, k) or getattr(other,k) is None:
+            if not hasattr(other, k) or getattr(other, k) is None:
                 continue
-            if getattr(self,k) is None and getattr(other,k) is not None:
-                setattr(self,k, getattr(other,k))
+            if getattr(self, k) is None and getattr(other, k) is not None:
+                setattr(self, k, getattr(other, k))
                 changes = True
-            elif newer and getattr(self,k) != getattr(other,k):
-                setattr(self,k, getattr(other,k))
+            elif newer and getattr(self, k) != getattr(other, k):
+                setattr(self, k, getattr(other, k))
                 changes = True
 
     def dictDatosJugador(self):
-        result = {k: getattr(self,k) for k in CLAVESDICT}
+        result = {k: getattr(self, k) for k in CLAVESDICT}
         result['numEquipos'] = len(self.equipos)
         result['numPartidos'] = len(self.partidos)
         result['pos'] = TRADPOSICION.get(self.posicion, '**')
