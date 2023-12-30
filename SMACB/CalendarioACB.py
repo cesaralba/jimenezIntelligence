@@ -360,7 +360,7 @@ def procesaFechasJornada(cadFechas):
             yearN = int(reFecha['year'].strip())
             for d in reFecha['dias'].split("-"):
                 diaN = int(d.strip())
-                cadResult = f"{yearN:04i}-{mes2n[reFecha['mes']]:02i}-{diaN:02i}"
+                cadResult = f"{yearN:04d}-{mes2n[reFecha['mes']]:02d}-{diaN:02d}"
                 if diaN in resultado:
                     resultado[diaN].add(cadResult)
                 else:
