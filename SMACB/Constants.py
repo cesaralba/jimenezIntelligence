@@ -54,7 +54,7 @@ CATESTADSEQ2IGNORE = {'+/-', 'C', 'convocados', 'haGanado', 'local', 'M', 'Segs'
 CATESTADSEQASCENDING = {'DER', 'DERpot', 'Prec', 'BP', 'FP-F', 'TAP-C', 'PNR'}
 
 DEFAULTNUMFORMAT = '{:3.2f}'
-RANKFORMAT = '{:2.0f}'
+RANKFORMAT = '{:2d}'
 DEFAULTPERCFORMAT = DEFAULTNUMFORMAT + '%'
 
 REPORTLEYENDAS = {'+/-': {'etiq': '+/-', 'leyenda': 'Cambio en la anotación con él en el campo'},
