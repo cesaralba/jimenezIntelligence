@@ -534,7 +534,7 @@ def datosTablaLiga(tempData: TemporadaACB, currJornada: int = None):
     auxTabla = defaultdict(dict)
     auxTablaJuPe = {'pe': [], 'ju': []}
 
-    for jId, jDatos in tempData.Calendario.Jornadas.items():
+    for _, jDatos in tempData.Calendario.Jornadas.items():
         for part in jDatos['partidos']:
             idLocal = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Local']['abrev']])[0]
             idVisitante = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Visitante']['abrev']])[0]

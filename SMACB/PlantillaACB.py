@@ -5,7 +5,7 @@ from time import gmtime
 
 import bs4
 
-from Utils.LoggedDict import LoggedDict, DictOfLoggedDict
+from Utils.LoggedDict import DictOfLoggedDict, LoggedDict
 from Utils.Web import creaBrowser, DescargaPagina, getObjID, MergeURL
 from .Constants import URL_BASE
 
@@ -14,7 +14,7 @@ logger = logging.getLogger()
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
 
 
-class PlantillaACB(object):
+class PlantillaACB():
     def __init__(self, teamId, **kwargs):
         self.id = teamId
         self.edicion = kwargs.get('edicion', None)
@@ -64,63 +64,18 @@ class PlantillaACB(object):
         return self.jugadores.extractKey(key=clave, default=default)
 
     def __str__(self):
-        result = "%s [%s] Year: %s Jugadores conocidos: %i Entrenadores conocidos: %i" % (
-            self.club.get('nombreActual', "TBD"), self.id, self.edicion, len(self.jugadores), len(self.tecnicos))
+        result = (f"{self.club.get('nombreActual', 'TBD')} [{self.id}] Year: {self.edicion} "
+                  f"Jugadores conocidos: {len(self.jugadores)} Entrenadores conocidos: {len(self.tecnicos)}")
         return result
 
     __repr__ = __str__
-
-    # def getCode(self, nombre, dorsal=None, esTecnico=False, esJugador=False, umbral=1):
-    #
-    #     if esJugador:
-    #         targetDict = self.jugadores
-    #     elif esTecnico:
-    #         dorsal = None
-    #         targetDict = self.tecnicos
-    #     else:  # Ni jugador ni tecnico???
-    #         raise ValueError(f"Jugador '{nombre}' ({dorsal or 'Sin dorsal'}) no es ni jugador ni técnico")
-    #
-    #     resultSet = set()
-    #
-    #     nombreNormaliz = NormalizaCadena(RetocaNombreJugador(nombre))
-    #     setNombre = CreaBoW(nombreNormaliz)
-    #
-    #     for jCode, jData in targetDict.items():
-    #         if dorsal is not None:
-    #             if jData['dorsal'] == dorsal:  # Hay dorsal, coincide algo => nos vale
-    #                 for jNombre in jData['nombre']:
-    #                     dsSet = CreaBoW(NormalizaCadena(RetocaNombreJugador(jNombre)))
-    #                     if CompareBagsOfWords(setNombre, dsSet) > 0:
-    #                         return jCode
-    #         else:  # Sin dorsal no es suficiente sólo con apellidos (apellidos o nombres muy comunes)
-    #             for jNombre in jData['nombre']:
-    #                 dsSet = CreaBoW(NormalizaCadena(RetocaNombreJugador(jNombre)))
-    #                 if CompareBagsOfWords(setNombre, dsSet) > 0:
-    #                     resultSet.add(jCode)
-    #
-    #     if not resultSet:  # Ni siquiera candidatos => nada que hacer
-    #         return None
-    #     if isinstance(resultSet, set) and len(resultSet) == 1:  # Unica respuesta! => Nos vale
-    #         return onlySetElement(resultSet)
-    #
-    #     # Hay más de una respuesta posible (¿les da miedo citar a Sergio Rodríguez?) Tocará afinar más
-    #     codeList = set()
-    #     for jCode in resultSet:
-    #         jData = targetDict[jCode]
-    #         for jNombre in jData['nombre']:
-    #             dsNormaliz = NormalizaCadena(RetocaNombreJugador(jNombre))
-    #             if comparaNombresPersonas(dsNormaliz, nombreNormaliz, umbral=umbral):
-    #                 codeList.add(jCode)
-    #
-    #     return onlySetElement(codeList)
-    #
 
 
 def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=Namespace(), otrosNombres=None):
     if browser is None:
         browser = creaBrowser(config)
     try:
-        logging.debug(f"descargaURLplantilla: downloading {urlPlantilla} ")
+        logging.debug("descargaURLplantilla: downloading %s", urlPlantilla)
         pagPlant = DescargaPagina(urlPlantilla, home=home, browser=browser, config=config)
 
         result = procesaPlantillaDescargada(pagPlant, otrosNombres=otrosNombres)
@@ -128,7 +83,7 @@ def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=Namespace
         result['timestamp'] = gmtime()
         result['edicion'] = encuentraUltEdicion(pagPlant)
     except Exception as exc:
-        print("descargaURLficha: problemas descargando '%s': %s" % (urlPlantilla, exc))
+        print(f"descargaURLficha: problemas descargando '{urlPlantilla}': {exc}")
         raise exc
 
     return result
@@ -183,7 +138,7 @@ def procesaPlantillaDescargada(plantDesc, otrosNombres: dict = None):
                                      jugArt.find("div", {"class": "nombre"}).find_all("span")}
                 data['nombre'].update(nuevosNombres)
             else:
-                raise ValueError("procesaPlantillaDescargada: no sé cómo tratar entrada: %s" % jugArt)
+                raise ValueError(f"procesaPlantillaDescargada: no sé cómo tratar entrada: {jugArt}")
 
             data['dorsal'] = jugArt.find("div", {"class": "dorsal"}).get_text().strip()
 
@@ -274,7 +229,7 @@ def descargaPlantillasCabecera(browser=None, config=Namespace(), edicion=None, l
     paginaRaiz = DescargaPagina(dest=urlClubes, browser=browser, config=config)
 
     if paginaRaiz is None:
-        raise ConnectionError("Incapaz de descargar %s" % URL_BASE)
+        raise ConnectionError(f"Incapaz de descargar {URL_BASE}")
 
     raizData = paginaRaiz['data']
     divLogos = raizData.find('section', {'class': 'contenedora_clubes'})
