@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import logging
 import sys
+
 from configargparse import ArgumentParser
-from mechanicalsoup import StatefulBrowser
 
 from SMACB.CalendarioACB import calendario_URLBASE
 from SMACB.TemporadaACB import TemporadaACB
-from Utils.Web import ExtraeGetParams
+from Utils.Logging import prepareLogger
+from Utils.Web import ExtraeGetParams, creaBrowser
 
 parser = ArgumentParser()
 parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, help='', default=0)
@@ -18,7 +20,8 @@ parser.add('-f', dest='saveanyway', action="store_true", env_var='SM_SAVEANYWAY'
            help='Graba el fichero aunque no haya habido cambios', default=False)
 
 parser.add('-e', dest='edicion', action="store", env_var='SM_EDICION', required=False,
-           help='Año de la temporada (para 2015-2016 sería 2016). La ACB empieza en 1983. La copa se referencia por el año menor ',
+           help=('Año de la temporada (para 2015-2016 sería 2016). La ACB empieza en 1983. '
+                 'La copa se referencia por el año menor '),
            default=None)
 parser.add('-c', dest='competicion', action="store", env_var='SM_COMPETICION', required=False,
            choices=['LACB', 'COPA', 'SCOPA'], help='Clave de la competición: Liga=LACB, Copa=COPA, Supercopa=SCOPA',
@@ -34,7 +37,15 @@ parser.add('-o', dest='outfile', type=str, env_var='SM_OUTFILE', help='Fichero d
 
 args = parser.parse_args()
 
-browser = StatefulBrowser(soup_config={'features': "html.parser"}, raise_on_404=True, user_agent="SMparser", )
+browser = creaBrowser(config=args)
+
+logger = logging.getLogger()
+if args.debug:
+    prepareLogger(logger=logger, level=logging.DEBUG)
+elif args.verbose:
+    prepareLogger(logger=logger, level=logging.INFO)
+else:
+    prepareLogger(logger=logger)
 
 if args.url is not None:
     sourceURL = args.url
@@ -62,7 +73,6 @@ if 'procesaPlantilla' in args and args.procesaPlantilla and not temporada.descar
     temporada.descargaPlantillas = True
     temporada.changed = True
 
-# sm = SuperManagerACB(config=args)
 nuevosPartidos = temporada.actualizaTemporada(browser=browser, config=args)
 
 resultOS = 1  # No hubo cambios

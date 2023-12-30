@@ -26,9 +26,8 @@ class LoggedValue:
 
     def _set(self, v, action, changeTime):
         if changeTime < self.last_updated:
-            raise ValueError(
-                f"changeTime value '{strftime(DATEFORMAT, changeTime)}' is before the last" +
-                f" recorded change '{strftime(DATEFORMAT, self.last_updated)}'")
+            raise ValueError((f"changeTime value '{strftime(DATEFORMAT, changeTime)}' is before the last"
+                              f" recorded change '{strftime(DATEFORMAT, self.last_updated)}'"))
         newLog = (action, changeTime, v)
         self.last_updated = changeTime
         self.value = v
@@ -54,10 +53,9 @@ class LoggedValue:
     def __repr__(self):
         delTxt = " D" if self.deleted else ""
         dateTxt = strftime(DATEFORMAT, self.last_updated)
-        lenTxt = f"l:{len(self.history)}"
+        lenTxt = f"l"":"f"{len(self.history)}"
 
         return f"{self.value.__repr__()} [t:{dateTxt}{delTxt} {lenTxt}]"
 
     def __len__(self):
-        return len(self.history)
-    # TODO: operaciones relativas a la historia
+        return len(self.history)  # TODO: operaciones relativas a la historia

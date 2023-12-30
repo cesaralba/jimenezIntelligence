@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 from babel.numbers import decimal
 
 from Utils.Misc import BadParameters
@@ -31,6 +33,7 @@ bool2esp = {True: "S", False: "N"}
 haGanado2esp = {True: "V", False: "D"}
 titular2esp = {True: "T", False: "B"}
 local2esp = {True: "L", False: "V"}
+local2espLargo = {True: "Local", False: "Visitante"}
 
 LocalVisitante = ('Local', 'Visitante')
 EqRival = ('Eq', 'Rival')
@@ -51,22 +54,25 @@ CATESTADSEQ2IGNORE = {'+/-', 'C', 'convocados', 'haGanado', 'local', 'M', 'Segs'
 CATESTADSEQASCENDING = {'DER', 'DERpot', 'Prec', 'BP', 'FP-F', 'TAP-C', 'PNR'}
 
 DEFAULTNUMFORMAT = '{:3.2f}'
-RANKFORMAT = '{:2.0f}'
+RANKFORMAT = '{:2d}'
 DEFAULTPERCFORMAT = DEFAULTNUMFORMAT + '%'
 
 REPORTLEYENDAS = {'+/-': {'etiq': '+/-', 'leyenda': 'Cambio en la anotación con él en el campo'},
                   'A': {'etiq': 'A', 'leyenda': 'Asistencias'},
                   'A/BP': {'etiq': 'Asist / Perd', 'leyenda': 'Asistencias dadas por balón perdido'},
                   'A/TC-C': {'etiq': '% Can de As', 'leyenda': 'Canastas por cada tiro de campo',
-                             'formato': DEFAULTPERCFORMAT}, 'BP': {'etiq': 'BP', 'leyenda': 'Balones perdidos'},
+                             'formato': DEFAULTPERCFORMAT
+                             }, 'BP': {'etiq': 'BP', 'leyenda': 'Balones perdidos'},
                   'BR': {'etiq': 'BR', 'leyenda': 'Balones robados'}, 'C': {'etiq': 'C', 'leyenda': 'Contraataques'},
                   'convocados': {'etiq': 'Conv', 'leyenda': 'Jugadores en la convocatoria'},
                   'eff-t1': {'etiq': '% Puntos TL', 'leyenda': 'Porcentaje de puntos de tiro libre',
-                             'formato': DEFAULTPERCFORMAT},
-                  'eff-t2': {'etiq': '% Puntos 2', 'leyenda': 'Porcentaje de puntos por tiro de 2',
-                             'formato': DEFAULTPERCFORMAT},
+                             'formato': DEFAULTPERCFORMAT
+                             }, 'eff-t2': {'etiq': '% Puntos 2', 'leyenda': 'Porcentaje de puntos por tiro de 2',
+                                           'formato': DEFAULTPERCFORMAT
+                                           },
                   'eff-t3': {'etiq': '% Puntos 3', 'leyenda': 'Porcentaje de puntos por tiro de 3',
-                             'formato': DEFAULTPERCFORMAT},
+                             'formato': DEFAULTPERCFORMAT
+                             },
                   'EffRebD': {'etiq': 'Ef reb Def', 'leyenda': '% Rebotes defensivos', 'formato': DEFAULTPERCFORMAT},
                   'EffRebO': {'etiq': 'Ef reb Of', 'leyenda': '% Rebotes ofensivos', 'formato': DEFAULTPERCFORMAT},
                   'FP-C': {'etiq': 'FRec', 'leyenda': 'Faltas recibidas'},
@@ -82,8 +88,8 @@ REPORTLEYENDAS = {'+/-': {'etiq': '+/-', 'leyenda': 'Cambio en la anotación con
                   'POS': {'etiq': 'Pos', 'leyenda': 'Posesiones'},
                   'ppTC': {'etiq': 'Pts cada tiro', 'leyenda': 'Puntos anotados por tiro de campo'},
                   'PTC/PTCPot': {'etiq': '% Pts Pot', 'leyenda': '% Puntos si hubiese entrado todo',
-                                 'formato': DEFAULTPERCFORMAT},
-                  'R-D': {'etiq': 'Reb Def', 'leyenda': 'Rebotes defensivos'},
+                                 'formato': DEFAULTPERCFORMAT
+                                 }, 'R-D': {'etiq': 'Reb Def', 'leyenda': 'Rebotes defensivos'},
                   'R-O': {'etiq': 'Reb Of', 'leyenda': 'Rebotes ofensivos'},
                   'REB-T': {'etiq': 'Reb total', 'leyenda': 'Rebotes totales'},
                   'RO/TC-F': {'etiq': 'RO/TC-F', 'leyenda': 'RO/TC-F'}, 'Segs': {'etiq': 'Segs', 'leyenda': 'Segs'},
@@ -102,12 +108,14 @@ REPORTLEYENDAS = {'+/-': {'etiq': '+/-', 'leyenda': 'Cambio en la anotación con
                   'TC%': {'etiq': 'TC%', 'leyenda': 'TC%', 'formato': DEFAULTPERCFORMAT},
                   'TC-C': {'etiq': 'TC-C', 'leyenda': 'TC-C'}, 'TC-I': {'etiq': 'TC-I', 'leyenda': 'TC-I'},
                   'utilizados': {'etiq': 'Usados', 'leyenda': 'Jugadores utilizados'},
-                  'V': {'etiq': 'V', 'leyenda': 'Valoración ACB'}}
+                  'V': {'etiq': 'V', 'leyenda': 'Valoración ACB'}
+                  }
 
 
 def calculaValSuperManager(valoracion, haGanado=False):
     return round(
-        decimal.Decimal.from_float(float(valoracion) * (BONUSVICTORIA if (haGanado and (valoracion > 0)) else 1.0)), 2)
+            decimal.Decimal.from_float(float(valoracion) * (BONUSVICTORIA if (haGanado and (valoracion > 0)) else 1.0)),
+            2)
 
 
 def buildPosCupoIndex():
@@ -134,7 +142,8 @@ def claveGrupo(jornada, index, counters):
 def solucion2clave(clave, sol, charsep="#"):
     CLAVESOL = ['valJornada', 'broker', 'puntos', 'asistencias', 'triples', 'rebotes']
     formatos = {'asistencias': "a_%03d", 'triples': "t_%03d", 'rebotes': "r_%03d", 'puntos': "p_%03d",
-                'valJornada': "v_%05.2f", 'broker': "b_%010d"}
+                'valJornada': "v_%05.2f", 'broker': "b_%010d"
+                }
     formatoTotal = charsep.join([formatos[k] for k in CLAVESOL])
     valores = [sol[k] for k in CLAVESOL]
 
@@ -144,16 +153,39 @@ def solucion2clave(clave, sol, charsep="#"):
 def OtherLoc(team):
     if team == 'Local':
         return 'Visitante'
-    elif team == 'Visitante':
+    if team == 'Visitante':
         return 'Local'
-    else:
-        raise BadParameters("OtherLoc: '%s' provided. It only accept 'Visitante' or 'Local'" % team)
+
+    raise BadParameters(f"OtherLoc: '{team}' provided. It only accept 'Visitante' or 'Local'")
 
 
 def OtherTeam(team):
     if team == 'Eq':
         return 'Rival'
-    elif team == 'Rival':
+    if team == 'Rival':
         return 'Eq'
-    else:
-        raise BadParameters("OtherTeam: '%s' provided. It only accept 'Eq' or 'Rival'" % team)
+
+    raise BadParameters(f"OtherTeam: '{team}' provided. It only accept 'Eq' or 'Rival'")
+
+
+infoSigPartido = namedtuple(typename='infoSigPartido',
+                            field_names=['sigPartido', 'abrevLV', 'jugLocal', 'pendLocal', 'jugVis', 'pendVis',
+                                         'eqIsLocal'], defaults=[None, None, None, None, None, None, None, ])
+infoClasifEquipo = namedtuple('infoClasifEquipo',
+                              ['Jug', 'V', 'D', 'Pfav', 'Pcon', 'Lfav', 'Lcon', 'Jjug', 'CasaFuera', 'idEq',
+                               'nombresEq', 'abrevsEq', 'ratioV', 'ratioVent'])
+infoClasifBase = namedtuple(typename='infoClasifEquipo', field_names=['Jug', 'V', 'D', 'Pfav', 'Pcon'],
+                            defaults=(0, 0, 0, 0, 0))
+infoPartLV = namedtuple(typename='infoPartLV', field_names=['Local', 'Visitante'], defaults=[None, None])
+infoEqCalendario = namedtuple(typename='infoEqCalendario',
+                              field_names=['icono', 'imageTit', 'haGanado', 'abrev', 'nomblargo', 'nombcorto',
+                                           'puntos'], defaults=[None, None, None, None, None, None, None])
+
+filaTrayectoriaEq = namedtuple(typename='filaTrayectoriaEq',
+                               field_names=['fechaPartido', 'jornada', 'cod_edicion', 'cod_competicion', 'equipoMe',
+                                            'equipoRival', 'esLocal', 'haGanado', 'pendiente', 'url', 'abrevEqs',
+                                            'resultado'],
+                               defaults=[None, None, None, None, None, None, None, None, None, None, None, None])
+filaMergeTrayectoria = namedtuple(typename='filaMergeTrayectoria',
+                                  field_names=['jornada', 'izda', 'dcha', 'precedente'],
+                                  defaults=[None, None, None, None])

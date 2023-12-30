@@ -587,18 +587,16 @@ class GroupPlayer(object):
 
     def Merge(self, *args):
 
-        totalLength = 0
         for other in args:
             if other is not GroupPlayer:
-                raise BaseException("Can't add a {} to a GroupPlayer".format(type(other)))
+                raise ValueError(f"Can't add a {type(other)} to a GroupPlayer")
             if (self.mercado != other.mercado) or (self.timestamp != other.timestamp):
-                raise BaseException("Can't merge players from different mercado data {}@{} and {}@{}".format(
-                        self.source, self.timestamp, other.source, other.timestamp))
-            totalLength += len(other.players)
+                raise ValueError(f"Can't merge players from different mercado data {self.source}@{self.timestamp}"
+                                f" and {other.source}@{other.timestamp}")
 
         result = GroupPlayer()
 
-        for gr in [self] + args:
+        for gr in [self] + list(args):
             for p in gr.players:
                 result.IncludePlayer(gr.playerData[p])
 
