@@ -1,6 +1,6 @@
 import unittest
 
-from LoggedValue import LoggedValue
+from Utils.LoggedValue import LoggedValue
 
 
 class Test_LoggedValue(unittest.TestCase):

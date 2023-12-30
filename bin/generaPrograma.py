@@ -30,9 +30,6 @@ def preparaLibro(outfile, tempData, datosSig):
 
     story = list()
 
-    sigPartido, abrEqs, juIzda, _, juDcha, _, _ = datosSig
-    currJornada = int(sigPartido['jornada'])
-
     story.append(cabeceraPortada(tempData, datosSig))
     story.append(Spacer(width=120 * mm, height=2 * mm))
 
@@ -51,10 +48,10 @@ def preparaLibro(outfile, tempData, datosSig):
 
     story.append(NextPageTemplate('apaisada'))
     story.append(PageBreak())
-    story.append(tablaLiga(tempData, equiposAmarcar=abrEqs, currJornada=currJornada))
+    story.append(tablaLiga(tempData, equiposAmarcar=datosSig.abrevLV, currJornada=int(datosSig.sigPartido['jornada'])))
 
-    if len(juIzda) + len(juDcha):
-        infoJugadores = paginasJugadores(tempData, abrEqs, juIzda, juDcha)
+    if len(datosSig.jugLocal) + len(datosSig.jugVis):
+        infoJugadores = paginasJugadores(tempData, datosSig.abrevLV, datosSig.jugLocal, datosSig.jugVis)
         story.extend(infoJugadores)
 
     story.append(NextPageTemplate('normal'))
@@ -107,7 +104,7 @@ def main(args):
         listaEquipos(tempData, args.quiet)
 
     REQARGS = ['equipo', 'outfile']
-    missingReqs = {k for k in REQARGS if (k not in args) or (args.__getattribute__(k) is None)}
+    missingReqs = {k for k in REQARGS if (k not in args) or (getattr(args, k) is None)}
     if missingReqs:
         missingReqsStr = ",".join(sorted(missingReqs))
         print(f"Faltan argumentos (ver -h): {missingReqsStr}")

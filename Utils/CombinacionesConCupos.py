@@ -26,10 +26,10 @@ def GeneraCombinaciones():
     def CheckCuentaPosiciones(rango):
         contPos = [0] * 3
 
-        for i in range(len(rango)):
+        for i, _ in enumerate(rango):
             contPos[i // 3] += rango[i]
 
-        for i in range(len(contPos)):
+        for i, _ in enumerate(contPos):
             if contPos[i] != jugPorPos[i]:
                 return False
         return True
@@ -43,7 +43,7 @@ def GeneraCombinaciones():
             tamRange = 2  # Max 2 extracom
 
         for rango[depth] in range(tamRange + 1):
-            if (depth + 1 < len(rango)):
+            if depth + 1 < len(rango):
                 CombinacionesConCupo(rango, depth + 1)
             else:
                 if (sum(rango)) != 11:
@@ -66,7 +66,7 @@ def GeneraCombinaciones():
 
 
 def calculaClaveComb(comb):
-    return "-".join(["%i" % x for x in comb])
+    return "-".join([f"{x}" % x for x in comb])
 
 
 if __name__ == '__main__':

@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
 
+import sys
 from argparse import Namespace
-from collections import defaultdict, Iterable
+from collections import defaultdict
 from copy import copy, deepcopy
 from pickle import dump, load
+from time import gmtime
+from typing import Iterable
 
 import mechanicalsoup
 import pandas as pd
 from babel.numbers import format_decimal
 from bs4 import BeautifulSoup
 from mechanicalsoup import LinkNotFoundError
-from time import gmtime
 
 from Utils.BoWtraductor import comparaNombresPersonas, NormalizaCadena, RetocaNombreJugador
 from Utils.Misc import onlySetElement
@@ -24,32 +26,32 @@ from .PlantillaACB import descargaPlantillasCabecera
 
 URL_SUPERMANAGER = "http://supermanager.acb.com/index/identificar"
 
-DFtypes = {'I-proxFuera': 'bool', 'I-activo': 'bool', 'I-lesion': 'bool', 'I-promVal': 'float64',
-           'I-precio': 'int64', 'I-valJornada': 'float64', 'I-prom3Jornadas': 'float64',
-           'I-sube15%': 'float64', 'I-seMantiene': 'float64', 'I-baja15%': 'float64'
+DFtypes = {'I-proxFuera': 'bool', 'I-activo': 'bool', 'I-lesion': 'bool', 'I-promVal': 'float64', 'I-precio': 'int64',
+           'I-valJornada': 'float64', 'I-prom3Jornadas': 'float64', 'I-sube15%': 'float64', 'I-seMantiene': 'float64',
+           'I-baja15%': 'float64'
            }
 
 
 class BadLoginError(Exception):
 
     def __init__(self, url, user):
-        Exception.__init__(self, "Unable to log in into '{}' as '{}'".format(url, user))
+        Exception.__init__(self, f"Unable to log in into '{url}' as '{user}'")
 
 
 class ClosedSystemError(Exception):
 
     def __init__(self, url):
-        Exception.__init__(self, "System '{}' is closed.".format(url))
+        Exception.__init__(self, f"System '{url}' is closed.")
 
 
 class NoPrivateLeaguesError(Exception):
 
     def __init__(self, msg, *kargs):
         print(msg.format(*kargs))
-        exit(1)
+        sys.exit(1)
 
 
-class SuperManagerACB(object):
+class SuperManagerACB():
 
     def __init__(self, ligasPrivadas=None, url=URL_SUPERMANAGER):
         self.timestamp = gmtime()
@@ -79,10 +81,10 @@ class SuperManagerACB(object):
             self.loginSM(browser=browser, config=config)
         except BadLoginError as logerror:
             print(logerror)
-            exit(1)
+            sys.exit(1)
         except ClosedSystemError as logerror:
             print(logerror)
-            exit(1)
+            sys.exit(1)
 
         self.actualizaTraducciones(datosACB)
 
@@ -118,7 +120,7 @@ class SuperManagerACB(object):
             browser.select_form("form[id='login']")
         except LinkNotFoundError as linkerror:
             print("loginSM: form not found: ", linkerror)
-            exit(1)
+            sys.exit(1)
 
         browser['email'] = config.user
         browser['clave'] = config.password
@@ -128,7 +130,7 @@ class SuperManagerACB(object):
             if 'El usuario o la con' in script.get_text():
                 # script.get_text().find('El usuario o la con') != -1:
                 raise BadLoginError(url=self.url, user=config.user)
-            elif 'El SuperManager KIA estar' in script.get_text():
+            if 'El SuperManager KIA estar' in script.get_text():
                 raise ClosedSystemError(url=self.url)
 
     def getLigas(self, browser, config):
@@ -138,7 +140,7 @@ class SuperManagerACB(object):
         ligas = extractPrivateLeagues(browser.get_current_page())
 
         if len(ligas) == 0:
-            raise NoPrivateLeaguesError("El usuario '{}' no tiene ligas privadas", config.user)
+            raise NoPrivateLeaguesError(f"El usuario '{config.user}' no tiene ligas privadas", )
 
         return ligas
 
@@ -149,18 +151,18 @@ class SuperManagerACB(object):
         ligas = extractPrivateLeagues(browser.get_current_page())
 
         if len(ligas) == 0:
-            raise NoPrivateLeaguesError("El usuario '{}' no tiene ligas privadas", config.user)
-        else:
-            try:
-                targLeague = ligas[lID]
-            except KeyError:
-                raise NoPrivateLeaguesError("El usuario {} no participa en la liga privada {}", config.user, lID)
+            raise NoPrivateLeaguesError(f"El usuario '{config.user}' no tiene ligas privadas")
+
+        try:
+            targLeague = ligas[lID]
+        except KeyError as exc:
+            raise NoPrivateLeaguesError(f"El usuario {config.user} no participa en la liga privada {lID}") from exc
 
         browser.follow_link(targLeague['Ampliar'])
 
     def getJornada(self, ligaID, idJornada, browser):
         pageForm = browser.get_current_page().find("form", {"id": 'FormClasificacion'})
-        pageForm['action'] = "/privadas/ver/id/{}/tipo/jornada/jornada/{}".format(ligaID, idJornada)
+        pageForm['action'] = f"/privadas/ver/id/{ligaID}/tipo/jornada/jornada/{idJornada}"
 
         jorForm = mechanicalsoup.Form(pageForm)
         jorForm['jornada'] = str(idJornada)
@@ -168,9 +170,7 @@ class SuperManagerACB(object):
         resJornada = browser.submit(jorForm, browser.get_url())
         bs4Jornada = BeautifulSoup(resJornada.content, "lxml")
 
-        jorResults = ClasifData(label="jornada{}".format(idJornada),
-                                source=browser.get_url(),
-                                content=bs4Jornada)
+        jorResults = ClasifData(label=f"jornada{idJornada}", source=browser.get_url(), content=bs4Jornada)
         return jorResults
 
     def getMercados(self, browser):
@@ -181,12 +181,12 @@ class SuperManagerACB(object):
         newMercadoID = newMercado.timestampKey()
 
         if hasattr(self, "ultimoMercado"):
-            if type(self.ultimoMercado) is MercadoPageContent:
+            if isinstance(self.ultimoMercado, MercadoPageContent):
                 lastMercado = self.ultimoMercado
                 lastMercadoID = lastMercado.timestampKey()
                 self.mercado[lastMercadoID] = self.ultimoMercado
                 self.ultimoMercado = lastMercadoID
-            elif type(self.ultimoMercado) is str:
+            elif isinstance(self.ultimoMercado, str):
                 lastMercadoID = self.ultimoMercado
                 lastMercado = self.mercado[lastMercadoID]
                 newID = lastMercado.timestampKey()
@@ -215,14 +215,12 @@ class SuperManagerACB(object):
     def addMercado(self, mercado):
         mercadoID = mercado.timestampKey()
 
-        if (mercadoID in self.mercado) and not (mercado != self.mercado[mercadoID]):
+        if (mercadoID in self.mercado) and mercado == self.mercado[mercadoID]:
             return
 
         self.mercado[mercadoID] = mercado
 
-        if not self.ultimoMercado:
-            self.ultimoMercado = mercadoID
-        elif (mercado.timestamp > self.mercado[self.ultimoMercado].timestamp):
+        if not self.ultimoMercado or (mercado.timestamp > self.mercado[self.ultimoMercado].timestamp):
             self.ultimoMercado = mercadoID
 
         self.changed = True
@@ -233,7 +231,8 @@ class SuperManagerACB(object):
             jornadas = getJornadasJugadas(browser.get_current_page())
 
             estadoSM = {'jornadas': {}, 'general': {}, 'broker': {}, 'puntos': {}, 'rebotes': {}, 'triples': {},
-                        'asistencias': {}}
+                        'asistencias': {}
+                        }
 
             for j in jornadas:
                 estadoSM['jornadas'][j] = self.getJornada(ligaID=lID, idJornada=j, browser=browser)
@@ -251,22 +250,24 @@ class SuperManagerACB(object):
         # Clean stuff that shouldn't be saved
         for atributo in ('changed', 'config'):
             if hasattr(aux, atributo):
-                aux.__delattr__(atributo)
+                delattr(aux, atributo)
 
         # TODO: Protect this
-        dump(aux, open(filename, "wb"))
+        with open(filename, "wb") as myfile:
+            dump(aux, myfile)
 
     def loadData(self, filename):
         # TODO: Protect this
-        aux = load(open(filename, "rb"))
+        with open(filename, "rb") as myfile:
+            aux = load(myfile)
 
         for key in aux.__dict__.keys():
             if key in ['config', 'browser']:
                 continue
             if key == "mercadoProg":
-                self.__setattr__("ultimoMercado", aux.__getattribute__(key))
+                setattr(self, "ultimoMercado", getattr(aux, key))
                 continue
-            self.__setattr__(key, aux.__getattribute__(key))
+            setattr(self, key, getattr(aux, key))
 
     def extraeDatosJugadoresMercado(self, nombresJugadores=None, infoPlants=None):
 
@@ -275,7 +276,7 @@ class SuperManagerACB(object):
                        'promVal', 'precio', 'valJornada', 'prom3Jornadas', 'sube15%', 'seMantiene', 'baja15%', 'rival',
                        'CODequipo', 'CODrival', 'info']
 
-        dataPlants = infoPlants or descargaPlantillasCabecera(jugId2nombre=nombresJugadores)
+        dataPlants = infoPlants or descargaPlantillasCabecera()
 
         cacheLinks = dict()
         cacheEqNom = defaultdict(dict)
@@ -293,13 +294,13 @@ class SuperManagerACB(object):
         def findSubKeys(data):
             resultado = defaultdict(int)
 
-            if type(data) is not dict:
+            if not isinstance(data, dict):
                 print("Parametro pasado no es un diccionario")
                 return resultado
 
             for clave in data:
                 valor = data[clave]
-                if type(valor) is not dict:
+                if not isinstance(valor, dict):
                     print("Valor para '%s' no es un diccionario")
                     continue
                 for subclave in valor.keys():
@@ -310,11 +311,11 @@ class SuperManagerACB(object):
         def actualizaResultado(resultado, codigo, jor, jugadorData):
             jugadorData['codJugador'] = codigo
 
-            for key in jugadorData:
-                if key in keysJugDatos:
-                    resultado[key][codigo][jor] = jugadorData[key]
-                if key in keysJugInfo:
-                    resultado['I-' + key][codigo] = jugadorData[key]
+            for clavData, dataJug in jugadorData.items():
+                if clavData in keysJugDatos:
+                    resultado[clavData][codigo][jor] = dataJug
+                if clavData in keysJugInfo:
+                    resultado['I-' + clavData][codigo] = dataJug
 
         # ['proxFuera', 'lesion', 'cupo', 'pos', 'foto', 'nombre', 'codJugador', 'temp', 'kiaLink', 'equipo',
         # 'promVal', 'precio', 'enEquipos%', 'valJornada', 'prom3Jornadas', 'sube15%', 'seMantiene', 'baja15%',
@@ -327,16 +328,16 @@ class SuperManagerACB(object):
         for key in (keysJugInfo + ['activo']):
             resultado['I-' + key] = dict()
 
-        for jornada in self.mercadoJornada:
-            mercadosAMirar[jornada] = self.mercadoJornada[jornada]
+        for jornada, mercado in self.mercadoJornada.items():
+            mercadosAMirar[jornada] = mercado
         ultMercado = self.mercado[self.ultimoMercado]
 
         if ultMercado != self.mercado[mercadosAMirar[-1]]:
             maxJornada += 1
             mercadosAMirar.append(self.ultimoMercado)
 
-        for i in range(len(mercadosAMirar)):
-            mercadoID = mercadosAMirar[i]
+        for i, mercAmirar in enumerate(mercadosAMirar):
+            mercadoID = mercAmirar
             if not mercadoID:
                 continue
 
@@ -346,7 +347,7 @@ class SuperManagerACB(object):
                 jugadorData = mercado.PlayerData[jugSM]
 
                 IDjugador = cacheLinks.get(jugadorData['kiaLink'], dataPlants[jugadorData['IDequipo']].getCode(
-                    nombre=RetocaNombreJugador(jugadorData['nombre']), esJugador=True, umbral=1))
+                        nombre=RetocaNombreJugador(jugadorData['nombre']), esJugador=True, umbral=1))
 
                 if isinstance(IDjugador, str):
                     cacheLinks[jugadorData['kiaLink']] = IDjugador
@@ -355,10 +356,9 @@ class SuperManagerACB(object):
                 else:
                     pendienteLinks[jugadorData['kiaLink']].append((i, jugadorData))
 
-                    print("Incapaz de encontrar ID para '%s' (%s,%s): %s" % (
-                        jugadorData['kiaLink'], jugadorData['nombre'], jugadorData['equipo'], IDjugador))
+                    print(f"Incapaz de encontrar ID para '{jugadorData['kiaLink']}' ({jugadorData['nombre']},"
+                          f"{jugadorData['equipo']}): {IDjugador}")
                     continue
-
 
                 actualizaResultado(resultado, codJugador, i, jugadorData)
                 codigosUsados.add(codJugador)
@@ -366,23 +366,23 @@ class SuperManagerACB(object):
             for jugadorData in mercado.noKiaLink:
                 IDjugador = cacheEqNom[jugadorData['IDequipo']].get(jugadorData['nombre'],
                                                                     dataPlants[jugadorData['IDequipo']].getCode(
-                                                                        nombre=RetocaNombreJugador(
-                                                                            jugadorData['nombre']), esJugador=True,
-                                                                        umbral=1))
+                                                                            nombre=RetocaNombreJugador(
+                                                                                    jugadorData['nombre']),
+                                                                            esJugador=True, umbral=1))
                 if isinstance(IDjugador, str):
                     cacheEqNom[jugadorData['IDequipo']][jugadorData['nombre']] = IDjugador
                     codJugador = IDjugador
                 else:
                     pendienteEqNom[jugadorData['IDequipo']][jugadorData['nombre']].append((i, jugadorData))
-                    print("Incapaz de encontrar ID para %s (%s): %s" % (
-                        jugadorData['nombre'], jugadorData['equipo'], IDjugador))
+                    print(f"Incapaz de encontrar ID para {jugadorData['nombre']}"
+                          f" ({jugadorData['equipo']}): {IDjugador}")
                     continue
 
                 actualizaResultado(resultado, codJugador, i, jugadorData)
                 codigosUsados.add(codJugador)
 
         contNocode = 1
-        for kiaLink, listaMercs in pendienteLinks.items():
+        for _, listaMercs in pendienteLinks.items():
             nombresL = {i['nombre'] for j, i in listaMercs}
             codeSet = set()
 
@@ -404,14 +404,14 @@ class SuperManagerACB(object):
             if isinstance(IDjugador, str):
                 codJugador = IDjugador
             else:
-                codJugador = "NOCODE%03i" % contNocode
+                codJugador = f"NOCODE{contNocode:%03d}"
                 contNocode += 1
 
             for i, jugadorData in listaMercs:
                 actualizaResultado(resultado, codJugador, i, jugadorData)
 
         for jugSM in resultado['lesion']:
-            resultado['I-activo'][jugSM] = (jugSM in ultMercado.PlayerData)
+            resultado['I-activo'][jugSM] = jugSM in ultMercado.PlayerData
 
         return resultado
 
@@ -423,8 +423,7 @@ class SuperManagerACB(object):
         keys2remove = ['I-codJugador']
         datos = self.extraeDatosJugadoresMercado(nombresJugadores=nombresJugadores, infoPlants=infoPlants)
 
-        targKeys = [x for x in datos.keys() if 'I-' in x]
-        map(lambda x: targKeys.remove(x), keys2remove)
+        targKeys = [x for x in datos if x.startswith('I-') and x not in keys2remove]
         dfResult = pd.DataFrame(datos, columns=targKeys)
 
         dfResult = dfResult.astype(DFtypes).reset_index().rename(DFcolNewNames, axis='columns')
@@ -457,7 +456,7 @@ class SuperManagerACB(object):
                 for equipo in aux[jornada].asdict():
                     result[c][equipo] = aux[jornada].data[equipo]['value'] - aux[jornada - 1].data[equipo]['value']
 
-        if (jornada in self.jornadas):
+        if jornada in self.jornadas:
             result['jornada'] = self.jornadas[jornada].asdict()
 
         return result
@@ -495,35 +494,36 @@ class SuperManagerACB(object):
 
         if not hasattr(self, "traducciones"):
             self.traducciones = {'equipos': {'n2c': defaultdict(set), 'c2n': defaultdict(set), 'n2i': defaultdict(set),
-                                             'i2n': defaultdict(set), 'i2c': defaultdict(set), 'c2i': defaultdict(set)},
-                                 'jugadores': {'j2c': defaultdict(set), 'c2j': defaultdict(set)}}
+                                             'i2n': defaultdict(set), 'i2c': defaultdict(set), 'c2i': defaultdict(set)
+                                             }, 'jugadores': {'j2c': defaultdict(set), 'c2j': defaultdict(set)}
+                                 }
 
         # for codigo, nombres in datosACB.tradJugadores['id2nombres'].items():
         #     self.addTraduccionJugador(codigo, nombres)
 
         for codigo, nombres in datosACB.tradEquipos['c2n'].items():
-            if (codigo not in self.traducciones['equipos']['c2n']):
+            if codigo not in self.traducciones['equipos']['c2n']:
                 self.changed = True
             for nombre in nombres:
-                if (nombre not in self.traducciones['equipos']['c2n'][codigo]):
+                if nombre not in self.traducciones['equipos']['c2n'][codigo]:
                     self.changed = True
                 self.traducciones['equipos']['n2c'][nombre].add(codigo)
                 self.traducciones['equipos']['c2n'][codigo].add(nombre)
 
         for id, codigos in datosACB.tradEquipos['i2c'].items():
-            if (id not in self.traducciones['equipos']['i2c']):
+            if id not in self.traducciones['equipos']['i2c']:
                 self.changed = True
             for codigo in codigos:
-                if (codigo not in self.traducciones['equipos']['i2c'][id]):
+                if codigo not in self.traducciones['equipos']['i2c'][id]:
                     self.changed = True
                 self.traducciones['equipos']['i2c'][id].add(codigo)
                 self.traducciones['equipos']['c2i'][codigo].add(id)
 
         for id, nombres in datosACB.tradEquipos['i2n'].items():
-            if (id not in self.traducciones['equipos']['i2n']):
+            if id not in self.traducciones['equipos']['i2n']:
                 self.changed = True
             for nombre in nombres:
-                if (nombre not in self.traducciones['equipos']['i2n'][id]):
+                if nombre not in self.traducciones['equipos']['i2n'][id]:
                     self.changed = True
                 self.traducciones['equipos']['i2n'][id].add(nombre)
                 self.traducciones['equipos']['n2i'][nombre].add(id)
@@ -548,8 +548,8 @@ class SuperManagerACB(object):
 
     def getJornadasJugadas(self):
         result = set()
-        for l in self.ligas:
-            result = result.union(set(self.ligas[l].getListaJornadas()))
+        for liga in self.ligas:
+            result = result.union(set(self.ligas[liga].getListaJornadas()))
 
         return result
 
@@ -562,7 +562,8 @@ class ResultadosJornadas(object):
         self.equipo2socio = dict()
 
         self.types = {'asistencias': int, 'broker': int, 'key': str, 'puntos': int, 'rebotes': int, 'triples': int,
-                      'valJornada': format_decimal.Decimal}
+                      'valJornada': format_decimal.Decimal
+                      }
 
         for team in supermanager.jornadas[jornada].data:
             datosJor = supermanager.jornadas[jornada].data[team]
@@ -573,25 +574,24 @@ class ResultadosJornadas(object):
             self.socio2equipo[socio] = team
             self.equipo2socio[team] = socio
 
-            self.resultados[socio]['valJornada'] = (self.types['valJornada'])(
-                datosJor['value'])
+            self.resultados[socio]['valJornada'] = (self.types['valJornada'])(datosJor['value'])
 
             if jornada in supermanager.__getattribute__('general'):
                 self.resultados[socio]['general'] = (self.types['valJornada'])(
-                    supermanager.general[jornada].data[team]['value'])
+                        supermanager.general[jornada].data[team]['value'])
 
             for comp in ['puntos', 'rebotes', 'triples', 'asistencias', 'broker']:
                 if jornada in supermanager.__getattribute__(comp):
                     if jornada == 1 or jornada - 1 in supermanager.__getattribute__(comp):
                         if comp == 'broker':
                             self.resultados[socio]['saldo'] = (self.types[comp])(
-                                supermanager.__getattribute__(comp)[jornada].data[team]['value'])
+                                    supermanager.__getattribute__(comp)[jornada].data[team]['value'])
 
                         self.resultados[socio][comp] = (self.types[comp])(
-                            supermanager.__getattribute__(comp)[jornada].data[team]['value'])
+                                supermanager.__getattribute__(comp)[jornada].data[team]['value'])
                         if jornada != 1:
-                            self.resultados[socio][comp] -= \
-                                (self.types[comp])(supermanager.__getattribute__(comp)[jornada - 1].data[team]['value'])
+                            self.resultados[socio][comp] -= (self.types[comp])(
+                                    supermanager.__getattribute__(comp)[jornada - 1].data[team]['value'])
 
             self.updateVal2Team()
 
@@ -656,7 +656,8 @@ class ResultadosJornadas(object):
         keylist = ('valJornada', 'broker', 'puntos', 'rebotes', 'triples', 'asistencias', 'saldo', 'general')
         key2label = {'valJornada': 'Val: %7.2f', 'broker': 'Broker: %8i', 'puntos': 'Puntos: %4d',
                      'rebotes': 'Rebotes: %4d', 'triples': 'Triples: %4d', 'asistencias': 'Asistencias: %4d',
-                     'saldo': 'Saldo: %10d', 'general': 'General: %7.2f'}
+                     'saldo': 'Saldo: %10d', 'general': 'General: %7.2f'
+                     }
         FORMAT = " ".join([key2label[k] for k in keylist if k in self.resultados[socio]])
         DATA = tuple([self.resultados[socio][k] for k in keylist if k in self.resultados[socio]])
 
@@ -704,7 +705,5 @@ def getClasif(categ, browser, liga):
     resJornada = browser.submit(jorForm, browser.get_url())
     bs4Jornada = BeautifulSoup(resJornada.content, "lxml")
 
-    jorResults = ClasifData(label=categ,
-                            source=browser.get_url(),
-                            content=bs4Jornada)
+    jorResults = ClasifData(label=categ, source=browser.get_url(), content=bs4Jornada)
     return jorResults

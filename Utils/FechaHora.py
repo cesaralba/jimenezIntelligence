@@ -2,7 +2,6 @@ from collections import namedtuple
 
 import numpy as np
 import pandas as pd
-from time import struct_time, strftime
 
 PATRONFECHAHORA = "%d/%m/%Y %H:%M"
 PATRONFECHA = "%d/%m/%Y"
@@ -18,9 +17,9 @@ def Time2Str(timeref):
     :param timeref:
     :return:
     """
-    format = "%d-%m-%Y" if (timeref.hour == 0 and timeref.min == 0) else "%d-%m-%Y %H:%M"
+    formatStr = "%d-%m-%Y" if (timeref.hour == 0 and timeref.min == 0) else "%d-%m-%Y %H:%M"
 
-    result = timeref.strftime(format)
+    result = timeref.strftime(formatStr)
 
     return result
 
@@ -28,7 +27,7 @@ def Time2Str(timeref):
 def CumplePrevio(fechanac, fecharef):
     diffyear = -1 if (fecharef.month, fecharef.day) < (fechanac.month, fechanac.day) else 0  # Es el del año anterior
 
-    fechaCump = f'{fecharef.year + diffyear:4}-{fechanac.month:2}-{fechanac.day:2}'
+    fechaCump = f'{fecharef.year + diffyear: 4}-{fechanac.month: 2}-{fechanac.day: 2}'
     result = pd.to_datetime(fechaCump)
 
     return result
@@ -48,14 +47,22 @@ def CalcEdad(fechanac, fecharef=None):
 
     auxDate = pd.Timedelta(dateref - datenac)
 
-    edadAux = {'delta': (dateref - datenac),
-               'years': yeardiff,
-               'meses': int(auxDate // np.timedelta64(1, 'M')) % 12,
-               'dias': int((auxDate % np.timedelta64(1, 'M')).days),
-               'doys': int((dateref - cumple).days)}
+    edadAux = {'delta': (dateref - datenac), 'years': yeardiff, 'meses': int(auxDate // np.timedelta64(1, 'M')) % 12,
+               'dias': int((auxDate % np.timedelta64(1, 'M')).days), 'doys': int((dateref - cumple).days)
+               }
 
     return Edad(**edadAux)
 
+
 def fechaParametro2pddatetime(fecha):
     result = fecha if isinstance(fecha, pd.Timestamp) else pd.to_datetime(fecha)
+    return result
+
+
+def Seg2Tiempo(x):
+    mins = x // 60
+    segs = x % 60
+
+    result = f"{mins:d}" ":" f"{segs:02d}"
+
     return result
