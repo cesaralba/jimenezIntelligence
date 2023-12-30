@@ -15,11 +15,11 @@ from reportlab.platypus import NextPageTemplate, PageBreak, Paragraph, Spacer, T
 import SMACB.TemporadaACB as Constants
 from SMACB.Constants import (CATESTADSEQ2IGNORE, CATESTADSEQASCENDING, DEFAULTNUMFORMAT, DESCENSOS, filaTrayectoriaEq,
                              haGanado2esp, infoClasifEquipo, infoSigPartido, local2espLargo, LocalVisitante,
-                             MARCADORESCLASIF, RANKFORMAT, REPORTLEYENDAS
+                             MARCADORESCLASIF, RANKFORMAT, REPORTLEYENDAS,
                              )
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.TemporadaACB import (auxEtiqPartido, calculaEstadsYOrdenLiga, equipo2clasif, esEstCreciente,
-                                extraeCampoYorden, TemporadaACB
+                                extraeCampoYorden, TemporadaACB,
                                 )
 from Utils.FechaHora import NEVER, Seg2Tiempo, Time2Str
 from Utils.Misc import listize, onlySetElement
@@ -118,8 +118,7 @@ INFOESTADSEQ = {('Eq', 'P'): {'etiq': 'PF', 'formato': 'float'}, ('Rival', 'P'):
                 ('Rival', 'PTC/PTCPot'): {'etiq': '%PPot', 'formato': 'float'},
                 ('Rival', 't3/tc-I'): {'etiq': 'T3-I / TC-I', 'formato': 'float'},
                 ('Rival', 'T1'): {'etiq': 'TL', 'generador': GENERADORETTIRO(tiro='3', entero=False, orden=True)},
-                ('Rival', 'REB'): {'etiq': 'Rebs', 'ancho': 17,
-                                   'generador': GENERADORETREBOTE(entero=False, orden=True)
+                ('Rival', 'REB'): {'etiq': 'Rebs', 'ancho': 17, 'generador': GENERADORETREBOTE(entero=False, orden=True)
                                    }, ('Rival', 'A'): {'formato': 'float'}, ('Rival', 'BP'): {'formato': 'float'},
                 ('Rival', 'BR'): {'formato': 'float'}, ('Rival', 'A/BP'): {'formato': 'float'},
                 ('Rival', 'A/TC-C'): {'etiq': 'A/Can', 'formato': 'float'}, ('Rival', 'PNR'): {'formato': 'float'},
@@ -135,8 +134,7 @@ INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
                                         'generador': GENERADORFECHA(col='fechaNac', formato='%Y')
                                         }, ('Jugador', 'Activo'): {'etiq': 'Act', 'ancho': 4, 'alignment': 'CENTER',
                                                                    'generador': GENMAPDICT(col='Activo',
-                                                                                           lookup={True: 'A',
-                                                                                                   False: 'B'
+                                                                                           lookup={True: 'A', False: 'B'
                                                                                                    })
                                                                    },
                  ('Trayectoria', 'Acta'): {'etiq': 'Cv', 'ancho': 3, 'formato': 'entero'},
@@ -218,8 +216,8 @@ def auxCalculaBalanceStrSuf(record: infoClasifEquipo, addPendientes: bool = Fals
     textoAux = ""
     if currJornada is not None:
         pendJornada = currJornada not in record.Jjug
-        pendientes = any([(p not in record.Jjug) for p in range(1, currJornada)])
-        adelantados = any([p > currJornada for p in record.Jjug])
+        pendientes = [p for p in range(1, currJornada) if p not in record.Jjug]
+        adelantados = [p for p in record.Jjug if p > currJornada]
         textoAux = "" + ("J" if (pendJornada and addPendJornada) else "") + ("P" if pendientes else "") + (
                 "A" if adelantados else "")
 
@@ -369,9 +367,8 @@ def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estil
             etiqFormato = colSpec['formato']
             if etiqFormato not in formatos:
                 raise KeyError(
-                        f"auxGeneraTabla: columna '{colkey}': formato '{etiqFormato}' desconocido. " + f"Formatos "
-                                                                                                       f"conocidos: {
-                                                                                                       formatos}")
+                        f"auxGeneraTabla: columna '{colkey}': formato '{etiqFormato}' desconocido. "
+                        f"Formatos conocidos: {formatos}")
             formatSpec = formatos[etiqFormato]
 
             if 'numero' in formatSpec:
@@ -443,7 +440,7 @@ def datosEstadsBasicas(tempData: TemporadaACB, infoEq: dict):
     PNR, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'PNR', ESTADISTICOEQ)
 
     resultEq = f"""
-<b>{nombreCorto}</b>&nbsp;[{abrev}]     
+<b>{nombreCorto}</b>&nbsp;[{abrev}]
 <b>PF</b>:&nbsp;{pFav:.2f} <b>/</b>
 <b>PC</b>:&nbsp;{pCon:.2f} <b>/</b>
 <b>T2</b>:&nbsp;{T2C:.2f}/{T2I:.2f}&nbsp;{T2pc:.2f}% <b>/</b>
@@ -659,7 +656,7 @@ def partidoTrayectoria(partido: Constants.filaTrayectoriaEq, datosTemp: Temporad
     strRival = f"{strFecha}: {textRival}"
 
     strResultado = None
-    if not (partido.pendiente):
+    if not partido.pendiente:
         clasifAux = datosTemp.clasifEquipo(abrevRival, datoFecha)
         clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=int(partido.jornada),
                                          addPendJornada=False)
@@ -724,7 +721,7 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
         jornada = fila.jornada
 
         if fila.precedente:
-            if (fila.jornada == sigPartido['jornada']):
+            if fila.jornada == sigPartido['jornada']:
                 marcaCurrJornada = numFila
                 incrFila = -1
                 continue
@@ -920,10 +917,8 @@ def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
     style = ParagraphStyle('cabStyle', align='center', fontName='Helvetica', fontSize=20, leading=22, )
 
     cadenaCentral = Paragraph(
-            f"<para align='center' fontName='Helvetica' fontSize=20 leading=22><b>{compo}</b> {edicion} - " + f"J: "
-                                                                                                              f"<b>{
-                                                                                                              j}</b><br/>{fh}</para>",
-            style)
+            f"<para align='center' fontName='Helvetica' fontSize=20 leading=22><b>{compo}</b> {edicion} - "
+            f"J: " f"<b>{j}</b><br/>{fh}</para>", style)
 
     cabLocal = datosCabEquipo(datosLocal, tempData, partido['fechaPartido'], currJornada=int(j))
     cabVisit = datosCabEquipo(datosVisit, tempData, partido['fechaPartido'], currJornada=int(j))
@@ -1185,7 +1180,7 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
 
 def calculaMaxMinMagn(ser: pd.Series, ser_orden: pd.Series):
     def getValYEtq(serie, serie_orden, targ_orden):
-        auxSerTargOrden: pd.Series = (serie_orden == targ_orden)
+        auxSerTargOrden: pd.Series = serie_orden == targ_orden
         numOrdenTarg = auxSerTargOrden.sum()
         abrevs = set(auxSerTargOrden[auxSerTargOrden].index)
         etiqTarg = f"x{numOrdenTarg}" if numOrdenTarg > 1 else serie_orden[serie_orden == targ_orden].index[0]

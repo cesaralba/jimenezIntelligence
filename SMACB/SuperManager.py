@@ -404,7 +404,7 @@ class SuperManagerACB():
             if isinstance(IDjugador, str):
                 codJugador = IDjugador
             else:
-                codJugador = f"NOCODE{contNocode: %03.0f}"
+                codJugador = f"NOCODE{contNocode:%03.0f}"
                 contNocode += 1
 
             for i, jugadorData in listaMercs:
