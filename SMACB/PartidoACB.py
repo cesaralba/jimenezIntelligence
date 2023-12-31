@@ -427,15 +427,13 @@ class PartidoACB():
         return result
 
     def resumenPartido(self):
-        return (f" * J {self.jornada}: {self.EquiposCalendario['Local']} ({self.CodigosCalendario['Local']})"
-                f"{self.ResultadoCalendario['Local']} - {self.ResultadoCalendario['Visitante']} "
-                f"{self.EquiposCalendario['Visitante']} ({self.CodigosCalendario['Visitante']}) ")
-
-    def __str__(self):
         return (f"J {self.jornada:02d}: [{self.fechaPartido}] "
                 f"{self.EquiposCalendario['Local']['nomblargo']} ({self.CodigosCalendario['Local']}) "
                 f"{self.ResultadoCalendario['Local']:d} - {self.ResultadoCalendario['Visitante']:d} "
                 f"{self.EquiposCalendario['Visitante']['nomblargo']} ({self.CodigosCalendario['Visitante']})")
+
+    def __str__(self):
+        return self.resumenPartido()
 
     def __getitem__(self, item):
         return getattr(self, item)
