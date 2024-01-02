@@ -13,7 +13,7 @@ from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from Utils.Web import DescargaPagina, ExtraeGetParams, getObjID
-from .Constants import (BONUSVICTORIA, bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp)
+from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp)
 from .PlantillaACB import PlantillaACB
 
 templateURLficha = "http://www.acb.com/fichas/%s%i%03i.php"
@@ -147,8 +147,9 @@ class PartidoACB():
                 self.pendientes[loc] = newPendientes
             if raiser:
                 raise ValueError(
-                    f"procesaPartido: Imposible encontrar ({len(newPendientes)}) código(s) para ({loc}) en partido '"
-                    f"{self.url}': {newPendientes}")
+                        f"procesaPartido: Imposible encontrar ({len(newPendientes)}) código(s) para ({loc}) en "
+                        f"partido '"
+                        f"{self.url}': {newPendientes}")
 
         return divCabecera
 
@@ -342,64 +343,9 @@ class PartidoACB():
     def jugadoresAdataframe(self) -> pd.DataFrame:
         typesDF = {'competicion': 'object', 'temporada': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
                    'esTitular': 'bool', 'haJugado': 'bool', 'titular': 'category', 'haGanado': 'bool', 'enActa': 'bool',
-                   'Vsm': 'float64'
                    }
 
-        # 'equipo': 'object', 'CODequipo': 'object', 'rival': 'object', 'CODrival': 'object', 'dorsal': 'object'
-        # 'nombre': 'object', 'codigo': 'object'
-
-        def jugador2dataframe(jugador):
-            dictJugador = dict()
-            dictJugador['enActa'] = True
-            dictJugador['acta'] = 'S'
-
-            # Añade las estadísticas al resultado saltándose ciertas columnas no relevantes
-            for dato in jugador:
-                if dato in ['esJugador', 'entrenador', 'estads', 'estado']:
-                    continue
-                dictJugador[dato] = jugador[dato]
-
-            if jugador['haJugado']:
-                # Añade campos sacados de la página ACB
-                for dato in jugador['estads']:
-                    dictJugador[dato] = jugador['estads'][dato]
-                    typesDF[dato] = 'float64'
-
-                # Añade campos derivados
-                dictJugador['TC-I'] = dictJugador['T2-I'] + dictJugador['T3-I']
-                dictJugador['TC-C'] = dictJugador['T2-C'] + dictJugador['T3-C']
-                dictJugador['PTC'] = 2 * dictJugador['T2-C'] + 3 * dictJugador['T3-C']
-                dictJugador['ppTC'] = dictJugador['PTC'] / dictJugador['TC-I'] if dictJugador['TC-I'] else np.nan
-                typesDF['ppTC'] = 'float64'
-                typesDF['PTC'] = 'float64'
-
-                for k in '123C':
-                    kI = f'T{k}-I'
-                    kC = f'T{k}-C'
-                    kRes = f'T{k}%'
-                    dictJugador[kRes] = (dictJugador[kC] / dictJugador[kI] * 100.0) if dictJugador[kI] else np.nan
-                    typesDF[kI] = 'float64'
-                    typesDF[kC] = 'float64'
-                    typesDF[kRes] = 'float64'
-
-                bonus = BONUSVICTORIA if (jugador['haGanado'] and (jugador['estads']['V'] > 0)) else 1.0
-                dictJugador['Vsm'] = jugador['estads']['V'] * bonus
-            else:
-                dictJugador['V'] = 0.0
-                dictJugador['Vsm'] = 0.0
-                typesDF['V'] = 'float64'
-
-            dfresult = pd.DataFrame.from_dict(dictJugador, orient='index').transpose()
-            dfresult['fechaPartido'] = self.fechaPartido
-            dfresult['local'] = dfresult['esLocal'].map(local2esp)
-            dfresult['titular'] = dfresult['esTitular'].map(titular2esp)
-
-            dfresult['resultado'] = dfresult['haGanado'].map(haGanado2esp)
-            dfresult['jugado'] = dfresult['haJugado'].map(bool2esp)
-
-            return dfresult
-
-        dfJugs = [jugador2dataframe(x) for x in self.Jugadores.values()]
+        dfJugs = [auxJugador2dataframe(typesDF, x, self.fechaPartido) for x in self.Jugadores.values()]
         dfResult = pd.concat(dfJugs, axis=0, ignore_index=True, sort=True).astype(typesDF)
 
         return dfResult
@@ -481,16 +427,13 @@ class PartidoACB():
         return result
 
     def resumenPartido(self):
-        return (f" * J {self.jornada}: {self.EquiposCalendario['Local']} ({self.CodigosCalendario['Local']})"
-                f"{self.ResultadoCalendario['Local']} - {self.ResultadoCalendario['Visitante']} "
-                f"{self.EquiposCalendario['Visitante']} ({self.CodigosCalendario['Visitante']}) ")
+        return (f"J {self.jornada:02d}: [{self.fechaPartido}] "
+                f"{self.EquiposCalendario['Local']['nomblargo']} ({self.CodigosCalendario['Local']}) "
+                f"{self.ResultadoCalendario['Local']:d} - {self.ResultadoCalendario['Visitante']:d} "
+                f"{self.EquiposCalendario['Visitante']['nomblargo']} ({self.CodigosCalendario['Visitante']})")
 
     def __str__(self):
-        return "J %02i: [%s] %s (%s) %i - %i %s (%s)" % (
-                self.jornada, self.fechaPartido, self.EquiposCalendario['Local']['nomblargo'],
-                self.CodigosCalendario['Local'], self.ResultadoCalendario['Local'],
-                self.ResultadoCalendario['Visitante'], self.EquiposCalendario['Visitante']['nomblargo'],
-                self.CodigosCalendario['Visitante'])
+        return self.resumenPartido()
 
     def __getitem__(self, item):
         return getattr(self, item)
@@ -559,6 +502,55 @@ class PartidoACB():
             result[loc] = estads
 
         return result
+
+
+def auxJugador2dataframe(typesDF, jugador, fechaPartido):
+    dictJugador = dict()
+    dictJugador['enActa'] = True
+    dictJugador['acta'] = 'S'
+
+    # Añade las estadísticas al resultado saltándose ciertas columnas no relevantes
+    for dato in jugador:
+        if dato in ['esJugador', 'entrenador', 'estads', 'estado']:
+            continue
+        dictJugador[dato] = jugador[dato]
+
+    if jugador['haJugado']:
+        # Añade campos sacados de la página ACB
+        for dato in jugador['estads']:
+            dictJugador[dato] = jugador['estads'][dato]
+            typesDF[dato] = 'float64'
+
+        # Añade campos derivados
+        dictJugador['TC-I'] = dictJugador['T2-I'] + dictJugador['T3-I']
+        dictJugador['TC-C'] = dictJugador['T2-C'] + dictJugador['T3-C']
+        dictJugador['PTC'] = 2 * dictJugador['T2-C'] + 3 * dictJugador['T3-C']
+        dictJugador['ppTC'] = dictJugador['PTC'] / dictJugador['TC-I'] if dictJugador['TC-I'] else np.nan
+        typesDF['ppTC'] = 'float64'
+        typesDF['PTC'] = 'float64'
+
+        for k in '123C':
+            kI = f'T{k}-I'
+            kC = f'T{k}-C'
+            kRes = f'T{k}%'
+            dictJugador[kRes] = (dictJugador[kC] / dictJugador[kI] * 100.0) if dictJugador[kI] else np.nan
+            typesDF[kI] = 'float64'
+            typesDF[kC] = 'float64'
+            typesDF[kRes] = 'float64'
+
+    else:
+        dictJugador['V'] = 0.0
+        typesDF['V'] = 'float64'
+
+    dfresult = pd.DataFrame.from_dict(dictJugador, orient='index').transpose()
+    dfresult['fechaPartido'] = fechaPartido
+    dfresult['local'] = dfresult['esLocal'].map(local2esp)
+    dfresult['titular'] = dfresult['esTitular'].map(titular2esp)
+
+    dfresult['resultado'] = dfresult['haGanado'].map(haGanado2esp)
+    dfresult['jugado'] = dfresult['haJugado'].map(bool2esp)
+
+    return dfresult
 
 
 def GeneraURLpartido(link):
