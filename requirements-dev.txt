@@ -1,5 +1,5 @@
 # Librerias para dev
-pytest
+pytest==7.4.4
   pluggy==1.3.0
 
 flake8==6.1.0
