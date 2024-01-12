@@ -519,6 +519,7 @@ def datosTablaLiga(tempData: TemporadaACB, currJornada: int = None):
     List
     """
 
+    muestraJornada=len(tempData.Calendario.Jornadas[currJornada]['partidos'])>0
     recuperaClasifLiga(tempData)
     firstNegBal = auxCalculaFirstBalNeg(clasifLiga)
 
@@ -582,7 +583,7 @@ def datosTablaLiga(tempData: TemporadaACB, currJornada: int = None):
                     texto = f"J:{jornada}<br/><b>{pLocal}-{pVisit}</b>"
             else:
                 auxTexto = auxCalculaBalanceStr(datosEq, addPendientes=True, currJornada=currJornada,
-                                                addPendJornada=True)
+                                                addPendJornada=muestraJornada)
                 texto = f"<b>{auxTexto}</b>"
             fila.append(Paragraph(texto, style=estCelda))
 
@@ -1082,12 +1083,14 @@ def datosTablaClasif(tempData: TemporadaACB, datosSig: infoSigPartido) -> list[f
     sigPartido = datosSig.sigPartido
     abrsEqs = sigPartido['participantes']
     jornada = int(sigPartido['jornada'])
+    muestraJornada = len(tempData.Calendario.Jornadas[jornada]['partidos']) > 0
     recuperaClasifLiga(tempData)
 
     result = list()
     for posic, eq in enumerate(clasifLiga):
         nombEqAux = sorted(eq.nombresEq, key=len)[0]
-        notaClas = auxCalculaBalanceStrSuf(record=eq, addPendientes=True, currJornada=jornada, addPendJornada=True)
+        notaClas = auxCalculaBalanceStrSuf(record=eq, addPendientes=True, currJornada=jornada,
+                                           addPendJornada=muestraJornada)
         nombEq = f"{nombEqAux}{notaClas}"
         victs = eq.V
         derrs = eq.D
