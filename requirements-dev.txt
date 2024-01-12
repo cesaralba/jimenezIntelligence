@@ -37,7 +37,7 @@ prospector==1.10.3
   GitPython==3.1.41
   vulture
 
-  pep8-naming==0.10.0 #Así hasta que prospector avance
+  pep8-naming==0.13.3 #Así hasta que prospector avance
   pylint==2.17.7 #Pinned hasta que actualicen prospector
     pylint-celery==0.3
     pylint-django==2.5.5
