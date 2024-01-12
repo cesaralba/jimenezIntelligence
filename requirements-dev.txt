@@ -42,7 +42,7 @@ prospector==1.10.3
     pylint-celery==0.3
     pylint-django==2.5.5
     pylint-flask==0.6
-    pylint-plugin-utils==0.7
+    pylint-plugin-utils==0.8.2
     dill==0.3.7
     platformdirs==4.1.0
     tomlkit==0.12.3
