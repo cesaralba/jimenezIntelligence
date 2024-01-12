@@ -32,7 +32,7 @@ nest-asyncio==1.5.8
 
 prospector==1.10.3
   flake8==5.0.4 # Pinned by prospector
-    pycodestyle==2.9.1 # Pinned by flake8
+    pycodestyle==2.11.1 # Pinned by flake8
     pyflakes==2.5.0 # Pinned flake8
   GitPython==3.1.41
   vulture
