@@ -38,7 +38,7 @@ prospector==1.10.3
   vulture
 
   pep8-naming==0.10.0 #Así hasta que prospector avance
-  pylint==2.17.7 #Pinned hasta que actualicen prospector
+  pylint==3.0.3 #Pinned hasta que actualicen prospector
     pylint-celery==0.3
     pylint-django==2.5.5
     pylint-flask==0.6
