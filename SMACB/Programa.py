@@ -519,7 +519,7 @@ def datosTablaLiga(tempData: TemporadaACB, currJornada: int = None):
     List
     """
 
-    muestraJornada=len(tempData.Calendario.Jornadas[currJornada]['partidos'])>0
+    muestraJornada = len(tempData.Calendario.Jornadas[currJornada]['partidos']) > 0
     recuperaClasifLiga(tempData)
     firstNegBal = auxCalculaFirstBalNeg(clasifLiga)
 
@@ -1245,8 +1245,10 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
         infoMaxMinMagn = calculaMaxMinMagn(serMagn, serMagnOrden)
 
         resaltaLocal = datosEqsOrd['Local'] < datosEqsOrd['Visitante']
-        resaltaMax = bool(infoMaxMinMagn.maxAbrevs.intersection(targetAbrevs.values()))
-        resaltaMin = bool(infoMaxMinMagn.minAbrevs.intersection(targetAbrevs.values()))
+        resaltaVisit = datosEqsOrd['Visitante'] < datosEqsOrd['Local']
+
+        resaltaMax = min(serMagnOrden) in set(datosEqsOrd.values())
+        resaltaMin = max(serMagnOrden) in set(datosEqsOrd.values())
 
         newRecord = filaComparEstadistica(magn=kMagn, nombreMagn=etiq, isAscending=labCreciente,
                                           locAbr=targetAbrevs['Local'], locMagn=datosEqs['Local'], locHigh=resaltaLocal,
@@ -1255,7 +1257,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
                                           ligaStd=magnStd, minMagn=infoMaxMinMagn.minVal, minAbr=infoMaxMinMagn.minEtq,
                                           minHigh=resaltaMin, visAbr=targetAbrevs['Visitante'],
                                           visMagn=datosEqs['Visitante'], visRank=datosEqsOrd['Visitante'],
-                                          visHigh=not (resaltaLocal), formatoMagn=formatoMagn)
+                                          visHigh=resaltaVisit, formatoMagn=formatoMagn)
 
         result[claveEst] = newRecord
 
