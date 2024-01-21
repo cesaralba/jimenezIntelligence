@@ -4,6 +4,7 @@ from collections import defaultdict, namedtuple
 from copy import copy
 from itertools import product
 from math import isnan
+from time import gmtime, strftime
 
 import pandas as pd
 from reportlab.lib import colors
@@ -218,8 +219,8 @@ def auxCalculaBalanceStrSuf(record: infoClasifEquipo, addPendientes: bool = Fals
         pendJornada = currJornada not in record.Jjug
         pendientes = [p for p in range(1, currJornada) if p not in record.Jjug]
         adelantados = [p for p in record.Jjug if p > currJornada]
-        textoAux = "" + ("J" if (pendJornada and addPendJornada) else "") + ("P" if pendientes else "") + (
-                "A" if adelantados else "")
+        textoAux = ("" + ("J" if (pendJornada and addPendJornada) else "") + ("P" if pendientes else "") + (
+                "A" if adelantados else ""))
 
     strPendiente = f" ({textoAux})" if (addPendientes and textoAux) else ""
 
@@ -438,23 +439,19 @@ def datosEstadsBasicas(tempData: TemporadaACB, infoEq: dict):
     BR, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'BR', ESTADISTICOEQ)
     PNR, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'PNR', ESTADISTICOEQ)
 
-    resultEq = f"""
-<b>{nombreCorto}</b>&nbsp;[{abrev}]
-<b>PF</b>:&nbsp;{pFav:.2f} <b>/</b>
-<b>PC</b>:&nbsp;{pCon:.2f} <b>/</b>
-<b>T2</b>:&nbsp;{T2C:.2f}/{T2I:.2f}&nbsp;{T2pc:.2f}% <b>/</b>
-<b>T3</b>:&nbsp;{T3C:.2f}/{T3I:.2f}&nbsp;{T3pc:.2f}% <b>/</b>
-<b>TC</b>:&nbsp;{TCC:.2f}/{TCI:.2f}&nbsp;{TCpc:.2f}% <b>/</b>
-<b>TL</b>:&nbsp;{T1C:.2f}/{T1I:.2f}&nbsp;{T1pc:.2f}% <b>/</b>
-<b>Reb</b>:&nbsp;{RebD:.2f}+{RebO:.2f}&nbsp;{RebT:.2f} <b>/</b>
-<b>A</b>:&nbsp;{A:.2f} <b>/</b>
-<b>BP</b>:&nbsp;{BP:.2f} <b>/</b>
-<b>PNR</b>:&nbsp;{PNR:.2f} <b>/</b>
-<b>BR</b>:&nbsp;{BR:.2f} <b>/</b>
-<b>F&nbsp;com</b>:&nbsp;{Fcom:.2f}  <b>/</b>
-<b>F&nbsp;rec</b>:&nbsp;{Frec:.2f}
-"""
-
+    # noqa: E702
+    resultEq = (f"<b>{nombreCorto}</b>&nbsp;[{abrev}]"
+                f"<b>PF</b>:&nbsp;{pFav:.2f} <b>/</b> <b>PC</b>:&nbsp;{pCon:.2f} <b>/</b> "
+                f"<b>T2</b>:&nbsp;{T2C:.2f}/ {T2I:.2f}&nbsp;{T2pc:.2f}% <b>/</b> "
+                f"<b>T3</b>:&nbsp;{T3C:.2f}/{T3I:.2f}&nbsp;{T3pc:.2f}% <b>/</b> "
+                f"<b>TC</b>:&nbsp;{TCC:.2f}/{TCI:.2f}&nbsp;{TCpc:.2f}% <b>/</b> "
+                f"<b>TL</b>:&nbsp;{T1C:.2f}/{T1I:.2f}&nbsp;{T1pc:.2f}% <b>/</b> "
+                f"<b>Reb</b>:&nbsp;{RebD:.2f}+{RebO:.2f}&nbsp;{RebT:.2f} <b>/</b> "
+                f"<b>A</b>:&nbsp;{A:.2f} <b>/</b> "
+                f"<b>BP</b>:&nbsp;{BP:.2f} <b>/</b> <b>PNR</b>:&nbsp;{PNR:.2f} "
+                f"<b>/</b> <b>BR</b>:&nbsp;{BR:.2f} "
+                f"<b>/</b> <b>F&nbsp;com</b>:&nbsp;{Fcom:.2f}  <b>/</b> <b>F&nbsp;rec</b>:&nbsp;{Frec:.2f}")
+    # qa
     return resultEq
 
 
@@ -1391,3 +1388,19 @@ def bloqueRestoJYBasics(tempData: TemporadaACB, datosSig: infoSigPartido):
     t = Table(data=datosTabla, colWidths=anchoCols, style=tStyle)
 
     return t
+
+
+def metadataPrograma(tempData: TemporadaACB):
+    FONTSIZE = 6
+
+    FORMATOfecha = "%Y-%m-%d %H:%M (%z)"
+    fechaGen = strftime(FORMATOfecha, gmtime())
+    tempDesc = strftime(FORMATOfecha, tempData.timestamp)
+    mensaje = (f"Datos procedentes de https://www.acb.com y elaboración propia. Generado en {fechaGen}. Datos "
+               f"descargados en {tempDesc}")
+
+    metadataStyle = ParagraphStyle('tabEstadsRowHeader', fontSize=FONTSIZE, alignment=TA_LEFT, leading=1)
+
+    result = Paragraph(mensaje, style=metadataStyle)
+
+    return result
