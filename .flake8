@@ -17,7 +17,7 @@
 # N806: Variable in function should be lowercase
 # F811: Redefinition of unused function
 
-ignore = D100,D101,D102,D103,D105
+ignore = D100,D101,D102,D103,D105,N8,I
 max-line-length = 120
 exclude =
     # No need to traverse our git directory
@@ -33,6 +33,5 @@ exclude =
     # This contains builds of flake8 that we don't want to check
     dist
     # this daos has not been  used
-    src/daos/hbase/,
-    src/daos/phoenix/,
-    src/daos/presto/,
+    creaExcel.py
+
