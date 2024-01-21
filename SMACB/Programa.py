@@ -5,10 +5,11 @@ from copy import copy
 from itertools import product
 from math import isnan
 from time import gmtime, strftime
+from typing import Optional
 
 import pandas as pd
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import NextPageTemplate, PageBreak, Paragraph, Spacer, Table, TableStyle
@@ -27,12 +28,12 @@ from Utils.Misc import listize, onlySetElement
 from Utils.ReportLab.RLverticalText import VerticalParagraph
 
 # Variables globales
-estadGlobales: pd.DataFrame | None = None
-estadGlobalesOrden: pd.DataFrame | None = None
-allMagnsInEstads: set | None = None
-clasifLiga: list | None = None
-numEqs: int | None = None
-mitadEqs: int | None = None
+estadGlobales: Optional[pd.DataFrame] = None
+estadGlobalesOrden: Optional[pd.DataFrame] = None
+allMagnsInEstads: Optional[set] = None
+clasifLiga: Optional[list] = None
+numEqs: Optional[int] = None
+mitadEqs: Optional[int] = None
 
 ESTILOS = getSampleStyleSheet()
 
@@ -44,7 +45,7 @@ DEFTABVALUE = "-"
 filaComparEstadistica = namedtuple('filaComparEstadistica',
                                    ['magn', 'isAscending', 'locAbr', 'locMagn', 'locRank', 'locHigh', 'maxMagn',
                                     'maxAbr', 'maxHigh', 'ligaMed', 'ligaStd', 'minMagn', 'minAbr', 'minHigh', 'visAbr',
-                                    'visMagn', 'visRank', 'visHigh', 'nombreMagn', 'formatoMagn'])
+                                    'visMagn', 'visRank', 'visHigh', 'nombreMagn', 'formatoMagn', 'leyenda'])
 
 filaTablaClasif = namedtuple('filaTablaClasif',
                              ['posic', 'nombre', 'jugs', 'victs', 'derrs', 'ratio', 'puntF', 'puntC', 'diffP',
@@ -296,6 +297,59 @@ def auxEtFecha(f, col, formato=FMTECHACORTA):
     return result
 
 
+def auxFilasTablaEstadisticos(datosAmostrar: dict, clavesEquipo: list | None = None, clavesRival: list | None = None,
+                              estiloCelda: ParagraphStyle = None, estiloCabCelda: ParagraphStyle = None
+                              ) -> (list, dict):
+    result = list()
+    leyendas = dict()
+    leyendasFlag = False
+
+    auxClEq = clavesEquipo
+    auxClRiv = clavesRival if clavesRival else auxClEq
+
+    listaClaves = list(product(['Eq'], auxClEq)) + list(product(['Rival'], auxClRiv))
+    for clave in listaClaves:
+        dato = datosAmostrar[clave]
+
+        auxLocMagn = dato.formatoMagn.format(dato.locMagn)
+        valLocRank = RANKFORMAT.format(dato.locRank)
+        auxVisMagn = dato.formatoMagn.format(dato.visMagn)
+        valVisRank = RANKFORMAT.format(dato.visRank)
+
+        valLocMagn = auxBold(auxLocMagn) if dato.locHigh else auxLocMagn
+        valVisMagn = auxBold(auxVisMagn) if dato.visHigh else auxVisMagn
+
+        auxMinMagn = dato.formatoMagn.format(dato.minMagn)
+        auxMaxMagn = dato.formatoMagn.format(dato.maxMagn)
+        valACBmed = dato.formatoMagn.format(dato.ligaMed)
+        valACBstd = dato.formatoMagn.format(dato.ligaStd)
+        valMinMagn = auxBold(auxMinMagn) if dato.minHigh else auxMinMagn
+        valMaxMagn = auxBold(auxMaxMagn) if dato.maxHigh else auxMaxMagn
+
+        fila = [None, Paragraph(f"[{dato.isAscending}] {auxBold(dato.nombreMagn):s}", style=estiloCabCelda),
+                Paragraph(f"{valLocMagn} [{valLocRank}]", style=estiloCelda),
+                Paragraph(f"{valVisMagn} [{valVisRank}]", style=estiloCelda),
+                Paragraph(f"{valMaxMagn} ({dato.maxAbr:3s})", style=estiloCelda),
+                Paragraph(f"{valACBmed}\u00b1{valACBstd}", style=estiloCelda),
+                Paragraph(f"{valMinMagn} ({dato.minAbr:3s})", style=estiloCelda)]
+
+        if dato.leyenda:
+            leyendas[dato.nombreMagn] = dato.leyenda
+            leyendasFlag = True
+        else:
+            print(f"Warning: '{dato.nombreMagn}' no tiene leyenda ({dato.kMagn})")
+
+        result.append(fila)
+
+    if leyendasFlag:
+        for fila in result:
+            fila.append([])
+
+    result[0][0] = VerticalParagraph("Equipo")
+    result[len(clavesEquipo) - 1][0] = VerticalParagraph("Rival")
+    return result, leyendas
+
+
 def auxFindTargetAbrevs(tempData: TemporadaACB, datosSig: infoSigPartido, ):
     sigPartido = datosSig.sigPartido
     result = {k: list(tempData.Calendario.abrevsEquipo(sigPartido['loc2abrev'][k]).intersection(estadGlobales.index))[0]
@@ -326,6 +380,16 @@ def auxKeyDorsal(f, col):
 
 def auxBold(data):
     return f"<b>{data}</b>"
+
+
+def auxGeneraCeldaLeyendaEstads(leyenda: dict):
+    result = ""
+
+    for k in sorted(leyenda.keys()):
+        kFormated = k.replace(' ', '&nbsp;')
+        result += f"<b>{kFormated}</b>: {leyenda[k]}<br/>"
+
+    return result
 
 
 def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estiloTablaBaseOps, formatos=None,
@@ -1222,6 +1286,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
 
         etiq = descrMagn.get('etiq', kMagn)
         formatoMagn = descrMagn.get('formato', DEFAULTNUMFORMAT)
+        leyendaMagn = descrMagn.get('leyenda', None)
 
         clave2use = (kEq, kMagn, ESTADISTICOEQ)
         if clave2use not in clavesEnEstads:
@@ -1254,7 +1319,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
                                           ligaStd=magnStd, minMagn=infoMaxMinMagn.minVal, minAbr=infoMaxMinMagn.minEtq,
                                           minHigh=resaltaMin, visAbr=targetAbrevs['Visitante'],
                                           visMagn=datosEqs['Visitante'], visRank=datosEqsOrd['Visitante'],
-                                          visHigh=resaltaVisit, formatoMagn=formatoMagn)
+                                          visHigh=resaltaVisit, formatoMagn=formatoMagn, leyenda=leyendaMagn)
 
         result[claveEst] = newRecord
 
@@ -1265,9 +1330,9 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     return result
 
 
-def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, magns2incl: dict | list | None = None,
+def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, magns2incl: list | set | None = None,
                               magnsCrecientes: list | set | None = None
-                              ):
+                              ) -> Table:
     catsAscending = {} if magnsCrecientes is None else set(magnsCrecientes)
 
     recuperaEstadsGlobales(tempData)
@@ -1291,47 +1356,12 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     rowHeaderStyle = ParagraphStyle('tabEstadsRowHeader', fontSize=FONTSIZE, alignment=TA_LEFT, leading=10)
     cellStyle = ParagraphStyle('tabEstadsCell', fontSize=FONTSIZE, alignment=TA_RIGHT, leading=10)
 
-    def filasTabla(datosAmostrar: dict, clavesEquipo: list | None = None, clavesRival: list | None = None):
-        result = list()
-
-        auxClEq = clavesEquipo
-        auxClRiv = clavesRival if clavesRival else auxClEq
-
-        listaClaves = list(product(['Eq'], auxClEq)) + list(product(['Rival'], auxClRiv))
-        for clave in listaClaves:
-            dato = datosAmostrar[clave]
-
-            auxLocMagn = dato.formatoMagn.format(dato.locMagn)
-            valLocRank = RANKFORMAT.format(dato.locRank)
-            auxVisMagn = dato.formatoMagn.format(dato.visMagn)
-            valVisRank = RANKFORMAT.format(dato.visRank)
-
-            valLocMagn = auxBold(auxLocMagn) if dato.locHigh else auxLocMagn
-            valVisMagn = auxBold(auxVisMagn) if dato.visHigh else auxVisMagn
-
-            auxMinMagn = dato.formatoMagn.format(dato.minMagn)
-            auxMaxMagn = dato.formatoMagn.format(dato.maxMagn)
-            valACBmed = dato.formatoMagn.format(dato.ligaMed)
-            valACBstd = dato.formatoMagn.format(dato.ligaStd)
-            valMinMagn = auxBold(auxMinMagn) if dato.minHigh else auxMinMagn
-            valMaxMagn = auxBold(auxMaxMagn) if dato.maxHigh else auxMaxMagn
-
-            fila = [None, Paragraph(f"[{dato.isAscending}] {auxBold(dato.nombreMagn):s}", style=rowHeaderStyle),
-                    Paragraph(f"{valLocMagn} [{valLocRank}]", style=cellStyle),
-                    Paragraph(f"{valVisMagn} [{valVisRank}]", style=cellStyle),
-                    Paragraph(f"{valMaxMagn} ({dato.maxAbr:3s})", style=cellStyle),
-                    Paragraph(f"{valACBmed}\u00b1{valACBstd}", style=cellStyle),
-                    Paragraph(f"{valMinMagn} ({dato.minAbr:3s})", style=cellStyle)]
-            result.append(fila)
-        result[0][0] = VerticalParagraph("Equipo")
-        result[len(clavesEquipo) - 1][0] = VerticalParagraph("Rival")
-        return result
-
     ANCHOEQL = 14.2
     ANCHOLABEL = 68.4
     ANCHOEQUIPO = 55.5
     ANCHOMAXMIN = 68.9
     ANCHOLIGA = 65.2
+    ANCHOLEYENDA = 170
 
     LISTAANCHOS = [ANCHOEQL, ANCHOLABEL, ANCHOEQUIPO, ANCHOEQUIPO, ANCHOMAXMIN, ANCHOLIGA, ANCHOMAXMIN]
 
@@ -1339,17 +1369,36 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
                Paragraph(auxBold(f"{targetAbrevs['Local']}"), style=headerStyle),
                Paragraph(auxBold(f"{targetAbrevs['Visitante']}"), style=headerStyle),
                Paragraph(auxBold("Mejor"), style=headerStyle), Paragraph(auxBold("ACB"), style=headerStyle),
-               Paragraph(auxBold("Peor"), style=headerStyle), ]
+               Paragraph(auxBold("Peor"), style=headerStyle)]
 
-    listaFilas = [filaCab] + filasTabla(datos, clavesEquipo=clavesEq, clavesRival=clavesRiv)
+    filasTabla, leyendas = auxFilasTablaEstadisticos(datos, clavesEquipo=clavesEq, clavesRival=clavesRiv,
+                                                     estiloCabCelda=rowHeaderStyle, estiloCelda=cellStyle)
 
-    tStyle = TableStyle([('BOX', (1, 1), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                         ('GRID', (1, 1), (-1, -1), 0.5, colors.black), ('SPAN', (0, 1), (0, len(clavesEq))),
-                         ('BOX', (1, 1), (-1, len(clavesEq)), 2, colors.black), ('SPAN', (0, len(clavesEq)), (0, -1)),
-                         ('LEFTPADDING', (0, 0), (-1, -1), 3), ('RIGHTPADDING', (0, 0), (-1, -1), 3), (
-                                 'BOX', (1, -len(clavesRiv)), (-1, -1), 2,
-                                 colors.black), ])  # ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),('LEADING', (0, 0),
-    # (-1, -1), FONTSIZE)
+    EXTRALEYENDA = 0
+    ESTILOLEYENDA = []
+    if leyendas:
+        LISTAANCHOS.append(ANCHOLEYENDA)
+        filaCab.append(Paragraph(auxBold("Leyenda"), style=headerStyle))
+        EXTRALEYENDA = -1
+        ESTILOLEYENDA = [('SPAN', (-1, 1), (-1, -1)), ('VALIGN', (-1, 1), (-1, -1), 'TOP')]
+
+        celdaLeyenda = auxGeneraCeldaLeyendaEstads(leyendas)
+        legendStyle = ParagraphStyle('tabEstadsLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
+                                     leading=10, )
+        filasTabla[0][-1] = Paragraph(celdaLeyenda, style=legendStyle)
+
+        print("Soy leyenda")
+
+    listaEstilos = [('BOX', (1, 1), (-1 + EXTRALEYENDA, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('GRID', (1, 1), (-1 + EXTRALEYENDA, -1), 0.5, colors.black), ('SPAN', (0, 1), (0, len(clavesEq))),
+                    ('SPAN', (0, len(clavesEq)), (0, -1)),
+                    ('BOX', (1, 1), (-1 + EXTRALEYENDA, len(clavesEq)), 2, colors.black),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 3), ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+                    ('BOX', (1, -len(clavesRiv)), (-1 + EXTRALEYENDA, -1), 2, colors.black), ] + ESTILOLEYENDA
+
+    listaFilas = [filaCab] + filasTabla
+
+    tStyle = TableStyle(listaEstilos)
 
     tabla1 = Table(data=listaFilas, style=tStyle, colWidths=LISTAANCHOS, rowHeights=11.2)
 
