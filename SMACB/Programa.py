@@ -1387,8 +1387,6 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
                                      leading=10, )
         filasTabla[0][-1] = Paragraph(celdaLeyenda, style=legendStyle)
 
-        print("Soy leyenda")
-
     listaEstilos = [('BOX', (1, 1), (-1 + EXTRALEYENDA, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('GRID', (1, 1), (-1 + EXTRALEYENDA, -1), 0.5, colors.black), ('SPAN', (0, 1), (0, len(clavesEq))),
                     ('SPAN', (0, len(clavesEq)), (0, -1)),
