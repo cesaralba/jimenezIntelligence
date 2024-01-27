@@ -345,8 +345,8 @@ def auxFilasTablaEstadisticos(datosAmostrar: dict, clavesEquipo: list | None = N
         for fila in result:
             fila.append([])
 
-    result[0][0] = VerticalParagraph("Equipo")
-    result[len(clavesEquipo) - 1][0] = VerticalParagraph("Rival")
+    result[0][0] = VerticalParagraph(auxBold("Equipo"))
+    result[len(clavesEquipo) - 1][0] = VerticalParagraph(auxBold("Rival"))
     return result, leyendas
 
 
@@ -382,7 +382,7 @@ def auxBold(data):
     return f"<b>{data}</b>"
 
 
-def auxGeneraCeldaLeyendaEstads(leyenda: dict, FONTSIZE: int):
+def auxGeneraLeyendaEstadsCelda(leyenda: dict, FONTSIZE: int):
     texto = ""
 
     for k in sorted(leyenda.keys()):
@@ -392,6 +392,12 @@ def auxGeneraCeldaLeyendaEstads(leyenda: dict, FONTSIZE: int):
     legendStyle = ParagraphStyle('tabEstadsLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
                                  leading=10, )
     result = Paragraph(texto, style=legendStyle)
+    return result
+
+
+def auxGeneraLeyendaEstadsJugsCelda(leyendaTxt: str):
+    legendStyle = ParagraphStyle('tabJugsLegend', alignment=TA_CENTER, allowWidows=0)
+    result = VerticalParagraph(leyendaTxt, style=legendStyle)
     return result
 
 
@@ -408,13 +414,16 @@ def auxGeneraLeyendaLiga():
     return result
 
 
-def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estiloTablaBaseOps, formatos=None,
-                   charWidth=10.0, **kwargs
-                   ):
+def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSpecs: dict, estiloTablaBaseOps,
+                       formatos=None, charWidth=10.0, **kwargs
+                       ):
     dfColList = []
     filaCab = []
     anchoCols = []
-    tStyle = TableStyle(estiloTablaBaseOps)
+
+    listaEstilo = estiloTablaBaseOps.copy()
+
+    dfDatos[('Global', 'Leyenda')] = ""
 
     for col in infoTabla.get('extraCols', []):
         level, colkey = col
@@ -436,7 +445,7 @@ def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estil
     if formatos is None:
         formatos = dict()
 
-    for i, colkey in enumerate(collist):
+    for i, colkey in enumerate([('Global', 'Leyenda')] + collist, start=0):
         level, etiq = colkey
         colSpec = colSpecs.get(colkey, {})
         newCol = dfDatos[level].apply(colSpec['generador'], axis=1) if 'generador' in colSpec else dfDatos[[colkey]]
@@ -447,7 +456,7 @@ def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estil
         if 'formato' in colSpec:
             etiqFormato = colSpec['formato']
             if etiqFormato not in formatos:
-                raise KeyError(f"auxGeneraTabla: columna '{colkey}': formato '{etiqFormato}' desconocido. "
+                raise KeyError(f"auxGeneraTablaJugs: columna '{colkey}': formato '{etiqFormato}' desconocido. "
                                f"Formatos conocidos: {formatos}")
             formatSpec = formatos[etiqFormato]
 
@@ -466,12 +475,20 @@ def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estil
         anchoCols.append(newAncho)
         if 'alignment' in colSpec:
             newCmdStyle = ["ALIGN", (i, 1), (i, -1), colSpec['alignment']]
-            tStyle.add(*newCmdStyle)
+            listaEstilo.append(newCmdStyle)
 
     datosAux = pd.concat(dfColList, axis=1, join='outer', names=filaCab)
-
     datosTabla = [filaCab] + datosAux.to_records(index=False, column_dtypes='object').tolist()
 
+    # Añade leyenda de la tabla
+    leyenda = infoTabla.get('nombre', clave)
+    anchoCols[0] = 15
+    datosTabla[0][0] = auxGeneraLeyendaEstadsJugsCelda(auxBold(leyenda))
+    estiloCeldaLeyenda = [('SPAN', (0, 0), (0, -1)), ('VALIGN', (0, 0), (0, -1), 'MIDDLE'),
+                          ('ALIGN', (0, 0), (0, -1), 'CENTER')]
+    listaEstilo.extend(estiloCeldaLeyenda)
+
+    tStyle = TableStyle(listaEstilo)
     t = Table(datosTabla, style=tStyle, colWidths=anchoCols, **kwargs)
 
     return t
@@ -884,11 +901,11 @@ def tablasJugadoresEquipo(jugDF):
                  ('UltimoPart', 'FP-C'), ('UltimoPart', 'etiqT1'), ('UltimoPart', 'etRebs'), ('UltimoPart', 'A'),
                  ('UltimoPart', 'BP'), ('UltimoPart', 'BR'), ('UltimoPart', 'TAP-F'), ('UltimoPart', 'TAP-C'), ]
 
-    baseOPS = [('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-               ('ALIGN', (0, 0), (-1, 0), 'CENTER'), ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold'),
-               ('ALIGN', (0, 1), (-1, -1), 'RIGHT'), ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-               ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE), ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1),
-               ('LEFTPADDING', (0, 0), (-1, -1), CELLPAD), ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD),
+    baseOPS = [('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (1, 0), (-1, -1), 'MIDDLE'),
+               ('ALIGN', (1, 0), (-1, 0), 'CENTER'), ('FONT', (1, 0), (-1, 0), 'Helvetica-Bold'),
+               ('ALIGN', (1, 1), (-1, -1), 'RIGHT'), ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+               ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE), ('LEADING', (1, 0), (-1, -1), FONTSIZE + 1),
+               ('LEFTPADDING', (1, 0), (-1, -1), CELLPAD), ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD),
                ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD), ]
 
     tablas = {'promedios': {'seq': 1, 'nombre': 'Promedios', 'columnas': (COLSIDENT_PROM + COLS_PROMED),
@@ -905,8 +922,10 @@ def tablasJugadoresEquipo(jugDF):
               }
     auxDF = jugDF.copy()
 
-    for infoTabla in tablas.values():  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
-        t = auxGeneraTabla(auxDF, infoTabla, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA, repeatRows=1)
+    for claveTabla in ['promedios', 'totales', 'ultimo']:
+        infoTabla = tablas[claveTabla]  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
+        t = auxGeneraTablaJugs(auxDF, claveTabla, infoTabla, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA,
+                               repeatRows=1)
 
         result.append((infoTabla, t))
 
@@ -1396,7 +1415,7 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
         EXTRALEYENDA = -1
         ESTILOLEYENDA = [('SPAN', (-1, 1), (-1, -1)), ('VALIGN', (-1, 1), (-1, -1), 'TOP')]
 
-        filasTabla[0][-1] = auxGeneraCeldaLeyendaEstads(leyendas, FONTSIZE)
+        filasTabla[0][-1] = auxGeneraLeyendaEstadsCelda(leyendas, FONTSIZE)
 
     listaEstilos = [('BOX', (1, 1), (-1 + EXTRALEYENDA, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('GRID', (1, 1), (-1 + EXTRALEYENDA, -1), 0.5, colors.black), ('SPAN', (0, 1), (0, len(clavesEq))),
