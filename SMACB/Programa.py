@@ -4,10 +4,12 @@ from collections import defaultdict, namedtuple
 from copy import copy
 from itertools import product
 from math import isnan
+from time import gmtime, strftime
+from typing import Optional
 
 import pandas as pd
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import NextPageTemplate, PageBreak, Paragraph, Spacer, Table, TableStyle
@@ -26,12 +28,12 @@ from Utils.Misc import listize, onlySetElement
 from Utils.ReportLab.RLverticalText import VerticalParagraph
 
 # Variables globales
-estadGlobales: pd.DataFrame | None = None
-estadGlobalesOrden: pd.DataFrame | None = None
-allMagnsInEstads: set | None = None
-clasifLiga: list | None = None
-numEqs: int | None = None
-mitadEqs: int | None = None
+estadGlobales: Optional[pd.DataFrame] = None
+estadGlobalesOrden: Optional[pd.DataFrame] = None
+allMagnsInEstads: Optional[set] = None
+clasifLiga: Optional[list] = None
+numEqs: Optional[int] = None
+mitadEqs: Optional[int] = None
 
 ESTILOS = getSampleStyleSheet()
 
@@ -43,7 +45,7 @@ DEFTABVALUE = "-"
 filaComparEstadistica = namedtuple('filaComparEstadistica',
                                    ['magn', 'isAscending', 'locAbr', 'locMagn', 'locRank', 'locHigh', 'maxMagn',
                                     'maxAbr', 'maxHigh', 'ligaMed', 'ligaStd', 'minMagn', 'minAbr', 'minHigh', 'visAbr',
-                                    'visMagn', 'visRank', 'visHigh', 'nombreMagn', 'formatoMagn'])
+                                    'visMagn', 'visRank', 'visHigh', 'nombreMagn', 'formatoMagn', 'leyenda'])
 
 filaTablaClasif = namedtuple('filaTablaClasif',
                              ['posic', 'nombre', 'jugs', 'victs', 'derrs', 'ratio', 'puntF', 'puntC', 'diffP',
@@ -218,8 +220,8 @@ def auxCalculaBalanceStrSuf(record: infoClasifEquipo, addPendientes: bool = Fals
         pendJornada = currJornada not in record.Jjug
         pendientes = [p for p in range(1, currJornada) if p not in record.Jjug]
         adelantados = [p for p in record.Jjug if p > currJornada]
-        textoAux = "" + ("J" if (pendJornada and addPendJornada) else "") + ("P" if pendientes else "") + (
-                "A" if adelantados else "")
+        textoAux = ("" + ("J" if (pendJornada and addPendJornada) else "") + ("P" if pendientes else "") + (
+                "A" if adelantados else ""))
 
     strPendiente = f" ({textoAux})" if (addPendientes and textoAux) else ""
 
@@ -295,6 +297,59 @@ def auxEtFecha(f, col, formato=FMTECHACORTA):
     return result
 
 
+def auxFilasTablaEstadisticos(datosAmostrar: dict, clavesEquipo: list | None = None, clavesRival: list | None = None,
+                              estiloCelda: ParagraphStyle = None, estiloCabCelda: ParagraphStyle = None
+                              ) -> (list, dict):
+    result = list()
+    leyendas = dict()
+    leyendasFlag = False
+
+    auxClEq = clavesEquipo
+    auxClRiv = clavesRival if clavesRival else auxClEq
+
+    listaClaves = list(product(['Eq'], auxClEq)) + list(product(['Rival'], auxClRiv))
+    for clave in listaClaves:
+        dato = datosAmostrar[clave]
+
+        auxLocMagn = dato.formatoMagn.format(dato.locMagn)
+        valLocRank = RANKFORMAT.format(dato.locRank)
+        auxVisMagn = dato.formatoMagn.format(dato.visMagn)
+        valVisRank = RANKFORMAT.format(dato.visRank)
+
+        valLocMagn = auxBold(auxLocMagn) if dato.locHigh else auxLocMagn
+        valVisMagn = auxBold(auxVisMagn) if dato.visHigh else auxVisMagn
+
+        auxMinMagn = dato.formatoMagn.format(dato.minMagn)
+        auxMaxMagn = dato.formatoMagn.format(dato.maxMagn)
+        valACBmed = dato.formatoMagn.format(dato.ligaMed)
+        valACBstd = dato.formatoMagn.format(dato.ligaStd)
+        valMinMagn = auxBold(auxMinMagn) if dato.minHigh else auxMinMagn
+        valMaxMagn = auxBold(auxMaxMagn) if dato.maxHigh else auxMaxMagn
+
+        fila = [None, Paragraph(f"[{dato.isAscending}] {auxBold(dato.nombreMagn):s}", style=estiloCabCelda),
+                Paragraph(f"{valLocMagn} [{valLocRank}]", style=estiloCelda),
+                Paragraph(f"{valVisMagn} [{valVisRank}]", style=estiloCelda),
+                Paragraph(f"{valMaxMagn} ({dato.maxAbr:3s})", style=estiloCelda),
+                Paragraph(f"{valACBmed}\u00b1{valACBstd}", style=estiloCelda),
+                Paragraph(f"{valMinMagn} ({dato.minAbr:3s})", style=estiloCelda)]
+
+        if dato.leyenda:
+            leyendas[dato.nombreMagn] = dato.leyenda
+            leyendasFlag = True
+        else:
+            print(f"Warning: '{dato.nombreMagn}' no tiene leyenda ({dato.kMagn})")
+
+        result.append(fila)
+
+    if leyendasFlag:
+        for fila in result:
+            fila.append([])
+
+    result[0][0] = VerticalParagraph(auxBold("Equipo"))
+    result[len(clavesEquipo) - 1][0] = VerticalParagraph(auxBold("Rival"))
+    return result, leyendas
+
+
 def auxFindTargetAbrevs(tempData: TemporadaACB, datosSig: infoSigPartido, ):
     sigPartido = datosSig.sigPartido
     result = {k: list(tempData.Calendario.abrevsEquipo(sigPartido['loc2abrev'][k]).intersection(estadGlobales.index))[0]
@@ -327,13 +382,48 @@ def auxBold(data):
     return f"<b>{data}</b>"
 
 
-def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estiloTablaBaseOps, formatos=None,
-                   charWidth=10.0, **kwargs
-                   ):
+def auxGeneraLeyendaEstadsCelda(leyenda: dict, FONTSIZE: int):
+    texto = ""
+
+    for k in sorted(leyenda.keys()):
+        kFormated = k.replace(' ', '&nbsp;')
+        texto += f"<b>{kFormated}</b>: {leyenda[k]}<br/>"
+
+    legendStyle = ParagraphStyle('tabEstadsLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
+                                 leading=10, )
+    result = Paragraph(texto, style=legendStyle)
+    return result
+
+
+def auxGeneraLeyendaEstadsJugsCelda(leyendaTxt: str):
+    legendStyle = ParagraphStyle('tabJugsLegend', alignment=TA_CENTER, allowWidows=0)
+    result = VerticalParagraph(leyendaTxt, style=legendStyle)
+    return result
+
+
+def auxGeneraLeyendaLiga():
+    texto = ("<b>Leyenda en balance total</b>: <b>A</b>:&nbsp;Partido(s) adelantado(s)<b> J</b>:&nbsp;Jornada actual "
+             "pendiente de jugar<b> "
+             "P</b>:&nbsp;Partido(s) pendiente(s)")
+
+    FONTSIZE = 8
+    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
+                                 leading=FONTSIZE + 0.5, )
+    result = Paragraph(texto, style=legendStyle)
+
+    return result
+
+
+def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSpecs: dict, estiloTablaBaseOps,
+                       formatos=None, charWidth=10.0, **kwargs
+                       ):
     dfColList = []
     filaCab = []
     anchoCols = []
-    tStyle = TableStyle(estiloTablaBaseOps)
+
+    listaEstilo = estiloTablaBaseOps.copy()
+
+    dfDatos[('Global', 'Leyenda')] = ""
 
     for col in infoTabla.get('extraCols', []):
         level, colkey = col
@@ -355,7 +445,7 @@ def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estil
     if formatos is None:
         formatos = dict()
 
-    for i, colkey in enumerate(collist):
+    for i, colkey in enumerate([('Global', 'Leyenda')] + collist, start=0):
         level, etiq = colkey
         colSpec = colSpecs.get(colkey, {})
         newCol = dfDatos[level].apply(colSpec['generador'], axis=1) if 'generador' in colSpec else dfDatos[[colkey]]
@@ -366,7 +456,7 @@ def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estil
         if 'formato' in colSpec:
             etiqFormato = colSpec['formato']
             if etiqFormato not in formatos:
-                raise KeyError(f"auxGeneraTabla: columna '{colkey}': formato '{etiqFormato}' desconocido. "
+                raise KeyError(f"auxGeneraTablaJugs: columna '{colkey}': formato '{etiqFormato}' desconocido. "
                                f"Formatos conocidos: {formatos}")
             formatSpec = formatos[etiqFormato]
 
@@ -385,12 +475,20 @@ def auxGeneraTabla(dfDatos: pd.DataFrame, infoTabla: dict, colSpecs: dict, estil
         anchoCols.append(newAncho)
         if 'alignment' in colSpec:
             newCmdStyle = ["ALIGN", (i, 1), (i, -1), colSpec['alignment']]
-            tStyle.add(*newCmdStyle)
+            listaEstilo.append(newCmdStyle)
 
     datosAux = pd.concat(dfColList, axis=1, join='outer', names=filaCab)
-
     datosTabla = [filaCab] + datosAux.to_records(index=False, column_dtypes='object').tolist()
 
+    # Añade leyenda de la tabla
+    leyenda = infoTabla.get('nombre', clave)
+    anchoCols[0] = 15
+    datosTabla[0][0] = auxGeneraLeyendaEstadsJugsCelda(auxBold(leyenda))
+    estiloCeldaLeyenda = [('SPAN', (0, 0), (0, -1)), ('VALIGN', (0, 0), (0, -1), 'MIDDLE'),
+                          ('ALIGN', (0, 0), (0, -1), 'CENTER')]
+    listaEstilo.extend(estiloCeldaLeyenda)
+
+    tStyle = TableStyle(listaEstilo)
     t = Table(datosTabla, style=tStyle, colWidths=anchoCols, **kwargs)
 
     return t
@@ -438,23 +536,19 @@ def datosEstadsBasicas(tempData: TemporadaACB, infoEq: dict):
     BR, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'BR', ESTADISTICOEQ)
     PNR, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'PNR', ESTADISTICOEQ)
 
-    resultEq = f"""
-<b>{nombreCorto}</b>&nbsp;[{abrev}]
-<b>PF</b>:&nbsp;{pFav:.2f} <b>/</b>
-<b>PC</b>:&nbsp;{pCon:.2f} <b>/</b>
-<b>T2</b>:&nbsp;{T2C:.2f}/{T2I:.2f}&nbsp;{T2pc:.2f}% <b>/</b>
-<b>T3</b>:&nbsp;{T3C:.2f}/{T3I:.2f}&nbsp;{T3pc:.2f}% <b>/</b>
-<b>TC</b>:&nbsp;{TCC:.2f}/{TCI:.2f}&nbsp;{TCpc:.2f}% <b>/</b>
-<b>TL</b>:&nbsp;{T1C:.2f}/{T1I:.2f}&nbsp;{T1pc:.2f}% <b>/</b>
-<b>Reb</b>:&nbsp;{RebD:.2f}+{RebO:.2f}&nbsp;{RebT:.2f} <b>/</b>
-<b>A</b>:&nbsp;{A:.2f} <b>/</b>
-<b>BP</b>:&nbsp;{BP:.2f} <b>/</b>
-<b>PNR</b>:&nbsp;{PNR:.2f} <b>/</b>
-<b>BR</b>:&nbsp;{BR:.2f} <b>/</b>
-<b>F&nbsp;com</b>:&nbsp;{Fcom:.2f}  <b>/</b>
-<b>F&nbsp;rec</b>:&nbsp;{Frec:.2f}
-"""
-
+    # noqa: E702
+    resultEq = (f"<b>{nombreCorto}</b>&nbsp;[{abrev}]"
+                f"<b>PF</b>:&nbsp;{pFav:.2f} <b>/</b> <b>PC</b>:&nbsp;{pCon:.2f} <b>/</b> "
+                f"<b>T2</b>:&nbsp;{T2C:.2f}/ {T2I:.2f}&nbsp;{T2pc:.2f}% <b>/</b> "
+                f"<b>T3</b>:&nbsp;{T3C:.2f}/{T3I:.2f}&nbsp;{T3pc:.2f}% <b>/</b> "
+                f"<b>TC</b>:&nbsp;{TCC:.2f}/{TCI:.2f}&nbsp;{TCpc:.2f}% <b>/</b> "
+                f"<b>TL</b>:&nbsp;{T1C:.2f}/{T1I:.2f}&nbsp;{T1pc:.2f}% <b>/</b> "
+                f"<b>Reb</b>:&nbsp;{RebD:.2f}+{RebO:.2f}&nbsp;{RebT:.2f} <b>/</b> "
+                f"<b>A</b>:&nbsp;{A:.2f} <b>/</b> "
+                f"<b>BP</b>:&nbsp;{BP:.2f} <b>/</b> <b>PNR</b>:&nbsp;{PNR:.2f} "
+                f"<b>/</b> <b>BR</b>:&nbsp;{BR:.2f} "
+                f"<b>/</b> <b>F&nbsp;com</b>:&nbsp;{Fcom:.2f}  <b>/</b> <b>F&nbsp;rec</b>:&nbsp;{Frec:.2f}")
+    # qa
     return resultEq
 
 
@@ -519,7 +613,7 @@ def datosTablaLiga(tempData: TemporadaACB, currJornada: int = None):
     List
     """
 
-    muestraJornada=len(tempData.Calendario.Jornadas[currJornada]['partidos'])>0
+    muestraJornada = len(tempData.Calendario.Jornadas[currJornada]['partidos']) > 0
     recuperaClasifLiga(tempData)
     firstNegBal = auxCalculaFirstBalNeg(clasifLiga)
 
@@ -807,11 +901,11 @@ def tablasJugadoresEquipo(jugDF):
                  ('UltimoPart', 'FP-C'), ('UltimoPart', 'etiqT1'), ('UltimoPart', 'etRebs'), ('UltimoPart', 'A'),
                  ('UltimoPart', 'BP'), ('UltimoPart', 'BR'), ('UltimoPart', 'TAP-F'), ('UltimoPart', 'TAP-C'), ]
 
-    baseOPS = [('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-               ('ALIGN', (0, 0), (-1, 0), 'CENTER'), ('FONT', (0, 0), (-1, 0), 'Helvetica-Bold'),
-               ('ALIGN', (0, 1), (-1, -1), 'RIGHT'), ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-               ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE), ('LEADING', (0, 0), (-1, -1), FONTSIZE + 1),
-               ('LEFTPADDING', (0, 0), (-1, -1), CELLPAD), ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD),
+    baseOPS = [('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (1, 0), (-1, -1), 'MIDDLE'),
+               ('ALIGN', (1, 0), (-1, 0), 'CENTER'), ('FONT', (1, 0), (-1, 0), 'Helvetica-Bold'),
+               ('ALIGN', (1, 1), (-1, -1), 'RIGHT'), ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+               ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE), ('LEADING', (1, 0), (-1, -1), FONTSIZE + 1),
+               ('LEFTPADDING', (1, 0), (-1, -1), CELLPAD), ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD),
                ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD), ]
 
     tablas = {'promedios': {'seq': 1, 'nombre': 'Promedios', 'columnas': (COLSIDENT_PROM + COLS_PROMED),
@@ -828,8 +922,10 @@ def tablasJugadoresEquipo(jugDF):
               }
     auxDF = jugDF.copy()
 
-    for infoTabla in tablas.values():  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
-        t = auxGeneraTabla(auxDF, infoTabla, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA, repeatRows=1)
+    for claveTabla in ['promedios', 'totales', 'ultimo']:
+        infoTabla = tablas[claveTabla]  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
+        t = auxGeneraTablaJugs(auxDF, claveTabla, infoTabla, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA,
+                               repeatRows=1)
 
         result.append((infoTabla, t))
 
@@ -842,47 +938,50 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None, currJornada: int = No
 
     datosAux, coordsJuPe, firstNegBal = datosTablaLiga(tempData, currJornada)
 
-    tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                         ('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                         ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE), ('LEADING', (0, 0), (-1, -1), FONTSIZE),
-                         ('LEFTPADDING', (0, 0), (-1, -1), CELLPAD), ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD),
-                         ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD),
-                         ("BACKGROUND", (-1, 1), (-1, -2), colors.lightgrey),
-                         ("BACKGROUND", (1, -1), (-2, -1), colors.lightgrey)])
-    alturas = [20] + [29] * (len(datosAux) - 2) + [22]
-    anchos = [61] + [39] * (len(datosAux) - 2) + [38]
+    alturas = [22] + [28.7] * (len(datosAux) - 2) + [21]
+    anchos = [76] + [39] * (len(datosAux) - 2) + [38]
 
+    listaEstilos = auxTablaLigaListaEstilos(CELLPAD, FONTSIZE, coordsJuPe, datosAux, equiposAmarcar, firstNegBal)
+    tStyle = TableStyle(listaEstilos)
+
+    t = Table(datosAux, style=tStyle, rowHeights=alturas, colWidths=anchos)
+
+    return t
+
+
+def auxTablaLigaListaEstilos(CELLPAD, FONTSIZE, coordsJuPe, datosAux, equiposAmarcar, firstNegBal):
     CANTGREYBAL = .70
+    ANCHOMARCAPOS = 2
     colBal = colors.rgb2cmyk(CANTGREYBAL, CANTGREYBAL, CANTGREYBAL)
 
+    listaEstilos = [('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                    ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE), ('LEADING', (0, 0), (-1, -1), FONTSIZE),
+                    ('LEFTPADDING', (0, 0), (-1, -1), CELLPAD), ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD),
+                    ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD),
+                    ("BACKGROUND", (-1, 1), (-1, -2), colors.lightgrey),
+                    ("BACKGROUND", (1, -1), (-2, -1), colors.lightgrey)]
     for i in range(1, len(datosAux) - 1):
-        tStyle.add("BACKGROUND", (i, i), (i, i), colBal)
+        listaEstilos.append(("BACKGROUND", (i, i), (i, i), colBal))
 
-    ANCHOMARCAPOS = 2
-    for pos in MARCADORESCLASIF:
-        commH, commV = ("LINEBELOW", "LINEAFTER") if pos >= 0 else ("LINEABOVE", "LINEBEFORE")
-        incr = 0 if pos >= 0 else -1
-        posIni = 0 if pos >= 0 else pos + incr
-        posFin = pos + incr if pos >= 0 else -1
-        tStyle.add(commH, (posIni, pos + incr), (posFin, pos + incr), ANCHOMARCAPOS, colors.black)
-        tStyle.add(commV, (pos + incr, posIni), (pos + incr, posFin), ANCHOMARCAPOS, colors.black)
+    listNegBal = [(firstNegBal - 1, [colors.black, "squared", (2, 8)])] if firstNegBal else []
 
+    for pos, resto in list(product(MARCADORESCLASIF, [[colors.black]])) + listNegBal:
+        commH, commV, incr = ("LINEBELOW", "LINEAFTER", 0) if pos >= 0 else ("LINEABOVE", "LINEBEFORE", -1)
+        posIni, posFin = (0, pos + incr) if pos >= 0 else (pos + incr, -1)
+
+        listaEstilos.append([commH, (posIni, pos + incr), (posFin, pos + incr), ANCHOMARCAPOS] + resto)
+        listaEstilos.append([commV, (pos + incr, posIni), (pos + incr, posFin), ANCHOMARCAPOS] + resto)
+
+    # Etiquetas de equipos en descenso
     # Equipos para descenso (horizontal)
-    tStyle.add("LINEBEFORE", (-DESCENSOS - 1, 0), (-DESCENSOS - 1, 0), ANCHOMARCAPOS, colors.black)
-    tStyle.add("LINEBEFORE", (-1, 0), (-1, 0), ANCHOMARCAPOS, colors.black)
-    tStyle.add("LINEBELOW", (-DESCENSOS - 1, 0), (-2, 0), ANCHOMARCAPOS, colors.black)
-
+    listaEstilos.append(("LINEBEFORE", (-DESCENSOS - 1, 0), (-DESCENSOS - 1, 0), ANCHOMARCAPOS, colors.black))
+    listaEstilos.append(("LINEBEFORE", (-1, 0), (-1, 0), ANCHOMARCAPOS, colors.black))
+    listaEstilos.append(("LINEBELOW", (-DESCENSOS - 1, 0), (-2, 0), ANCHOMARCAPOS, colors.black))
     # Equipos para descenso (vertical)
-    tStyle.add("LINEAFTER", (0, -DESCENSOS - 1), (0, -2), ANCHOMARCAPOS, colors.black)
-    tStyle.add("LINEABOVE", (0, -DESCENSOS - 1), (0, -DESCENSOS - 1), ANCHOMARCAPOS, colors.black)
-    tStyle.add("LINEABOVE", (0, -1), (0, -1), ANCHOMARCAPOS, colors.black)
-
-    # Balance negativo
-    if firstNegBal is not None:
-        tStyle.add("LINEAFTER", (firstNegBal - 1, 0), (firstNegBal - 1, firstNegBal - 1), ANCHOMARCAPOS, colors.black,
-                   "squared", (2, 8))
-        tStyle.add("LINEBELOW", (0, firstNegBal - 1), (firstNegBal - 1, firstNegBal - 1), ANCHOMARCAPOS, colors.black,
-                   "squared", (2, 8))
+    listaEstilos.append(("LINEAFTER", (0, -DESCENSOS - 1), (0, -2), ANCHOMARCAPOS, colors.black))
+    listaEstilos.append(("LINEABOVE", (0, -DESCENSOS - 1), (0, -DESCENSOS - 1), ANCHOMARCAPOS, colors.black))
+    listaEstilos.append(("LINEABOVE", (0, -1), (0, -1), ANCHOMARCAPOS, colors.black))
 
     # Marca los partidos del tipo (jugados o pendientes) que tenga menos
     claveJuPe = 'ju' if len(coordsJuPe['ju']) <= len(coordsJuPe['pe']) else 'pe'
@@ -890,21 +989,16 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None, currJornada: int = No
     colP = colors.rgb2cmyk(CANTGREYJUPE, CANTGREYJUPE, CANTGREYJUPE)
     for x, y in coordsJuPe[claveJuPe]:
         coord = (y + 1, x + 1)
-        tStyle.add("BACKGROUND", coord, coord, colP)
+        listaEstilos.append(("BACKGROUND", coord, coord, colP))
 
     if equiposAmarcar is not None:
-
         parEqs = set(listize(equiposAmarcar))
         seqIDs = [(pos, equipo.abrevsEq) for pos, equipo in enumerate(clasifLiga) if
                   equipo.abrevsEq.intersection(parEqs)]
-
         for pos, _ in seqIDs:
-            tStyle.add("BACKGROUND", (pos + 1, 0), (pos + 1, 0), colEq)
-            tStyle.add("BACKGROUND", (0, pos + 1), (0, pos + 1), colEq)
-
-    t = Table(datosAux, style=tStyle, rowHeights=alturas, colWidths=anchos)
-
-    return t
+            listaEstilos.append(("BACKGROUND", (pos + 1, 0), (pos + 1, 0), colEq))
+            listaEstilos.append(("BACKGROUND", (0, pos + 1), (0, pos + 1), colEq))
+    return listaEstilos
 
 
 def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
@@ -1225,6 +1319,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
 
         etiq = descrMagn.get('etiq', kMagn)
         formatoMagn = descrMagn.get('formato', DEFAULTNUMFORMAT)
+        leyendaMagn = descrMagn.get('leyenda', None)
 
         clave2use = (kEq, kMagn, ESTADISTICOEQ)
         if clave2use not in clavesEnEstads:
@@ -1245,8 +1340,10 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
         infoMaxMinMagn = calculaMaxMinMagn(serMagn, serMagnOrden)
 
         resaltaLocal = datosEqsOrd['Local'] < datosEqsOrd['Visitante']
-        resaltaMax = bool(infoMaxMinMagn.maxAbrevs.intersection(targetAbrevs.values()))
-        resaltaMin = bool(infoMaxMinMagn.minAbrevs.intersection(targetAbrevs.values()))
+        resaltaVisit = datosEqsOrd['Visitante'] < datosEqsOrd['Local']
+
+        resaltaMax = min(serMagnOrden) in set(datosEqsOrd.values())
+        resaltaMin = max(serMagnOrden) in set(datosEqsOrd.values())
 
         newRecord = filaComparEstadistica(magn=kMagn, nombreMagn=etiq, isAscending=labCreciente,
                                           locAbr=targetAbrevs['Local'], locMagn=datosEqs['Local'], locHigh=resaltaLocal,
@@ -1255,7 +1352,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
                                           ligaStd=magnStd, minMagn=infoMaxMinMagn.minVal, minAbr=infoMaxMinMagn.minEtq,
                                           minHigh=resaltaMin, visAbr=targetAbrevs['Visitante'],
                                           visMagn=datosEqs['Visitante'], visRank=datosEqsOrd['Visitante'],
-                                          visHigh=not (resaltaLocal), formatoMagn=formatoMagn)
+                                          visHigh=resaltaVisit, formatoMagn=formatoMagn, leyenda=leyendaMagn)
 
         result[claveEst] = newRecord
 
@@ -1266,9 +1363,9 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     return result
 
 
-def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, magns2incl: dict | list | None = None,
+def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, magns2incl: list | set | None = None,
                               magnsCrecientes: list | set | None = None
-                              ):
+                              ) -> Table:
     catsAscending = {} if magnsCrecientes is None else set(magnsCrecientes)
 
     recuperaEstadsGlobales(tempData)
@@ -1292,47 +1389,12 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     rowHeaderStyle = ParagraphStyle('tabEstadsRowHeader', fontSize=FONTSIZE, alignment=TA_LEFT, leading=10)
     cellStyle = ParagraphStyle('tabEstadsCell', fontSize=FONTSIZE, alignment=TA_RIGHT, leading=10)
 
-    def filasTabla(datosAmostrar: dict, clavesEquipo: list | None = None, clavesRival: list | None = None):
-        result = list()
-
-        auxClEq = clavesEquipo
-        auxClRiv = clavesRival if clavesRival else auxClEq
-
-        listaClaves = list(product(['Eq'], auxClEq)) + list(product(['Rival'], auxClRiv))
-        for clave in listaClaves:
-            dato = datosAmostrar[clave]
-
-            auxLocMagn = dato.formatoMagn.format(dato.locMagn)
-            valLocRank = RANKFORMAT.format(dato.locRank)
-            auxVisMagn = dato.formatoMagn.format(dato.visMagn)
-            valVisRank = RANKFORMAT.format(dato.visRank)
-
-            valLocMagn = auxBold(auxLocMagn) if dato.locHigh else auxLocMagn
-            valVisMagn = auxBold(auxVisMagn) if dato.visHigh else auxVisMagn
-
-            auxMinMagn = dato.formatoMagn.format(dato.minMagn)
-            auxMaxMagn = dato.formatoMagn.format(dato.maxMagn)
-            valACBmed = dato.formatoMagn.format(dato.ligaMed)
-            valACBstd = dato.formatoMagn.format(dato.ligaStd)
-            valMinMagn = auxBold(auxMinMagn) if dato.minHigh else auxMinMagn
-            valMaxMagn = auxBold(auxMaxMagn) if dato.maxHigh else auxMaxMagn
-
-            fila = [None, Paragraph(f"[{dato.isAscending}] {auxBold(dato.nombreMagn):s}", style=rowHeaderStyle),
-                    Paragraph(f"{valLocMagn} [{valLocRank}]", style=cellStyle),
-                    Paragraph(f"{valVisMagn} [{valVisRank}]", style=cellStyle),
-                    Paragraph(f"{valMaxMagn} ({dato.maxAbr:3s})", style=cellStyle),
-                    Paragraph(f"{valACBmed}\u00b1{valACBstd}", style=cellStyle),
-                    Paragraph(f"{valMinMagn} ({dato.minAbr:3s})", style=cellStyle)]
-            result.append(fila)
-        result[0][0] = VerticalParagraph("Equipo")
-        result[len(clavesEquipo) - 1][0] = VerticalParagraph("Rival")
-        return result
-
     ANCHOEQL = 14.2
     ANCHOLABEL = 68.4
     ANCHOEQUIPO = 55.5
     ANCHOMAXMIN = 68.9
     ANCHOLIGA = 65.2
+    ANCHOLEYENDA = 170
 
     LISTAANCHOS = [ANCHOEQL, ANCHOLABEL, ANCHOEQUIPO, ANCHOEQUIPO, ANCHOMAXMIN, ANCHOLIGA, ANCHOMAXMIN]
 
@@ -1340,17 +1402,31 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
                Paragraph(auxBold(f"{targetAbrevs['Local']}"), style=headerStyle),
                Paragraph(auxBold(f"{targetAbrevs['Visitante']}"), style=headerStyle),
                Paragraph(auxBold("Mejor"), style=headerStyle), Paragraph(auxBold("ACB"), style=headerStyle),
-               Paragraph(auxBold("Peor"), style=headerStyle), ]
+               Paragraph(auxBold("Peor"), style=headerStyle)]
 
-    listaFilas = [filaCab] + filasTabla(datos, clavesEquipo=clavesEq, clavesRival=clavesRiv)
+    filasTabla, leyendas = auxFilasTablaEstadisticos(datos, clavesEquipo=clavesEq, clavesRival=clavesRiv,
+                                                     estiloCabCelda=rowHeaderStyle, estiloCelda=cellStyle)
 
-    tStyle = TableStyle([('BOX', (1, 1), (-1, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                         ('GRID', (1, 1), (-1, -1), 0.5, colors.black), ('SPAN', (0, 1), (0, len(clavesEq))),
-                         ('BOX', (1, 1), (-1, len(clavesEq)), 2, colors.black), ('SPAN', (0, len(clavesEq)), (0, -1)),
-                         ('LEFTPADDING', (0, 0), (-1, -1), 3), ('RIGHTPADDING', (0, 0), (-1, -1), 3), (
-                                 'BOX', (1, -len(clavesRiv)), (-1, -1), 2,
-                                 colors.black), ])  # ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE),('LEADING', (0, 0),
-    # (-1, -1), FONTSIZE)
+    EXTRALEYENDA = 0
+    ESTILOLEYENDA = []
+    if leyendas:
+        LISTAANCHOS.append(ANCHOLEYENDA)
+        filaCab.append(Paragraph(auxBold("Leyenda"), style=headerStyle))
+        EXTRALEYENDA = -1
+        ESTILOLEYENDA = [('SPAN', (-1, 1), (-1, -1)), ('VALIGN', (-1, 1), (-1, -1), 'TOP')]
+
+        filasTabla[0][-1] = auxGeneraLeyendaEstadsCelda(leyendas, FONTSIZE)
+
+    listaEstilos = [('BOX', (1, 1), (-1 + EXTRALEYENDA, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('GRID', (1, 1), (-1 + EXTRALEYENDA, -1), 0.5, colors.black), ('SPAN', (0, 1), (0, len(clavesEq))),
+                    ('SPAN', (0, len(clavesEq)), (0, -1)),
+                    ('BOX', (1, 1), (-1 + EXTRALEYENDA, len(clavesEq)), 2, colors.black),
+                    ('LEFTPADDING', (0, 0), (-1, -1), 3), ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+                    ('BOX', (1, -len(clavesRiv)), (-1 + EXTRALEYENDA, -1), 2, colors.black), ] + ESTILOLEYENDA
+
+    listaFilas = [filaCab] + filasTabla
+
+    tStyle = TableStyle(listaEstilos)
 
     tabla1 = Table(data=listaFilas, style=tStyle, colWidths=LISTAANCHOS, rowHeights=11.2)
 
@@ -1389,3 +1465,19 @@ def bloqueRestoJYBasics(tempData: TemporadaACB, datosSig: infoSigPartido):
     t = Table(data=datosTabla, colWidths=anchoCols, style=tStyle)
 
     return t
+
+
+def metadataPrograma(tempData: TemporadaACB):
+    FONTSIZE = 6
+
+    FORMATOfecha = "%Y-%m-%d %H:%M (%z)"
+    fechaGen = strftime(FORMATOfecha, gmtime())
+    tempDesc = strftime(FORMATOfecha, tempData.timestamp)
+    mensaje = (f"Datos procedentes de https://www.acb.com y elaboración propia. Generado en {fechaGen}. Datos "
+               f"descargados en {tempDesc}")
+
+    metadataStyle = ParagraphStyle('tabEstadsRowHeader', fontSize=FONTSIZE, alignment=TA_LEFT, leading=1)
+
+    result = Paragraph(mensaje, style=metadataStyle)
+
+    return result
