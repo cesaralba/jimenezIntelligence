@@ -382,12 +382,25 @@ def auxBold(data):
     return f"<b>{data}</b>"
 
 
-def auxGeneraCeldaLeyendaEstads(leyenda: dict):
-    result = ""
+def auxGeneraCeldaLeyendaEstads(leyenda: dict, FONTSIZE: int):
+    texto = ""
 
     for k in sorted(leyenda.keys()):
         kFormated = k.replace(' ', '&nbsp;')
-        result += f"<b>{kFormated}</b>: {leyenda[k]}<br/>"
+        texto += f"<b>{kFormated}</b>: {leyenda[k]}<br/>"
+
+    legendStyle = ParagraphStyle('tabEstadsLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
+                                 leading=10, )
+    result = Paragraph(texto, style=legendStyle)
+    return result
+
+
+def auxGeneraCeldaLeyendaLiga():
+    texto = "<b>A</b>:&nbsp;Part adelantado(s) <b>J</b>:&nbsp;Jorn pendiente <b>P</b>:&nbsp;Part pendiente(s)"
+
+    FONTSIZE = 5
+    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True, leading=10, )
+    result = Paragraph(texto, style=legendStyle)
 
     return result
 
@@ -903,47 +916,53 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None, currJornada: int = No
 
     datosAux, coordsJuPe, firstNegBal = datosTablaLiga(tempData, currJornada)
 
-    tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                         ('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                         ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE), ('LEADING', (0, 0), (-1, -1), FONTSIZE),
-                         ('LEFTPADDING', (0, 0), (-1, -1), CELLPAD), ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD),
-                         ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD),
-                         ("BACKGROUND", (-1, 1), (-1, -2), colors.lightgrey),
-                         ("BACKGROUND", (1, -1), (-2, -1), colors.lightgrey)])
     alturas = [20] + [29] * (len(datosAux) - 2) + [22]
     anchos = [61] + [39] * (len(datosAux) - 2) + [38]
 
+    listaEstilos = auxTablaLigaListaEstilos(CELLPAD, FONTSIZE, coordsJuPe, datosAux, equiposAmarcar, firstNegBal)
+
+    tStyle = TableStyle(listaEstilos)
+
+    print(tStyle)
+
+    t = Table(datosAux, style=tStyle, rowHeights=alturas, colWidths=anchos)
+
+    return t
+
+
+def auxTablaLigaListaEstilos(CELLPAD, FONTSIZE, coordsJuPe, datosAux, equiposAmarcar, firstNegBal):
     CANTGREYBAL = .70
+    ANCHOMARCAPOS = 2
     colBal = colors.rgb2cmyk(CANTGREYBAL, CANTGREYBAL, CANTGREYBAL)
 
+    listaEstilos = [('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                    ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE), ('LEADING', (0, 0), (-1, -1), FONTSIZE),
+                    ('LEFTPADDING', (0, 0), (-1, -1), CELLPAD), ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD),
+                    ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD),
+                    ("BACKGROUND", (-1, 1), (-1, -2), colors.lightgrey),
+                    ("BACKGROUND", (1, -1), (-2, -1), colors.lightgrey)]
     for i in range(1, len(datosAux) - 1):
-        tStyle.add("BACKGROUND", (i, i), (i, i), colBal)
+        listaEstilos.append(("BACKGROUND", (i, i), (i, i), colBal))
 
-    ANCHOMARCAPOS = 2
-    for pos in MARCADORESCLASIF:
-        commH, commV = ("LINEBELOW", "LINEAFTER") if pos >= 0 else ("LINEABOVE", "LINEBEFORE")
-        incr = 0 if pos >= 0 else -1
-        posIni = 0 if pos >= 0 else pos + incr
-        posFin = pos + incr if pos >= 0 else -1
-        tStyle.add(commH, (posIni, pos + incr), (posFin, pos + incr), ANCHOMARCAPOS, colors.black)
-        tStyle.add(commV, (pos + incr, posIni), (pos + incr, posFin), ANCHOMARCAPOS, colors.black)
+    listNegBal = [(firstNegBal - 1, [colors.black, "squared", (2, 8)])] if firstNegBal else []
 
+    for pos, resto in list(product(MARCADORESCLASIF, [[colors.black]])) + listNegBal:
+        commH, commV, incr = ("LINEBELOW", "LINEAFTER", 0) if pos >= 0 else ("LINEABOVE", "LINEBEFORE", -1)
+        posIni, posFin = (0, pos + incr) if pos >= 0 else (pos + incr, -1)
+
+        listaEstilos.append([commH, (posIni, pos + incr), (posFin, pos + incr), ANCHOMARCAPOS] + resto)
+        listaEstilos.append([commV, (pos + incr, posIni), (pos + incr, posFin), ANCHOMARCAPOS] + resto)
+
+    # Etiquetas de equipos en descenso
     # Equipos para descenso (horizontal)
-    tStyle.add("LINEBEFORE", (-DESCENSOS - 1, 0), (-DESCENSOS - 1, 0), ANCHOMARCAPOS, colors.black)
-    tStyle.add("LINEBEFORE", (-1, 0), (-1, 0), ANCHOMARCAPOS, colors.black)
-    tStyle.add("LINEBELOW", (-DESCENSOS - 1, 0), (-2, 0), ANCHOMARCAPOS, colors.black)
-
+    listaEstilos.append(("LINEBEFORE", (-DESCENSOS - 1, 0), (-DESCENSOS - 1, 0), ANCHOMARCAPOS, colors.black))
+    listaEstilos.append(("LINEBEFORE", (-1, 0), (-1, 0), ANCHOMARCAPOS, colors.black))
+    listaEstilos.append(("LINEBELOW", (-DESCENSOS - 1, 0), (-2, 0), ANCHOMARCAPOS, colors.black))
     # Equipos para descenso (vertical)
-    tStyle.add("LINEAFTER", (0, -DESCENSOS - 1), (0, -2), ANCHOMARCAPOS, colors.black)
-    tStyle.add("LINEABOVE", (0, -DESCENSOS - 1), (0, -DESCENSOS - 1), ANCHOMARCAPOS, colors.black)
-    tStyle.add("LINEABOVE", (0, -1), (0, -1), ANCHOMARCAPOS, colors.black)
-
-    # Balance negativo
-    if firstNegBal is not None:
-        tStyle.add("LINEAFTER", (firstNegBal - 1, 0), (firstNegBal - 1, firstNegBal - 1), ANCHOMARCAPOS, colors.black,
-                   "squared", (2, 8))
-        tStyle.add("LINEBELOW", (0, firstNegBal - 1), (firstNegBal - 1, firstNegBal - 1), ANCHOMARCAPOS, colors.black,
-                   "squared", (2, 8))
+    listaEstilos.append(("LINEAFTER", (0, -DESCENSOS - 1), (0, -2), ANCHOMARCAPOS, colors.black))
+    listaEstilos.append(("LINEABOVE", (0, -DESCENSOS - 1), (0, -DESCENSOS - 1), ANCHOMARCAPOS, colors.black))
+    listaEstilos.append(("LINEABOVE", (0, -1), (0, -1), ANCHOMARCAPOS, colors.black))
 
     # Marca los partidos del tipo (jugados o pendientes) que tenga menos
     claveJuPe = 'ju' if len(coordsJuPe['ju']) <= len(coordsJuPe['pe']) else 'pe'
@@ -951,21 +970,16 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None, currJornada: int = No
     colP = colors.rgb2cmyk(CANTGREYJUPE, CANTGREYJUPE, CANTGREYJUPE)
     for x, y in coordsJuPe[claveJuPe]:
         coord = (y + 1, x + 1)
-        tStyle.add("BACKGROUND", coord, coord, colP)
+        listaEstilos.append(("BACKGROUND", coord, coord, colP))
 
     if equiposAmarcar is not None:
-
         parEqs = set(listize(equiposAmarcar))
         seqIDs = [(pos, equipo.abrevsEq) for pos, equipo in enumerate(clasifLiga) if
                   equipo.abrevsEq.intersection(parEqs)]
-
         for pos, _ in seqIDs:
-            tStyle.add("BACKGROUND", (pos + 1, 0), (pos + 1, 0), colEq)
-            tStyle.add("BACKGROUND", (0, pos + 1), (0, pos + 1), colEq)
-
-    t = Table(datosAux, style=tStyle, rowHeights=alturas, colWidths=anchos)
-
-    return t
+            listaEstilos.append(("BACKGROUND", (pos + 1, 0), (pos + 1, 0), colEq))
+            listaEstilos.append(("BACKGROUND", (0, pos + 1), (0, pos + 1), colEq))
+    return listaEstilos
 
 
 def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
@@ -1382,10 +1396,7 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
         EXTRALEYENDA = -1
         ESTILOLEYENDA = [('SPAN', (-1, 1), (-1, -1)), ('VALIGN', (-1, 1), (-1, -1), 'TOP')]
 
-        celdaLeyenda = auxGeneraCeldaLeyendaEstads(leyendas)
-        legendStyle = ParagraphStyle('tabEstadsLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
-                                     leading=10, )
-        filasTabla[0][-1] = Paragraph(celdaLeyenda, style=legendStyle)
+        filasTabla[0][-1] = auxGeneraCeldaLeyendaEstads(leyendas, FONTSIZE)
 
     listaEstilos = [('BOX', (1, 1), (-1 + EXTRALEYENDA, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('GRID', (1, 1), (-1 + EXTRALEYENDA, -1), 0.5, colors.black), ('SPAN', (0, 1), (0, len(clavesEq))),
