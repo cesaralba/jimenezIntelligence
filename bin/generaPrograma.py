@@ -7,9 +7,9 @@ from reportlab.lib.units import mm
 from reportlab.platypus import (Frame, NextPageTemplate, PageBreak, PageTemplate, SimpleDocTemplate, Spacer)
 
 from SMACB.Constants import CATESTADSEQASCENDING
-from SMACB.Programa import (bloqueRestoJYBasics, cabeceraPortada, cargaTemporada, listaEquipos, metadataPrograma,
-                            paginasJugadores, reportTrayectoriaEquipos, tablaAnalisisEstadisticos, tablaClasifLiga,
-                            tablaLiga,
+from SMACB.Programa import (auxGeneraLeyendaLiga, bloqueRestoJYBasics, cabeceraPortada, cargaTemporada, listaEquipos,
+                            metadataPrograma, paginasJugadores, reportTrayectoriaEquipos, tablaAnalisisEstadisticos,
+                            tablaClasifLiga, tablaLiga,
                             )
 
 
@@ -56,6 +56,7 @@ def preparaLibro(outfile, tempData, datosSig):
 
     # Pagina 2
     story.append(tablaLiga(tempData, equiposAmarcar=datosSig.abrevLV, currJornada=int(datosSig.sigPartido['jornada'])))
+    story.append(auxGeneraLeyendaLiga())
 
     # Paginas 3 y 4
     if len(datosSig.jugLocal) + len(datosSig.jugVis):

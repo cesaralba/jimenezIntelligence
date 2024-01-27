@@ -395,11 +395,14 @@ def auxGeneraCeldaLeyendaEstads(leyenda: dict, FONTSIZE: int):
     return result
 
 
-def auxGeneraCeldaLeyendaLiga():
-    texto = "<b>A</b>:&nbsp;Part adelantado(s) <b>J</b>:&nbsp;Jorn pendiente <b>P</b>:&nbsp;Part pendiente(s)"
+def auxGeneraLeyendaLiga():
+    texto = ("<b>Leyenda en balance total</b>: <b>A</b>:&nbsp;Partido(s) adelantado(s)<b> J</b>:&nbsp;Jornada actual "
+             "pendiente de jugar<b> "
+             "P</b>:&nbsp;Partido(s) pendiente(s)")
 
-    FONTSIZE = 5
-    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True, leading=10, )
+    FONTSIZE = 8
+    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
+                                 leading=FONTSIZE + 0.5, )
     result = Paragraph(texto, style=legendStyle)
 
     return result
@@ -916,14 +919,11 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None, currJornada: int = No
 
     datosAux, coordsJuPe, firstNegBal = datosTablaLiga(tempData, currJornada)
 
-    alturas = [20] + [29] * (len(datosAux) - 2) + [22]
-    anchos = [61] + [39] * (len(datosAux) - 2) + [38]
+    alturas = [22] + [28.7] * (len(datosAux) - 2) + [21]
+    anchos = [76] + [39] * (len(datosAux) - 2) + [38]
 
     listaEstilos = auxTablaLigaListaEstilos(CELLPAD, FONTSIZE, coordsJuPe, datosAux, equiposAmarcar, firstNegBal)
-
     tStyle = TableStyle(listaEstilos)
-
-    print(tStyle)
 
     t = Table(datosAux, style=tStyle, rowHeights=alturas, colWidths=anchos)
 
