@@ -880,10 +880,12 @@ def tablasJugadoresEquipo(jugDF):
     ANCHOLETRA = FONTSIZE * 0.5
     COLACTIVO = ('Jugador', 'Activo')
     COLDORSAL_IDX = ('Jugador', 'Kdorsal')
-    COLSIDENT_PROM = [('Jugador', 'dorsal'), ('Jugador', 'nombre'), ('Trayectoria', 'Acta'), ('Trayectoria', 'Jugados'),
-                      ('Trayectoria', 'Titular'), ('Trayectoria', 'Vict')]
-    COLSIDENT_TOT = [('Jugador', 'dorsal'), COLACTIVO, ('Jugador', 'nombre'), ('Trayectoria', 'Acta'),
-                     ('Trayectoria', 'Jugados'), ('Trayectoria', 'Titular'), ('Trayectoria', 'Vict')]
+    COLSIDENT_PROM = [('Jugador', 'dorsal'), COLACTIVO, ('Jugador', 'pos'), ('Jugador', 'nombre'),
+                      ('Trayectoria', 'Acta'), ('Trayectoria', 'Jugados'), ('Trayectoria', 'Titular'),
+                      ('Trayectoria', 'Vict')]
+    COLSIDENT_TOT = [('Jugador', 'dorsal'), COLACTIVO, ('Jugador', 'pos'), ('Jugador', 'nombre'),
+                     ('Trayectoria', 'Acta'), ('Trayectoria', 'Jugados'), ('Trayectoria', 'Titular'),
+                     ('Trayectoria', 'Vict')]
     COLSIDENT_UP = [('Jugador', 'dorsal'), ('Jugador', 'nombre'), ('Jugador', 'pos'), ('Jugador', 'altura'),
                     ('Jugador', 'licencia'), ('Jugador', 'etNac')]
 
