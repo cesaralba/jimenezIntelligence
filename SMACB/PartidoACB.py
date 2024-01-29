@@ -526,12 +526,12 @@ def auxJugador2dataframe(typesDF, jugador, fechaPartido):
         dictJugador['PTC'] = 2 * dictJugador['T2-C'] + 3 * dictJugador['T3-C']
         dictJugador['ppTC'] = dictJugador['PTC'] / dictJugador['TC-I'] if dictJugador['TC-I'] else np.nan
         dictJugador['A-BP'] = dictJugador['A'] / dictJugador['BP'] if dictJugador['BP'] else np.nan
-        dictJugador['A-TCC'] = dictJugador['A'] / dictJugador['TC-C'] if dictJugador['TC-C'] else np.nan
+        dictJugador['A-TCI'] = dictJugador['A'] / dictJugador['TC-I'] if dictJugador['TC-C'] else np.nan
 
         typesDF['ppTC'] = 'float64'
         typesDF['PTC'] = 'float64'
         typesDF['A-BP'] = 'float64'
-        typesDF['A-TCC'] = 'float64'
+        typesDF['A-TCI'] = 'float64'
 
         for k in '123C':
             kI = f'T{k}-I'
