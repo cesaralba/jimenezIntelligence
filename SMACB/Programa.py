@@ -184,6 +184,8 @@ INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
                                                                     },
                  ('Totales', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'entero'},
                  ('Totales', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'entero'},
+                 ('Totales', 'A-BP'): {'etiq': 'A/BP', 'ancho': 6, 'formato': 'float'},
+                 ('Totales', 'A-TCC'): {'etiq': 'A/TCC', 'ancho': 6, 'formato': 'float'},
                  ('Totales', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'entero'},
                  ('Totales', 'TAP-F'): {'etiq': 'Tap', 'ancho': 6, 'formato': 'entero'},
                  ('Totales', 'TAP-C'): {'etiq': 'Tp R', 'ancho': 6, 'formato': 'entero'},
@@ -557,9 +559,9 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     COLS_TRAYECT_TEMP_orig = [(col, 'sum') for col in COLS_TRAYECT_TEMP_orig_names]
     COLS_TRAYECT_TEMP = ['Acta', 'Jugados', 'Titular', 'Vict']
     COLS_FICHA = ['id', 'alias', 'pos', 'altura', 'licencia', 'fechaNac']
-    VALS_ESTAD_JUGADOR = ['A', 'BP', 'BR', 'FP-C', 'FP-F', 'P', 'ppTC', 'R-D', 'R-O', 'REB-T', 'Segs', 'T1-C', 'T1-I',
-                          'T1%', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-I', 'TC-C', 'TC%', 'PTC', 'TAP-C',
-                          'TAP-F']
+    VALS_ESTAD_JUGADOR = ['A', 'A-BP', 'A-TCC', 'BP', 'BR', 'FP-C', 'FP-F', 'P', 'ppTC', 'R-D', 'R-O', 'REB-T', 'Segs',
+                          'T1-C', 'T1-I', 'T1%', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-I', 'TC-C', 'TC%',
+                          'PTC', 'TAP-C', 'TAP-F']
 
     COLS_ESTAD_PROM = [(col, ESTADISTICOJUG) for col in VALS_ESTAD_JUGADOR]
     COLS_ESTAD_TOTAL = [(col, 'sum') for col in VALS_ESTAD_JUGADOR]
@@ -896,7 +898,8 @@ def tablasJugadoresEquipo(jugDF):
     COLS_TOTALES = [('Totales', 'etSegs'), ('Totales', 'P'), ('Totales', 'etiqT2'), ('Totales', 'etiqT3'),
                     ('Totales', 'etiqTC'), ('Totales', 'ppTC'), ('Totales', 'FP-F'), ('Totales', 'FP-C'),
                     ('Totales', 'etiqT1'), ('Totales', 'etRebs'), ('Totales', 'A'), ('Totales', 'BP'),
-                    ('Totales', 'BR'), ('Totales', 'TAP-F'), ('Totales', 'TAP-C'), ]
+                    ('Totales', 'A-BP'), ('Totales', 'A-TCC'), ('Totales', 'BR'), ('Totales', 'TAP-F'),
+                    ('Totales', 'TAP-C'), ]
     COLS_ULTP = [('UltimoPart', 'etFecha'), ('UltimoPart', 'Partido'), ('UltimoPart', 'resultado'),
                  ('UltimoPart', 'titular'), ('UltimoPart', 'etSegs'), ('UltimoPart', 'P'), ('UltimoPart', 'etiqT2'),
                  ('UltimoPart', 'etiqT3'), ('UltimoPart', 'etiqTC'), ('UltimoPart', 'ppTC'), ('UltimoPart', 'FP-F'),
