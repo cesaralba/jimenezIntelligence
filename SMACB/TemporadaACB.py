@@ -278,6 +278,8 @@ class TemporadaACB(object):
             kRes = f'T{k}%'
             auxEstadisticosDF[kRes, 'sum'] = auxEstadisticosDF[kC, 'sum'] / auxEstadisticosDF[kI, 'sum'] * 100.0
         auxEstadisticosDF['ppTC', 'sum'] = auxEstadisticosDF['PTC', 'sum'] / auxEstadisticosDF['TC-I', 'sum']
+        auxEstadisticosDF['A-BP', 'sum'] = auxEstadisticosDF['A', 'sum'] / auxEstadisticosDF['BP', 'sum']
+        auxEstadisticosDF['A-TCI', 'sum'] = auxEstadisticosDF['A', 'sum'] / auxEstadisticosDF['TC-I', 'sum']
 
         auxIdentsDF = estadsJugadoresEq[COLSIDENT].groupby('codigo').tail(n=1).set_index('codigo', drop=False)
         auxIdentsDF.columns = pd.MultiIndex.from_tuples([('Jugador', col) for col in auxIdentsDF.columns])
