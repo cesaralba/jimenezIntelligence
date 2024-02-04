@@ -416,6 +416,30 @@ def auxGeneraLeyendaLiga():
     return result
 
 
+def auxJugsBajaTablaJugs(datos: pd.DataFrame, colActivo=('Jugador', 'Activo')) -> list[int]:
+    """
+    Devuelve las filas con jugadores que figuran como dados de baja (para ser más preciso, no como Alta)
+    :param datos: dataframe con datos para tabla de jugadores
+    :param colActivo: columna que contiene si el jugador está activo
+    :return: lista con las filas del dataframe (comienza en 0) con jugadores así
+    """
+    result = []
+
+    # No hay datos
+    if colActivo not in datos.columns:
+        return result
+
+    estadoJugs = datos[colActivo]
+
+    # Si son todos de baja, nos da igual señalar
+    if all(estadoJugs) or all(estadoJugs == False):
+        return result
+
+    result = [i for i, estado in enumerate(list(estadoJugs)) if not estado]
+
+    return result
+
+
 def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSpecs: dict, estiloTablaBaseOps,
                        formatos=None, charWidth=10.0, **kwargs
                        ):
@@ -446,6 +470,12 @@ def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSp
 
     if formatos is None:
         formatos = dict()
+
+    abrevStr = ""
+    abrevEq = kwargs.get('abrev', None)
+    if abrevEq:
+        abrevStr = f" ({abrevEq})"
+        kwargs.pop('abrev')
 
     for i, colkey in enumerate([('Global', 'Leyenda')] + collist, start=0):
         level, etiq = colkey
@@ -483,12 +513,16 @@ def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSp
     datosTabla = [filaCab] + datosAux.to_records(index=False, column_dtypes='object').tolist()
 
     # Añade leyenda de la tabla
-    leyenda = infoTabla.get('nombre', clave)
+    leyenda = infoTabla.get('nombre', clave) + abrevStr
     anchoCols[0] = 15
     datosTabla[0][0] = auxGeneraLeyendaEstadsJugsCelda(auxBold(leyenda))
     estiloCeldaLeyenda = [('SPAN', (0, 0), (0, -1)), ('VALIGN', (0, 0), (0, -1), 'MIDDLE'),
                           ('ALIGN', (0, 0), (0, -1), 'CENTER')]
     listaEstilo.extend(estiloCeldaLeyenda)
+
+    for fila in auxJugsBajaTablaJugs(dfDatos):
+        estilo = ('FONT', (1, fila + 1), (-1, fila + 1), 'Helvetica-Oblique')
+        listaEstilo.append(estilo)
 
     tStyle = TableStyle(listaEstilo)
     t = Table(datosTabla, style=tStyle, colWidths=anchoCols, **kwargs)
@@ -717,7 +751,7 @@ def paginasJugadores(tempData, abrEqs, juLocal, juVisit):
 
     if len(juLocal):
         datosLocal = datosJugadores(tempData, abrEqs[0], juLocal)
-        tablasJugadLocal = tablasJugadoresEquipo(datosLocal)
+        tablasJugadLocal = tablasJugadoresEquipo(datosLocal, abrev=abrEqs[0])
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
@@ -729,7 +763,7 @@ def paginasJugadores(tempData, abrEqs, juLocal, juVisit):
 
     if len(juVisit):
         datosVisit = datosJugadores(tempData, abrEqs[1], juVisit)
-        tablasJugadVisit = tablasJugadoresEquipo(datosVisit)
+        tablasJugadVisit = tablasJugadoresEquipo(datosVisit, abrev=abrEqs[1])
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
@@ -874,17 +908,16 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
     return t
 
 
-def tablasJugadoresEquipo(jugDF):
+def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None):
     result = []
 
-    CELLPAD = 0.2 * mm
+    CELLPAD = 0.5
     FONTSIZE = 8
     ANCHOLETRA = FONTSIZE * 0.5
     COLACTIVO = ('Jugador', 'Activo')
     COLDORSAL_IDX = ('Jugador', 'Kdorsal')
-    COLSIDENT_PROM = [('Jugador', 'dorsal'), COLACTIVO, ('Jugador', 'pos'), ('Jugador', 'nombre'),
-                      ('Trayectoria', 'Acta'), ('Trayectoria', 'Jugados'), ('Trayectoria', 'Titular'),
-                      ('Trayectoria', 'Vict')]
+    COLSIDENT_PROM = [('Jugador', 'dorsal'), ('Jugador', 'pos'), ('Jugador', 'nombre'), ('Trayectoria', 'Acta'),
+                      ('Trayectoria', 'Jugados'), ('Trayectoria', 'Titular'), ('Trayectoria', 'Vict')]
     COLSIDENT_TOT = [('Jugador', 'dorsal'), COLACTIVO, ('Jugador', 'pos'), ('Jugador', 'nombre'),
                      ('Trayectoria', 'Acta'), ('Trayectoria', 'Jugados'), ('Trayectoria', 'Titular'),
                      ('Trayectoria', 'Vict')]
@@ -930,7 +963,7 @@ def tablasJugadoresEquipo(jugDF):
     for claveTabla in ['promedios', 'totales', 'ultimo']:
         infoTabla = tablas[claveTabla]  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
         t = auxGeneraTablaJugs(auxDF, claveTabla, infoTabla, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA,
-                               repeatRows=1)
+                               repeatRows=1, abrev=abrev)
 
         result.append((infoTabla, t))
 
