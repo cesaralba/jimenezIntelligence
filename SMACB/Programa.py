@@ -537,7 +537,7 @@ def datosEstadsBasicas(tempData: TemporadaACB, infoEq: dict):
     PNR, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'PNR', ESTADISTICOEQ)
 
     # noqa: E702
-    resultEq = (f"<b>{nombreCorto}</b>&nbsp;[{abrev}]"
+    resultEq = (f"<b>{nombreCorto}</b>&nbsp;[{abrev}] "
                 f"<b>PF</b>:&nbsp;{pFav:.2f} <b>/</b> <b>PC</b>:&nbsp;{pCon:.2f} <b>/</b> "
                 f"<b>T2</b>:&nbsp;{T2C:.2f}/ {T2I:.2f}&nbsp;{T2pc:.2f}% <b>/</b> "
                 f"<b>T3</b>:&nbsp;{T3C:.2f}/{T3I:.2f}&nbsp;{T3pc:.2f}% <b>/</b> "
