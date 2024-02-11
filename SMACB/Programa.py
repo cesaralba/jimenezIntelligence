@@ -5,7 +5,7 @@ from copy import copy
 from itertools import product
 from math import isnan
 from time import gmtime, strftime
-from typing import Optional
+from typing import Iterable, Optional
 
 import pandas as pd
 from reportlab.lib import colors
@@ -34,7 +34,7 @@ allMagnsInEstads: Optional[set] = None
 clasifLiga: Optional[list] = None
 numEqs: Optional[int] = None
 mitadEqs: Optional[int] = None
-tradEquipos: Optional[dict] = {'a2n': defaultdict(str), 'n2a': defaultdict(str)}
+tradEquipos: Optional[dict] = {'a2n': defaultdict(str), 'n2a': defaultdict(str), 'i2a': defaultdict(str)}
 
 ESTILOS = getSampleStyleSheet()
 
@@ -51,7 +51,8 @@ filaComparEstadistica = namedtuple('filaComparEstadistica',
 filaTablaClasif = namedtuple('filaTablaClasif',
                              ['posic', 'nombre', 'jugs', 'victs', 'derrs', 'ratio', 'puntF', 'puntC', 'diffP',
                               'resalta'])
-tuplaMaxMinMagn = namedtuple('tuplaMaxMinMagn', ['minVal', 'minEtq', 'minAbrevs', 'maxVal', 'maxEtq', 'maxAbrevs'])
+tuplaMaxMinMagn = namedtuple('tuplaMaxMinMagn',
+                             ['minVal', 'minEtq', 'minAbrevs', 'maxVal', 'maxEtq', 'maxAbrevs', 'abrevs2add'])
 
 ESTAD_MEDIA = 0
 ESTAD_MEDIANA = 1
@@ -385,9 +386,7 @@ def auxBold(data):
     return f"<b>{data}</b>"
 
 
-def auxGeneraLeyendaEstadsCelda(leyenda: dict, FONTSIZE: int):
-    result = []
-
+def auxGeneraLeyendaEstadsCelda(leyenda: dict, FONTSIZE: int, listaEqs: Iterable):
     legendStyle = ParagraphStyle('tabEstadsLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
                                  leading=10, )
 
@@ -398,7 +397,7 @@ def auxGeneraLeyendaEstadsCelda(leyenda: dict, FONTSIZE: int):
 <b>Peor</b>: Último en el ranking<br/>    
     """)
 
-    textoEqs = ("""
+    textoEtEqs = ("""
 <b>Equipo</b>: Valores conseguidos por el equipo<br/>    
 <b>Rival</b>: Valores conseguidos por el rival<br/>
     """)
@@ -406,9 +405,13 @@ def auxGeneraLeyendaEstadsCelda(leyenda: dict, FONTSIZE: int):
 <b>[C]</b>: <i>Mejor</i> cuanto menor<br/>    
 <b>[D]</b>: <i>Mejor</i> cuanto mayor<br/>
     """)
-    textoEstads = "".join([f"<b>{k.replace(' ', '&nbsp;')}</b>: {leyenda[k]}<br/>" for k in sorted(leyenda.keys())])
+    textoEstads = "".join(
+            [f"<b>{k.replace(' ', '&nbsp;')}</b>:&nbsp;{leyenda[k]}<br/>" for k in sorted(leyenda.keys())])
 
-    textoCompleto = separador.join([textoEqs, textoCD, textoEncab, textoEstads])
+    textoEqs = "".join(
+            [f"<b>{abr.replace(' ', '&nbsp;')}</b>:&nbsp;{tradEquipos['a2n'][abr]}<br/>" for abr in sorted(listaEqs)])
+
+    textoCompleto = separador.join([textoEtEqs, textoCD, textoEncab, textoEstads, textoEqs])
     result = Paragraph(textoCompleto, style=legendStyle)
     return result
 
@@ -1127,6 +1130,7 @@ def recuperaClasifLiga(tempData: TemporadaACB, fecha=None):
         for eq in clasifLiga:
             tradEquipos['a2n'][eq.abrevAusar] = eq.nombreCorto
             tradEquipos['n2a'][eq.nombreCorto] = eq.abrevAusar
+            tradEquipos['i2a'][list(eq.idEq)[0]] = eq.abrevAusar
 
 
 def datosRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
@@ -1349,7 +1353,7 @@ def calculaMaxMinMagn(ser: pd.Series, ser_orden: pd.Series):
     minVal, minEtq, minAbrevs = getValYEtq(ser, ser_orden, ser_orden.max())
 
     return tuplaMaxMinMagn(minVal=minVal, minEtq=minEtq, minAbrevs=minAbrevs, maxVal=maxVal, maxEtq=maxEtq,
-                           maxAbrevs=maxAbrevs)
+                           maxAbrevs=maxAbrevs, abrevs2add=maxAbrevs.union(minAbrevs))
 
 
 def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, magn2include: list, magnsAscending=None,
@@ -1365,6 +1369,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     result = dict()
 
     estadsInexistentes = set()
+    abrevs2leyenda = set()
     clavesEnEstads = set(sorted(estadGlobales.columns))
 
     for claveEst in magn2include:
@@ -1397,6 +1402,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
         datosEqsOrd = {k: int(serMagnOrden[targetAbrevs[k]]) for k in LocalVisitante}
 
         infoMaxMinMagn = calculaMaxMinMagn(serMagn, serMagnOrden)
+        abrevs2leyenda = abrevs2leyenda.union(infoMaxMinMagn.abrevs2add)
 
         resaltaLocal = datosEqsOrd['Local'] < datosEqsOrd['Visitante']
         resaltaVisit = datosEqsOrd['Visitante'] < datosEqsOrd['Local']
@@ -1419,7 +1425,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
         raise ValueError(
                 f"datosAnalisisEstadisticos: los siguientes valores no existen: {estadsInexistentes}. " +
                 f"Parametro: {magn2include}. Columnas posibles: {clavesEnEstads}")
-    return result
+    return result, abrevs2leyenda
 
 
 def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, magns2incl: list | set | None = None,
@@ -1441,7 +1447,9 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     if len(claves2wrk) == 0:
         raise ValueError(f"tablaAnalisisEstadisticos: No hay valores para incluir en la tabla: parametro {magns2incl}")
 
-    datos = datosAnalisisEstadisticos(tempData, datosSig, magnsAscending=catsAscending, magn2include=claves2wrk)
+    datos, abrevs2leyenda = datosAnalisisEstadisticos(tempData, datosSig, magnsAscending=catsAscending,
+                                                      magn2include=claves2wrk)
+
     FONTSIZE = 8
 
     headerStyle = ParagraphStyle('tabEstadsHeader', fontSize=FONTSIZE + 2, alignment=TA_CENTER, leading=12)
@@ -1474,7 +1482,8 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
         EXTRALEYENDA = -1
         ESTILOLEYENDA = [('SPAN', (-1, 1), (-1, -1)), ('VALIGN', (-1, 1), (-1, -1), 'TOP')]
 
-        filasTabla[0][-1] = auxGeneraLeyendaEstadsCelda(leyendas, FONTSIZE)
+        filasTabla[0][-1] = auxGeneraLeyendaEstadsCelda(leyendas, FONTSIZE,
+                                                        abrevs2leyenda.union(set(targetAbrevs.values())))
 
     listaEstilos = [('BOX', (1, 1), (-1 + EXTRALEYENDA, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('GRID', (1, 1), (-1 + EXTRALEYENDA, -1), 0.5, colors.black), ('SPAN', (0, 1), (0, len(clavesEq))),
