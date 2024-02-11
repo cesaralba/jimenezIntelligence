@@ -125,7 +125,7 @@ infoSigPartido = namedtuple(typename='infoSigPartido',
                                          'eqIsLocal'], defaults=[None, None, None, None, None, None, None, ])
 infoClasifEquipo = namedtuple('infoClasifEquipo',
                               ['Jug', 'V', 'D', 'Pfav', 'Pcon', 'Lfav', 'Lcon', 'Jjug', 'CasaFuera', 'idEq',
-                               'nombresEq', 'abrevsEq', 'ratioV', 'ratioVent'])
+                               'nombresEq', 'abrevsEq', 'nombreCorto', 'abrevAusar', 'ratioV', 'ratioVent'])
 infoClasifBase = namedtuple(typename='infoClasifEquipo', field_names=['Jug', 'V', 'D', 'Pfav', 'Pcon'],
                             defaults=(0, 0, 0, 0, 0))
 infoPartLV = namedtuple(typename='infoPartLV', field_names=['Local', 'Visitante'], defaults=[None, None])
