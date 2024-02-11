@@ -347,7 +347,6 @@ class PartidoACB():
 
         dfJugs = [auxJugador2dataframe(typesDF, x, self.fechaPartido) for x in self.Jugadores.values()]
         dfResult = pd.concat(dfJugs, axis=0, ignore_index=True, sort=True).astype(typesDF)
-
         return dfResult
 
     def extraeEstadsJugadores(self, divTabla, estado, headers):
@@ -526,8 +525,13 @@ def auxJugador2dataframe(typesDF, jugador, fechaPartido):
         dictJugador['TC-C'] = dictJugador['T2-C'] + dictJugador['T3-C']
         dictJugador['PTC'] = 2 * dictJugador['T2-C'] + 3 * dictJugador['T3-C']
         dictJugador['ppTC'] = dictJugador['PTC'] / dictJugador['TC-I'] if dictJugador['TC-I'] else np.nan
+        dictJugador['A-BP'] = dictJugador['A'] / dictJugador['BP'] if dictJugador['BP'] else np.nan
+        dictJugador['A-TCI'] = dictJugador['A'] / dictJugador['TC-I'] if dictJugador['TC-I'] else np.nan
+
         typesDF['ppTC'] = 'float64'
         typesDF['PTC'] = 'float64'
+        typesDF['A-BP'] = 'float64'
+        typesDF['A-TCI'] = 'float64'
 
         for k in '123C':
             kI = f'T{k}-I'
