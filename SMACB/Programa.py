@@ -34,6 +34,7 @@ allMagnsInEstads: Optional[set] = None
 clasifLiga: Optional[list] = None
 numEqs: Optional[int] = None
 mitadEqs: Optional[int] = None
+tradEquipos: Optional[dict] = {'a2n': defaultdict(str), 'n2a': defaultdict(str)}
 
 ESTILOS = getSampleStyleSheet()
 
@@ -709,8 +710,8 @@ def datosTablaLiga(tempData: TemporadaACB, currJornada: int = None):
 
         id2pos[idLocal] = pos
         fila = []
-        nombreCorto = sorted(datosEq.nombresEq, key=len)[0]
-        abrev = list(datosEq.abrevsEq)[0]
+        nombreCorto = datosEq.nombreCorto
+        abrev = datosEq.abrevAusar
         fila.append(Paragraph(f"{nombreCorto} (<b>{abrev}</b>)", style=estCelda))
         for _, idVisit in seqIDs:
             if idLocal != idVisit:  # Partido, la otra se usa para poner el balance
@@ -1116,11 +1117,16 @@ def recuperaClasifLiga(tempData: TemporadaACB, fecha=None):
     global clasifLiga
     global numEqs
     global mitadEqs
+    global tradEquipos
 
     if clasifLiga is None:
         clasifLiga = tempData.clasifLiga(fecha)
         numEqs = len(clasifLiga)
         mitadEqs = numEqs // 2
+
+        for eq in clasifLiga:
+            tradEquipos['a2n'][eq.abrevAusar] = eq.nombreCorto
+            tradEquipos['n2a'][eq.nombreCorto] = eq.abrevAusar
 
 
 def datosRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
@@ -1235,7 +1241,7 @@ def datosTablaClasif(tempData: TemporadaACB, datosSig: infoSigPartido) -> list[f
 
     result = list()
     for posic, eq in enumerate(clasifLiga):
-        nombEqAux = sorted(eq.nombresEq, key=len)[0]
+        nombEqAux = eq.nombreCorto
         notaClas = auxCalculaBalanceStrSuf(record=eq, addPendientes=True, currJornada=jornada,
                                            addPendJornada=muestraJornada)
         nombEq = f"{nombEqAux}{notaClas}"

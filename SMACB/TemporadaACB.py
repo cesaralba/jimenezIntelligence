@@ -364,6 +364,8 @@ class TemporadaACB(object):
         auxResult['idEq'] = self.Calendario.tradEquipos['c2i'][abrEq]
         auxResult['nombresEq'] = self.Calendario.tradEquipos['c2n'][abrEq]
         auxResult['abrevsEq'] = abrevsEq
+        auxResult['nombreCorto'] = sorted(auxResult['nombresEq'], key=len)[0]
+        auxResult['abrevAusar'] = abrEq
 
         for k in ['Jug', 'V', 'D', 'Pfav', 'Pcon']:
             if k not in auxResult:
