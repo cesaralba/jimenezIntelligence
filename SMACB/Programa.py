@@ -5,7 +5,7 @@ from copy import copy
 from itertools import product
 from math import isnan
 from time import gmtime, strftime
-from typing import Optional
+from typing import Iterable, Optional
 
 import pandas as pd
 from reportlab.lib import colors
@@ -34,6 +34,7 @@ allMagnsInEstads: Optional[set] = None
 clasifLiga: Optional[list] = None
 numEqs: Optional[int] = None
 mitadEqs: Optional[int] = None
+tradEquipos: Optional[dict] = {'a2n': defaultdict(str), 'n2a': defaultdict(str), 'i2a': defaultdict(str)}
 
 ESTILOS = getSampleStyleSheet()
 
@@ -50,7 +51,8 @@ filaComparEstadistica = namedtuple('filaComparEstadistica',
 filaTablaClasif = namedtuple('filaTablaClasif',
                              ['posic', 'nombre', 'jugs', 'victs', 'derrs', 'ratio', 'puntF', 'puntC', 'diffP',
                               'resalta'])
-tuplaMaxMinMagn = namedtuple('tuplaMaxMinMagn', ['minVal', 'minEtq', 'minAbrevs', 'maxVal', 'maxEtq', 'maxAbrevs'])
+tuplaMaxMinMagn = namedtuple('tuplaMaxMinMagn',
+                             ['minVal', 'minEtq', 'minAbrevs', 'maxVal', 'maxEtq', 'maxAbrevs', 'abrevs2add'])
 
 ESTAD_MEDIA = 0
 ESTAD_MEDIANA = 1
@@ -184,6 +186,8 @@ INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
                                                                     },
                  ('Totales', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'entero'},
                  ('Totales', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'entero'},
+                 ('Totales', 'A-BP'): {'etiq': 'A/BP', 'ancho': 6, 'formato': 'float'},
+                 ('Totales', 'A-TCI'): {'etiq': 'A/TC', 'ancho': 6, 'formato': 'float'},
                  ('Totales', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'entero'},
                  ('Totales', 'TAP-F'): {'etiq': 'Tap', 'ancho': 6, 'formato': 'entero'},
                  ('Totales', 'TAP-C'): {'etiq': 'Tp R', 'ancho': 6, 'formato': 'entero'},
@@ -382,16 +386,33 @@ def auxBold(data):
     return f"<b>{data}</b>"
 
 
-def auxGeneraLeyendaEstadsCelda(leyenda: dict, FONTSIZE: int):
-    texto = ""
-
-    for k in sorted(leyenda.keys()):
-        kFormated = k.replace(' ', '&nbsp;')
-        texto += f"<b>{kFormated}</b>: {leyenda[k]}<br/>"
-
+def auxGeneraLeyendaEstadsCelda(leyenda: dict, FONTSIZE: int, listaEqs: Iterable):
     legendStyle = ParagraphStyle('tabEstadsLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
                                  leading=10, )
-    result = Paragraph(texto, style=legendStyle)
+
+    separador = "<center>---</center><br/>"
+    textoEncab = ("""
+<b>Mejor</b>: Primero en el ranking<br/>    
+<b>ACB</b>: Media de la liga (+- desv estándar)<br/>    
+<b>Peor</b>: Último en el ranking<br/>    
+    """)
+
+    textoEtEqs = ("""
+<b>Equipo</b>: Valores conseguidos por el equipo<br/>    
+<b>Rival</b>: Valores conseguidos por el rival<br/>
+    """)
+    textoCD = ("""
+<b>[C]</b>: <i>Mejor</i> cuanto menor<br/>    
+<b>[D]</b>: <i>Mejor</i> cuanto mayor<br/>
+    """)
+    textoEstads = "".join(
+            [f"<b>{k.replace(' ', '&nbsp;')}</b>:&nbsp;{leyenda[k]}<br/>" for k in sorted(leyenda.keys())])
+
+    textoEqs = "".join(
+            [f"<b>{abr.replace(' ', '&nbsp;')}</b>:&nbsp;{tradEquipos['a2n'][abr]}<br/>" for abr in sorted(listaEqs)])
+
+    textoCompleto = separador.join([textoEtEqs, textoCD, textoEncab, textoEstads, textoEqs])
+    result = Paragraph(textoCompleto, style=legendStyle)
     return result
 
 
@@ -410,6 +431,30 @@ def auxGeneraLeyendaLiga():
     legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
                                  leading=FONTSIZE + 0.5, )
     result = Paragraph(texto, style=legendStyle)
+
+    return result
+
+
+def auxJugsBajaTablaJugs(datos: pd.DataFrame, colActivo=('Jugador', 'Activo')) -> list[int]:
+    """
+    Devuelve las filas con jugadores que figuran como dados de baja (para ser más preciso, no como Alta)
+    :param datos: dataframe con datos para tabla de jugadores
+    :param colActivo: columna que contiene si el jugador está activo
+    :return: lista con las filas del dataframe (comienza en 0) con jugadores así
+    """
+    result = []
+
+    # No hay datos
+    if colActivo not in datos.columns:
+        return result
+
+    estadoJugs = datos[colActivo]
+
+    # Si son todos de baja, nos da igual señalar
+    if all(estadoJugs) or all(estadoJugs == False):
+        return result
+
+    result = [i for i, estado in enumerate(list(estadoJugs)) if not estado]
 
     return result
 
@@ -444,6 +489,12 @@ def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSp
 
     if formatos is None:
         formatos = dict()
+
+    abrevStr = ""
+    abrevEq = kwargs.get('abrev', None)
+    if abrevEq:
+        abrevStr = f" ({abrevEq})"
+        kwargs.pop('abrev')
 
     for i, colkey in enumerate([('Global', 'Leyenda')] + collist, start=0):
         level, etiq = colkey
@@ -481,12 +532,16 @@ def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSp
     datosTabla = [filaCab] + datosAux.to_records(index=False, column_dtypes='object').tolist()
 
     # Añade leyenda de la tabla
-    leyenda = infoTabla.get('nombre', clave)
+    leyenda = infoTabla.get('nombre', clave) + abrevStr
     anchoCols[0] = 15
     datosTabla[0][0] = auxGeneraLeyendaEstadsJugsCelda(auxBold(leyenda))
     estiloCeldaLeyenda = [('SPAN', (0, 0), (0, -1)), ('VALIGN', (0, 0), (0, -1), 'MIDDLE'),
                           ('ALIGN', (0, 0), (0, -1), 'CENTER')]
     listaEstilo.extend(estiloCeldaLeyenda)
+
+    for fila in auxJugsBajaTablaJugs(dfDatos):
+        estilo = ('FONT', (1, fila + 1), (-1, fila + 1), 'Helvetica-Oblique')
+        listaEstilo.append(estilo)
 
     tStyle = TableStyle(listaEstilo)
     t = Table(datosTabla, style=tStyle, colWidths=anchoCols, **kwargs)
@@ -537,7 +592,7 @@ def datosEstadsBasicas(tempData: TemporadaACB, infoEq: dict):
     PNR, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'PNR', ESTADISTICOEQ)
 
     # noqa: E702
-    resultEq = (f"<b>{nombreCorto}</b>&nbsp;[{abrev}]"
+    resultEq = (f"<b>{nombreCorto}</b>&nbsp;[{abrev}] "
                 f"<b>PF</b>:&nbsp;{pFav:.2f} <b>/</b> <b>PC</b>:&nbsp;{pCon:.2f} <b>/</b> "
                 f"<b>T2</b>:&nbsp;{T2C:.2f}/ {T2I:.2f}&nbsp;{T2pc:.2f}% <b>/</b> "
                 f"<b>T3</b>:&nbsp;{T3C:.2f}/{T3I:.2f}&nbsp;{T3pc:.2f}% <b>/</b> "
@@ -557,9 +612,9 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     COLS_TRAYECT_TEMP_orig = [(col, 'sum') for col in COLS_TRAYECT_TEMP_orig_names]
     COLS_TRAYECT_TEMP = ['Acta', 'Jugados', 'Titular', 'Vict']
     COLS_FICHA = ['id', 'alias', 'pos', 'altura', 'licencia', 'fechaNac']
-    VALS_ESTAD_JUGADOR = ['A', 'BP', 'BR', 'FP-C', 'FP-F', 'P', 'ppTC', 'R-D', 'R-O', 'REB-T', 'Segs', 'T1-C', 'T1-I',
-                          'T1%', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-I', 'TC-C', 'TC%', 'PTC', 'TAP-C',
-                          'TAP-F']
+    VALS_ESTAD_JUGADOR = ['A', 'A-BP', 'A-TCI', 'BP', 'BR', 'FP-C', 'FP-F', 'P', 'ppTC', 'R-D', 'R-O', 'REB-T', 'Segs',
+                          'T1-C', 'T1-I', 'T1%', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-I', 'TC-C', 'TC%',
+                          'PTC', 'TAP-C', 'TAP-F']
 
     COLS_ESTAD_PROM = [(col, ESTADISTICOJUG) for col in VALS_ESTAD_JUGADOR]
     COLS_ESTAD_TOTAL = [(col, 'sum') for col in VALS_ESTAD_JUGADOR]
@@ -658,8 +713,8 @@ def datosTablaLiga(tempData: TemporadaACB, currJornada: int = None):
 
         id2pos[idLocal] = pos
         fila = []
-        nombreCorto = sorted(datosEq.nombresEq, key=len)[0]
-        abrev = list(datosEq.abrevsEq)[0]
+        nombreCorto = datosEq.nombreCorto
+        abrev = datosEq.abrevAusar
         fila.append(Paragraph(f"{nombreCorto} (<b>{abrev}</b>)", style=estCelda))
         for _, idVisit in seqIDs:
             if idLocal != idVisit:  # Partido, la otra se usa para poner el balance
@@ -715,7 +770,7 @@ def paginasJugadores(tempData, abrEqs, juLocal, juVisit):
 
     if len(juLocal):
         datosLocal = datosJugadores(tempData, abrEqs[0], juLocal)
-        tablasJugadLocal = tablasJugadoresEquipo(datosLocal)
+        tablasJugadLocal = tablasJugadoresEquipo(datosLocal, abrev=abrEqs[0])
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
@@ -727,7 +782,7 @@ def paginasJugadores(tempData, abrEqs, juLocal, juVisit):
 
     if len(juVisit):
         datosVisit = datosJugadores(tempData, abrEqs[1], juVisit)
-        tablasJugadVisit = tablasJugadoresEquipo(datosVisit)
+        tablasJugadVisit = tablasJugadoresEquipo(datosVisit, abrev=abrEqs[1])
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
@@ -872,18 +927,19 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
     return t
 
 
-def tablasJugadoresEquipo(jugDF):
+def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None):
     result = []
 
-    CELLPAD = 0.2 * mm
+    CELLPAD = 0.5
     FONTSIZE = 8
     ANCHOLETRA = FONTSIZE * 0.5
     COLACTIVO = ('Jugador', 'Activo')
     COLDORSAL_IDX = ('Jugador', 'Kdorsal')
-    COLSIDENT_PROM = [('Jugador', 'dorsal'), ('Jugador', 'nombre'), ('Trayectoria', 'Acta'), ('Trayectoria', 'Jugados'),
-                      ('Trayectoria', 'Titular'), ('Trayectoria', 'Vict')]
-    COLSIDENT_TOT = [('Jugador', 'dorsal'), COLACTIVO, ('Jugador', 'nombre'), ('Trayectoria', 'Acta'),
-                     ('Trayectoria', 'Jugados'), ('Trayectoria', 'Titular'), ('Trayectoria', 'Vict')]
+    COLSIDENT_PROM = [('Jugador', 'dorsal'), ('Jugador', 'pos'), ('Jugador', 'nombre'), ('Trayectoria', 'Acta'),
+                      ('Trayectoria', 'Jugados'), ('Trayectoria', 'Titular'), ('Trayectoria', 'Vict')]
+    COLSIDENT_TOT = [('Jugador', 'dorsal'), COLACTIVO, ('Jugador', 'pos'), ('Jugador', 'nombre'),
+                     ('Trayectoria', 'Acta'), ('Trayectoria', 'Jugados'), ('Trayectoria', 'Titular'),
+                     ('Trayectoria', 'Vict')]
     COLSIDENT_UP = [('Jugador', 'dorsal'), ('Jugador', 'nombre'), ('Jugador', 'pos'), ('Jugador', 'altura'),
                     ('Jugador', 'licencia'), ('Jugador', 'etNac')]
 
@@ -894,7 +950,8 @@ def tablasJugadoresEquipo(jugDF):
     COLS_TOTALES = [('Totales', 'etSegs'), ('Totales', 'P'), ('Totales', 'etiqT2'), ('Totales', 'etiqT3'),
                     ('Totales', 'etiqTC'), ('Totales', 'ppTC'), ('Totales', 'FP-F'), ('Totales', 'FP-C'),
                     ('Totales', 'etiqT1'), ('Totales', 'etRebs'), ('Totales', 'A'), ('Totales', 'BP'),
-                    ('Totales', 'BR'), ('Totales', 'TAP-F'), ('Totales', 'TAP-C'), ]
+                    ('Totales', 'A-BP'), ('Totales', 'A-TCI'), ('Totales', 'BR'), ('Totales', 'TAP-F'),
+                    ('Totales', 'TAP-C'), ]
     COLS_ULTP = [('UltimoPart', 'etFecha'), ('UltimoPart', 'Partido'), ('UltimoPart', 'resultado'),
                  ('UltimoPart', 'titular'), ('UltimoPart', 'etSegs'), ('UltimoPart', 'P'), ('UltimoPart', 'etiqT2'),
                  ('UltimoPart', 'etiqT3'), ('UltimoPart', 'etiqTC'), ('UltimoPart', 'ppTC'), ('UltimoPart', 'FP-F'),
@@ -922,10 +979,10 @@ def tablasJugadoresEquipo(jugDF):
               }
     auxDF = jugDF.copy()
 
-    for claveTabla in ['promedios', 'totales', 'ultimo']:
+    for claveTabla in ['totales', 'promedios', 'ultimo']:
         infoTabla = tablas[claveTabla]  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
         t = auxGeneraTablaJugs(auxDF, claveTabla, infoTabla, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA,
-                               repeatRows=1)
+                               repeatRows=1, abrev=abrev)
 
         result.append((infoTabla, t))
 
@@ -1063,11 +1120,17 @@ def recuperaClasifLiga(tempData: TemporadaACB, fecha=None):
     global clasifLiga
     global numEqs
     global mitadEqs
+    global tradEquipos
 
     if clasifLiga is None:
         clasifLiga = tempData.clasifLiga(fecha)
         numEqs = len(clasifLiga)
         mitadEqs = numEqs // 2
+
+        for eq in clasifLiga:
+            tradEquipos['a2n'][eq.abrevAusar] = eq.nombreCorto
+            tradEquipos['n2a'][eq.nombreCorto] = eq.abrevAusar
+            tradEquipos['i2a'][list(eq.idEq)[0]] = eq.abrevAusar
 
 
 def datosRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
@@ -1182,7 +1245,7 @@ def datosTablaClasif(tempData: TemporadaACB, datosSig: infoSigPartido) -> list[f
 
     result = list()
     for posic, eq in enumerate(clasifLiga):
-        nombEqAux = sorted(eq.nombresEq, key=len)[0]
+        nombEqAux = eq.nombreCorto
         notaClas = auxCalculaBalanceStrSuf(record=eq, addPendientes=True, currJornada=jornada,
                                            addPendJornada=muestraJornada)
         nombEq = f"{nombEqAux}{notaClas}"
@@ -1290,7 +1353,7 @@ def calculaMaxMinMagn(ser: pd.Series, ser_orden: pd.Series):
     minVal, minEtq, minAbrevs = getValYEtq(ser, ser_orden, ser_orden.max())
 
     return tuplaMaxMinMagn(minVal=minVal, minEtq=minEtq, minAbrevs=minAbrevs, maxVal=maxVal, maxEtq=maxEtq,
-                           maxAbrevs=maxAbrevs)
+                           maxAbrevs=maxAbrevs, abrevs2add=maxAbrevs.union(minAbrevs))
 
 
 def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, magn2include: list, magnsAscending=None,
@@ -1306,6 +1369,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     result = dict()
 
     estadsInexistentes = set()
+    abrevs2leyenda = set()
     clavesEnEstads = set(sorted(estadGlobales.columns))
 
     for claveEst in magn2include:
@@ -1338,6 +1402,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
         datosEqsOrd = {k: int(serMagnOrden[targetAbrevs[k]]) for k in LocalVisitante}
 
         infoMaxMinMagn = calculaMaxMinMagn(serMagn, serMagnOrden)
+        abrevs2leyenda = abrevs2leyenda.union(infoMaxMinMagn.abrevs2add)
 
         resaltaLocal = datosEqsOrd['Local'] < datosEqsOrd['Visitante']
         resaltaVisit = datosEqsOrd['Visitante'] < datosEqsOrd['Local']
@@ -1360,7 +1425,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
         raise ValueError(
                 f"datosAnalisisEstadisticos: los siguientes valores no existen: {estadsInexistentes}. " +
                 f"Parametro: {magn2include}. Columnas posibles: {clavesEnEstads}")
-    return result
+    return result, abrevs2leyenda
 
 
 def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, magns2incl: list | set | None = None,
@@ -1382,7 +1447,9 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     if len(claves2wrk) == 0:
         raise ValueError(f"tablaAnalisisEstadisticos: No hay valores para incluir en la tabla: parametro {magns2incl}")
 
-    datos = datosAnalisisEstadisticos(tempData, datosSig, magnsAscending=catsAscending, magn2include=claves2wrk)
+    datos, abrevs2leyenda = datosAnalisisEstadisticos(tempData, datosSig, magnsAscending=catsAscending,
+                                                      magn2include=claves2wrk)
+
     FONTSIZE = 8
 
     headerStyle = ParagraphStyle('tabEstadsHeader', fontSize=FONTSIZE + 2, alignment=TA_CENTER, leading=12)
@@ -1415,7 +1482,8 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
         EXTRALEYENDA = -1
         ESTILOLEYENDA = [('SPAN', (-1, 1), (-1, -1)), ('VALIGN', (-1, 1), (-1, -1), 'TOP')]
 
-        filasTabla[0][-1] = auxGeneraLeyendaEstadsCelda(leyendas, FONTSIZE)
+        filasTabla[0][-1] = auxGeneraLeyendaEstadsCelda(leyendas, FONTSIZE,
+                                                        abrevs2leyenda.union(set(targetAbrevs.values())))
 
     listaEstilos = [('BOX', (1, 1), (-1 + EXTRALEYENDA, -1), 1, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('GRID', (1, 1), (-1 + EXTRALEYENDA, -1), 0.5, colors.black), ('SPAN', (0, 1), (0, len(clavesEq))),
