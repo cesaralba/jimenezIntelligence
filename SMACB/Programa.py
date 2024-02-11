@@ -383,15 +383,30 @@ def auxBold(data):
 
 
 def auxGeneraLeyendaEstadsCelda(leyenda: dict, FONTSIZE: int):
-    texto = ""
-
-    for k in sorted(leyenda.keys()):
-        kFormated = k.replace(' ', '&nbsp;')
-        texto += f"<b>{kFormated}</b>: {leyenda[k]}<br/>"
+    result = []
 
     legendStyle = ParagraphStyle('tabEstadsLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
                                  leading=10, )
-    result = Paragraph(texto, style=legendStyle)
+
+    separador = "<center>---</center><br/>"
+    textoEncab = ("""
+<b>Mejor</b>: Primero en el ranking<br/>    
+<b>ACB</b>: Media de la liga (+- desv estándar)<br/>    
+<b>Peor</b>: Último en el ranking<br/>    
+    """)
+
+    textoEqs = ("""
+<b>Equipo</b>: Valores conseguidos por el equipo<br/>    
+<b>Rival</b>: Valores conseguidos por el rival<br/>
+    """)
+    textoCD = ("""
+<b>[C]</b>: <i>Mejor</i> cuanto menor<br/>    
+<b>[D]</b>: <i>Mejor</i> cuanto mayor<br/>
+    """)
+    textoEstads = "".join([f"<b>{k.replace(' ', '&nbsp;')}</b>: {leyenda[k]}<br/>" for k in sorted(leyenda.keys())])
+
+    textoCompleto = separador.join([textoEqs, textoCD, textoEncab, textoEstads])
+    result = Paragraph(textoCompleto, style=legendStyle)
     return result
 
 
