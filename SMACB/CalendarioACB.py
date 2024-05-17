@@ -39,8 +39,7 @@ class CalendarioACB():
         self.Partidos = {}
         self.Jornadas = {}
         self.tradEquipos = {'n2c': defaultdict(set), 'c2n': defaultdict(set), 'n2i': defaultdict(set),
-                            'i2n': defaultdict(set), 'c2i': defaultdict(set), 'i2c': defaultdict(set)
-                            }
+                            'i2n': defaultdict(set), 'c2i': defaultdict(set), 'i2c': defaultdict(set)}
         self.urlbase = urlbase
         self.url = None
 
@@ -64,6 +63,9 @@ class CalendarioACB():
             divPartidos = divJ.find_next_sibling("div", {"class": "listado_partidos"})
 
             self.Jornadas[currJornada] = self.procesaBloqueJornada(divPartidos, datosCab, **kwargs)
+
+            self.Jornadas[currJornada]['esPlayoff'] = (len(self.Jornadas[currJornada]['partidos']) + len(
+                self.Jornadas[currJornada]['pendientes'])) != (len(self.tradEquipos['c2n']) // 2)
 
         return content
 
@@ -250,7 +252,7 @@ class CalendarioACB():
     def abrevsEquipo(self, abrEq):
         if abrEq not in self.tradEquipos['c2n']:
             trad2str = " - ".join(
-                    [f"'{k}': {','.join(sorted(self.tradEquipos['c2n'][k]))}" for k in sorted(self.tradEquipos['c2n'])])
+                [f"'{k}': {','.join(sorted(self.tradEquipos['c2n'][k]))}" for k in sorted(self.tradEquipos['c2n'])])
             raise KeyError(f"partidosEquipo: abreviatura pedida '{abrEq}' no existe: {trad2str}")
 
         # Consigue las abreviaturas para el equipo
@@ -342,8 +344,7 @@ def procesaFechasJornada(cadFechas):
     resultado = dict()
 
     mes2n = {'ene': 1, 'feb': 2, 'mar': 3, 'abr': 4, 'may': 5, 'jun': 6, 'jul': 7, 'ago': 8, 'sep': 9, 'oct': 10,
-             'nov': 11, 'dic': 12
-             }
+             'nov': 11, 'dic': 12}
 
     patronBloqueFechas = r'^(?P<dias>\d{1,2}(-\d{1,2})*)\s+(?P<mes>\w+)\s+(?P<year>\d{4})$'
 
