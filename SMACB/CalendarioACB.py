@@ -144,6 +144,7 @@ class CalendarioACB():
         result['jornada'] = int(dictCab['jornada'])
         result['partidos'] = []
         result['pendientes'] = []
+        # TODO: el campo equipos no se llena
         result['equipos'] = set()
         result['esPlayoff'] = None
 

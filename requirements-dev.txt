@@ -39,7 +39,7 @@ pyzmq==26.0.3
 setuptools==69.5.1
 stack-data==0.6.3
 tomlkit==0.12.5
-tornado==6.4
+tornado==6.4.1
 traitlets==5.14.3
 virtualenv==20.26.2
 vulture==2.11
