@@ -4,7 +4,7 @@ from collections import defaultdict
 from time import gmtime
 
 import bs4
-from CAPcore.Web import createBrowser, downloadPage, getObjID, mergeURL
+from CAPcore.Web import createBrowser, downloadPage, getObjID, mergeURL, DownloadedPage
 
 from Utils.LoggedDict import DictOfLoggedDict, LoggedDict
 from .Constants import URL_BASE
@@ -97,7 +97,7 @@ def actualizaConBajas(result: dict, datosBajas: dict) -> dict:
     return result
 
 
-def procesaPlantillaDescargada(plantDesc, otrosNombres: dict = None):
+def procesaPlantillaDescargada(plantDesc: DownloadedPage, otrosNombres: dict = None):
     """
     Procesa el contenido de una página de plantilla
 
@@ -109,7 +109,7 @@ def procesaPlantillaDescargada(plantDesc, otrosNombres: dict = None):
 
     result = {'jugadores': dict(), 'tecnicos': dict(), 'club': extraeDatosClub(plantDesc)}
 
-    fichaData = plantDesc['data']
+    fichaData = plantDesc.data
 
     cosasUtiles = fichaData.find(name='section', attrs={'class': 'contenido_central_equipo'})
 
@@ -183,10 +183,10 @@ def procesaTablaBajas(tablaBajas: bs4.element, traduccionesConocidas: dict) -> d
     return result
 
 
-def extraeDatosClub(plantDesc):
+def extraeDatosClub(plantDesc: DownloadedPage):
     result = dict()
 
-    fichaData = plantDesc['data']
+    fichaData = plantDesc.data
 
     cosasUtiles = fichaData.find(name='div', attrs={'class': 'datos'})
     result['nombreActual'] = cosasUtiles.find('h1').get_text().strip()
@@ -195,13 +195,13 @@ def extraeDatosClub(plantDesc):
     return result
 
 
-def encuentraUltEdicion(plantDesc):
+def encuentraUltEdicion(plantDesc: DownloadedPage):
     """
     Obtiene la última edición de la temporada del contenido de la página (lo extrae del selector de temporadas)
     :param plantDesc:
     :return:
     """
-    fichaData = plantDesc['data']
+    fichaData = plantDesc.data
 
     result = fichaData.find("input", {"name": "select_temporada_id"}).attrs['value']
 
@@ -231,7 +231,7 @@ def descargaPlantillasCabecera(browser=None, config=Namespace(), edicion=None, l
     if paginaRaiz is None:
         raise ConnectionError(f"Incapaz de descargar {URL_BASE}")
 
-    raizData = paginaRaiz['data']
+    raizData = paginaRaiz.data
     divLogos = raizData.find('section', {'class': 'contenedora_clubes'})
 
     for artLink in divLogos.find_all('article'):
