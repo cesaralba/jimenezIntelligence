@@ -4,7 +4,7 @@
 import logging
 import sys
 
-from Utils.Web import ExtraeGetParams, createBrowser
+from CAPcore.Web import createBrowser, extractGetParams
 from configargparse import ArgumentParser
 
 from SMACB.CalendarioACB import calendario_URLBASE
@@ -55,7 +55,7 @@ if args.edicion is not None:
     parEdicion = args.edicion
     parCompeticion = args.competicion
 else:
-    paramsURL = ExtraeGetParams(sourceURL)
+    paramsURL = extractGetParams(sourceURL)
     parCompeticion = paramsURL['cod_competicion']
     parEdicion = paramsURL['cod_edicion']
 
