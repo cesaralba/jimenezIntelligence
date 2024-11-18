@@ -50,10 +50,10 @@ class CalendarioACB():
 
     def procesaCalendario(self, content, **kwargs):
         if 'timestamp' in content:
-            self.timestamp = content['timestamp']
+            self.timestamp = content.timestamp
         if 'source' in content:
-            self.url = content['source']
-        calendarioData = content['data']
+            self.url = content.source
+        calendarioData = content.data
 
         for divJ in calendarioData.find_all("div", {"class": "cabecera_jornada"}):
             datosCab = procesaCab(divJ)
