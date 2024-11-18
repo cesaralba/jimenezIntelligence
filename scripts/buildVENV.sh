@@ -37,7 +37,7 @@ then
   exit 1
 fi
 
-BRANCHNAME=${USEBRANCH:-master}
+BRANCHNAME=${SM_BRANCH:-master}
 WRKDIR="${ROOTDATA}/wrk"
 
 [ -d ${WRKDIR} ] && rm -rf  ${WRKDIR}

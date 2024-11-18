@@ -13,7 +13,7 @@ bash "${BASEDIR}/buildVENV.sh"
 
 bash "${BASEDIR}/buildDataTree.sh"
 
-bash -vx "${BASEDIR}/checkScripts.sh" || true
-echo "Get Temporada"
+bash "${BASEDIR}/checkScripts.sh" || true
+echo "Get Temporada  $(date)"
 bash "${BASEDIR}/getTemporada.sh"
 echo "Final ejecución $(date)"
