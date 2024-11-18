@@ -6,13 +6,14 @@ from traceback import print_exc
 
 import numpy as np
 import pandas as pd
+from CAPcore.Web import getObjID, downloadPage, extractGetParams
+
 from babel.numbers import parse_number
 from bs4 import Tag
 
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
 from Utils.Misc import BadParameters, BadString, ExtractREGroups
-from Utils.Web import DescargaPagina, ExtraeGetParams, getObjID
 from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp)
 from .PlantillaACB import PlantillaACB
 
@@ -61,7 +62,7 @@ class PartidoACB():
 
         urlPartido = self.url
 
-        partidoPage = DescargaPagina(urlPartido, home=home, browser=browser, config=config)
+        partidoPage = downloadPage(urlPartido, home=home, browser=browser, config=config)
 
         self.procesaPartido(partidoPage)
 
@@ -147,9 +148,9 @@ class PartidoACB():
                 self.pendientes[loc] = newPendientes
             if raiser:
                 raise ValueError(
-                        f"procesaPartido: Imposible encontrar ({len(newPendientes)}) código(s) para ({loc}) en "
-                        f"partido '"
-                        f"{self.url}': {newPendientes}")
+                    f"procesaPartido: Imposible encontrar ({len(newPendientes)}) código(s) para ({loc}) en "
+                    f"partido '"
+                    f"{self.url}': {newPendientes}")
 
         return divCabecera
 
@@ -342,8 +343,8 @@ class PartidoACB():
 
     def jugadoresAdataframe(self) -> pd.DataFrame:
         typesDF = {'competicion': 'object', 'temporada': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
-                   'esTitular': 'bool', 'haJugado': 'bool', 'titular': 'category', 'haGanado': 'bool', 'enActa': 'bool',
-                   }
+                   'esTitular': 'bool', 'haJugado': 'bool', 'titular': 'category', 'haGanado': 'bool',
+                   'enActa': 'bool', }
 
         dfJugs = [auxJugador2dataframe(typesDF, x, self.fechaPartido) for x in self.Jugadores.values()]
         dfResult = pd.concat(dfJugs, axis=0, ignore_index=True, sort=True).astype(typesDF)
@@ -400,7 +401,7 @@ class PartidoACB():
             estadsDict[loc]['etiqPartido'] = f"{locres}{abrev}{victoderr}"
             estadsDict[loc]['convocados'] = len(self.Equipos[loc]['Jugadores'])
             estadsDict[loc]['utilizados'] = len(
-                    [j for j in self.Equipos[loc]['Jugadores'] if self.Jugadores[j]['haJugado']])
+                [j for j in self.Equipos[loc]['Jugadores'] if self.Jugadores[j]['haJugado']])
 
         estadsPart = self.estadsPartido()
 
@@ -581,10 +582,10 @@ def GeneraURLpartido(link):
     else:
         raise TypeError("GeneraURLpartido: incapaz de procesar %s (%s)" % (link, type(link)))
 
-    liurlcomps = ExtraeGetParams(link2process)
+    liurlcomps = extractGetParams(link2process)
     CheckParameters(liurlcomps)
     return templateURLficha % (
-            liurlcomps['cod_competicion'], int(liurlcomps['cod_edicion']), int(liurlcomps['partido']))
+        liurlcomps['cod_competicion'], int(liurlcomps['cod_edicion']), int(liurlcomps['partido']))
 
 
 def extractPrefijosTablaEstads(tablaEstads):

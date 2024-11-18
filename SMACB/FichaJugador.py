@@ -3,9 +3,9 @@ from argparse import Namespace
 from time import gmtime
 
 import pandas as pd
+from CAPcore.Web import getObjID, creaBrowser, downloadPage
 
 from Utils.FechaHora import PATRONFECHA
-from Utils.Web import creaBrowser, DescargaPagina, getObjID
 
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
 
@@ -152,7 +152,7 @@ def descargaURLficha(urlFicha, home=None, browser=None, config=Namespace()):
         browser = creaBrowser(config)
     try:
         result = dict()
-        fichaJug = DescargaPagina(urlFicha, home=home, browser=browser, config=config)
+        fichaJug = downloadPage(urlFicha, home=home, browser=browser, config=config)
         result['URL'] = browser.get_url()
         result['timestamp'] = gmtime()
 

@@ -4,9 +4,9 @@ from collections import defaultdict
 from time import gmtime
 
 import bs4
+from CAPcore.Web import createBrowser, downloadPage, getObjID, mergeURL
 
 from Utils.LoggedDict import DictOfLoggedDict, LoggedDict
-from Utils.Web import creaBrowser, DescargaPagina, getObjID, MergeURL
 from .Constants import URL_BASE
 
 logger = logging.getLogger()
@@ -35,7 +35,7 @@ class PlantillaACB():
         :return:
         """
         if browser is None:
-            browser = creaBrowser(config)
+            browser = createBrowser(config)
 
         data = descargaURLplantilla(self.URL, home, browser, config, otrosNombres=extraTrads)
 
@@ -73,10 +73,10 @@ class PlantillaACB():
 
 def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=Namespace(), otrosNombres=None):
     if browser is None:
-        browser = creaBrowser(config)
+        browser = createBrowser(config)
     try:
         logging.debug("descargaURLplantilla: downloading %s", urlPlantilla)
-        pagPlant = DescargaPagina(urlPlantilla, home=home, browser=browser, config=config)
+        pagPlant = downloadPage(urlPlantilla, home=home, browser=browser, config=config)
 
         result = procesaPlantillaDescargada(pagPlant, otrosNombres=otrosNombres)
         result['URL'] = browser.get_url()
@@ -142,7 +142,7 @@ def procesaPlantillaDescargada(plantDesc, otrosNombres: dict = None):
 
             data['dorsal'] = jugArt.find("div", {"class": "dorsal"}).get_text().strip()
 
-            data['URL'] = MergeURL(URL_BASE, link)
+            data['URL'] = mergeURL(URL_BASE, link)
             data['URLimg'] = jugArt.find("img").attrs['src']
 
             result[destClass][data['id']] = data
@@ -166,7 +166,7 @@ def procesaTablaBajas(tablaBajas: bs4.element, traduccionesConocidas: dict) -> d
         data = dict()
 
         link = tds[1].find("a").attrs['href']
-        data['URL'] = MergeURL(URL_BASE, link)
+        data['URL'] = mergeURL(URL_BASE, link)
         data['id'] = getObjID(link, 'ver')
         data['activo'] = False
 
@@ -223,10 +223,10 @@ def descargaPlantillasCabecera(browser=None, config=Namespace(), edicion=None, l
 
     result = dict()
     if browser is None:
-        browser = creaBrowser(config)
+        browser = createBrowser(config)
 
     urlClubes = generaURLClubes(edicion)
-    paginaRaiz = DescargaPagina(dest=urlClubes, browser=browser, config=config)
+    paginaRaiz = downloadPage(dest=urlClubes, browser=browser, config=config)
 
     if paginaRaiz is None:
         raise ConnectionError(f"Incapaz de descargar {URL_BASE}")
@@ -237,7 +237,7 @@ def descargaPlantillasCabecera(browser=None, config=Namespace(), edicion=None, l
     for artLink in divLogos.find_all('article'):
         eqLink = artLink.find('div').find('a')
         urlLink = eqLink['href']
-        urlFull = MergeURL(browser.get_url(), urlLink)
+        urlFull = mergeURL(browser.get_url(), urlLink)
 
         idEq = getObjID(objURL=urlFull, clave='id')
 
@@ -257,7 +257,7 @@ def generaURLPlantilla(plantilla):
 
     urlSTR = "/".join(params)
 
-    result = MergeURL(URL_BASE, urlSTR)
+    result = mergeURL(URL_BASE, urlSTR)
 
     return result
 
@@ -270,6 +270,6 @@ def generaURLClubes(edicion=None):
 
     urlSTR = "/".join(params)
 
-    result = MergeURL(URL_BASE, urlSTR)
+    result = mergeURL(URL_BASE, urlSTR)
 
     return result
