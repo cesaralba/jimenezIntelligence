@@ -3,7 +3,7 @@ from argparse import Namespace
 from time import gmtime
 
 import pandas as pd
-from CAPcore.Web import getObjID, creaBrowser, downloadPage
+from CAPcore.Web import getObjID, downloadPage, createBrowser
 
 from Utils.FechaHora import PATRONFECHA
 
@@ -43,7 +43,7 @@ class FichaJugador():
     @staticmethod
     def fromURL(urlFicha, home=None, browser=None, config=Namespace()):
         if browser is None:
-            browser = creaBrowser(config)
+            browser = createBrowser(config)
 
         fichaJug = descargaURLficha(urlFicha, home=home, browser=browser, config=config)
 
@@ -54,7 +54,7 @@ class FichaJugador():
         changes = False
 
         if browser is None:
-            browser = creaBrowser(config)
+            browser = createBrowser(config)
 
         newData = descargaURLficha(self.URL, home=home, browser=browser, config=config)
 
@@ -149,7 +149,7 @@ class FichaJugador():
 
 def descargaURLficha(urlFicha, home=None, browser=None, config=Namespace()):
     if browser is None:
-        browser = creaBrowser(config)
+        browser = createBrowser(config)
     try:
         result = dict()
         fichaJug = downloadPage(urlFicha, home=home, browser=browser, config=config)
