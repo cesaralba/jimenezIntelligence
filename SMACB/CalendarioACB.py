@@ -6,7 +6,7 @@ from copy import copy, deepcopy
 from time import gmtime
 
 import pandas as pd
-from CAPcore.Web import getObjID, downloadPage, mergeURL
+from CAPcore.Web import getObjID, downloadPage, mergeURL, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA
 from Utils.Misc import FORMATOtimestamp, listize
@@ -44,11 +44,11 @@ class CalendarioACB():
         self.url = None
 
     def actualizaCalendario(self, home=None, browser=None, config=Namespace()):
-        calendarioPage = self.descargaCalendario(home=home, browser=browser, config=config)
+        calendarioPage: DownloadedPage = self.descargaCalendario(home=home, browser=browser, config=config)
 
         return self.procesaCalendario(calendarioPage, home=self.url, browser=browser, config=config)
 
-    def procesaCalendario(self, content, **kwargs):
+    def procesaCalendario(self, content: DownloadedPage, **kwargs):
         if 'timestamp' in content:
             self.timestamp = content.timestamp
         if 'source' in content:
@@ -87,7 +87,7 @@ class CalendarioACB():
 
         return result
 
-    def descargaCalendario(self, home=None, browser=None, config=Namespace()):
+    def descargaCalendario(self, home=None, browser=None, config=Namespace()) -> DownloadedPage:
         logger.info("descargaCalendario")
         if self.url is None:
             pagCalendario = downloadPage(self.urlbase, home=home, browser=browser, config=config)
@@ -267,7 +267,7 @@ def BuscaCalendario(url=URL_BASE, home=None, browser=None, config=None):
     link = None
     indexPage = downloadPage(url, home, browser, config)
 
-    index = indexPage['data']
+    index = indexPage.data
 
     # print (type(index),index)
 
@@ -436,16 +436,16 @@ def recuperaPartidosEquipo(idEquipo, home=None, browser=None, config=Namespace()
     return dataPartidos
 
 
-def procesaPaginaPartidosEquipo(content):
+def procesaPaginaPartidosEquipo(content: DownloadedPage):
     result = dict()
     result['jornadas'] = dict()
 
     if 'timestamp' in content:
-        result['timestamp'] = content['timestamp']
+        result['timestamp'] = content.timestamp
     if 'source' in content:
-        result['source'] = content['source']
+        result['source'] = content.source
 
-    result['data'] = content['data']
+    result['data'] = content.data
 
     pagData = result['data']
 

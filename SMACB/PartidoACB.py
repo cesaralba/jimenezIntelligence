@@ -6,8 +6,7 @@ from traceback import print_exc
 
 import numpy as np
 import pandas as pd
-from CAPcore.Web import getObjID, downloadPage, extractGetParams
-
+from CAPcore.Web import getObjID, downloadPage, extractGetParams, DownloadedPage
 from babel.numbers import parse_number
 from bs4 import Tag
 
@@ -66,16 +65,16 @@ class PartidoACB():
 
         self.procesaPartido(partidoPage)
 
-    def procesaPartido(self, content: dict):
+    def procesaPartido(self, content: DownloadedPage):
         raiser = False
         if 'timestamp' in content:
-            self.timestamp = content['timestamp']
+            self.timestamp = content.timestamp
         else:
             self.timestamp = gmtime()
         if 'source' in content:
-            self.url = content['source']
+            self.url = content.source
 
-        pagina = content['data']
+        pagina = content.source
         tablasPartido = pagina.find("section", {"class": "contenedora_estadisticas"})
         if not tablasPartido:
             print(f"procesaPartido (W): {self.url} tablasPartidoNone", tablasPartido, pagina)
