@@ -91,7 +91,7 @@ class CalendarioACB():
         logger.info("descargaCalendario")
         if self.url is None:
             pagCalendario = downloadPage(self.urlbase, home=home, browser=browser, config=config)
-            pagCalendarioData = pagCalendario['data']
+            pagCalendarioData = pagCalendario.data
             divTemporadas = pagCalendarioData.find("div", {"class": "desplegable_temporada"})
 
             currYear = divTemporadas.find('div', {"class": "elemento"})['data-t2v-id']
@@ -109,7 +109,7 @@ class CalendarioACB():
 
                 pagYear = downloadPage(urlYear, home=None, browser=browser, config=config)
 
-            pagYearData = pagYear['data']
+            pagYearData = pagYear.data
 
             divCompos = pagYearData.find("div", {"class": "desplegable_competicion"})
             listaCompos = {x['data-t2v-id']: x.get_text() for x in divCompos.find_all('div', {"class": "elemento"})}

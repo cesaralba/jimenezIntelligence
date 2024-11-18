@@ -158,7 +158,7 @@ def descargaURLficha(urlFicha, home=None, browser=None, config=Namespace()):
 
         result['id'] = getObjID(urlFicha, 'ver')
 
-        fichaData = fichaJug['data']
+        fichaData = fichaJug.data
 
         cosasUtiles = fichaData.find(name='div', attrs={'class': 'datos'})
 
