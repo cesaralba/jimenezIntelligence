@@ -74,7 +74,7 @@ class PartidoACB():
         if 'source' in content:
             self.url = content.source
 
-        pagina = content.source
+        pagina = content.data
         tablasPartido = pagina.find("section", {"class": "contenedora_estadisticas"})
         if not tablasPartido:
             print(f"procesaPartido (W): {self.url} tablasPartidoNone", tablasPartido, pagina)
