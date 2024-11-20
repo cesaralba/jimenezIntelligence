@@ -62,7 +62,7 @@ then
   if [ -f ${DESTSMFILE} ]
   then
     cp ${DESTSMFILE} ${DESTSMFILEDATED}
-    gzip -9 ${DESTSMFILEDATED}
+    gzip -f -9 ${DESTSMFILEDATED}
     cp ${DESTSMFILEDATED}.gz ${DESTSMFILE}.gz
     mv ${DESTSMFILE} ${ORIGSMFILE}
   fi
