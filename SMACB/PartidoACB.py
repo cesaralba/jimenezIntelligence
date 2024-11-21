@@ -6,13 +6,13 @@ from traceback import print_exc
 
 import numpy as np
 import pandas as pd
+from CAPcore.Misc import BadParameters, BadString, extractREGroups
 from CAPcore.Web import getObjID, downloadPage, extractGetParams, DownloadedPage
 from babel.numbers import parse_number
 from bs4 import Tag
 
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
-from Utils.Misc import BadParameters, BadString, ExtractREGroups
 from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp)
 from .PlantillaACB import PlantillaACB
 
@@ -158,7 +158,7 @@ class PartidoACB():
 
         reJornada = r"^JORNADA\s*(\d+)$"
 
-        self.jornada = int(ExtractREGroups(cadena=espTiempo.pop(0), regex=reJornada)[0])
+        self.jornada = int(extractREGroups(cadena=espTiempo.pop(0), regex=reJornada)[0])
         cadTiempo = espTiempo[0] + " " + espTiempo[1]
         PATRONdmyhm = r'^\s*(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})?$'
         REhora = re.match(PATRONdmyhm, cadTiempo)
@@ -171,7 +171,7 @@ class PartidoACB():
         textAsistencia = spanPabellon.next_sibling.strip()
 
         rePublico = r".*ico:\s*(\d+\.(\d{3})*)"
-        grpsAsist = ExtractREGroups(cadena=textAsistencia, regex=rePublico)
+        grpsAsist = extractREGroups(cadena=textAsistencia, regex=rePublico)
         self.Asistencia = parse_number(grpsAsist[0], locale='de_DE') if grpsAsist else None
 
     def procesaDivCabecera(self, divATratar):
@@ -285,28 +285,28 @@ class PartidoACB():
         rePorcentaje = r"^\s*(\d+)%\s*$"
 
         def ProcesaTiempo(cadena):
-            auxTemp = ExtractREGroups(cadena=cadena, regex=reTiempo)
+            auxTemp = extractREGroups(cadena=cadena, regex=reTiempo)
             if auxTemp:
                 return int(auxTemp[0]) * 60 + int(auxTemp[1])
 
             raise BadString(f"ProcesaEstadisticas:ProcesaTiempo '{cadena}' no casa RE '{reTiempo}'")
 
         def ProcesaTiros(cadena):
-            auxTemp = ExtractREGroups(cadena=cadena, regex=reTiros)
+            auxTemp = extractREGroups(cadena=cadena, regex=reTiros)
             if auxTemp:
                 return int(auxTemp[0]), int(auxTemp[1])
 
             raise BadString(f"ProcesaEstadisticas:ProcesaTiros '{cadena}' no casa RE '{reTiros}'")
 
         def ProcesaRebotes(cadena):
-            auxTemp = ExtractREGroups(cadena=cadena, regex=reRebotes)
+            auxTemp = extractREGroups(cadena=cadena, regex=reRebotes)
             if auxTemp:
                 return int(auxTemp[0]), int(auxTemp[1])
 
             raise BadString(f"ProcesaEstadisticas:ProcesaRebotes '{cadena}' no casa RE '{reRebotes}'")
 
         def ProcesaPorcentajes(cadena):
-            auxTemp = ExtractREGroups(cadena=cadena, regex=rePorcentaje)
+            auxTemp = extractREGroups(cadena=cadena, regex=rePorcentaje)
             if auxTemp:
                 return int(auxTemp[0])
 

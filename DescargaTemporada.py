@@ -4,12 +4,12 @@
 import logging
 import sys
 
+from CAPcore.Logging import prepareLogger
 from CAPcore.Web import createBrowser, extractGetParams
 from configargparse import ArgumentParser
 
 from SMACB.CalendarioACB import calendario_URLBASE
 from SMACB.TemporadaACB import TemporadaACB
-from Utils.Logging import prepareLogger
 
 parser = ArgumentParser()
 parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, help='', default=0)

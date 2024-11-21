@@ -3,18 +3,18 @@
 
 from collections import defaultdict
 from statistics import mean, median, stdev
+from time import gmtime, mktime, strftime, time
 
+from CAPcore.Misc import FORMATOtimestamp, SubSet
+from SMACB.SuperManager import SuperManagerACB
 from configargparse import ArgumentParser
 from pandas import DataFrame, ExcelWriter
-from time import gmtime, mktime, strftime, time
 
 from SMACB.Constants import MINPRECIO, POSICIONES, PRECIOpunto
 from SMACB.ManageSMDataframes import (calculaDFcategACB, calculaDFconVars, calculaDFprecedentes, CATMERCADOFINAL,
                                       COLSPREC)
 from SMACB.PartidoACB import PartidoACB
-from SMACB.SuperManager import SuperManagerACB
 from SMACB.TemporadaACB import calculaVars, calculaZ, TemporadaACB
-from Utils.Misc import FORMATOtimestamp, SubSet
 
 
 def jugadoresMezclaStatus(datos):
@@ -69,8 +69,8 @@ def preparaDatosComunes(datosMezclados):
     resultado = dict()
     datosCabecera = dict()
 
-    titularCabecera = ['Pos', 'Cupo', 'Lesion', 'Nombre', 'Equipo', 'Promedio Val', 'Precio',
-                       'Proximo Rival', 'Precio punto']
+    titularCabecera = ['Pos', 'Cupo', 'Lesion', 'Nombre', 'Equipo', 'Promedio Val', 'Precio', 'Proximo Rival',
+                       'Precio punto']
 
     jugadoresActivos = jugadoresMezclaStatus(datosMezclados)[True]
     # jugadoresInactivos = jugPorStatus[False]
@@ -101,9 +101,9 @@ def preparaDatosComunes(datosMezclados):
         cabecJug.append(costePunto)
         datosCabecera[jug] = cabecJug
 
-    claves = list(map(lambda x: x[0], sorted(list(map(lambda x: (x, jugDataActivos[x]['I-precio']), jugDataActivos)),
-                                             reverse=True,
-                                             key=lambda x: x[1])))
+    claves = list(map(lambda x: x[0],
+                      sorted(list(map(lambda x: (x, jugDataActivos[x]['I-precio']), jugDataActivos)), reverse=True,
+                             key=lambda x: x[1])))
 
     resultado['claves'] = claves
     resultado['cabeceraLinea'] = datosCabecera
@@ -114,7 +114,7 @@ def preparaDatosComunes(datosMezclados):
 
 def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx"):
     dfSuperManager = supermanager.superManager2dataframe(
-            nombresJugadores=temporada.tradJugadores['id2nombres'])  # Needed to get player position from all players
+        nombresJugadores=temporada.tradJugadores['id2nombres'])  # Needed to get player position from all players
     dfTemporada = temporada.extraeDataframeJugadores().merge(dfSuperManager[['codigo', 'pos']], how='left')
     # All data fall playrs
     dfUltMerc = supermanager.mercado[supermanager.ultimoMercado].mercado2dataFrame()
@@ -164,7 +164,7 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx"):
 
     def preparaHojaMercado(excelwriter, supermanager, temporada, listaformatos):
         dfSuperManager = supermanager.superManager2dataframe(
-                nombresJugadores=temporada.tradJugadores['id2nombres'], )  # Needed to get player position from all players
+            nombresJugadores=temporada.tradJugadores['id2nombres'], )  # Needed to get player position from all players
         dfTemporada = temporada.extraeDataframeJugadores().merge(dfSuperManager[['codigo', 'pos']], how='left')
         # All data fall playrs
         dfUltMerc = supermanager.mercado[supermanager.ultimoMercado].mercado2dataFrame()
@@ -184,7 +184,7 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx"):
         else:
             antecColumns = CATMERCADOFINAL + COLSDIFPRECIO + COLSPREC
             df2show = dfUltMerc.merge(dfPrecV, how='left').merge(dfPrecVsm, how='left')[antecColumns].set_index(
-                    'codigo')
+                'codigo')
 
         creaHoja(writer, 'Mercado', df2show, formatos, colsToFreeze=len(CATMERCADOFINAL) - 1)
 
@@ -320,8 +320,8 @@ def infoJugador(datosJugador, numdias=0):
 
     if numdias:
         fecha = [x for x in datosJugador['FechaHora']]
-        partIDX = [i for i in range(len(haJugado)) if haJugado[i] is not None and
-                   mktime(fecha[i]) > time() - (numdias * 24 * 3600)]
+        partIDX = [i for i in range(len(haJugado)) if
+                   haJugado[i] is not None and mktime(fecha[i]) > time() - (numdias * 24 * 3600)]
     else:
         partIDX = [i for i in range(len(haJugado)) if haJugado[i] is not None]
 

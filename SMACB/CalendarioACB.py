@@ -6,10 +6,10 @@ from copy import copy, deepcopy
 from time import gmtime
 
 import pandas as pd
+from CAPcore.Misc import FORMATOtimestamp, listize
 from CAPcore.Web import getObjID, downloadPage, mergeURL, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA
-from Utils.Misc import FORMATOtimestamp, listize
 from .Constants import URL_BASE
 
 logger = logging.getLogger()

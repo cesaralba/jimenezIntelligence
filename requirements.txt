@@ -1,7 +1,7 @@
 # No olvidar actualizar con las de programa las que están en los scripts
 # Librerias para el programa
-git+https://github.com/cesaralba/CAPcore-python@develop
-
+#git+https://github.com/cesaralba/CAPcore-python@develop
+git+https://github.com/cesaralba/CAPcore-python@03_bring_from_ACB
 
 ConfigArgParse==1.7
 
