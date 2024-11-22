@@ -7,13 +7,12 @@ PATRONFECHAHORA = "%d/%m/%Y %H:%M"
 PATRONFECHA = "%d/%m/%Y"
 NEVER = pd.to_datetime("2030-12-31 00:00")
 
-Edad = namedtuple('Edad', ['delta', 'years', 'meses', 'dias', 'doys'])
+Age = namedtuple('Age', ['delta', 'years', 'meses', 'dias', 'doys'])
 
 
-def Time2Str(timeref):
+def time2Str(timeref):
     """
-    Vuelca estructura de fecha con hora (si es distinta de 0:00). Ok, no es genérica pero aún no hay partidos ACB a
-    media noche
+    Returns a str with DATE - TIME if time of day isn't 00:00 (0:00 could be read as TBD)
     :param timeref:
     :return:
     """
@@ -24,34 +23,33 @@ def Time2Str(timeref):
     return result
 
 
-def CumplePrevio(fechanac, fecharef):
-    diffyear = -1 if (fecharef.month, fecharef.day) < (fechanac.month, fechanac.day) else 0  # Es el del año anterior
+def prevBirthday(datebirth, dateref):
+    diffyear = -1 if (dateref.month, dateref.day) < (datebirth.month, datebirth.day) else 0  # It was year before
 
-    fechaCump = f'{fecharef.year + diffyear: 4}-{fechanac.month: 2}-{fechanac.day: 2}'
+    fechaCump = f'{dateref.year + diffyear: 4}-{datebirth.month: 2}-{datebirth.day: 2}'
     result = pd.to_datetime(fechaCump)
 
     return result
 
 
-def CalcEdad(fechanac, fecharef=None):
+def calcAge(datebirth, dateref=None):
     """Calcula la edad. La cuenta de meses días, falla en el caso de bisiestos"""
-    if fecharef is None:
-        fecharef = pd.to_datetime("today")
+    if dateref is None:
+        dateref = pd.to_datetime("today")
 
-    datenac = fechanac.date()
-    dateref = fecharef.date()
-    cumple = CumplePrevio(fechanac=datenac, fecharef=dateref).date()
+    datenac = datebirth.date()
+    dateref = dateref.date()
+    cumple = prevBirthday(datebirth=datenac, dateref=dateref).date()
 
-    auxdiffyear = -1 if (fecharef.month, fecharef.day) < (fechanac.month, fechanac.day) else 0
-    yeardiff = fecharef.year - fechanac.year + auxdiffyear
+    auxdiffyear = -1 if (dateref.month, dateref.day) < (datebirth.month, datebirth.day) else 0
+    yeardiff = dateref.year - datebirth.year + auxdiffyear
 
     auxDate = pd.Timedelta(dateref - datenac)
 
     edadAux = {'delta': (dateref - datenac), 'years': yeardiff, 'meses': int(auxDate // np.timedelta64(1, 'M')) % 12,
-               'dias': int((auxDate % np.timedelta64(1, 'M')).days), 'doys': int((dateref - cumple).days)
-               }
+               'dias': int((auxDate % np.timedelta64(1, 'M')).days), 'doys': int((dateref - cumple).days)}
 
-    return Edad(**edadAux)
+    return Age(**edadAux)
 
 
 def fechaParametro2pddatetime(fecha):
@@ -59,10 +57,15 @@ def fechaParametro2pddatetime(fecha):
     return result
 
 
-def Seg2Tiempo(x):
+def secs2TimeStr(x):
+    """
+    Converts number of seconds to a string MM:SS
+    :param x:
+    :return:
+    """
     mins = x // 60
-    segs = x % 60
+    secs = x % 60
 
-    result = f"{mins:.0f}" ":" f"{segs:02.0f}"
+    result = f"{mins:.0f}" ":" f"{secs:02.0f}"
 
     return result

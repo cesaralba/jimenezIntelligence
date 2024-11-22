@@ -6,10 +6,10 @@ from copy import copy, deepcopy
 from time import gmtime
 
 import pandas as pd
+from CAPcore.Misc import FORMATOtimestamp, listize
+from CAPcore.Web import getObjID, downloadPage, mergeURL, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA
-from Utils.Misc import FORMATOtimestamp, listize
-from Utils.Web import DescargaPagina, getObjID, MergeURL
 from .Constants import URL_BASE
 
 logger = logging.getLogger()
@@ -39,22 +39,21 @@ class CalendarioACB():
         self.Partidos = {}
         self.Jornadas = {}
         self.tradEquipos = {'n2c': defaultdict(set), 'c2n': defaultdict(set), 'n2i': defaultdict(set),
-                            'i2n': defaultdict(set), 'c2i': defaultdict(set), 'i2c': defaultdict(set)
-                            }
+                            'i2n': defaultdict(set), 'c2i': defaultdict(set), 'i2c': defaultdict(set)}
         self.urlbase = urlbase
         self.url = None
 
     def actualizaCalendario(self, home=None, browser=None, config=Namespace()):
-        calendarioPage = self.descargaCalendario(home=home, browser=browser, config=config)
+        calendarioPage: DownloadedPage = self.descargaCalendario(home=home, browser=browser, config=config)
 
         return self.procesaCalendario(calendarioPage, home=self.url, browser=browser, config=config)
 
-    def procesaCalendario(self, content, **kwargs):
+    def procesaCalendario(self, content: DownloadedPage, **kwargs):
         if 'timestamp' in content:
-            self.timestamp = content['timestamp']
+            self.timestamp = content.timestamp
         if 'source' in content:
-            self.url = content['source']
-        calendarioData = content['data']
+            self.url = content.source
+        calendarioData = content.data
 
         for divJ in calendarioData.find_all("div", {"class": "cabecera_jornada"}):
             datosCab = procesaCab(divJ)
@@ -88,11 +87,11 @@ class CalendarioACB():
 
         return result
 
-    def descargaCalendario(self, home=None, browser=None, config=Namespace()):
+    def descargaCalendario(self, home=None, browser=None, config=Namespace()) -> DownloadedPage:
         logger.info("descargaCalendario")
         if self.url is None:
-            pagCalendario = DescargaPagina(self.urlbase, home=home, browser=browser, config=config)
-            pagCalendarioData = pagCalendario['data']
+            pagCalendario = downloadPage(self.urlbase, home=home, browser=browser, config=config)
+            pagCalendarioData = pagCalendario.data
             divTemporadas = pagCalendarioData.find("div", {"class": "desplegable_temporada"})
 
             currYear = divTemporadas.find('div', {"class": "elemento"})['data-t2v-id']
@@ -108,9 +107,9 @@ class CalendarioACB():
                     raise KeyError(f"Temporada solicitada {self.edicion} no está entre las "
                                    f"disponibles ({', '.join(listaTemporadas.keys())})")
 
-                pagYear = DescargaPagina(urlYear, home=None, browser=browser, config=config)
+                pagYear = downloadPage(urlYear, home=None, browser=browser, config=config)
 
-            pagYearData = pagYear['data']
+            pagYearData = pagYear.data
 
             divCompos = pagYearData.find("div", {"class": "desplegable_competicion"})
             listaCompos = {x['data-t2v-id']: x.get_text() for x in divCompos.find_all('div', {"class": "elemento"})}
@@ -129,9 +128,9 @@ class CalendarioACB():
             if compoClaves[self.competicion] == priCompoID:
                 result = pagYear
             else:
-                result = DescargaPagina(self.url, browser=browser, home=None, config=config)
+                result = downloadPage(self.url, browser=browser, home=None, config=config)
         else:
-            result = DescargaPagina(self.url, browser=browser, home=None, config=config)
+            result = downloadPage(self.url, browser=browser, home=None, config=config)
 
         return result
 
@@ -176,7 +175,7 @@ class CalendarioACB():
         for eqUbic, div in zip(ETIQubiq, divPartido.find_all("div", {"class": "logo_equipo"})):
             auxDatos = datosPartEqs.get(eqUbic.capitalize(), {})
             image = div.find("img")
-            imageURL = MergeURL(self.urlbase, image['src'])
+            imageURL = mergeURL(self.urlbase, image['src'])
             imageALT = image['alt']
             auxDatos.update({'icono': imageURL, 'imageTit': imageALT})
             datosPartEqs[eqUbic.capitalize()] = auxDatos
@@ -198,7 +197,7 @@ class CalendarioACB():
         if 'enlace' in datosPartEqs['Local']:
             resultado['pendiente'] = False
             linkGame = datosPartEqs['Local']['enlace']
-            resultado['url'] = MergeURL(self.url, linkGame)
+            resultado['url'] = mergeURL(self.url, linkGame)
             resultado['resultado'] = {k: v['puntos'] for k, v in datosPartEqs.items()}
             resultado['partido'] = getObjID(linkGame)
 
@@ -250,7 +249,7 @@ class CalendarioACB():
     def abrevsEquipo(self, abrEq):
         if abrEq not in self.tradEquipos['c2n']:
             trad2str = " - ".join(
-                    [f"'{k}': {','.join(sorted(self.tradEquipos['c2n'][k]))}" for k in sorted(self.tradEquipos['c2n'])])
+                [f"'{k}': {','.join(sorted(self.tradEquipos['c2n'][k]))}" for k in sorted(self.tradEquipos['c2n'])])
             raise KeyError(f"partidosEquipo: abreviatura pedida '{abrEq}' no existe: {trad2str}")
 
         # Consigue las abreviaturas para el equipo
@@ -266,9 +265,9 @@ def BuscaCalendario(url=URL_BASE, home=None, browser=None, config=None):
     if config is None:
         config = dict()
     link = None
-    indexPage = DescargaPagina(url, home, browser, config)
+    indexPage = downloadPage(url, home, browser, config)
 
-    index = indexPage['data']
+    index = indexPage.data
 
     # print (type(index),index)
 
@@ -284,7 +283,7 @@ def BuscaCalendario(url=URL_BASE, home=None, browser=None, config=None):
         else:
             raise SystemError(f"Too many or none links to Calendario. {callinks}")
 
-    result = MergeURL(url, link['href'])
+    result = mergeURL(url, link['href'])
 
     return result
 
@@ -342,8 +341,7 @@ def procesaFechasJornada(cadFechas):
     resultado = dict()
 
     mes2n = {'ene': 1, 'feb': 2, 'mar': 3, 'abr': 4, 'may': 5, 'jun': 6, 'jul': 7, 'ago': 8, 'sep': 9, 'oct': 10,
-             'nov': 11, 'dic': 12
-             }
+             'nov': 11, 'dic': 12}
 
     patronBloqueFechas = r'^(?P<dias>\d{1,2}(-\d{1,2})*)\s+(?P<mes>\w+)\s+(?P<year>\d{4})$'
 
@@ -429,7 +427,7 @@ def recuperaPartidosEquipo(idEquipo, home=None, browser=None, config=Namespace()
 
     urlDest = template_PARTIDOSEQUIPO.format(idequipo=idEquipo)
 
-    partidosPage = DescargaPagina(dest=urlDest, home=home, browser=browser, config=config)
+    partidosPage = downloadPage(dest=urlDest, home=home, browser=browser, config=config)
 
     if partidosPage is None:
         return None
@@ -438,16 +436,16 @@ def recuperaPartidosEquipo(idEquipo, home=None, browser=None, config=Namespace()
     return dataPartidos
 
 
-def procesaPaginaPartidosEquipo(content):
+def procesaPaginaPartidosEquipo(content: DownloadedPage):
     result = dict()
     result['jornadas'] = dict()
 
     if 'timestamp' in content:
-        result['timestamp'] = content['timestamp']
+        result['timestamp'] = content.timestamp
     if 'source' in content:
-        result['source'] = content['source']
+        result['source'] = content.source
 
-    result['data'] = content['data']
+    result['data'] = content.data
 
     pagData = result['data']
 
