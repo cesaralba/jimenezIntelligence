@@ -1407,11 +1407,12 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
 
     if estadsInexistentes:
         raise ValueError(
-            f"datosAnalisisEstadisticos: los siguientes " "valores no existen: {estadsInexistentes}. "  f"Parametro: "
-            f"{magn2include}. "
-            f"Columnas "
-            f"posibles: "
-            f"{clavesEnEstads}")
+            f"datosAnalisisEstadisticos: los siguientes valores no existen: {estadsInexistentes}. " + f"Parametro: "
+                                                                                                      f"{magn2include}. "
+                                                                                                      f"Columnas "
+                                                                                                      f"posibles: "
+                                                                                                      f"{
+                                                                                                      clavesEnEstads}")
     return result, abrevs2leyenda
 
 
