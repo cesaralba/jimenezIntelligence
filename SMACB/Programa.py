@@ -22,7 +22,7 @@ from SMACB.Constants import (CATESTADSEQ2IGNORE, CATESTADSEQASCENDING, DEFAULTNU
 from SMACB.FichaJugador import TRADPOSICION
 from SMACB.TemporadaACB import (auxEtiqPartido, calculaEstadsYOrdenLiga, equipo2clasif, esEstCreciente,
                                 extraeCampoYorden, TemporadaACB, )
-from Utils.FechaHora import NEVER, Seg2Tiempo, Time2Str
+from Utils.FechaHora import NEVER, secs2TimeStr, time2Str
 from Utils.ReportLab.RLverticalText import VerticalParagraph
 
 # Variables globales
@@ -260,7 +260,7 @@ def auxEtiqTiempo(df, col='Segs'):
     if isnan(t):
         return "-"
 
-    return Seg2Tiempo(t)
+    return secs2TimeStr(t)
 
 
 def auxEtiqTiros(df, tiro, entero=True):
@@ -1049,7 +1049,7 @@ def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
     compo = partido['cod_competicion']
     edicion = partido['cod_edicion']
     j = partido['jornada']
-    fh = Time2Str(partido['fechaPartido'])
+    fh = time2Str(partido['fechaPartido'])
 
     style = ParagraphStyle('cabStyle', align='center', fontName='Helvetica', fontSize=20, leading=22, )
 
@@ -1407,12 +1407,11 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
 
     if estadsInexistentes:
         raise ValueError(
-            f"datosAnalisisEstadisticos: los siguientes valores no existen: {estadsInexistentes}. " + f"Parametro: "
-                                                                                                      f"{
-                                                                                                      magn2include}. "
-                                                                                                      f"Columnas "
-                                                                                                      f"posibles: "
-                                                                                                      f"{clavesEnEstads}")
+            f"datosAnalisisEstadisticos: los siguientes " "valores no existen: {estadsInexistentes}. "  f"Parametro: "
+            f"{magn2include}. "
+            f"Columnas "
+            f"posibles: "
+            f"{clavesEnEstads}")
     return result, abrevs2leyenda
 
 
