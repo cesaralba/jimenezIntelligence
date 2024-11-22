@@ -1,8 +1,8 @@
 import re
-from unicodedata import normalize
 from _collections import defaultdict
+from unicodedata import normalize
 
-from .Misc import cosaCorta, cosaLarga, listize, onlySetElement
+from CAPcore.Misc import cosaCorta, cosaLarga, listize, onlySetElement
 
 NORMADEFECTO = 'NFKD'
 
@@ -57,8 +57,8 @@ class BoWTraductor():
                 return onlySetElement(auxRes)
 
             bowx = CreaBoW(valNorm)
-            resultList = [(vny, vnyVal, CompareBagsOfWords(bowx, vnyVal)) for vny, vnyVal in
-                          self.vn2bow.items() if CompareBagsOfWords(bowx, vnyVal) > 0]
+            resultList = [(vny, vnyVal, CompareBagsOfWords(bowx, vnyVal)) for vny, vnyVal in self.vn2bow.items() if
+                          CompareBagsOfWords(bowx, vnyVal) > 0]
 
             fullMatch = [x for x in resultList if len(bowx) == x[2]]
 

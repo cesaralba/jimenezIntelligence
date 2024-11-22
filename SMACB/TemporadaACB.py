@@ -17,17 +17,16 @@ from typing import Any, Iterable
 
 import numpy as np
 import pandas as pd
+from CAPcore.Web import createBrowser
 
 from SMACB.CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
 from SMACB.Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoClasifBase, infoClasifEquipo,
                              infoEqCalendario, infoPartLV, infoSigPartido, LOCALNAMES, LocalVisitante, OtherLoc,
-                             OtherTeam,
-                             )
+                             OtherTeam, )
 from SMACB.FichaJugador import FichaJugador
 from SMACB.PartidoACB import PartidoACB
 from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Pandas import combinaPDindexes
-from Utils.Web import creaBrowser
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB
 
 logger = logging.getLogger()
@@ -36,8 +35,7 @@ DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 
                    ('Info', 'prorrogas', 'max'): 0, ('Info', 'prorrogas', 'mean'): 0,
                    ('Info', 'prorrogas', 'median'): 0, ('Info', 'prorrogas', 'min'): 0, ('Info', 'prorrogas', 'std'): 0,
                    ('Info', 'prorrogas', 'sum'): 0, ('Rival', 'convocados', 'sum'): 0,
-                   ('Rival', 'utilizados', 'sum'): 0,
-                   }
+                   ('Rival', 'utilizados', 'sum'): 0, }
 
 
 def auxJorFech2periodo(dfTemp):
@@ -111,7 +109,7 @@ class TemporadaACB(object):
         config = Namespace(**config) if isinstance(config, dict) else config
 
         if browser is None:
-            browser = creaBrowser(config)
+            browser = createBrowser(config)
             browser.open(URL_BASE)
 
         self.Calendario.actualizaCalendario(browser=browser, config=config)
@@ -190,7 +188,7 @@ class TemporadaACB(object):
 
     def actualizaFichasPartido(self, nuevoPartido, browser=None, config=Namespace(), refrescaFichas=False):
         if browser is None:
-            browser = creaBrowser(config)
+            browser = createBrowser(config)
             browser.open(URL_BASE)
 
         for codJ, datosJug in nuevoPartido.Jugadores.items():
@@ -216,7 +214,7 @@ class TemporadaACB(object):
     def actualizaPlantillas(self, browser=None, config=Namespace()):
         if self.descargaPlantillas:
             if browser is None:
-                browser = creaBrowser(config)
+                browser = createBrowser(config)
                 browser.open(URL_BASE)
 
             if len(self.plantillas):  # Ya se han descargado por primera vez
@@ -269,7 +267,7 @@ class TemporadaACB(object):
             estadsJugadoresEq = dfDatosPartidos
 
         auxEstadisticosDF = estadsJugadoresEq.drop(columns=COLDROPPER).groupby('codigo').apply(
-                auxCalculaEstadsSubDataframe)
+            auxCalculaEstadsSubDataframe)
 
         # Ajusta la suma de los porcentajes a la media de las sumas
         for k in '123C':
@@ -315,7 +313,7 @@ class TemporadaACB(object):
 
         eqIsLocal = sigPart['loc2abrev']['Local'] in abrevsEq
         juIzda, peIzda, juDcha, peDcha = (juOrdTem, peOrd, juRivTem, peRivOrd) if eqIsLocal else (
-                juRivTem, peRivOrd, juOrdTem, peOrd)
+            juRivTem, peRivOrd, juOrdTem, peOrd)
         resAbrevs = (abrEq, abrRival) if eqIsLocal else (abrRival, abrEq)
 
         result = infoSigPartido(sigPartido=sigPart, abrevLV=resAbrevs, eqIsLocal=eqIsLocal, jugLocal=juIzda,
@@ -382,8 +380,8 @@ class TemporadaACB(object):
 
     def clasifLiga(self, fecha=None) -> list[infoClasifEquipo]:
         result = sorted(
-                [self.clasifEquipo(list(cSet)[0], fecha=fecha) for cSet in self.Calendario.tradEquipos['i2c'].values()],
-                key=lambda x: entradaClas2k(x), reverse=True)
+            [self.clasifEquipo(list(cSet)[0], fecha=fecha) for cSet in self.Calendario.tradEquipos['i2c'].values()],
+            key=lambda x: entradaClas2k(x), reverse=True)
 
         return result
 
@@ -682,7 +680,7 @@ def calculaTempStats(datos, clave, filtroFechas=None):
         datosWrk = datos
 
     agg = datosWrk.set_index('codigo')[clave].astype('float64').groupby('codigo').agg(
-            ['mean', 'std', 'count', 'median', 'min', 'max', 'skew'])
+        ['mean', 'std', 'count', 'median', 'min', 'max', 'skew'])
     agg1 = agg.rename(columns=dict([(x, clave + "-" + x) for x in agg.columns])).reset_index()
     return agg1
 
@@ -693,8 +691,7 @@ def calculaZ(datos, clave, useStd=True, filtroFechas=None):
     finalKeys = ['codigo', 'competicion', 'temporada', 'jornada', 'CODequipo', 'CODrival', 'esLocal', 'haJugado',
                  'fechaPartido', 'periodo', clave]
     finalTypes = {'CODrival': 'category', 'esLocal': 'bool', 'CODequipo': 'category', ('half-' + clave): 'bool',
-                  ('aboveAvg-' + clave): 'bool', (clZ + '-' + clave): 'float64'
-                  }
+                  ('aboveAvg-' + clave): 'bool', (clZ + '-' + clave): 'float64'}
     # We already merged SuperManager?
     if 'pos' in datos.columns:
         finalKeys.append('pos')
@@ -724,8 +721,7 @@ def calculaVars(temporada, clave, useStd=True, filtroFechas=None):
         combs['RPL'] = ['CODrival', 'esLocal', 'pos']
 
     colAdpt = {('half-' + clave + '-mean'): (clave + '-mejorMitad'),
-               ('aboveAvg-' + clave + '-mean'): (clave + '-sobreMedia')
-               }
+               ('aboveAvg-' + clave + '-mean'): (clave + '-sobreMedia')}
     datos = calculaZ(temporada, clave, useStd=useStd, filtroFechas=filtroFechas)
     result = dict()
 
@@ -824,7 +820,7 @@ def auxCalculaEstadsSubDataframe(dfEntrada: pd.DataFrame):
     estadisticosNumber = dfEntrada.describe(include=[np.number], percentiles=[.50])
     # Necesario porque describe trata los bool como categóricos
     estadisticosBool = dfEntrada.select_dtypes([np.bool_]).astype(np.int64).apply(
-            lambda c: c.describe(percentiles=[.50]))
+        lambda c: c.describe(percentiles=[.50]))
 
     auxEstadisticos = pd.concat([estadisticosNumber, estadisticosBool], axis=1).T[FILASESTADISTICOS].T
 
