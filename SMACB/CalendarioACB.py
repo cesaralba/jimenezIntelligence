@@ -10,7 +10,7 @@ from CAPcore.Misc import FORMATOtimestamp, listize, onlySetElement
 from CAPcore.Web import getObjID, downloadPage, mergeURL, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA
-from .Constants import URL_BASE,PLAYOFFFASE
+from .Constants import URL_BASE, PLAYOFFFASE
 
 logger = logging.getLogger()
 
@@ -81,7 +81,7 @@ class CalendarioACB():
             if 'numPartidos' not in jData:
                 jData['numPartidos'] = len(jData['partidos']) + len(jData['pendientes'])
 
-            if len(jData.get('idEmparej',{})) == 0:
+            if len(jData.get('idEmparej', {})) == 0:
                 for game in jData['partidos'] + jData['pendientes']:
                     if 'claveEmparejamiento' not in game:
                         game['claveEmparejamiento'] = self.idGrupoEquiposNorm(game['participantes'])
@@ -92,15 +92,15 @@ class CalendarioACB():
             if not jData['esPlayoff']:
                 continue
 
-            idsCur:set = jData['idEmparej']
-            curBlockStarts=jNum
-            for jAux in range(jNum-1,0,-1):
+            idsCur: set = jData['idEmparej']
+            curBlockStarts = jNum
+            for jAux in range(jNum - 1, 0, -1):
                 if not self.Jornadas[jAux]['esPlayoff']:
                     break
-                id2compare:set = self.Jornadas[jAux]['idEmparej']
+                id2compare: set = self.Jornadas[jAux]['idEmparej']
                 if not idsCur.intersection(id2compare):
                     break
-                curBlockStarts=jAux
+                curBlockStarts = jAux
             primJBloque = self.Jornadas[curBlockStarts]
             numGBloque = primJBloque['numPartidos']
             jData['fasePlayoff'] = PLAYOFFFASE[numGBloque]

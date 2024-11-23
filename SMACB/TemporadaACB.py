@@ -114,7 +114,7 @@ class TemporadaACB(object):
             browser.open(URL_BASE)
 
         self.Calendario.actualizaCalendario(browser=browser, config=config)
-        self.Calendario.actualizaDatosPlayoffJornada() #No deberia para partidos modernos pero no pide pan
+        self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
 
         partidosBajados = set()
 
@@ -184,7 +184,8 @@ class TemporadaACB(object):
         retry = False
         try:
             aux = load(open(filename, "rb"))
-        except ModuleNotFoundError as err:
+        except ModuleNotFoundError:
+            # Para compatibilidad hacia atras (ficheros grabados antes de CAPcore)
             sys.modules['Utils.LoggedDict'] = sys.modules['CAPcore.LoggedDict']
             sys.modules['Utils.LoggedValue'] = sys.modules['CAPcore.LoggedValue']
             retry = True
@@ -196,6 +197,8 @@ class TemporadaACB(object):
             if atributo in {'changed'}:
                 continue
             self.__setattr__(atributo, aux.__getattribute__(atributo))
+
+        self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
 
     def actualizaFichasPartido(self, nuevoPartido, browser=None, config=Namespace(), refrescaFichas=False):
         if browser is None:

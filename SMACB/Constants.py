@@ -16,8 +16,8 @@ EqRival = ('Eq', 'Rival')
 LOCALNAMES = {'Local', 'L', 'local'}
 VISITNAMES = {'Visitante', 'V', 'visitante'}
 
-PLAYOFFFASE = {1:'Final',2:'Semis',4:'Cuartos',8:'Octavos'}
-PLAYOFFABREV = {'Final':'F','Semis':'S','Cuartos':'C','Octavos':'O'}
+PLAYOFFFASE = {1: 'Final', 2: 'Semis', 4: 'Cuartos', 8: 'Octavos'}
+PLAYOFFABREV = {'Final': 'F', 'Semis': 'S', 'Cuartos': 'C', 'Octavos': 'O'}
 
 DESCENSOS = 2
 MARCADORESCLASIF = [2, 4, 8, -DESCENSOS]
