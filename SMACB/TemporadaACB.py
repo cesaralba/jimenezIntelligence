@@ -336,7 +336,7 @@ class TemporadaACB(object):
 
     def clasifEquipo(self, abrEq: str, fecha=None) -> infoClasifEquipo:
         """
-        Extrae los datos necesarios para calcular la clasificación de un equipo hasta determinada fecha
+        Extrae los datos necesarios para calcular la clasificación (solo liga regular) de un equipo hasta determinada fecha
         :param abrEq: Abreviatura del equipo en cuestión, puede ser cualquiera de las que haya tenido
         :param fecha: usar solo los partidos ANTERIORES a la fecha
         :return: diccionario con los datos calculados
@@ -398,9 +398,11 @@ class TemporadaACB(object):
         return result
 
     def clasifLiga(self, fecha=None) -> list[infoClasifEquipo]:
+
+
         result = sorted(
             [self.clasifEquipo(list(cSet)[0], fecha=fecha) for cSet in self.Calendario.tradEquipos['i2c'].values()],
-            key=lambda x: entradaClas2k(x), reverse=True)
+            key=lambda x: entradaClas2kBasic(x), reverse=True)
 
         return result
 
@@ -761,7 +763,7 @@ def calculaVars(temporada, clave, useStd=True, filtroFechas=None):
     return result
 
 
-def entradaClas2k(ent: infoClasifEquipo) -> tuple:
+def entradaClas2kBasic(ent: infoClasifEquipo) -> tuple:
     """
     Dado un resultado de Temporada.getClasifEquipo)
 
