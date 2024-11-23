@@ -350,7 +350,12 @@ class TemporadaACB(object):
         auxResult['auxCasaFuera'] = {'Local': defaultdict(int), 'Visitante': defaultdict(int)}
         auxResult['CasaFuera'] = dict()
 
-        partidosAcontar = [p for p in juCal if self.Partidos[p['url']].fechaPartido < fecha] if fecha else juCal
+        if fecha:
+            partidosAcontar = [p for p in juCal if (self.Partidos[p['url']].fechaPartido < fecha) and not (
+                self.Calendario.esJornadaPlayOff(self.Partidos[p['url']].jornada))]
+        else:
+            partidosAcontar = [p for p in juCal if
+                               not (self.Calendario.esJornadaPlayOff(self.Partidos[p['url']].jornada))]
 
         for datosCal in partidosAcontar:
             auxResult['Jjug'].add(int(datosCal['jornada']))
