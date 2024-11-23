@@ -5,6 +5,7 @@ Created on Jan 4, 2018
 """
 
 import logging
+import sys
 from _operator import itemgetter
 from argparse import Namespace
 from collections import defaultdict
@@ -179,7 +180,16 @@ class TemporadaACB(object):
 
     def cargaTemporada(self, filename):
         # TODO: Protect this
-        aux = load(open(filename, "rb"))
+        retry = False
+        try:
+            aux = load(open(filename, "rb"))
+        except ModuleNotFoundError as err:
+            sys.modules['Utils.LoggedDict'] = sys.modules['CAPcore.LoggedDict']
+            sys.modules['Utils.LoggedValue'] = sys.modules['CAPcore.LoggedValue']
+            retry = True
+        if retry:
+            print(f"SMACB.TemporadaACB.TemporadaACB.cargaTemporada: retrying load of '{filename}'")
+            aux = load(open(filename, "rb"))
 
         for atributo in aux.__dict__.keys():
             if atributo in {'changed'}:
