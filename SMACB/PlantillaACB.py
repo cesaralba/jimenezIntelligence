@@ -4,9 +4,9 @@ from collections import defaultdict
 from time import gmtime
 
 import bs4
+from CAPcore.LoggedDict import DictOfLoggedDict, LoggedDict
+from CAPcore.Web import createBrowser, downloadPage, getObjID, mergeURL, DownloadedPage
 
-from Utils.LoggedDict import DictOfLoggedDict, LoggedDict
-from Utils.Web import creaBrowser, DescargaPagina, getObjID, MergeURL
 from .Constants import URL_BASE
 
 logger = logging.getLogger()
@@ -35,7 +35,7 @@ class PlantillaACB():
         :return:
         """
         if browser is None:
-            browser = creaBrowser(config)
+            browser = createBrowser(config)
 
         data = descargaURLplantilla(self.URL, home, browser, config, otrosNombres=extraTrads)
 
@@ -73,10 +73,10 @@ class PlantillaACB():
 
 def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=Namespace(), otrosNombres=None):
     if browser is None:
-        browser = creaBrowser(config)
+        browser = createBrowser(config)
     try:
         logging.debug("descargaURLplantilla: downloading %s", urlPlantilla)
-        pagPlant = DescargaPagina(urlPlantilla, home=home, browser=browser, config=config)
+        pagPlant = downloadPage(urlPlantilla, home=home, browser=browser, config=config)
 
         result = procesaPlantillaDescargada(pagPlant, otrosNombres=otrosNombres)
         result['URL'] = browser.get_url()
@@ -97,7 +97,7 @@ def actualizaConBajas(result: dict, datosBajas: dict) -> dict:
     return result
 
 
-def procesaPlantillaDescargada(plantDesc, otrosNombres: dict = None):
+def procesaPlantillaDescargada(plantDesc: DownloadedPage, otrosNombres: dict = None):
     """
     Procesa el contenido de una página de plantilla
 
@@ -109,7 +109,7 @@ def procesaPlantillaDescargada(plantDesc, otrosNombres: dict = None):
 
     result = {'jugadores': dict(), 'tecnicos': dict(), 'club': extraeDatosClub(plantDesc)}
 
-    fichaData = plantDesc['data']
+    fichaData = plantDesc.data
 
     cosasUtiles = fichaData.find(name='section', attrs={'class': 'contenido_central_equipo'})
 
@@ -142,7 +142,7 @@ def procesaPlantillaDescargada(plantDesc, otrosNombres: dict = None):
 
             data['dorsal'] = jugArt.find("div", {"class": "dorsal"}).get_text().strip()
 
-            data['URL'] = MergeURL(URL_BASE, link)
+            data['URL'] = mergeURL(URL_BASE, link)
             data['URLimg'] = jugArt.find("img").attrs['src']
 
             result[destClass][data['id']] = data
@@ -166,7 +166,7 @@ def procesaTablaBajas(tablaBajas: bs4.element, traduccionesConocidas: dict) -> d
         data = dict()
 
         link = tds[1].find("a").attrs['href']
-        data['URL'] = MergeURL(URL_BASE, link)
+        data['URL'] = mergeURL(URL_BASE, link)
         data['id'] = getObjID(link, 'ver')
         data['activo'] = False
 
@@ -183,10 +183,10 @@ def procesaTablaBajas(tablaBajas: bs4.element, traduccionesConocidas: dict) -> d
     return result
 
 
-def extraeDatosClub(plantDesc):
+def extraeDatosClub(plantDesc: DownloadedPage):
     result = dict()
 
-    fichaData = plantDesc['data']
+    fichaData = plantDesc.data
 
     cosasUtiles = fichaData.find(name='div', attrs={'class': 'datos'})
     result['nombreActual'] = cosasUtiles.find('h1').get_text().strip()
@@ -195,13 +195,13 @@ def extraeDatosClub(plantDesc):
     return result
 
 
-def encuentraUltEdicion(plantDesc):
+def encuentraUltEdicion(plantDesc: DownloadedPage):
     """
     Obtiene la última edición de la temporada del contenido de la página (lo extrae del selector de temporadas)
     :param plantDesc:
     :return:
     """
-    fichaData = plantDesc['data']
+    fichaData = plantDesc.data
 
     result = fichaData.find("input", {"name": "select_temporada_id"}).attrs['value']
 
@@ -223,21 +223,21 @@ def descargaPlantillasCabecera(browser=None, config=Namespace(), edicion=None, l
 
     result = dict()
     if browser is None:
-        browser = creaBrowser(config)
+        browser = createBrowser(config)
 
     urlClubes = generaURLClubes(edicion)
-    paginaRaiz = DescargaPagina(dest=urlClubes, browser=browser, config=config)
+    paginaRaiz = downloadPage(dest=urlClubes, browser=browser, config=config)
 
     if paginaRaiz is None:
         raise ConnectionError(f"Incapaz de descargar {URL_BASE}")
 
-    raizData = paginaRaiz['data']
+    raizData = paginaRaiz.data
     divLogos = raizData.find('section', {'class': 'contenedora_clubes'})
 
     for artLink in divLogos.find_all('article'):
         eqLink = artLink.find('div').find('a')
         urlLink = eqLink['href']
-        urlFull = MergeURL(browser.get_url(), urlLink)
+        urlFull = mergeURL(browser.get_url(), urlLink)
 
         idEq = getObjID(objURL=urlFull, clave='id')
 
@@ -257,7 +257,7 @@ def generaURLPlantilla(plantilla):
 
     urlSTR = "/".join(params)
 
-    result = MergeURL(URL_BASE, urlSTR)
+    result = mergeURL(URL_BASE, urlSTR)
 
     return result
 
@@ -270,6 +270,6 @@ def generaURLClubes(edicion=None):
 
     urlSTR = "/".join(params)
 
-    result = MergeURL(URL_BASE, urlSTR)
+    result = mergeURL(URL_BASE, urlSTR)
 
     return result

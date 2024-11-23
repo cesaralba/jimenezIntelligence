@@ -4,12 +4,12 @@
 import logging
 import sys
 
+from CAPcore.Logging import prepareLogger
+from CAPcore.Web import createBrowser, extractGetParams
 from configargparse import ArgumentParser
 
 from SMACB.CalendarioACB import calendario_URLBASE
 from SMACB.TemporadaACB import TemporadaACB
-from Utils.Logging import prepareLogger
-from Utils.Web import ExtraeGetParams, creaBrowser
 
 parser = ArgumentParser()
 parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, help='', default=0)
@@ -21,8 +21,7 @@ parser.add('-f', dest='saveanyway', action="store_true", env_var='SM_SAVEANYWAY'
 
 parser.add('-e', dest='edicion', action="store", env_var='SM_EDICION', required=False,
            help=('Año de la temporada (para 2015-2016 sería 2016). La ACB empieza en 1983. '
-                 'La copa se referencia por el año menor '),
-           default=None)
+                 'La copa se referencia por el año menor '), default=None)
 parser.add('-c', dest='competicion', action="store", env_var='SM_COMPETICION', required=False,
            choices=['LACB', 'COPA', 'SCOPA'], help='Clave de la competición: Liga=LACB, Copa=COPA, Supercopa=SCOPA',
            default="LACB")
@@ -37,7 +36,7 @@ parser.add('-o', dest='outfile', type=str, env_var='SM_OUTFILE', help='Fichero d
 
 args = parser.parse_args()
 
-browser = creaBrowser(config=args)
+browser = createBrowser(config=args)
 
 logger = logging.getLogger()
 if args.debug:
@@ -56,7 +55,7 @@ if args.edicion is not None:
     parEdicion = args.edicion
     parCompeticion = args.competicion
 else:
-    paramsURL = ExtraeGetParams(sourceURL)
+    paramsURL = extractGetParams(sourceURL)
     parCompeticion = paramsURL['cod_competicion']
     parEdicion = paramsURL['cod_edicion']
 
