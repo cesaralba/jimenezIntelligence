@@ -6,11 +6,11 @@ from copy import copy, deepcopy
 from time import gmtime
 
 import pandas as pd
-from CAPcore.Misc import FORMATOtimestamp, listize
+from CAPcore.Misc import FORMATOtimestamp, listize, onlySetElement
 from CAPcore.Web import getObjID, downloadPage, mergeURL, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA
-from .Constants import URL_BASE
+from .Constants import URL_BASE,PLAYOFFFASE
 
 logger = logging.getLogger()
 
@@ -46,7 +46,7 @@ class CalendarioACB():
     def actualizaCalendario(self, home=None, browser=None, config=Namespace()):
         calendarioPage: DownloadedPage = self.descargaCalendario(home=home, browser=browser, config=config)
 
-        return self.procesaCalendario(calendarioPage, home=self.url, browser=browser, config=config)
+        self.procesaCalendario(calendarioPage, home=self.url, browser=browser, config=config)
 
     def procesaCalendario(self, content: DownloadedPage, **kwargs):
         if 'timestamp' in content:
@@ -58,16 +58,53 @@ class CalendarioACB():
         for divJ in calendarioData.find_all("div", {"class": "cabecera_jornada"}):
             datosCab = procesaCab(divJ)
 
-            currJornada = int(datosCab['jornada'])
+            currJornada: int = int(datosCab['jornada'])
 
             divPartidos = divJ.find_next_sibling("div", {"class": "listado_partidos"})
 
             self.Jornadas[currJornada] = self.procesaBloqueJornada(divPartidos, datosCab, **kwargs)
 
-            self.Jornadas[currJornada]['esPlayoff'] = (len(self.Jornadas[currJornada]['partidos']) + len(
-                self.Jornadas[currJornada]['pendientes'])) != (len(self.tradEquipos['c2n']) // 2)
+        self.actualizaDatosPlayoffJornada()
 
-        return content
+    def esJornadaPlayOff(self, currJ: int):
+        return (len(self.Jornadas[currJ]['partidos']) + len(self.Jornadas[currJ]['pendientes'])) != (
+                len(self.tradEquipos['c2n']) // 2)
+
+    def actualizaDatosPlayoffJornada(self):
+        # Calcula datos seguros a partir de los partidos/jornadas
+        for jNum, jData in self.Jornadas.items():
+            if jData['esPlayoff'] is None:
+                jData['esPlayoff'] = self.esJornadaPlayOff(jNum)
+
+            if 'idEmparej' not in jData:
+                jData['idEmparej'] = set()
+            if 'numPartidos' not in jData:
+                jData['numPartidos'] = len(jData['partidos']) + len(jData['pendientes'])
+
+            if len(jData.get('idEmparej',{})) == 0:
+                for game in jData['partidos'] + jData['pendientes']:
+                    if 'claveEmparejamiento' not in game:
+                        game['claveEmparejamiento'] = self.idGrupoEquiposNorm(game['participantes'])
+                        jData['equipos'].update(game['participantes'])
+                        jData['idEmparej'].add(game['claveEmparejamiento'])
+
+        for jNum, jData in self.Jornadas.items():
+            if not jData['esPlayoff']:
+                continue
+
+            idsCur:set = jData['idEmparej']
+            curBlockStarts=jNum
+            for jAux in range(jNum-1,0,-1):
+                if not self.Jornadas[jAux]['esPlayoff']:
+                    break
+                id2compare:set = self.Jornadas[jAux]['idEmparej']
+                if not idsCur.intersection(id2compare):
+                    break
+                curBlockStarts=jAux
+            primJBloque = self.Jornadas[curBlockStarts]
+            numGBloque = primJBloque['numPartidos']
+            jData['fasePlayoff'] = PLAYOFFFASE[numGBloque]
+            jData['partFasePlayoff'] = jNum - curBlockStarts + 1
 
     def nuevaTraduccionEquipo2Codigo(self, nombres, abrev, idEq=None):
         result = False
@@ -146,11 +183,14 @@ class CalendarioACB():
         result['pendientes'] = []
         # TODO: el campo equipos no se llena
         result['equipos'] = set()
-        result['esPlayoff'] = None
+        result['idEmparej'] = set()
 
         # print(divPartidos)
         for artP in divDatos.find_all("article", {"class": "partido"}):
             datosPart = self.procesaBloquePartido(dictCab, artP)
+
+            result['equipos'].update(datosPart['participantes'])
+            result['idEmparej'].add(datosPart['claveEmparejamiento'])
 
             if datosPart['pendiente']:
                 if datosPart['fechaPartido'] == NEVER:
@@ -161,7 +201,8 @@ class CalendarioACB():
             else:
                 self.Partidos[datosPart['url']] = datosPart
                 result['partidos'].append(datosPart)
-
+        result['esPlayoff'] = self.esJornadaPlayOff(result['jornada'])
+        result['numPartidos'] = len(result['partidos']) + len(result['pendientes'])
         return result
 
     def procesaBloquePartido(self, datosJornada, divPartido):
@@ -197,6 +238,7 @@ class CalendarioACB():
         resultado['loc2abrev'] = {k: v['abrev'] for k, v in datosPartEqs.items()}
         resultado['abrev2loc'] = {v['abrev']: k for k, v in datosPartEqs.items()}
         resultado['participantes'] = {v['abrev'] for v in datosPartEqs.values()}
+        resultado['claveEmparejamiento'] = self.idGrupoEquiposNorm(resultado['participantes'])
 
         if 'enlace' in datosPartEqs['Local']:
             resultado['pendiente'] = False
@@ -263,6 +305,10 @@ class CalendarioACB():
             targAbrevs.update(self.tradEquipos['i2c'][i])
 
         return targAbrevs
+
+    def idGrupoEquiposNorm(self, conjAbrevs):
+        result = ",".join(map(str, sorted([onlySetElement(self.tradEquipos['c2i'][e]) for e in conjAbrevs])))
+        return result
 
 
 def BuscaCalendario(url=URL_BASE, home=None, browser=None, config=None):
