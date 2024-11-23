@@ -114,6 +114,7 @@ class TemporadaACB(object):
             browser.open(URL_BASE)
 
         self.Calendario.actualizaCalendario(browser=browser, config=config)
+        self.Calendario.actualizaDatosPlayoffJornada() #No deberia para partidos modernos pero no pide pan
 
         partidosBajados = set()
 
