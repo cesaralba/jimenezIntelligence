@@ -20,15 +20,17 @@ import numpy as np
 import pandas as pd
 from CAPcore.Web import createBrowser
 
-from SMACB.CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
-from SMACB.Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoClasifBase, infoClasifEquipo,
+from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
+from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoClasifBase, infoClasifEquipo,
                              infoEqCalendario, infoPartLV, infoSigPartido, LOCALNAMES, LocalVisitante, OtherLoc,
                              OtherTeam, )
-from SMACB.FichaJugador import FichaJugador
-from SMACB.PartidoACB import PartidoACB
+from .FichaJugador import FichaJugador
+from .PartidoACB import PartidoACB
 from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Pandas import combinaPDindexes
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB
+from typing import Optional
+from itertools import chain
 
 logger = logging.getLogger()
 
@@ -421,39 +423,77 @@ class TemporadaACB(object):
 
         return auxDF
 
-    def dataFramePartidosLV(self, listaAbrevEquipos: Iterable[str] = None, fecha=None):
+    def dataFramePartidosLV(self, listaAbrevEquipos: Iterable[str] = None, fecha:Optional[Any]=None, playOffStatus:Optional[bool]=None):
         """
         Genera un dataframe LV con los partidos de uno o más equipos hasta determinada fecha
         :param listaAbrevEquipos: si None, son todos los partidos
         :param fecha: si None son todos los partidos (límite duro < )
         :return:
         """
+        if listaAbrevEquipos is None:
+            lista_urls = self.extractGameList(fecha=fecha,abrevEquipos=None,playOffStatus=playOffStatus)
+        else:
+            lista_urls = set(chain(*[self.extractGameList(fecha=fecha, listaAbrevEquipos={eq}, playOffStatus=playOffStatus) for eq in listaAbrevEquipos]))
 
-        partidosAprocesar_url = list()
+        partidos_DFlist = [self.Partidos[pURL].partidoAdataframe() for pURL in lista_urls]
+        result = pd.concat(partidos_DFlist)
+        return result
+
+    def extractGameList(self, fecha=None, abrevEquipos:Optional[Iterable[str]]=None, playOffStatus:Optional[bool]=None) -> set[str]:
+        """
+        Obtiene  una lista de URLs de partidos que cumplen ciertas características
+        :param fecha: anteriores (hard limit)  a una fecha
+        :param abrevEquipos: abreviatura del equipo. Comportamiento del filtro
+                None: de todos los equipos
+                1 equipo: solo partidos del equipo
+                >1 equipo: partidos de los equipos de la lista ENTRE ELLOS
+        :param playOffStatus: filtra si el partido es de LR o PO
+                None: todos los partidos
+                True: solo partidos de Playoff
+                False: solo partidos de LR
+        :return: set de URLs de los partidos que cumplen las características (la URL es clave  de TemporadaACB.Partidos
+        """
+
+        result_url:set[str] = set(self.Partidos.keys())
+
+        if fecha is None and abrevEquipos is None and playOffStatus is None: # No filter
+            return result_url
+
         # Genera la lista de partidos a incluir
-        if listaAbrevEquipos:
+        if abrevEquipos is not None:
+            print("Not None")
             # Recupera la lista de abreviaturas que de los equipos que puede cambiar (la abrev del equipo)
             # a lo largo de la temporada
-            colAbrevList = [self.Calendario.abrevsEquipo(ab) for ab in listaAbrevEquipos]
+            colAbrevList = [self.Calendario.abrevsEquipo(ab) for ab in abrevEquipos]
             colAbrevSet = set()
             for abrSet in colAbrevList:
                 colAbrevSet.update(abrSet)
 
+            result_url:set[str] = set()
             # Crea la lista de partidos de aquellos en los que están las abreviaturas
             for pURL, pData in self.Partidos.items():
-                if colAbrevSet.intersection(pData.CodigosCalendario.values()):
-                    partidosAprocesar_url.append(pURL)
-        else:
-            partidosAprocesar_url = self.Partidos.keys()
+                if len(abrevEquipos)==1:
+                    if colAbrevSet.intersection(pData.DatosSuministrados['participantes']):
+                        result_url.add(pURL)
+                else:
+                    if len(colAbrevSet.intersection(pData.DatosSuministrados['participantes'])) == 2:
+                        result_url.add(pURL)
 
+        result_fecha:set[str]=result_url
         if fecha:
             fecha_formatted = fechaParametro2pddatetime(fecha)
-            partidos_DFlist = [self.Partidos[pURL].partidoAdataframe() for pURL in partidosAprocesar_url if
-                               self.Partidos[pURL].fechaPartido < fecha_formatted]
-        else:
-            partidos_DFlist = [self.Partidos[pURL].partidoAdataframe() for pURL in partidosAprocesar_url]
+            result_fecha:set[str] = {pURL for pURL in result_url if self.Partidos[pURL].fechaPartido < fecha_formatted}
 
-        result = pd.concat(partidos_DFlist)
+        result_playOff:set[str] = result_fecha
+        if playOffStatus is not None:
+            result_playOff:set[str] = set()
+            for pURL in result_fecha:
+                pData:PartidoACB = self.Partidos[pURL]
+                jorPartido= int(pData.jornada)
+                if self.Calendario.Jornadas[jorPartido]['esPlayoff'] == playOffStatus:
+                    result_playOff.add(pURL)
+        result:set[str] = result_playOff
+
         return result
 
     def dfPartidosLV2ER(self, partidos: pd.DataFrame, abrEq: str = None):
