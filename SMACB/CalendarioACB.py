@@ -29,7 +29,7 @@ UMBRALbusquedaDistancia = 1  # La comparación debe ser >
 CALENDARIOEQUIPOS = dict()
 
 
-class CalendarioACB():
+class CalendarioACB:
 
     def __init__(self, urlbase=calendario_URLBASE, **kwargs):
         self.timestamp = gmtime()
@@ -200,7 +200,7 @@ class CalendarioACB():
             else:
                 self.Partidos[datosPart['url']] = datosPart
                 result['partidos'].append(datosPart)
-        result['esPlayoff'] = self.esJornadaPlayOff(result['jornada'])
+        result['esPlayoff'] = None
         result['numPartidos'] = len(result['partidos']) + len(result['pendientes'])
         return result
 
@@ -313,12 +313,9 @@ class CalendarioACB():
 def BuscaCalendario(url=URL_BASE, home=None, browser=None, config=None):
     if config is None:
         config = dict()
-    link = None
     indexPage = downloadPage(url, home, browser, config)
 
     index = indexPage.data
-
-    # print (type(index),index)
 
     callinks = index.find_all("a", text="Calendario")
 
