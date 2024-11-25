@@ -1,10 +1,10 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+from CAPcore.Misc import listize
 from matplotlib.dates import DateFormatter
 
 from SMACB.Constants import OtherTeam
 from SMACB.TemporadaACB import TemporadaACB
-from Utils.Misc import listize
 from .preparaDatos import calculaEstadisticosPartidos, teamMatch
 
 REQCABS = [('Eq', 'abrev'), ('Rival', 'abrev')]

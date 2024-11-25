@@ -1,6 +1,7 @@
 from collections import namedtuple
+from decimal import Decimal
 
-from Utils.Misc import BadParameters
+from CAPcore.Misc import BadParameters
 
 URL_BASE = "http://www.acb.com"
 
@@ -15,6 +16,9 @@ EqRival = ('Eq', 'Rival')
 
 LOCALNAMES = {'Local', 'L', 'local'}
 VISITNAMES = {'Visitante', 'V', 'visitante'}
+
+PLAYOFFFASE = {1: 'Final', 2: 'Semis', 4: 'Cuartos', 8: 'Octavos'}
+PLAYOFFABREV = {'Final': 'F', 'Semis': 'S', 'Cuartos': 'C', 'Octavos': 'O'}
 
 DESCENSOS = 2
 MARCADORESCLASIF = [2, 4, 8, -DESCENSOS]
@@ -36,22 +40,18 @@ REPORTLEYENDAS = {'+/-': {'etiq': '+/-', 'leyenda': 'Cambio en la anotación con
                   'A': {'etiq': 'A', 'leyenda': 'Asistencias'},
                   'A/BP': {'etiq': 'Asist / Perd', 'leyenda': 'Asistencias dadas por balón perdido'},
                   'A/TC-C': {'etiq': '% Can de As', 'leyenda': ' % Canastas procedente de asistencia',
-                             'formato': DEFAULTPERCFORMAT
-                             }, 'BP': {'etiq': 'BP', 'leyenda': 'Balones perdidos'},
+                             'formato': DEFAULTPERCFORMAT}, 'BP': {'etiq': 'BP', 'leyenda': 'Balones perdidos'},
                   'BR': {'etiq': 'BR', 'leyenda': 'Balones robados'}, 'C': {'etiq': 'C', 'leyenda': 'Contraataques'},
                   'convocados': {'etiq': 'Conv', 'leyenda': 'Jugadores en la convocatoria'},
-                  'eff-t1': {'etiq': '% Puntos TL', 'leyenda': '% Puntos de tiro libre', 'formato': DEFAULTPERCFORMAT
-                             },
-                  'eff-t2': {'etiq': '% Puntos 2', 'leyenda': '% Puntos de canasta de 2', 'formato': DEFAULTPERCFORMAT
-                             },
+                  'eff-t1': {'etiq': '% Puntos TL', 'leyenda': '% Puntos de tiro libre', 'formato': DEFAULTPERCFORMAT},
+                  'eff-t2': {'etiq': '% Puntos 2', 'leyenda': '% Puntos de canasta de 2', 'formato': DEFAULTPERCFORMAT},
                   'eff-t3': {'etiq': '% Puntos 3', 'leyenda': '% Puntos de canasta de 3', 'formato': DEFAULTPERCFORMAT},
                   'EffRebD': {'etiq': 'Ef reb Def',
                               'leyenda': 'Eficiencia rebote defensivo (% Rebotes defensivos de los posibles)',
-                              'formato': DEFAULTPERCFORMAT
-                              },
+                              'formato': DEFAULTPERCFORMAT},
                   'EffRebO': {'etiq': 'Ef reb Of', 'leyenda': 'Eficiencia rebote ofensivo (% Rebotes ofensivos de los '
-                                                              'posibles)', 'formato': DEFAULTPERCFORMAT
-                              }, 'FP-C': {'etiq': 'FRec', 'leyenda': 'Faltas recibidas'},
+                                                              'posibles)', 'formato': DEFAULTPERCFORMAT},
+                  'FP-C': {'etiq': 'FRec', 'leyenda': 'Faltas recibidas'},
                   'FP-F': {'etiq': 'FCom', 'leyenda': 'Faltas cometias'},
                   'haGanado': {'etiq': 'Victorias', 'leyenda': 'Ratio de victorias'},
                   'local': {'etiq': 'Part en casa', 'leyenda': 'Ratio de partidos en casa'},
@@ -60,22 +60,22 @@ REPORTLEYENDAS = {'+/-': {'etiq': '+/-', 'leyenda': 'Cambio en la anotación con
                   'DER': {'etiq': 'Rating Def', 'leyenda': 'Rating defensivo (Puntos recibidos por posesión)'},
                   'OERpot': {'etiq': 'OERpot',
                              'leyenda': 'Rating ofensivo potencial (Puntos anotados por posesión si no hubiese '
-                                        'pérdidas)'
-                             }, 'DERpot': {'etiq': 'DERpot',
-                                           'leyenda': 'Rating defensivo potencial (Puntos recibidos por posesión si '
-                                                      'no hubiese pérdidas)'
-                                           }, 'P': {'etiq': 'P', 'leyenda': 'Puntos anotados'},
+                                        'pérdidas)'},
+                  'DERpot': {'etiq': 'DERpot', 'leyenda': 'Rating defensivo potencial (Puntos '
+                                                          'recibidos por posesión si '
+                                                          'no hubiese pérdidas)'},
+                  'P': {'etiq': 'P', 'leyenda': 'Puntos anotados'},
                   'Prec': {'etiq': 'P rec', 'leyenda': 'Puntos recibidos'},
                   'PNR': {'etiq': 'BP Prop', 'leyenda': 'Perdidas no robadas ('
                                                         'balones a la grada, '
                                                         'pasos, comerse la '
-                                                        'posesión...)'
-                          }, 'POS': {'etiq': 'Pos', 'leyenda': 'Posesiones'},
+                                                        'posesión...)'},
+                  'POS': {'etiq': 'Pos', 'leyenda': 'Posesiones'},
                   'ppTC': {'etiq': 'Pts cada tiro', 'leyenda': 'Puntos anotados por tiro de campo hecho'},
                   'PTC/PTCPot': {'etiq': '% Pts Pot',
                                  'leyenda': '% Puntos potenciales (Puntos anotados / Puntos si hubiese entrado todo)',
-                                 'formato': DEFAULTPERCFORMAT
-                                 }, 'R-D': {'etiq': 'Reb Def', 'leyenda': 'Rebotes defensivos'},
+                                 'formato': DEFAULTPERCFORMAT},
+                  'R-D': {'etiq': 'Reb Def', 'leyenda': 'Rebotes defensivos'},
                   'R-O': {'etiq': 'Reb Of', 'leyenda': 'Rebotes ofensivos'},
                   'REB-T': {'etiq': 'Reb total', 'leyenda': 'Rebotes totales'},
                   'RO/TC-F': {'etiq': 'RO/TC-F', 'leyenda': 'RO/TC-F'}, 'Segs': {'etiq': 'Segs', 'leyenda': 'Segs'},
@@ -98,8 +98,7 @@ REPORTLEYENDAS = {'+/-': {'etiq': '+/-', 'leyenda': 'Cambio en la anotación con
                   'TC-C': {'etiq': 'TC-C', 'leyenda': 'Tiros de campo anotados'},
                   'TC-I': {'etiq': 'TC-I', 'leyenda': 'Tiros de campo lanzados'},
                   'utilizados': {'etiq': 'Usados', 'leyenda': 'Jugadores utilizados'},
-                  'V': {'etiq': 'V', 'leyenda': 'Valoración ACB'}
-                  }
+                  'V': {'etiq': 'V', 'leyenda': 'Valoración ACB'}}
 
 
 def OtherLoc(team):
@@ -124,10 +123,19 @@ infoSigPartido = namedtuple(typename='infoSigPartido',
                             field_names=['sigPartido', 'abrevLV', 'jugLocal', 'pendLocal', 'jugVis', 'pendVis',
                                          'eqIsLocal'], defaults=[None, None, None, None, None, None, None, ])
 infoClasifEquipo = namedtuple('infoClasifEquipo',
-                              ['Jug', 'V', 'D', 'Pfav', 'Pcon', 'Lfav', 'Lcon', 'Jjug', 'CasaFuera', 'idEq',
-                               'nombresEq', 'abrevsEq', 'nombreCorto', 'abrevAusar', 'ratioV', 'ratioVent'])
+                              ['Jug', 'V', 'D', 'Pfav', 'Pcon', 'Jjug', 'CasaFuera', 'idEq', 'nombresEq', 'abrevsEq',
+                               'nombreCorto', 'abrevAusar', 'ratioVict', 'sumaCoc'])
 infoClasifBase = namedtuple(typename='infoClasifEquipo', field_names=['Jug', 'V', 'D', 'Pfav', 'Pcon'],
                             defaults=(0, 0, 0, 0, 0))
+
+infoClasifComplPareja = namedtuple(typename='infoClasifComplPareja',
+                                   field_names=['EmpV', 'EmpRatV', 'EmpDifP', 'LRDifP', 'LRPfav', 'LRSumCoc'],
+                                   defaults=(0, 0, 0, 0, 0, Decimal(0.000)))
+
+infoClasifComplMasD2 = namedtuple(typename='infoClasifComplMasD2',
+                                  field_names=['EmpV', 'EmpRatV', 'EmpDifP', 'EmpPfav', 'LRDifP', 'LRPfav', 'LRSumCoc'],
+                                  defaults=(0, 0, 0, 0, 0, 0, Decimal(0.000)))
+
 infoPartLV = namedtuple(typename='infoPartLV', field_names=['Local', 'Visitante'], defaults=[None, None])
 infoEqCalendario = namedtuple(typename='infoEqCalendario',
                               field_names=['icono', 'imageTit', 'haGanado', 'abrev', 'nomblargo', 'nombcorto',
