@@ -123,17 +123,18 @@ infoSigPartido = namedtuple(typename='infoSigPartido',
                             field_names=['sigPartido', 'abrevLV', 'jugLocal', 'pendLocal', 'jugVis', 'pendVis',
                                          'eqIsLocal'], defaults=[None, None, None, None, None, None, None, ])
 infoClasifEquipo = namedtuple('infoClasifEquipo',
-                              ['Jug', 'V', 'D', 'Pfav', 'Pcon', 'CasaFuera', 'idEq',
-                               'nombresEq', 'abrevsEq', 'nombreCorto', 'abrevAusar', 'ratioVict', 'sumaCoc'])
-infoClasifBase = namedtuple(typename='infoClasifBase', field_names=['Jug', 'V', 'D', 'Pfav', 'Pcon'],
+                              ['Jug', 'V', 'D', 'Pfav', 'Pcon', 'Jjug', 'CasaFuera', 'idEq', 'nombresEq', 'abrevsEq',
+                               'nombreCorto', 'abrevAusar', 'ratioVict', 'sumaCoc'])
+infoClasifBase = namedtuple(typename='infoClasifEquipo', field_names=['Jug', 'V', 'D', 'Pfav', 'Pcon'],
                             defaults=(0, 0, 0, 0, 0))
 
-infoClasifComplPareja = namedtuple(typename='infoClasifComplPareja', field_names=['EmpV', 'EmpRatV', 'EmpDifP', 'LRDifP', 'LRPfav', 'LRSumCoc'],
-                                  defaults=(0,0, 0, 0, 0, Decimal(0.000)))
+infoClasifComplPareja = namedtuple(typename='infoClasifComplPareja',
+                                   field_names=['EmpV', 'EmpRatV', 'EmpDifP', 'LRDifP', 'LRPfav', 'LRSumCoc'],
+                                   defaults=(0, 0, 0, 0, 0, Decimal(0.000)))
 
-infoClasifComplMasD2 = namedtuple(typename='infoClasifComplMasD2', field_names=['EmpV', 'EmpRatV', 'EmpDifP', 'EmpPfav', 'LRDifP', 'LRPfav', 'LRSumCoc'],
-                            defaults=(0,0,0, 0, 0, 0, Decimal(0.000)))
-
+infoClasifComplMasD2 = namedtuple(typename='infoClasifComplMasD2',
+                                  field_names=['EmpV', 'EmpRatV', 'EmpDifP', 'EmpPfav', 'LRDifP', 'LRPfav', 'LRSumCoc'],
+                                  defaults=(0, 0, 0, 0, 0, 0, Decimal(0.000)))
 
 infoPartLV = namedtuple(typename='infoPartLV', field_names=['Local', 'Visitante'], defaults=[None, None])
 infoEqCalendario = namedtuple(typename='infoEqCalendario',
