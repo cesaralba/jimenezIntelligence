@@ -2,6 +2,12 @@
 
 set -eu
 
+function soLong {
+  MSG=${1:-No msg}
+  echo ${MSG}
+  exit 1
+}
+
 CONFIGFILE=${DEVSMCONFIGFILE:-/etc/sysconfig/SuperManager}
 [ -f ${CONFIGFILE} ] && source ${CONFIGFILE}
 
@@ -10,12 +16,14 @@ then
   set -vx
 fi
 
-TARGETCLUB=${1:-RMB}
-CLAVEYEAR=${FILEKEY:-2023}
-COMPO=${SM_COMPETICION:-ACB}
-
-BASEDIR=$(cd "$(dirname $(readlink -e $0))/../" && pwd )
+ME="$(readlink -e $0)"
+HEREDIR=$(cd "$(dirname ${ME})" && pwd )
+BASEDIR=$(cd "${HEREDIR}/../" && pwd )
 TODAY=$(date '+%Y%m%d%H%M')
+
+CLAVEYEAR=${FILEKEY:-2024}
+COMPO=${SM_COMPETICION:-LACB}
+
 
 if [ -n "${SM_DATADIR}" ] ; then
   ROOTDATA=${SM_DATADIR}
@@ -23,32 +31,18 @@ else
   ROOTDATA=${BASEDIR}
 fi
 
-if [ "x${SM_REPO}" = "x" ]
-then
-  echo "ORROR: No se ha suministrado valor para SM_REPO. Adios."
-  exit 1
-fi
+[ "x${SM_REPO}" = "x" ] && soLong "ORROR: No se ha suministrado valor para SM_REPO. Adios."
 
-BRANCHNAME=${USEBRANCH:-master}
 WRKDIR="${ROOTDATA}/wrk"
-if [ ! -d ${WRKDIR} ]
-then
-  mkdir -p ${WRKDIR}
-  git clone -q --branch ${BRANCHNAME} ${SM_REPO} ${WRKDIR}
-
-  if [ $? != 0 ]
-  then
-    echo "$0: Problems with GIT. Bye"
-    exit 1
-  fi
-fi
+[ -d ${WRKDIR} ] || soLong "ORROR: No se encuentra código descargado. Pruebe a ejecutar ${HEREDIR}/buildVENV.sh . Adios."
 
 VENV=${VENVHOME:-"${BASEDIR}/venv"}
+ACTIVATIONSCR="${VENV}/bin/activate"
 
-if [ -f "${VENV}/bin/activate" ] ; then
-  source "${VENV}/bin/activate"
+if [ -f "${ACTIVATIONSCR}" ] ; then
+  source "${ACTIVATIONSCR}"
 else
-  echo "ORROR: Incapaz de encontrar activador de virtualenv"
+  soLong "ORROR: Incapaz de encontrar activador de virtualenv. Pruebe a ejecutar ${HEREDIR}/buildVENV.sh . Adios."
 fi
 
 ORIGSMFILE="${ROOTDATA}/temporada/${COMPO}${CLAVEYEAR}.latest.p"
@@ -72,5 +66,3 @@ if [ $? = 0 ]
 then
   echo "$0: Generado ${DESTFILE}"
 fi
-
-
