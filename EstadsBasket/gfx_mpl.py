@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+import matplotlib.figure as mplfig
+from matplotlib.axes import Axes
 import pandas as pd
 from CAPcore.Misc import listize
 from matplotlib.dates import DateFormatter
@@ -25,8 +27,15 @@ DEFAULTALPHA = 1.0
 DEFAULTLINESTYLE = '-'
 DEFAULTMARKER = ''
 
+MARKERPLUS = {True:'P', False:'+'}
+MARKERCROSS = {True:'X', False:'x'}
+MARKERDOT = {True:'o', False:'s'}
+
+MARKERVD = { sym:categ for categ in [MARKERPLUS,MARKERCROSS,MARKERDOT] for sym in categ.values() }
 
 # TODO: All this will break when some team changes sponsor and the acronym changes.
+
+
 
 def dibujaTodo(ax, dfTodo, etiq=('Eq', 'P_por40m'), team1='RMB', team2='LNT'):
     x1 = dfTodo[teamMatch(dfTodo, team1, teamOnly=True)][etiq].index
@@ -82,8 +91,7 @@ def find_filters(dfSorted, abrev1, abrev2):
 
 
 def plotEstads(ax, dfEstads: pd.DataFrame, categ, estads, target='Eq', prefijo='', color=DEFAULTCOLOR,
-               markers=DEFAULTMARKER, alpha: float = DEFAULTALPHA, linestyle=DEFAULTLINESTYLE
-               ):
+               markers=DEFAULTMARKER, alpha: float = DEFAULTALPHA, linestyle=DEFAULTLINESTYLE,addLabel=False):
     estads2wrk = listize(estads)
     colnames = [(target, categ, x) for x in estads2wrk]
     labels = buildLabels(prefijo, categ, estads2wrk)
@@ -93,16 +101,29 @@ def plotEstads(ax, dfEstads: pd.DataFrame, categ, estads, target='Eq', prefijo='
     marker2wrk = extendList([*markers], estads2wrk, DEFAULTMARKER)
 
     for colX, labelX, colorX, alphaX, lstyleX, markerX in zip(colnames, labels, colors2wrk, alpha2wrk, linestyle2wrk,
-                                                              marker2wrk):
-        dfEstads[colX].plot(ax=ax, color=colorX, alpha=alphaX, label=labelX, style=lstyleX, marker=markerX)
+                                                                      marker2wrk):
+        auxLabel= labelX if addLabel else '_nolegend_'
+        dfEstads[colX].plot(ax=ax, color=colorX, alpha=alphaX, label=auxLabel, style=lstyleX, marker=markerX)
 
 
-def plotTrayEquipo(ax, dfEstads: pd.DataFrame, categ, target='Eq', prefijo='', color=DEFAULTCOLOR, marker=DEFAULTMARKER,
-                   alpha: float = DEFAULTALPHA, linestyle=DEFAULTLINESTYLE
-                   ):
+def plotTrayEquipo(ax, dfEstads: pd.DataFrame, categ, target='Eq', prefijo='_nolegend_', color=DEFAULTCOLOR, marker=DEFAULTMARKER,
+                   alpha: float = DEFAULTALPHA, linestyle=DEFAULTLINESTYLE                   ):
     col2show = (target, categ)
-    dfEstads[col2show].plot(kind='line', c=color, ls=linestyle, label=prefijo, ax=ax, marker=marker, alpha=alpha)
 
+    data2show= dfEstads[col2show]
+    if marker in MARKERVD:
+        auxMarker = MARKERVD[marker]
+
+        dataV = dfEstads[(target,'haGanado')]
+        dataD = dataV.map(lambda x:not(x))
+        result= ax.plot(data2show.index, data2show,c=color, ls=linestyle, label=prefijo, marker='', alpha=alpha, )
+        ax.plot(data2show.index[dataV], data2show[dataV],c=color, ls='None', marker=auxMarker[True], alpha=alpha, )
+        ax.plot(data2show.index[dataD], data2show[dataD],c=color, ls='None', marker=auxMarker[False], alpha=alpha, )
+
+    else:
+        result=data2show.plot(kind='line', c=color, ls=linestyle, label=prefijo, ax=ax, marker=marker, alpha=alpha)
+
+    return result
 
 def plotAntecedentes(ax: plt.Axes, dfEstads: pd.DataFrame, color=DEFAULTCOLOR, linestyle=DEFAULTLINESTYLE):
     ax.vlines(x=dfEstads.index.to_list(), ymin=ax.get_ylim()[0], ymax=ax.get_ylim()[1], colors=color,
@@ -113,10 +134,10 @@ def plotRestOfGames(ax: plt.Axes, dfEstads: pd.DataFrame, categ, target='Eq', co
                     alpha: float = DEFAULTALPHA
                     ):
     targetCol = (target, categ)
-    ax.scatter(x=dfEstads.index.to_list(), y=dfEstads[[targetCol]], alpha=alpha, c=color, marker=marker)
+    ax.scatter(x=dfEstads.index.to_list(), y=dfEstads[[targetCol]], alpha=alpha, c=color, marker=marker,label='_nolegend_')
 
 
-def dibujaCategoria(dfPartidos, abrev1, abrev2, categ, target='Eq'):
+def dibujaCategoria(dfPartidos:pd.DataFrame, abrev1:str, abrev2:str, categ:str, target:str='Eq'):
     dfSorted = dfPartidos.sort_values(by=[('Info', 'fechaHoraPartido'), ('Info', 'jornada'), ('Eq', 'abrev')])
     gameFilters = find_filters(dfSorted, abrev1, abrev2)
 
@@ -153,6 +174,7 @@ def dibujaCategoria(dfPartidos, abrev1, abrev2, categ, target='Eq'):
     ejes.xaxis.set_label_text('Fecha')
     ejes.yaxis.set_label_text(categ)
 
+    ejes.legend()
     # TODO: Tabla con indicación del partido del equipo
     # TODO: Leyendas
     return fig, ejes
@@ -260,3 +282,95 @@ def datosTablaAux(dfMerged: pd.DataFrame, categ, abrevsDuple, target='Eq', categ
     result = data2show.style.format(formatter=formats, na_rep="")
 
     return result
+
+#https://stackoverflow.com/a/72832158
+import numpy as np
+import seaborn as sns
+from scipy.stats import gaussian_kde
+
+def plot2MagnComparison(dfPartidos:pd.DataFrame, abrev1:str, abrev2:str, categ1:str, categ2:str, target:str='Eq'):
+
+    def scatter_hist(x, y, ax:Axes, ax_histx, ax_histy,color='black'):
+        # no labels
+        ax_histx.tick_params(axis="x", labelbottom=False)
+        ax_histy.tick_params(axis="y", labelleft=False)
+
+        # the scatter plot:
+        ax.scatter(x, y)
+
+        # now determine nice limits by hand:
+        binwidth = 0.25
+        xymax = max(np.max(np.abs(x)), np.max(np.abs(y)))
+        lim = (int(xymax/binwidth) + 1) * binwidth
+
+        bins = np.arange(-lim, lim + binwidth, binwidth)
+        ax_histx.kde(x)
+        ax_histx.hist(x)
+        ax_histy.hist(y, orientation='horizontal')
+
+    def myGKDE(data:pd.Series) -> tuple:
+        x =  data.sort_values()
+
+        gkde=gaussian_kde(x)
+
+        return x,gkde(x)
+
+    dfSorted = dfPartidos.sort_values(by=[('Info', 'fechaHoraPartido'), ('Info', 'jornada'), ('Eq', 'abrev')])
+    gameFilters = find_filters(dfSorted, abrev1, abrev2)
+
+    ListaCols = [(target, 'abrev'), (OtherTeam(target), 'abrev'), (target, categ1), (OtherTeam(target), categ1),(target, categ2), (OtherTeam(target), categ2), (target, 'haGanado')]
+
+    games1 = dfSorted[gameFilters['games1']][ListaCols]
+    games2 = dfSorted[gameFilters['games2']][ListaCols]
+    restoLiga = dfSorted[gameFilters['filt_both']][ListaCols]
+
+    print(games1)
+    print(games2)
+
+    colcat1 = (target, categ1)
+    colcat2 = (target, categ2)
+    x=dfSorted[colcat1]
+    y=dfSorted[colcat2]
+
+
+    # Create a Figure, which doesn't have to be square.
+    fig:mplfig.Figure = plt.figure(layout='constrained')
+    # Create the main Axes, leaving 25% of the figure space at the top and on the
+    # right to position marginals.
+    ax:Axes = fig.add_gridspec(top=0.75, right=0.75).subplots()
+
+    # The main Axes' aspect can be fixed.
+    ax.set(aspect=1)
+    # Create marginal Axes, which have 25% of the size of the main Axes.  Note that
+    # the inset Axes are positioned *outside* (on the right and the top) of the
+    # main Axes, by specifying axes coordinates greater than 1.  Axes coordinates
+    # less than 0 would likewise specify positions on the left and the bottom of
+    # the main Axes.
+    ax_histx = ax.inset_axes([0, 1.05, 1, 0.25], sharex=ax) #
+    ax_histy = ax.inset_axes([1.05, 0, 0.25, 1], sharey=ax) #
+
+
+    ax.scatter(x=x[~gameFilters['filt_both']],y=y[~gameFilters['filt_both']],color='black',marker='.',alpha=0.3)
+    ax.scatter(x=x[gameFilters['games1']],y=y[gameFilters['games1']],color=COLOREQ1,marker='.',alpha=0.6)
+    ax.scatter(x=x[gameFilters['games2']],y=y[gameFilters['games2']],color=COLOREQ2,marker='.',alpha=0.6)
+
+    x[~gameFilters['filt_both']].plot.kde(color='black',alpha=0.3,ax=ax_histx)
+    x[gameFilters['games1']].plot.kde(color=COLOREQ1,alpha=0.6,ax=ax_histx,ls='--')
+    x[gameFilters['games2']].plot.kde(color=COLOREQ2,alpha=0.6,ax=ax_histx,ls=':')
+
+    myGKDE(y[~gameFilters['filt_both']])
+
+    yLiga=myGKDE(y[~gameFilters['filt_both']])
+    yEq1=myGKDE(y[gameFilters['games1']])
+    yEq2=myGKDE(y[gameFilters['games2']])
+
+    ax_histy.plot(yLiga[1],yLiga[0],color='black',alpha=0.3)
+    ax_histy.plot(yEq1[1],yEq1[0],color=COLOREQ1,alpha=0.6,ls='--')
+    ax_histy.plot(yEq2[1],yEq2[0],color=COLOREQ2,alpha=0.6,ls=':')
+
+
+    #print(type(ax_histx))
+    # Draw the scatter plot and marginals.
+    #scatter_hist(x, y, ax, ax_histx, ax_histy)
+
+    #plt.show()
