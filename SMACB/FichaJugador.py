@@ -3,9 +3,10 @@ from argparse import Namespace
 from time import gmtime
 
 import pandas as pd
-from CAPcore.Web import getObjID, downloadPage, createBrowser
+from CAPcore.Web import downloadPage, createBrowser
 
 from Utils.FechaHora import PATRONFECHA
+from Utils.Web import getObjID
 
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
 

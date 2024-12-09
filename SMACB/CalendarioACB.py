@@ -7,9 +7,10 @@ from time import gmtime
 
 import pandas as pd
 from CAPcore.Misc import FORMATOtimestamp, listize, onlySetElement
-from CAPcore.Web import getObjID, downloadPage, mergeURL, DownloadedPage
+from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA
+from Utils.Web import getObjID
 from .Constants import URL_BASE, PLAYOFFFASE
 
 logger = logging.getLogger()

@@ -7,12 +7,13 @@ from traceback import print_exc
 import numpy as np
 import pandas as pd
 from CAPcore.Misc import BadParameters, BadString, extractREGroups
-from CAPcore.Web import getObjID, downloadPage, extractGetParams, DownloadedPage
+from CAPcore.Web import downloadPage, extractGetParams, DownloadedPage
 from babel.numbers import parse_number
 from bs4 import Tag
 
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
+from Utils.Web import getObjID
 from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp)
 from .PlantillaACB import PlantillaACB
 

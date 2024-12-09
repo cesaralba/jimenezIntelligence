@@ -5,8 +5,9 @@ from time import gmtime
 
 import bs4
 from CAPcore.LoggedDict import DictOfLoggedDict, LoggedDict
-from CAPcore.Web import createBrowser, downloadPage, getObjID, mergeURL, DownloadedPage
+from CAPcore.Web import createBrowser, downloadPage, mergeURL, DownloadedPage
 
+from Utils.Web import getObjID
 from .Constants import URL_BASE
 
 logger = logging.getLogger()
