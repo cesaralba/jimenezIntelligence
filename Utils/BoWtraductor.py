@@ -166,7 +166,7 @@ def comparaNombresPersonas(fr1, fr2, umbral=1):
     def comparaPrefijos(pref1, pref2, result=0):
         if pref1 is None or pref2 is None:
             return result
-        # print("CAP compPref",pref1,type(pref1),pref2,type(pref2))
+
         if pref1 == pref2:
             return result + len(pref1)
 
