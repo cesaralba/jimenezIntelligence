@@ -12,12 +12,16 @@ from SMACB.CalendarioACB import calendario_URLBASE
 from SMACB.TemporadaACB import TemporadaACB
 
 parser = ArgumentParser()
-parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, help='', default=0)
-parser.add('-d', dest='debug', action="store_true", env_var='SM_DEBUG', required=False, help='', default=False)
+parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, help='Salida más detallada',
+           default=0)
+parser.add('-d', dest='debug', action="store_true", env_var='SM_DEBUG', required=False, help='Salida más detallada',
+           default=False)
 parser.add('-j', dest='justone', action="store_true", env_var='SM_JUSTONE', required=False,
            help='Solo descarga un partido', default=False)
 parser.add('-f', dest='saveanyway', action="store_true", env_var='SM_SAVEANYWAY', required=False,
            help='Graba el fichero aunque no haya habido cambios', default=False)
+parser.add('-r', dest='refresh', action="store_true", env_var='SM_REFRESH', required=False,
+           help='Recarga las fichas de jugadores', default=False)
 
 parser.add('-e', dest='edicion', action="store", env_var='SM_EDICION', required=False,
            help=('Año de la temporada (para 2015-2016 sería 2016). La ACB empieza en 1983. '

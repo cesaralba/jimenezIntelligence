@@ -16,13 +16,13 @@ from pickle import dump, load
 from sys import exc_info, setrecursionlimit
 from time import gmtime, strftime
 from traceback import print_exception
-from typing import Any, Iterable
+from typing import Any, Iterable, Dict
 from typing import Optional
 
 import numpy as np
 import pandas as pd
 from CAPcore.Misc import onlySetElement
-from CAPcore.Web import createBrowser
+from CAPcore.Web import createBrowser, mergeURL
 
 from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Pandas import combinaPDindexes
@@ -99,7 +99,7 @@ class TemporadaACB(object):
         self.tradJugadores = {'id2nombres': defaultdict(set), 'nombre2ids': defaultdict(set)}
         self.descargaFichas = descargaFichas
         self.descargaPlantillas = descargaPlantillas
-        self.fichaJugadores = dict()
+        self.fichaJugadores: Dict[str, FichaJugador] = dict()
         self.fichaEntrenadores = dict()
         self.plantillas = dict()
 
@@ -127,11 +127,9 @@ class TemporadaACB(object):
                 nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
                 nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
                 self.Partidos[partido] = nuevoPartido
-
-                self.actualizaInfoAuxiliar(nuevoPartido, browser, config)
-
                 partidosBajados.add(partido)
 
+                self.actualizaInfoAuxiliar(nuevoPartido, browser, config)
             except KeyboardInterrupt:
                 print("actualizaTemporada: Ejecución terminada por el usuario")
                 break
@@ -154,8 +152,7 @@ class TemporadaACB(object):
 
     def actualizaInfoAuxiliar(self, nuevoPartido, browser, config):
         self.actualizaNombresEquipo(nuevoPartido)
-        if self.descargaFichas:
-            self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
+        self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
         self.actualizaTraduccionesJugador(nuevoPartido)
         # Añade la información de equipos de partido a traducciones de equipo.
         # (el código de equipo ya no viene en el calendario)
@@ -204,25 +201,35 @@ class TemporadaACB(object):
 
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
 
-    def actualizaFichasPartido(self, nuevoPartido, browser=None, config=Namespace(), refrescaFichas=False):
+    def actualizaFichasPartido(self, nuevoPartido, browser=None, config=Namespace()):
         if browser is None:
             browser = createBrowser(config)
             browser.open(URL_BASE)
+        refrescaFichas = False
+
+        if 'refresca' in config and config.refresca:
+            refrescaFichas = True
 
         for codJ, datosJug in nuevoPartido.Jugadores.items():
-            if codJ not in self.fichaJugadores:
+            if (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None):
                 try:
-                    nuevaFicha = FichaJugador.fromURL(datosJug['linkPersona'], home=browser.get_url(), browser=browser,
-                                                      config=config)
+                    nuevaFicha = FichaJugador.fromURL(datosJug['linkPersona'], datosPartido=datosJug,
+                                                      home=browser.get_url(), browser=browser, config=config)
+                    print(f"Ficha creada: {nuevaFicha}")
                     self.fichaJugadores[codJ] = nuevaFicha
                 except AttributeError as exc:
                     print("SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido: something happened", exc)
                     print(datosJug)
                     raise exc
 
-            elif refrescaFichas:
-                self.fichaJugadores[codJ] = self.fichaJugadores[codJ].actualizaFicha(browser=browser, config=config)
-
+            elif refrescaFichas or (not hasattr(self.fichaJugadores[codJ], 'sinDatos')) or (
+                    self.fichaJugadores[codJ].sinDatos is None) or (self.fichaJugadores[codJ].sinDatos):
+                urlJugAux = mergeURL(browser.get_url(), datosJug['linkPersona'])
+                if urlJugAux != self.fichaJugadores[codJ].URL:
+                    self.fichaJugadores[codJ].URL = urlJugAux
+                    self.changed = True
+                self.changed |= self.fichaJugadores[codJ].actualizaFicha(datosPartido=datosJug, browser=browser,
+                                                                         config=config)
             self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
 
         # TODO: Procesar ficha de entrenadores
@@ -473,7 +480,7 @@ class TemporadaACB(object):
             lista_urls = self.extractGameList(fecha=fecha, abrevEquipos=None, playOffStatus=playOffStatus)
         else:
             lista_urls = set(chain(
-                *[self.extractGameList(fecha=fecha, listaAbrevEquipos={eq}, playOffStatus=playOffStatus) for eq in
+                *[self.extractGameList(fecha=fecha, abrevEquipos={eq}, playOffStatus=playOffStatus) for eq in
                   listaAbrevEquipos]))
 
         partidos_DFlist = [self.Partidos[pURL].partidoAdataframe() for pURL in lista_urls]
