@@ -10,6 +10,7 @@ from CAPcore.Web import createBrowser, downloadPage, mergeURL, DownloadedPage
 from Utils.Web import getObjID
 from .Constants import URL_BASE
 
+
 logger = logging.getLogger()
 
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
@@ -26,7 +27,7 @@ class PlantillaACB():
         self.jugadores = DictOfLoggedDict()
         self.tecnicos = DictOfLoggedDict()
 
-    def descargaYactualizaPlantilla(self, home=None, browser=None, config=Namespace(), extraTrads=None):
+    def descargaYactualizaPlantilla(self, home=None, browser=None, config=Namespace(), extraTrads=None) -> bool:
         """
         Descarga los datos y llama al procedimiento para actualizar
         :param home:
@@ -38,11 +39,14 @@ class PlantillaACB():
         if browser is None:
             browser = createBrowser(config)
 
-        data = descargaURLplantilla(self.URL, home, browser, config, otrosNombres=extraTrads)
+        try:
+            data = descargaURLplantilla(self.URL, home, browser, config, otrosNombres=extraTrads)
+        except Exception as exc:
+            print(f"SMACB.PlantillaACB.PlantillaACB.descargaYactualizaPlantilla: something happened updating record of  '{self.club}']'", exc)
 
         return self.actualizaPlantillaDescargada(data)
 
-    def actualizaPlantillaDescargada(self, data):
+    def actualizaPlantillaDescargada(self, data) -> bool:
         result = False
 
         currTimestamp = data.get('timestamp', gmtime())
