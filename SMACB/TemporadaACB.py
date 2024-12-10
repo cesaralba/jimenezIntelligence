@@ -42,6 +42,7 @@ DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 
                    ('Info', 'prorrogas', 'sum'): 0, ('Rival', 'convocados', 'sum'): 0,
                    ('Rival', 'utilizados', 'sum'): 0, }
 
+DOWNLOADEDPLAYERS = set()
 
 def auxJorFech2periodo(dfTemp):
     periodoAct = 0
@@ -211,16 +212,19 @@ class TemporadaACB(object):
             refrescaFichas = True
 
         for codJ, datosJug in nuevoPartido.Jugadores.items():
+            if codJ in DOWNLOADEDPLAYERS:
+                continue
             if (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None):
                 try:
                     nuevaFicha = FichaJugador.fromURL(datosJug['linkPersona'], datosPartido=datosJug,
                                                       home=browser.get_url(), browser=browser, config=config)
                     print(f"Ficha creada: {nuevaFicha}")
                     self.fichaJugadores[codJ] = nuevaFicha
-                except AttributeError as exc:
-                    print("SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido: something happened", exc)
-                    print(datosJug)
-                    raise exc
+                    DOWNLOADEDPLAYERS.add(codJ)
+                except Exception as exc:
+                    print(f"SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido [{nuevoPartido.url}]: something happened creating record for {codJ}. Datos: {datosJug}", exc)
+                    DOWNLOADEDPLAYERS.pop(codJ)
+                    continue
 
             elif refrescaFichas or (not hasattr(self.fichaJugadores[codJ], 'sinDatos')) or (
                     self.fichaJugadores[codJ].sinDatos is None) or (self.fichaJugadores[codJ].sinDatos):
@@ -228,8 +232,14 @@ class TemporadaACB(object):
                 if urlJugAux != self.fichaJugadores[codJ].URL:
                     self.fichaJugadores[codJ].URL = urlJugAux
                     self.changed = True
-                self.changed |= self.fichaJugadores[codJ].actualizaFicha(datosPartido=datosJug, browser=browser,
-                                                                         config=config)
+                try:
+                    self.changed |= self.fichaJugadores[codJ].actualizaFicha(datosPartido=datosJug, browser=browser,
+                                                                             config=config)
+                    DOWNLOADEDPLAYERS.add(codJ)
+                except Exception as exc:
+                    print(f"SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido [{nuevoPartido.url}]: something happened updating record of {codJ}. Datos: {datosJug}", exc)
+                    DOWNLOADEDPLAYERS.pop(codJ)
+
             self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
 
         # TODO: Procesar ficha de entrenadores
