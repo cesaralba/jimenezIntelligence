@@ -42,7 +42,7 @@ DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 
                    ('Info', 'prorrogas', 'sum'): 0, ('Rival', 'convocados', 'sum'): 0,
                    ('Rival', 'utilizados', 'sum'): 0, }
 
-DOWNLOADEDPLAYERS = set()
+JUGADORESDESCARGADOS = set()
 
 def auxJorFech2periodo(dfTemp):
     periodoAct = 0
@@ -212,7 +212,7 @@ class TemporadaACB(object):
             refrescaFichas = True
 
         for codJ, datosJug in nuevoPartido.Jugadores.items():
-            if codJ in DOWNLOADEDPLAYERS:
+            if codJ in JUGADORESDESCARGADOS:
                 continue
             if (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None):
                 try:
@@ -220,10 +220,10 @@ class TemporadaACB(object):
                                                       home=browser.get_url(), browser=browser, config=config)
                     print(f"Ficha creada: {nuevaFicha}")
                     self.fichaJugadores[codJ] = nuevaFicha
-                    DOWNLOADEDPLAYERS.add(codJ)
+                    JUGADORESDESCARGADOS.add(codJ)
                 except Exception as exc:
                     print(f"SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido [{nuevoPartido.url}]: something happened creating record for {codJ}. Datos: {datosJug}", exc)
-                    DOWNLOADEDPLAYERS.pop(codJ)
+                    JUGADORESDESCARGADOS.pop(codJ)
                     continue
 
             elif refrescaFichas or (not hasattr(self.fichaJugadores[codJ], 'sinDatos')) or (
@@ -235,10 +235,10 @@ class TemporadaACB(object):
                 try:
                     self.changed |= self.fichaJugadores[codJ].actualizaFicha(datosPartido=datosJug, browser=browser,
                                                                              config=config)
-                    DOWNLOADEDPLAYERS.add(codJ)
+                    JUGADORESDESCARGADOS.add(codJ)
                 except Exception as exc:
                     print(f"SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido [{nuevoPartido.url}]: something happened updating record of {codJ}. Datos: {datosJug}", exc)
-                    DOWNLOADEDPLAYERS.pop(codJ)
+                    JUGADORESDESCARGADOS.pop(codJ)
 
             self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
 
