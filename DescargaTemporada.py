@@ -81,17 +81,28 @@ nuevosPartidos = temporada.actualizaTemporada(browser=browser, config=args)
 resultOS = 1  # No hubo cambios
 
 if nuevosPartidos or temporada.changed or args.saveanyway:
+    sys.setrecursionlimit(50000)
+    if 'outfile' in args and args.outfile:
+        resultOS = 0
+        temporada.grabaTemporada(args.outfile)
+
     if nuevosPartidos:
         resumenPartidos = [str(temporada.Partidos[x]) for x in sorted(list(nuevosPartidos), key=lambda p: (
             temporada.Partidos[p].fechaPartido, temporada.Partidos[p].jornada))]
         print("Nuevos partidos incorporados:\n%s" % ("\n".join(resumenPartidos)))
 
     if CAMBIOSJUGADORES:
-        print(CAMBIOSJUGADORES)
+        jugList = []
+        for jugCod, jugData in CAMBIOSJUGADORES.items():
+            if not jugData:
+                continue
+            if 'NuevoJugador' in jugData:
+                jugList.append(f"{jugCod} Nuevo : {temporada.fichaJugadores[jugCod]}")
+            else:
+                claves2skip = set()
+                cambiosJusg = [f"{k}: '{v[0]}'->'{v[1]}'" for k, v in jugData.items() if k not in claves2skip]
+                jugList.append(f"{jugCod} Cambios: {temporada.fichaJugadores[jugCod]}: {','.join(sorted(cambiosJusg))}")
 
-    sys.setrecursionlimit(50000)
-    if 'outfile' in args and args.outfile:
-        resultOS = 0
-        temporada.grabaTemporada(args.outfile)
+        print(f"Cambios en jugadores:\n{'\n'.join(sorted(jugList))}")
 
 sys.exit(resultOS)
