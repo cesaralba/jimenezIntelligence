@@ -5,8 +5,9 @@ from time import gmtime
 
 import bs4
 from CAPcore.LoggedDict import DictOfLoggedDict, LoggedDict
-from CAPcore.Web import createBrowser, downloadPage, getObjID, mergeURL, DownloadedPage
+from CAPcore.Web import createBrowser, downloadPage, mergeURL, DownloadedPage
 
+from Utils.Web import getObjID
 from .Constants import URL_BASE
 
 logger = logging.getLogger()
@@ -25,7 +26,7 @@ class PlantillaACB():
         self.jugadores = DictOfLoggedDict()
         self.tecnicos = DictOfLoggedDict()
 
-    def descargaYactualizaPlantilla(self, home=None, browser=None, config=Namespace(), extraTrads=None):
+    def descargaYactualizaPlantilla(self, home=None, browser=None, config=None, extraTrads=None) -> bool:
         """
         Descarga los datos y llama al procedimiento para actualizar
         :param home:
@@ -36,12 +37,21 @@ class PlantillaACB():
         """
         if browser is None:
             browser = createBrowser(config)
+        if config is None:
+            config = Namespace()
+        else:
+            config = Namespace(**config) if isinstance(config, dict) else config
 
-        data = descargaURLplantilla(self.URL, home, browser, config, otrosNombres=extraTrads)
+        try:
+            data = descargaURLplantilla(self.URL, home, browser, config, otrosNombres=extraTrads)
+        except Exception as exc:
+            print(
+                f"SMACB.PlantillaACB.PlantillaACB.descargaYactualizaPlantilla: something happened updating record of  "
+                f"'{self.club}']'", exc)
 
         return self.actualizaPlantillaDescargada(data)
 
-    def actualizaPlantillaDescargada(self, data):
+    def actualizaPlantillaDescargada(self, data) -> bool:
         result = False
 
         currTimestamp = data.get('timestamp', gmtime())
@@ -71,9 +81,15 @@ class PlantillaACB():
     __repr__ = __str__
 
 
-def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=Namespace(), otrosNombres=None):
+def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=None, otrosNombres=None):
+    if config is None:
+        config = Namespace()
+    else:
+        config = Namespace(**config) if isinstance(config, dict) else config
+
     if browser is None:
         browser = createBrowser(config)
+
     try:
         logging.debug("descargaURLplantilla: downloading %s", urlPlantilla)
         pagPlant = downloadPage(urlPlantilla, home=home, browser=browser, config=config)
@@ -208,7 +224,7 @@ def encuentraUltEdicion(plantDesc: DownloadedPage):
     return result
 
 
-def descargaPlantillasCabecera(browser=None, config=Namespace(), edicion=None, listaIDs=None):
+def descargaPlantillasCabecera(browser=None, config=None, edicion=None, listaIDs=None):
     """
     Descarga los contenidos de las plantillas y los procesa. Servirá para alimentar las plantillas de TemporadaACB
     :param browser:
@@ -217,6 +233,13 @@ def descargaPlantillasCabecera(browser=None, config=Namespace(), edicion=None, l
     :param listaIDs: IDs to be considered
     :return:
     """
+    if config is None:
+        config = Namespace()
+    else:
+        config = Namespace(**config) if isinstance(config, dict) else config
+
+    if browser is None:
+        browser = createBrowser(config)
 
     if listaIDs is None:
         listaIDs = []

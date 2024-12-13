@@ -7,9 +7,10 @@ from time import gmtime
 
 import pandas as pd
 from CAPcore.Misc import FORMATOtimestamp, listize, onlySetElement
-from CAPcore.Web import getObjID, downloadPage, mergeURL, DownloadedPage
+from CAPcore.Web import downloadPage, mergeURL, DownloadedPage, createBrowser
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA
+from Utils.Web import getObjID
 from .Constants import URL_BASE, PLAYOFFFASE
 
 logger = logging.getLogger()
@@ -43,8 +44,15 @@ class CalendarioACB:
         self.urlbase = urlbase
         self.url = None
 
-    def actualizaCalendario(self, home=None, browser=None, config=Namespace()):
+    def actualizaCalendario(self, home=None, browser=None, config=None):
         calendarioPage: DownloadedPage = self.descargaCalendario(home=home, browser=browser, config=config)
+        if config is None:
+            config = Namespace()
+        else:
+            config = Namespace(**config) if isinstance(config, dict) else config
+
+        if browser is None:
+            browser = createBrowser(config)
 
         self.procesaCalendario(calendarioPage, home=self.url, browser=browser, config=config)
 
@@ -127,8 +135,16 @@ class CalendarioACB:
 
         return result
 
-    def descargaCalendario(self, home=None, browser=None, config=Namespace()) -> DownloadedPage:
+    def descargaCalendario(self, home=None, browser=None, config=None) -> DownloadedPage:
         logger.info("descargaCalendario")
+        if config is None:
+            config = Namespace()
+        else:
+            config = Namespace(**config) if isinstance(config, dict) else config
+
+        if browser is None:
+            browser = createBrowser(config)
+
         if self.url is None:
             pagCalendario = downloadPage(self.urlbase, home=home, browser=browser, config=config)
             pagCalendarioData = pagCalendario.data
@@ -467,7 +483,15 @@ def procesaFechaHoraPartido(cadFecha, cadHora, datosCab):
     return resultado
 
 
-def recuperaPartidosEquipo(idEquipo, home=None, browser=None, config=Namespace()):
+def recuperaPartidosEquipo(idEquipo, home=None, browser=None, config=None):
+    if config is None:
+        config = Namespace()
+    else:
+        config = Namespace(**config) if isinstance(config, dict) else config
+
+    if browser is None:
+        browser = createBrowser(config)
+
     if idEquipo in CALENDARIOEQUIPOS:
         return CALENDARIOEQUIPOS[idEquipo]
 

@@ -9,15 +9,19 @@ from CAPcore.Web import createBrowser, extractGetParams
 from configargparse import ArgumentParser
 
 from SMACB.CalendarioACB import calendario_URLBASE
-from SMACB.TemporadaACB import TemporadaACB
+from SMACB.TemporadaACB import TemporadaACB, CAMBIOSJUGADORES
 
 parser = ArgumentParser()
-parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, help='', default=0)
-parser.add('-d', dest='debug', action="store_true", env_var='SM_DEBUG', required=False, help='', default=False)
+parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, help='Salida más detallada',
+           default=0)
+parser.add('-d', dest='debug', action="store_true", env_var='SM_DEBUG', required=False, help='Salida más detallada',
+           default=False)
 parser.add('-j', dest='justone', action="store_true", env_var='SM_JUSTONE', required=False,
            help='Solo descarga un partido', default=False)
 parser.add('-f', dest='saveanyway', action="store_true", env_var='SM_SAVEANYWAY', required=False,
            help='Graba el fichero aunque no haya habido cambios', default=False)
+parser.add('-r', dest='refresh', action="store_true", env_var='SM_REFRESH', required=False,
+           help='Recarga las fichas de jugadores', default=False)
 
 parser.add('-e', dest='edicion', action="store", env_var='SM_EDICION', required=False,
            help=('Año de la temporada (para 2015-2016 sería 2016). La ACB empieza en 1983. '
@@ -77,14 +81,30 @@ nuevosPartidos = temporada.actualizaTemporada(browser=browser, config=args)
 resultOS = 1  # No hubo cambios
 
 if nuevosPartidos or temporada.changed or args.saveanyway:
+    sys.setrecursionlimit(50000)
+    if 'outfile' in args and args.outfile:
+        resultOS = 0
+        temporada.grabaTemporada(args.outfile)
+
     if nuevosPartidos:
         resumenPartidos = [str(temporada.Partidos[x]) for x in sorted(list(nuevosPartidos), key=lambda p: (
             temporada.Partidos[p].fechaPartido, temporada.Partidos[p].jornada))]
         print("Nuevos partidos incorporados:\n%s" % ("\n".join(resumenPartidos)))
 
-    sys.setrecursionlimit(50000)
-    if 'outfile' in args and args.outfile:
-        resultOS = 0
-        temporada.grabaTemporada(args.outfile)
+    if CAMBIOSJUGADORES:
+        jugList = []
+        for jugCod, jugData in CAMBIOSJUGADORES.items():
+            if not jugData:
+                continue
+            if 'NuevoJugador' in jugData:
+                jugList.append(f"{jugCod} Nuevo : {temporada.fichaJugadores[jugCod]}")
+            else:
+                claves2skip = {'urlFoto'}
+                cambiosJusg = [f"{k}: '{v[0]}'->'{v[1]}'" for k, v in jugData.items() if k not in claves2skip]
+                if 'urlFoto' in jugData:
+                    cambiosJusg.append("Nueva foto")
+                jugList.append(f"{jugCod} Cambios: {temporada.fichaJugadores[jugCod]}: {','.join(sorted(cambiosJusg))}")
+
+        print(f"Cambios en jugadores:\n{'\n'.join(sorted(jugList))}")
 
 sys.exit(resultOS)

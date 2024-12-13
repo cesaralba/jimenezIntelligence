@@ -7,12 +7,13 @@ from traceback import print_exc
 import numpy as np
 import pandas as pd
 from CAPcore.Misc import BadParameters, BadString, extractREGroups
-from CAPcore.Web import getObjID, downloadPage, extractGetParams, DownloadedPage
+from CAPcore.Web import downloadPage, extractGetParams, DownloadedPage, createBrowser
 from babel.numbers import parse_number
 from bs4 import Tag
 
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
+from Utils.Web import getObjID
 from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp)
 from .PlantillaACB import PlantillaACB
 
@@ -54,7 +55,14 @@ class PartidoACB():
         for loc in LocalVisitante:
             self.Equipos[loc]['haGanado'] = self.ResultadoCalendario[loc] > self.ResultadoCalendario[OtherLoc(loc)]
 
-    def descargaPartido(self, home=None, browser=None, config=Namespace()):
+    def descargaPartido(self, home=None, browser=None, config=None):
+
+        if config is None:
+            config = Namespace()
+        else:
+            config = Namespace(**config) if isinstance(config, dict) else config
+        if browser is None:
+            browser = createBrowser(config)
 
         if not hasattr(self, 'url'):
             raise BadParameters("PartidoACB: DescargaPartido: imposible encontrar la URL del partido")
