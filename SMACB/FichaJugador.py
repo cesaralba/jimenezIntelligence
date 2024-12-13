@@ -1,24 +1,32 @@
 import re
 from argparse import Namespace
+from collections import defaultdict
 from time import gmtime
 from typing import Optional
 
 import pandas as pd
-from CAPcore.Web import downloadPage, createBrowser
+from CAPcore.Web import downloadPage, createBrowser, mergeURL
 
 from Utils.FechaHora import PATRONFECHA
 from Utils.Web import getObjID
 
-CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia', 'URL']
+CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
 
 CLAVESDICT = ['id', 'URL', 'alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia',
               'primPartidoT', 'ultPartidoT', 'ultPartidoP']
 
 TRADPOSICION = {'Alero': 'A', 'Escolta': 'E', 'Base': 'B', 'Pívot': 'P', 'Ala-pívot': 'AP', '': '?'}
 
+URLIMG2IGNORE = {'/Images/Web/silueta1.gif', '/Images/Web/silueta2.gif'}
+
+CAMBIOSJUGADORES = defaultdict(dict)
+
 
 class FichaJugador:
     def __init__(self, **kwargs):
+        changesInfo = {'NuevoJugador': True}
+        if 'id' not in kwargs:
+            raise ValueError(f"Jugador nuevo sin 'id': {kwargs}")
         self.id = kwargs.get('id', None)
         self.URL = kwargs.get('URL', None)
         self.sinDatos: Optional[bool] = None
@@ -32,8 +40,12 @@ class FichaJugador:
         self.altura = kwargs.get('altura', None)
         self.nacionalidad = kwargs.get('nacionalidad', None)
         self.licencia = kwargs.get('licencia', None)
+        self.ultClub = None
 
+        self.nombresConocidos = set()
+        self.urlConocidas = set()
         self.fotos = set()
+
         self.primPartidoP = None
         self.ultPartidoP = None
         self.primPartidoT = None
@@ -41,46 +53,126 @@ class FichaJugador:
         self.partidos = set()
         self.equipos = set()
 
-        if 'urlFoto' in kwargs:                                     self.fotos.add(kwargs['urlFoto'])
+        if self.nombre is not None:
+            self.nombresConocidos.add(self.nombre)
+        if self.alias is not None:
+            self.nombresConocidos.add(self.alias)
+
+        if self.URL is not None:
+            self.urlConocidas.add(self.URL)
+
+        self.updateFoto(urlFoto=kwargs.get('urlFoto', None), urlBase=self.URL, changeDict=changesInfo)
+
+        ultClub = kwargs.get('club', None)
+        if ultClub is not None:
+            self.equipos.add(ultClub)
+            self.ultClub = ultClub
+
+        addedData = {k: kwargs.get(k, None) for k in CLAVESFICHA if kwargs.get(k, None) is not None}
+        changesInfo.update(addedData)
+        CAMBIOSJUGADORES[self.id].update(changesInfo)
+
+    def updateFoto(self, urlFoto: str, urlBase: str, changeDict: Optional[dict] = None):
+        changes = False
+
+        if urlFoto is not None and urlFoto not in URLIMG2IGNORE:
+            changes = True
+            newURL = mergeURL(urlBase, urlFoto)
+            self.fotos.add(newURL)
+            if changeDict:
+                changeDict['urlFoto'] = ("", "Nueva")
+        return changes
 
     @staticmethod
-    def fromURL(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=Namespace()):
+    def fromURL(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
         if browser is None:
             browser = createBrowser(config)
+
+        if config is None:
+            config = Namespace()
+        else:
+            config = Namespace(**config) if isinstance(config, dict) else config
 
         fichaJug = descargaURLficha(urlFicha, datosPartido=datosPartido, home=home, browser=browser, config=config)
 
         return FichaJugador(**fichaJug)
 
-    def actualizaFicha(self, datosPartido: Optional[dict] = None, home=None, browser=None, config=Namespace()):
+    def actualizaFicha(self, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
 
         changes = False
+        changeInfo = dict()
 
         if browser is None:
             browser = createBrowser(config)
 
-        if not hasattr(self, 'sinDatos'):
-            changes = True
-            self.__setattr__('sinDatos', None)
+        if config is None:
+            config = Namespace()
+        else:
+            config = Namespace(**config) if isinstance(config, dict) else config
+
+        changes |= self.addAtributosQueFaltan()
 
         newData = descargaURLficha(self.URL, datosPartido=datosPartido, home=home, browser=browser, config=config)
 
         if self.sinDatos is None or self.sinDatos:
-            self.sinDatos = newData.get('sinDatos', True)
+            self.sinDatos = newData.get('sinDatos', False)
+            changes = True
+
+        # No hay necesidad de poner la URL en el informe
+        if self.URL != newData['URL']:
+            self.urlConocidas.add(newData['URL'])
+            self.URL = newData['URL']
+            changes = True
 
         for k in CLAVESFICHA:
             if getattr(self, k) != newData[k]:
                 changes = True
+                changeInfo[k] = (getattr(self, k), newData[k])
                 setattr(self, k, newData[k])
 
-        if newData['urlFoto'] not in self.fotos:
+        if self.nombre is not None:
+            self.nombresConocidos.add(self.nombre)
+        if self.alias is not None:
+            self.nombresConocidos.add(self.alias)
+
+        changes |= self.updateFoto(newData['urlFoto'], self.URL, changeInfo)
+
+        ultClub = newData.get('club', None)
+        if self.ultClub != ultClub:
             changes = True
-            self.fotos.add(newData['urlFoto'])
+            self.equipos.add(ultClub)
+            self.ultClub = ultClub
 
         if changes:
             self.timestamp = newData.get('timestamp', gmtime())
-            print(f"Ficha actualizada: {self}")
+            CAMBIOSJUGADORES[self.id].update(changeInfo)
 
+        return changes
+
+    def addAtributosQueFaltan(self) -> bool:
+        """
+        Añade
+        :param:
+        :return: si ha habido cambios
+        """
+        changes = False
+        if not hasattr(self, 'sinDatos'):
+            changes = True
+            self.__setattr__('sinDatos', None)
+        if not hasattr(self, 'nombresConocidos'):
+            changes = True
+            self.__setattr__('nombresConocidos', set())
+            if self.nombre is not None:
+                self.nombresConocidos.add(self.nombre)
+            if self.alias is not None:
+                self.nombresConocidos.add(self.alias)
+        if not hasattr(self, 'ultClub'):
+            changes = True
+            self.__setattr__('ultClub', None)
+        if not hasattr(self, 'urlConocidas'):
+            changes = True
+            self.__setattr__('urlConocidas', set())
+            self.urlConocidas.add(self.URL)
         return changes
 
     def nuevoPartido(self, partido):
@@ -155,9 +247,14 @@ class FichaJugador:
         return result
 
 
-def descargaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=Namespace()):
+def descargaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
     if browser is None:
         browser = createBrowser(config)
+    if config is None:
+        config = Namespace()
+    else:
+        config = Namespace(**config) if isinstance(config, dict) else config
+
     try:
         result = dict()
         # Asume que todo va a fallar
@@ -222,3 +319,9 @@ def descargaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=None, b
         raise exc
 
     return result
+
+
+def muestraDiferenciasJugador(jugador, changeInfo):
+    auxChangeStr = ", ".join([f"{k}: '{changeInfo[k][0]}'->'{changeInfo[k][1]}'" for k in sorted(changeInfo.keys())])
+    changeStr = f" Cambios: {auxChangeStr} " if auxChangeStr else ""
+    print(f"Ficha actualizada: {jugador}. {changeStr}")

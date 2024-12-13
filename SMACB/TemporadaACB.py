@@ -6,6 +6,7 @@ Created on Jan 4, 2018
 
 import logging
 import sys
+import traceback
 from _operator import itemgetter
 from argparse import Namespace
 from collections import defaultdict
@@ -43,6 +44,7 @@ DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 
                    ('Rival', 'utilizados', 'sum'): 0, }
 
 JUGADORESDESCARGADOS = set()
+AUXCAMBIOS = CAMBIOSJUGADORES  # For the sake of formatter
 
 
 def auxJorFech2periodo(dfTemp):
@@ -104,7 +106,6 @@ class TemporadaACB(object):
         self.fichaJugadores: Dict[str, FichaJugador] = dict()
         self.fichaEntrenadores = dict()
         self.plantillas = dict()
-
 
     def __repr__(self):
         tstampStr = strftime("%Y%m%d-%H:%M:%S", self.timestamp)
@@ -207,10 +208,16 @@ class TemporadaACB(object):
 
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
 
-    def actualizaFichasPartido(self, nuevoPartido, browser=None, config=Namespace()):
+    def actualizaFichasPartido(self, nuevoPartido, browser=None, config=None):
+        if config is None:
+            config = Namespace()
+        else:
+            config = Namespace(**config) if isinstance(config, dict) else config
+
         if browser is None:
             browser = createBrowser(config)
             browser.open(URL_BASE)
+
         refrescaFichas = False
 
         if 'refresca' in config and config.refresca:
@@ -228,11 +235,11 @@ class TemporadaACB(object):
                     if codJ in JUGADORESDESCARGADOS:
                         JUGADORESDESCARGADOS.remove(codJ)
                 except Exception as exc:
-                    print(
-                        f"SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido [{nuevoPartido.url}]: something "
-                        f"happened creating record for {codJ}. Datos: {datosJug}",
-                        exc)
-                    JUGADORESDESCARGADOS.pop(codJ)
+                    print(f"SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido [{nuevoPartido.url}]: something "
+                          f"happened creating record for {codJ}. Datos: {datosJug}", exc)
+                    traceback.print_tb(exc.__traceback__)
+                    if codJ in JUGADORESDESCARGADOS:
+                        JUGADORESDESCARGADOS.remove(codJ)
                     continue
 
             elif refrescaFichas or (not hasattr(self.fichaJugadores[codJ], 'sinDatos')) or (
@@ -246,11 +253,11 @@ class TemporadaACB(object):
                                                                              config=config)
                     JUGADORESDESCARGADOS.add(codJ)
                 except Exception as exc:
-                    print(
-                        f"SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido [{nuevoPartido.url}]: something "
-                        f"happened updating record of {codJ}. Datos: {datosJug}",
-                        exc)
-                    JUGADORESDESCARGADOS.pop(codJ)
+                    print(f"SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido [{nuevoPartido.url}]: something "
+                          f"happened updating record of {codJ}. Datos: {datosJug}", exc)
+                    traceback.print_tb(exc.__traceback__)
+                if codJ in JUGADORESDESCARGADOS:
+                    JUGADORESDESCARGADOS.remove(codJ)
 
             self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
 
@@ -258,15 +265,20 @@ class TemporadaACB(object):
         for codE in nuevoPartido.Entrenadores:
             pass
 
-    def actualizaPlantillas(self, browser=None, config=Namespace()):
+    def actualizaPlantillas(self, browser=None, config=None):
         if self.descargaPlantillas:
+            if config is None:
+                config = Namespace()
+            else:
+                config = Namespace(**config) if isinstance(config, dict) else config
+
             if browser is None:
                 browser = createBrowser(config)
                 browser.open(URL_BASE)
 
             if len(self.plantillas):  # Ya se han descargado por primera vez
-                changes = [self.plantillas[p_id].descargaYactualizaPlantilla(browser=None, config=Namespace()) for p_id
-                           in self.plantillas]
+                changes = [self.plantillas[p_id].descargaYactualizaPlantilla(browser=None, config=config) for p_id in
+                           self.plantillas]
                 self.changed |= any(changes)
             else:
                 datosPlantillas = descargaPlantillasCabecera(browser, config)

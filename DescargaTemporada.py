@@ -9,7 +9,7 @@ from CAPcore.Web import createBrowser, extractGetParams
 from configargparse import ArgumentParser
 
 from SMACB.CalendarioACB import calendario_URLBASE
-from SMACB.TemporadaACB import TemporadaACB
+from SMACB.TemporadaACB import TemporadaACB, CAMBIOSJUGADORES
 
 parser = ArgumentParser()
 parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, help='Salida más detallada',
@@ -85,6 +85,9 @@ if nuevosPartidos or temporada.changed or args.saveanyway:
         resumenPartidos = [str(temporada.Partidos[x]) for x in sorted(list(nuevosPartidos), key=lambda p: (
             temporada.Partidos[p].fechaPartido, temporada.Partidos[p].jornada))]
         print("Nuevos partidos incorporados:\n%s" % ("\n".join(resumenPartidos)))
+
+    if CAMBIOSJUGADORES:
+        print(CAMBIOSJUGADORES)
 
     sys.setrecursionlimit(50000)
     if 'outfile' in args and args.outfile:
