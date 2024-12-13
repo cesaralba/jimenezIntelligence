@@ -44,6 +44,7 @@ DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 
 
 JUGADORESDESCARGADOS = set()
 
+
 def auxJorFech2periodo(dfTemp):
     periodoAct = 0
     jornada = dict()
@@ -109,10 +110,13 @@ class TemporadaACB(object):
         result = f"{self.competicion} Temporada: {self.edicion} Datos: {tstampStr}"
         return result
 
-    def actualizaTemporada(self, home=None, browser=None, config=Namespace()):
+    def actualizaTemporada(self, home=None, browser=None, config=None):
         changeOrig = self.changed
 
-        config = Namespace(**config) if isinstance(config, dict) else config
+        if config is None:
+            config = Namespace()
+        else:
+            config = Namespace(**config) if isinstance(config, dict) else config
 
         if browser is None:
             browser = createBrowser(config)
@@ -123,7 +127,7 @@ class TemporadaACB(object):
 
         partidosBajados = set()
 
-        for partido in set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys())):
+        for partido in sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys()))):
             try:
                 nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
                 nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
@@ -141,7 +145,7 @@ class TemporadaACB(object):
             if 'justone' in config and config.justone:  # Just downloads a game (for testing/dev purposes)
                 break
 
-        self.changed = self.changed | (len(partidosBajados) > 0)
+        self.changed |= (len(partidosBajados) > 0)
 
         if self.descargaPlantillas:
             self.actualizaPlantillas(browser=browser, config=config)
@@ -220,9 +224,13 @@ class TemporadaACB(object):
                                                       home=browser.get_url(), browser=browser, config=config)
                     print(f"Ficha creada: {nuevaFicha}")
                     self.fichaJugadores[codJ] = nuevaFicha
-                    JUGADORESDESCARGADOS.add(codJ)
+                    if codJ in JUGADORESDESCARGADOS:
+                        JUGADORESDESCARGADOS.remove(codJ)
                 except Exception as exc:
-                    print(f"SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido [{nuevoPartido.url}]: something happened creating record for {codJ}. Datos: {datosJug}", exc)
+                    print(
+                        f"SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido [{nuevoPartido.url}]: something "
+                        f"happened creating record for {codJ}. Datos: {datosJug}",
+                        exc)
                     JUGADORESDESCARGADOS.pop(codJ)
                     continue
 
@@ -237,7 +245,10 @@ class TemporadaACB(object):
                                                                              config=config)
                     JUGADORESDESCARGADOS.add(codJ)
                 except Exception as exc:
-                    print(f"SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido [{nuevoPartido.url}]: something happened updating record of {codJ}. Datos: {datosJug}", exc)
+                    print(
+                        f"SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido [{nuevoPartido.url}]: something "
+                        f"happened updating record of {codJ}. Datos: {datosJug}",
+                        exc)
                     JUGADORESDESCARGADOS.pop(codJ)
 
             self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
