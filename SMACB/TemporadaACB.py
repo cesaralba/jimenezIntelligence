@@ -30,7 +30,7 @@ from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
 from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoClasifBase, infoClasifEquipo,
                         infoEqCalendario, infoPartLV, infoSigPartido, LOCALNAMES, LocalVisitante, OtherLoc, OtherTeam,
                         infoClasifComplMasD2, infoClasifComplPareja, )
-from .FichaJugador import FichaJugador
+from .FichaJugador import FichaJugador, CAMBIOSJUGADORES
 from .PartidoACB import PartidoACB
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB
 
@@ -104,6 +104,7 @@ class TemporadaACB(object):
         self.fichaJugadores: Dict[str, FichaJugador] = dict()
         self.fichaEntrenadores = dict()
         self.plantillas = dict()
+
 
     def __repr__(self):
         tstampStr = strftime("%Y%m%d-%H:%M:%S", self.timestamp)
