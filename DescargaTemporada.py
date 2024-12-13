@@ -99,8 +99,10 @@ if nuevosPartidos or temporada.changed or args.saveanyway:
             if 'NuevoJugador' in jugData:
                 jugList.append(f"{jugCod} Nuevo : {temporada.fichaJugadores[jugCod]}")
             else:
-                claves2skip = set()
+                claves2skip = {'urlFoto'}
                 cambiosJusg = [f"{k}: '{v[0]}'->'{v[1]}'" for k, v in jugData.items() if k not in claves2skip]
+                if 'urlFoto' in jugData:
+                    cambiosJusg.append("Nueva foto")
                 jugList.append(f"{jugCod} Cambios: {temporada.fichaJugadores[jugCod]}: {','.join(sorted(cambiosJusg))}")
 
         print(f"Cambios en jugadores:\n{'\n'.join(sorted(jugList))}")
