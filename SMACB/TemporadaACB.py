@@ -230,10 +230,7 @@ class TemporadaACB(object):
                 try:
                     nuevaFicha = FichaJugador.fromURL(datosJug['linkPersona'], datosPartido=datosJug,
                                                       home=browser.get_url(), browser=browser, config=config)
-                    print(f"Ficha creada: {nuevaFicha}")
                     self.fichaJugadores[codJ] = nuevaFicha
-                    if codJ in JUGADORESDESCARGADOS:
-                        JUGADORESDESCARGADOS.remove(codJ)
                 except Exception as exc:
                     print(f"SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido [{nuevoPartido.url}]: something "
                           f"happened creating record for {codJ}. Datos: {datosJug}", exc)
@@ -276,16 +273,17 @@ class TemporadaACB(object):
                 browser = createBrowser(config)
                 browser.open(URL_BASE)
 
-            if len(self.plantillas):  # Ya se han descargado por primera vez
-                changes = [self.plantillas[p_id].descargaYactualizaPlantilla(browser=None, config=config) for p_id in
-                           self.plantillas]
-                self.changed |= any(changes)
-            else:
-                datosPlantillas = descargaPlantillasCabecera(browser, config)
-                for p_id, datos in datosPlantillas.items():
+            changedList=[]
+            datosPlantillas = descargaPlantillasCabecera(browser, config)
+            for p_id in datosPlantillas:
+                if p_id not in self.plantillas:
                     self.plantillas[p_id] = PlantillaACB(p_id)
-                    self.plantillas[p_id].actualizaPlantillaDescargada(datos)
-                self.changed = True
+
+                resPlant=self.plantillas[p_id].descargaYactualizaPlantilla(browser=None, config=config)
+                changedList.append(resPlant)
+
+            self.changed |= any(changedList)
+            return changedList
 
     def actualizaTraduccionesJugador(self, nuevoPartido):
         for codJ, datosJug in nuevoPartido.Jugadores.items():

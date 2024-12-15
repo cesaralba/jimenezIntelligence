@@ -7,7 +7,7 @@ import bs4
 from CAPcore.LoggedDict import DictOfLoggedDict, LoggedDict
 from CAPcore.Web import createBrowser, downloadPage, mergeURL, DownloadedPage
 
-from Utils.Web import getObjID
+from Utils.Web import getObjID, generaURLPlantilla, generaURLClubes
 from .Constants import URL_BASE
 
 logger = logging.getLogger()
@@ -35,12 +35,12 @@ class PlantillaACB():
         :param extraTrads:
         :return:
         """
-        if browser is None:
-            browser = createBrowser(config)
         if config is None:
             config = Namespace()
         else:
             config = Namespace(**config) if isinstance(config, dict) else config
+        if browser is None:
+            browser = createBrowser(config)
 
         try:
             data = descargaURLplantilla(self.URL, home, browser, config, otrosNombres=extraTrads)
@@ -55,6 +55,7 @@ class PlantillaACB():
         result = False
 
         currTimestamp = data.get('timestamp', gmtime())
+        print(self.tecnicos.diff(data.get('tecnicos', {})))
 
         result = result | self.club.update(data.get('club', {}), currTimestamp)
 
@@ -244,9 +245,7 @@ def descargaPlantillasCabecera(browser=None, config=None, edicion=None, listaIDs
     if listaIDs is None:
         listaIDs = []
 
-    result = dict()
-    if browser is None:
-        browser = createBrowser(config)
+    result = set()
 
     urlClubes = generaURLClubes(edicion)
     paginaRaiz = downloadPage(dest=urlClubes, browser=browser, config=config)
@@ -264,35 +263,6 @@ def descargaPlantillasCabecera(browser=None, config=None, edicion=None, listaIDs
 
         idEq = getObjID(objURL=urlFull, clave='id')
 
-        if listaIDs and idEq not in listaIDs:
-            continue
-
-        result[idEq] = descargaURLplantilla(urlFull)
-
-    return result
-
-
-def generaURLPlantilla(plantilla):
-    # http://www.acb.com/club/plantilla/id/6/temporada_id/2016
-    params = ['/club', 'plantilla', 'id', plantilla.id]
-    if plantilla.edicion is not None:
-        params += ['temporada_id', plantilla.edicion]
-
-    urlSTR = "/".join(params)
-
-    result = mergeURL(URL_BASE, urlSTR)
-
-    return result
-
-
-def generaURLClubes(edicion=None):
-    # https://www.acb.com/club/index/temporada_id/2015
-    params = ['/club', 'index']
-    if edicion is not None:
-        params += ['temporada_id', edicion]
-
-    urlSTR = "/".join(params)
-
-    result = mergeURL(URL_BASE, urlSTR)
+        result.add(idEq)
 
     return result
