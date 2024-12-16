@@ -40,7 +40,7 @@ def prepareDownloading(browser, config, urlRef: Optional[str] = None):
             browser.open(urlRef)
     return browser, config
 
-def generaURLPlantilla(plantilla):
+def generaURLPlantilla(plantilla,urlRef:str):
     # http://www.acb.com/club/plantilla/id/6/temporada_id/2016
     params = ['/club', 'plantilla', 'id', plantilla.id]
     if plantilla.edicion is not None:
@@ -48,12 +48,12 @@ def generaURLPlantilla(plantilla):
 
     urlSTR = "/".join(params)
 
-    result = mergeURL(URL_BASE, urlSTR)
+    result = mergeURL(urlRef, urlSTR)
 
     return result
 
 
-def generaURLClubes(edicion=None):
+def generaURLClubes(edicion:Optional[str]=None,urlRef:str=None):
     # https://www.acb.com/club/index/temporada_id/2015
     params = ['/club', 'index']
     if edicion is not None:
@@ -61,6 +61,6 @@ def generaURLClubes(edicion=None):
 
     urlSTR = "/".join(params)
 
-    result = mergeURL(URL_BASE, urlSTR)
+    result = mergeURL(urlRef, urlSTR)
 
     return result
