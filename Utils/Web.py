@@ -1,9 +1,8 @@
 import re
 from typing import Optional
 
-from CAPcore.Web import createBrowser,mergeURL
+from CAPcore.Web import createBrowser, mergeURL
 from configargparse import Namespace
-
 
 # https://effbot.org/zone/default-values.htm#what-to-do-instead
 sentinel = object()
@@ -40,7 +39,8 @@ def prepareDownloading(browser, config, urlRef: Optional[str] = None):
             browser.open(urlRef)
     return browser, config
 
-def generaURLPlantilla(plantilla,urlRef:str):
+
+def generaURLPlantilla(plantilla, urlRef: str):
     # http://www.acb.com/club/plantilla/id/6/temporada_id/2016
     params = ['/club', 'plantilla', 'id', plantilla.id]
     if plantilla.edicion is not None:
@@ -53,7 +53,7 @@ def generaURLPlantilla(plantilla,urlRef:str):
     return result
 
 
-def generaURLClubes(edicion:Optional[str]=None,urlRef:str=None):
+def generaURLClubes(edicion: Optional[str] = None, urlRef: str = None):
     # https://www.acb.com/club/index/temporada_id/2015
     params = ['/club', 'index']
     if edicion is not None:

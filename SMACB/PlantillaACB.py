@@ -18,7 +18,7 @@ class PlantillaACB():
     def __init__(self, teamId, **kwargs):
         self.id = teamId
         self.edicion = kwargs.get('edicion', None)
-        self.URL = generaURLPlantilla(self,URL_BASE)
+        self.URL = generaURLPlantilla(self, URL_BASE)
         self.timestamp = None
 
         self.club = LoggedDict()
@@ -228,7 +228,7 @@ def descargaPlantillasCabecera(browser=None, config=None, edicion=None, listaIDs
 
     result = set()
 
-    urlClubes = generaURLClubes(edicion,URL_BASE)
+    urlClubes = generaURLClubes(edicion, URL_BASE)
     paginaRaiz = downloadPage(dest=urlClubes, browser=browser, config=config)
 
     if paginaRaiz is None:
