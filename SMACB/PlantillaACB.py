@@ -1,13 +1,12 @@
 import logging
-from argparse import Namespace
 from collections import defaultdict
 from time import gmtime
 
 import bs4
 from CAPcore.LoggedDict import DictOfLoggedDict, LoggedDict
-from CAPcore.Web import createBrowser, downloadPage, mergeURL, DownloadedPage
+from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
-from Utils.Web import getObjID
+from Utils.Web import getObjID, prepareDownloading
 from .Constants import URL_BASE
 
 logger = logging.getLogger()
@@ -35,12 +34,7 @@ class PlantillaACB():
         :param extraTrads:
         :return:
         """
-        if browser is None:
-            browser = createBrowser(config)
-        if config is None:
-            config = Namespace()
-        else:
-            config = Namespace(**config) if isinstance(config, dict) else config
+        browser, config = prepareDownloading(browser, config)
 
         try:
             data = descargaURLplantilla(self.URL, home, browser, config, otrosNombres=extraTrads)
@@ -82,13 +76,7 @@ class PlantillaACB():
 
 
 def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=None, otrosNombres=None):
-    if config is None:
-        config = Namespace()
-    else:
-        config = Namespace(**config) if isinstance(config, dict) else config
-
-    if browser is None:
-        browser = createBrowser(config)
+    browser, config = prepareDownloading(browser, config)
 
     try:
         logging.debug("descargaURLplantilla: downloading %s", urlPlantilla)
@@ -233,20 +221,12 @@ def descargaPlantillasCabecera(browser=None, config=None, edicion=None, listaIDs
     :param listaIDs: IDs to be considered
     :return:
     """
-    if config is None:
-        config = Namespace()
-    else:
-        config = Namespace(**config) if isinstance(config, dict) else config
-
-    if browser is None:
-        browser = createBrowser(config)
+    browser, config = prepareDownloading(browser, config)
 
     if listaIDs is None:
         listaIDs = []
 
     result = dict()
-    if browser is None:
-        browser = createBrowser(config)
 
     urlClubes = generaURLClubes(edicion)
     paginaRaiz = downloadPage(dest=urlClubes, browser=browser, config=config)

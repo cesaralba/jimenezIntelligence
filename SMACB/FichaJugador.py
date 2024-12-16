@@ -1,14 +1,13 @@
 import re
-from argparse import Namespace
 from collections import defaultdict
 from time import gmtime
 from typing import Optional
 
 import pandas as pd
-from CAPcore.Web import downloadPage, createBrowser, mergeURL
+from CAPcore.Web import downloadPage, mergeURL
 
 from Utils.FechaHora import PATRONFECHA
-from Utils.Web import getObjID
+from Utils.Web import getObjID, prepareDownloading
 
 CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
 
@@ -85,13 +84,7 @@ class FichaJugador:
 
     @staticmethod
     def fromURL(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
-        if browser is None:
-            browser = createBrowser(config)
-
-        if config is None:
-            config = Namespace()
-        else:
-            config = Namespace(**config) if isinstance(config, dict) else config
+        browser, config = prepareDownloading(browser, config)
 
         fichaJug = descargaURLficha(urlFicha, datosPartido=datosPartido, home=home, browser=browser, config=config)
 
@@ -102,16 +95,9 @@ class FichaJugador:
         changes = False
         changeInfo = dict()
 
-        if browser is None:
-            browser = createBrowser(config)
-
-        if config is None:
-            config = Namespace()
-        else:
-            config = Namespace(**config) if isinstance(config, dict) else config
-
         changes |= self.addAtributosQueFaltan()
 
+        browser, config = prepareDownloading(browser, config)
         newData = descargaURLficha(self.URL, datosPartido=datosPartido, home=home, browser=browser, config=config)
 
         if self.sinDatos is None or self.sinDatos:
@@ -248,12 +234,7 @@ class FichaJugador:
 
 
 def descargaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
-    if browser is None:
-        browser = createBrowser(config)
-    if config is None:
-        config = Namespace()
-    else:
-        config = Namespace(**config) if isinstance(config, dict) else config
+    browser, config = prepareDownloading(browser, config)
 
     try:
         result = dict()
