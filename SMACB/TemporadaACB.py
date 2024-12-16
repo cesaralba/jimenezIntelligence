@@ -8,7 +8,6 @@ import logging
 import sys
 import traceback
 from _operator import itemgetter
-from argparse import Namespace
 from collections import defaultdict
 from copy import copy
 from decimal import Decimal
@@ -23,10 +22,11 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from CAPcore.Misc import onlySetElement
-from CAPcore.Web import createBrowser, mergeURL
+from CAPcore.Web import mergeURL
 
 from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Pandas import combinaPDindexes
+from Utils.Web import prepareDownloading
 from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
 from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoClasifBase, infoClasifEquipo,
                         infoEqCalendario, infoPartLV, infoSigPartido, LOCALNAMES, LocalVisitante, OtherLoc, OtherTeam,
@@ -115,14 +115,7 @@ class TemporadaACB(object):
     def actualizaTemporada(self, home=None, browser=None, config=None):
         changeOrig = self.changed
 
-        if config is None:
-            config = Namespace()
-        else:
-            config = Namespace(**config) if isinstance(config, dict) else config
-
-        if browser is None:
-            browser = createBrowser(config)
-            browser.open(URL_BASE)
+        browser, config = prepareDownloading(browser, config, URL_BASE)
 
         self.Calendario.actualizaCalendario(browser=browser, config=config)
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
@@ -133,10 +126,10 @@ class TemporadaACB(object):
             try:
                 nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
                 nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
-                self.Partidos[partido] = nuevoPartido
-                partidosBajados.add(partido)
-
-                self.actualizaInfoAuxiliar(nuevoPartido, browser, config)
+                if nuevoPartido.check():
+                    self.Partidos[partido] = nuevoPartido
+                    partidosBajados.add(partido)
+                    self.actualizaInfoAuxiliar(nuevoPartido, browser, config)
             except KeyboardInterrupt:
                 print("actualizaTemporada: Ejecución terminada por el usuario")
                 break
@@ -209,14 +202,7 @@ class TemporadaACB(object):
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
 
     def actualizaFichasPartido(self, nuevoPartido, browser=None, config=None):
-        if config is None:
-            config = Namespace()
-        else:
-            config = Namespace(**config) if isinstance(config, dict) else config
-
-        if browser is None:
-            browser = createBrowser(config)
-            browser.open(URL_BASE)
+        browser, config = prepareDownloading(browser, config, URL_BASE)
 
         refrescaFichas = False
 
@@ -264,14 +250,7 @@ class TemporadaACB(object):
 
     def actualizaPlantillas(self, browser=None, config=None):
         if self.descargaPlantillas:
-            if config is None:
-                config = Namespace()
-            else:
-                config = Namespace(**config) if isinstance(config, dict) else config
-
-            if browser is None:
-                browser = createBrowser(config)
-                browser.open(URL_BASE)
+            browser, config = prepareDownloading(browser, config, URL_BASE)
 
             changedList=[]
             datosPlantillas = descargaPlantillasCabecera(browser, config)
