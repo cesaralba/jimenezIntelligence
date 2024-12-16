@@ -1,5 +1,5 @@
+import logging
 import re
-from argparse import Namespace
 from itertools import product
 from time import gmtime
 from traceback import print_exc
@@ -7,13 +7,13 @@ from traceback import print_exc
 import numpy as np
 import pandas as pd
 from CAPcore.Misc import BadParameters, BadString, extractREGroups
-from CAPcore.Web import downloadPage, extractGetParams, DownloadedPage, createBrowser
+from CAPcore.Web import downloadPage, extractGetParams, DownloadedPage
 from babel.numbers import parse_number
 from bs4 import Tag
 
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
-from Utils.Web import getObjID
+from Utils.Web import getObjID, prepareDownloading
 from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp)
 from .PlantillaACB import PlantillaACB
 
@@ -57,12 +57,7 @@ class PartidoACB():
 
     def descargaPartido(self, home=None, browser=None, config=None):
 
-        if config is None:
-            config = Namespace()
-        else:
-            config = Namespace(**config) if isinstance(config, dict) else config
-        if browser is None:
-            browser = createBrowser(config)
+        browser, config = prepareDownloading(browser, config)
 
         if not hasattr(self, 'url'):
             raise BadParameters("PartidoACB: DescargaPartido: imposible encontrar la URL del partido")
@@ -160,6 +155,16 @@ class PartidoACB():
                     f"{self.url}': {newPendientes}")
 
         return divCabecera
+
+    def check(self):
+        result = True
+
+        for loc in LocalVisitante:
+            if not self.Equipos[loc].get('estads', {}):
+                logging.error("Partido: '{}' no se han encontrado estadisticas para {}.")
+                result &= False
+
+        return result
 
     def procesaDivFechas(self, divFecha):
         espTiempo = list(map(lambda x: x.strip(), divFecha.next.split("|")))
@@ -449,7 +454,9 @@ class PartidoACB():
 
     def estadsPartido(self):
         result = {loc: dict() for loc in LocalVisitante}
+
         for loc in LocalVisitante:
+            print(self, self.url, self.Equipos[loc].keys())
             result[loc].update(self.Equipos[loc]['estads'])
 
         for loc in LocalVisitante:
