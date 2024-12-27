@@ -3,7 +3,8 @@ from collections import defaultdict
 from time import gmtime
 
 import bs4
-from CAPcore.LoggedDict import DictOfLoggedDict, LoggedDict
+from CAPcore.LoggedDict import LoggedDict
+from CAPcore.DictLoggedDict import DictOfLoggedDict
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
 from Utils.Web import getObjID, generaURLPlantilla, generaURLClubes, prepareDownloading
@@ -49,11 +50,14 @@ class PlantillaACB():
         result = False
 
         currTimestamp = data.get('timestamp', gmtime())
+        print(self.club)
+        print("DIFFCLUB",self.club.diff(data.get('club', {})))
+        print("DIFFTEC",self.tecnicos.diff(data.get('tecnicos', {})))
+        print("DIFFJUG",self.jugadores.diff(data.get('jugadores', {})))
 
-        result = result | self.club.update(data.get('club', {}), currTimestamp)
-
-        result = result | self.jugadores.update(data.get('jugadores', {}), currTimestamp)
-        result = result | self.tecnicos.update(data.get('tecnicos', {}), currTimestamp)
+        result |= self.club.replace(data.get('club', {}), timestamp=currTimestamp)
+        result |= result | self.jugadores.replace(data.get('jugadores', {}), timestamp=currTimestamp)
+        result = result | self.tecnicos.replace(data.get('tecnicos', {}), timestamp=currTimestamp)
 
         if self.edicion is None:
             self.edicion = data['edicion']
