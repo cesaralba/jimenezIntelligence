@@ -45,7 +45,7 @@ def parse_arguments() -> Namespace:
     return args
 
 
-def resumenCambioJugadores(cambiosJugadores:dict,temporada:TemporadaACB):
+def resumenCambioJugadores(cambiosJugadores: dict, temporada: TemporadaACB):
     global jugList
     jugList = []
     for jugCod, jugData in cambiosJugadores.items():
@@ -69,38 +69,37 @@ def muestraResumenPartidos(nuevosPartidos, temporada):
     print("Nuevos partidos incorporados:\n%s" % ("\n".join(resumenPartidos)))
 
 
-def resumenCambioClubes(cambiosClubes:Dict[str,CambiosPlantillaTipo],temporada:TemporadaACB):
-    listaCambios= []
-    for cl,cambios in cambiosClubes.items():
+def resumenCambioClubes(cambiosClubes: Dict[str, CambiosPlantillaTipo], temporada: TemporadaACB):
+    listaCambios = []
+    for cl, cambios in cambiosClubes.items():
         nombreClub = temporada.plantillas[cl].nombreClub()
         cambiosStr = f"Club '{nombreClub}':"
         print(cambiosStr)
         if cambios.club:
-            cambiosStr += "  Datos club:\n" + cambios.club.show(compact=False,indent=4)
+            cambiosStr += "  Datos club:\n" + cambios.club.show(compact=False, indent=4)
         if cambios.jugadores:
-            cambiosStr += "  Jugadores:\n" #+ cambios.jugadores.show(compact=False,indent=4)
-            #print([k for k in dir(cambios.jugadores) if not k.startswith('__')])
+            cambiosStr += "  Jugadores:\n"  # + cambios.jugadores.show(compact=False,indent=4)
+            # print([k for k in dir(cambios.jugadores) if not k.startswith('__')])
             if cambios.jugadores.added:
                 print("Added", type(cambios.jugadores.added))
-                for idJug,dataJug in cambios.jugadores.added.items():
-                    print(temporada.fichaJugadores[idJug],dataJug)
+                for idJug, dataJug in cambios.jugadores.added.items():
+                    print(temporada.fichaJugadores[idJug], dataJug)
             if cambios.jugadores.changed:
                 print("changed", type(cambios.jugadores.changed))
-                for idJug,dataJug in cambios.jugadores.changed.items():
-                    print(temporada.fichaJugadores[idJug],type(dataJug))
+                for idJug, dataJug in cambios.jugadores.changed.items():
+                    print(temporada.fichaJugadores[idJug], type(dataJug))
             if cambios.jugadores.removed:
                 print("removed", type(cambios.jugadores.removed))
-                for idJug,dataJug in cambios.jugadores.removed.items():
-                    print(temporada.fichaJugadores[idJug],type(dataJug))
+                for idJug, dataJug in cambios.jugadores.removed.items():
+                    print(temporada.fichaJugadores[idJug], type(dataJug))
 
         if cambios.tecnicos:
-            cambiosStr += "  Técnicos:\n" #+ cambios.tecnicos.show(compact=False,indent=4)
+            cambiosStr += "  Técnicos:\n"  # + cambios.tecnicos.show(compact=False,indent=4)
             print([k for k in dir(cambios.tecnicos) if not k.startswith('__')])
 
-        print(cambiosStr)
-        #listaCambios.append((nombreClub,"\n".join(cambiosStr)))
+        print(cambiosStr)  # listaCambios.append((nombreClub,"\n".join(cambiosStr)))
 
-    #print(f"Cambios en clubes:\n"+"\n".join([s for k,s in sorted(listaCambios)]))
+    # print(f"Cambios en clubes:\n"+"\n".join([s for k,s in sorted(listaCambios)]))
 
 
 def main(args: Namespace):
@@ -140,10 +139,10 @@ def main(args: Namespace):
             muestraResumenPartidos(nuevosPartidos, temporada)
 
     if CAMBIOSJUGADORES:
-        resumenCambioJugadores(CAMBIOSJUGADORES,temporada=temporada)
+        resumenCambioJugadores(CAMBIOSJUGADORES, temporada=temporada)
 
     if CAMBIOSCLUB:
-        resumenCambioClubes(CAMBIOSCLUB,temporada=temporada)
+        resumenCambioClubes(CAMBIOSCLUB, temporada=temporada)
 
     sys.exit(resultOS)
 

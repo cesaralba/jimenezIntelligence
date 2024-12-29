@@ -114,7 +114,7 @@ class TemporadaACB(object):
         self.descargaPlantillas = descargaPlantillas
         self.fichaJugadores: Dict[str, FichaJugador] = dict()
         self.fichaEntrenadores = dict()
-        self.plantillas:Dict[str,PlantillaACB] = {}
+        self.plantillas: Dict[str, PlantillaACB] = {}
 
     def __repr__(self):
         tstampStr = strftime("%Y%m%d-%H:%M:%S", self.timestamp)
@@ -213,7 +213,7 @@ class TemporadaACB(object):
             print(f"SMACB.TemporadaACB.TemporadaACB.cargaTemporada: retrying load of '{filename}'")
             aux = load(open(filename, "rb"))
 
-        fields2skip = {'changed','tradEquipos'}
+        fields2skip = {'changed', 'tradEquipos'}
         for attr in dir(aux):
             if (attr in fields2skip) or callable(getattr(aux, attr)) or attr.startswith('__'):
                 continue
@@ -221,8 +221,8 @@ class TemporadaACB(object):
 
         if setUpdatePlantillaFormat:
             print("SMACB.TemporadaACB.TemporadaACB.cargaTemporada: actualizando clases base de plantillas")
-            for idEq,data in self.plantillas.items():
-                self.plantillas[idEq]=data.actualizaClasesBase()
+            for idEq, data in self.plantillas.items():
+                self.plantillas[idEq] = data.actualizaClasesBase()
 
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
 
@@ -284,7 +284,7 @@ class TemporadaACB(object):
                 if p_id not in self.plantillas:
                     self.plantillas[p_id] = PlantillaACB(p_id)
 
-                resPlant=self.plantillas[p_id].descargaYactualizaPlantilla(browser=None, config=config)
+                resPlant = self.plantillas[p_id].descargaYactualizaPlantilla(browser=None, config=config)
                 result |= resPlant
 
                 self.changed |= result
@@ -817,32 +817,33 @@ class TemporadaACB(object):
     def idEquipos(self):
         return list(self.tradEquipos['i2c'].keys())
 
-    def actualizaFichaJugadoresFromCambiosPlant(self, cambiosClub:Dict[str,CambiosPlantillaTipo])->bool :
+    def actualizaFichaJugadoresFromCambiosPlant(self, cambiosClub: Dict[str, CambiosPlantillaTipo]) -> bool:
         result = False
-        for idClub,cambios in cambiosClub.items():
+        for idClub, cambios in cambiosClub.items():
             timestampPlant = self.plantillas[idClub].timestamp
             if not cambios.jugadores:
                 continue
-            for jugNuevo,datos in cambios.jugadores.added.items():
+            for jugNuevo, datos in cambios.jugadores.added.items():
                 datos['timestamp'] = timestampPlant
                 if jugNuevo not in self.fichaJugadores:
-                    infoJug =  FichaJugador.fromDatosPlantilla(datos,idClub)
+                    infoJug = FichaJugador.fromDatosPlantilla(datos, idClub)
                     if infoJug is not None:
                         self.fichaJugadores[jugNuevo] = infoJug
                         result = True
                 else:
-                    result |= self.fichaJugadores[jugNuevo].actualizaFromPlantilla(datos,idClub)
-            for jugCambiado,datos in cambios.jugadores.removed.items():
+                    result |= self.fichaJugadores[jugNuevo].actualizaFromPlantilla(datos, idClub)
+            for jugCambiado, datos in cambios.jugadores.removed.items():
                 datos['timestamp'] = timestampPlant
                 datos.update(self.plantillas[idClub].jugadores.get(jugNuevo))
                 if jugNuevo not in self.fichaJugadores:
-                    infoJug =  FichaJugador.fromDatosPlantilla(datos,idClub)
+                    infoJug = FichaJugador.fromDatosPlantilla(datos, idClub)
                     if infoJug is not None:
                         self.fichaJugadores[jugNuevo] = infoJug
                         result = True
                 else:
-                    result |= self.fichaJugadores[jugNuevo].actualizaFromPlantilla(datos,idClub)
+                    result |= self.fichaJugadores[jugNuevo].actualizaFromPlantilla(datos, idClub)
         return result
+
 
 def calculaTempStats(datos, clave, filtroFechas=None):
     if clave not in datos:

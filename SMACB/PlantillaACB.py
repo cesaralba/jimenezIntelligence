@@ -1,29 +1,30 @@
 import logging
 import sys
+import traceback
 from collections import defaultdict
 from time import gmtime
-from typing import Dict,NamedTuple
-import traceback
+from typing import Dict, NamedTuple
 
 import bs4
+from CAPcore.DictLoggedDict import DictOfLoggedDict, DictOfLoggedDictDiff
 from CAPcore.LoggedDict import LoggedDict, LoggedDictDiff
-from CAPcore.DictLoggedDict import DictOfLoggedDict,DictOfLoggedDictDiff
 from CAPcore.Misc import onlySetElement
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
 from Utils.Web import getObjID, generaURLPlantilla, generaURLClubes, prepareDownloading
-from .Constants import URL_BASE,URLIMG2IGNORE
+from .Constants import URL_BASE, URLIMG2IGNORE
 
 logger = logging.getLogger()
 
-CLAVESFICHA = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
 
 class CambiosPlantillaTipo(NamedTuple):
     club: LoggedDictDiff
     jugadores: DictOfLoggedDictDiff
     tecnicos: DictOfLoggedDictDiff
 
-CAMBIOSCLUB:Dict[str,CambiosPlantillaTipo] = {}
+
+CAMBIOSCLUB: Dict[str, CambiosPlantillaTipo] = {}
+
 
 class PlantillaACB():
     def __init__(self, teamId, **kwargs):
@@ -62,7 +63,7 @@ class PlantillaACB():
 
         currTimestamp = data.get('timestamp', gmtime())
 
-        cambiosAux = {k:getattr(self,k).diff(data.get(k,{}),doUpdate=True) for k in CambiosPlantillaTipo._fields}
+        cambiosAux = {k: getattr(self, k).diff(data.get(k, {}), doUpdate=True) for k in CambiosPlantillaTipo._fields}
 
         print(cambiosAux)
         result |= self.club.update(data.get('club', {}), timestamp=currTimestamp)
@@ -83,12 +84,12 @@ class PlantillaACB():
         return self.jugadores.extractKey(key=clave, default=default)
 
     def actualizaClasesBase(self):
-        keyRenaming = {'URLimg':'urlFoto'}
+        keyRenaming = {'URLimg': 'urlFoto'}
         self.tecnicos = DictOfLoggedDict.updateRelease(self.tecnicos)
         self.tecnicos.renameKeys(keyMapping=keyRenaming)
         self.jugadores = DictOfLoggedDict.updateRelease(self.jugadores)
         self.jugadores.renameKeys(keyMapping=keyRenaming)
-        
+
         return self
 
     def nombreClub(self):
@@ -136,7 +137,7 @@ def procesaPlantillaDescargada(plantDesc: DownloadedPage):
     :param otrosNombres: diccionario ID->set de nombres
     :return:
     """
-    class2clave = {'nombre_largo':'nombre','nombre_corto':'alias'}
+    class2clave = {'nombre_largo': 'nombre', 'nombre_corto': 'alias'}
     result = {'jugadores': dict(), 'tecnicos': dict(), 'club': extraeDatosClub(plantDesc)}
 
     fichaData = plantDesc.data
@@ -145,7 +146,7 @@ def procesaPlantillaDescargada(plantDesc: DownloadedPage):
 
     for bloqueDiv in cosasUtiles.find_all('div', {"class": "grid_plantilla"}):
         for jugArt in bloqueDiv.find_all("article"):
-            #CAP print(jugArt)
+            # CAP print(jugArt)
             data = dict()
 
             link = jugArt.find("a").attrs['href']
@@ -156,17 +157,17 @@ def procesaPlantillaDescargada(plantDesc: DownloadedPage):
             if {'caja_jugador_medio_cuerpo', 'caja_jugador_cara'}.intersection(jugArt.attrs['class']):
                 destClass = 'jugadores'
                 data['pos'] = jugArt.find("div", {"class": "posicion"}).get_text().strip()
-                data['alias']=jugArt.find("div", {"class": "nombre"}).get_text().strip()
+                data['alias'] = jugArt.find("div", {"class": "nombre"}).get_text().strip()
             elif {'caja_entrenador_principal', 'caja_entrenador_asistente'}.intersection(jugArt.attrs['class']):
                 destClass = 'tecnicos'
                 if 'caja_entrenador_principal' in jugArt.attrs['class']:
-                    data['alias']=jugArt.find("div", {"class": "nombre"}).get_text().strip()
-                    data['nombre']=jugArt.find("img").attrs['alt'].strip()
+                    data['alias'] = jugArt.find("div", {"class": "nombre"}).get_text().strip()
+                    data['nombre'] = jugArt.find("img").attrs['alt'].strip()
                 else:
-                    #curiosamente los segundos entrenadores tienen los 2 nombres, no así los jugadores
+                    # curiosamente los segundos entrenadores tienen los 2 nombres, no así los jugadores
                     for sp in jugArt.find("div", {"class": "nombre"}).find_all("span"):
                         classId = [k for k in sp['class'] if k in class2clave][0]
-                        data[class2clave[classId]]=sp.get_text().strip()
+                        data[class2clave[classId]] = sp.get_text().strip()
             else:
                 raise ValueError(f"procesaPlantillaDescargada: no sé cómo tratar entrada: {jugArt}")
 
@@ -175,10 +176,9 @@ def procesaPlantillaDescargada(plantDesc: DownloadedPage):
             data['URL'] = mergeURL(URL_BASE, link)
             auxFoto = jugArt.find("img").attrs['src']
             if (auxFoto not in URLIMG2IGNORE) and (auxFoto != ""):
-                data['urlFoto'] = mergeURL(URL_BASE,auxFoto)
+                data['urlFoto'] = mergeURL(URL_BASE, auxFoto)
 
-            result[destClass][data['id']] = data
-            #CAP: print(data)
+            result[destClass][data['id']] = data  # CAP: print(data)
 
     tablaBajas = cosasUtiles.find("table", {"class": "plantilla_bajas"})
 
@@ -204,12 +204,12 @@ def procesaTablaBajas(tablaBajas: bs4.element) -> dict:
 
         data['dorsal'] = row.find("td", {"class": "dorsal"}).get_text().strip()
         nuevosNombres = {sp.get_text().strip() for sp in row.find("td", {"class": "jugador"}).find_all("span")}
-        data['alias']=onlySetElement(nuevosNombres)
+        data['alias'] = onlySetElement(nuevosNombres)
 
         posics = {tds[2].find("span").get_text().strip()}
 
         destClass = 'tecnicos' if "ENT" in posics else 'jugadores'
-        result[destClass][data['id']]=data
+        result[destClass][data['id']] = data
 
     return result
 

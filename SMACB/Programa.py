@@ -18,8 +18,7 @@ from reportlab.platypus import NextPageTemplate, PageBreak, Paragraph, Spacer, T
 import SMACB.TemporadaACB as Constants
 from SMACB.Constants import (CATESTADSEQ2IGNORE, CATESTADSEQASCENDING, DEFAULTNUMFORMAT, DESCENSOS, filaTrayectoriaEq,
                              haGanado2esp, infoClasifEquipo, infoSigPartido, local2espLargo, LocalVisitante,
-                             MARCADORESCLASIF, RANKFORMAT, REPORTLEYENDAS, )
-from SMACB.FichaJugador import TRADPOSICION
+                             MARCADORESCLASIF, RANKFORMAT, REPORTLEYENDAS, TRADPOSICION, )
 from SMACB.TemporadaACB import (auxEtiqPartido, calculaEstadsYOrdenLiga, equipo2clasif, esEstCreciente,
                                 extraeCampoYorden, TemporadaACB, )
 from Utils.FechaHora import NEVER, secs2TimeStr, time2Str
@@ -366,6 +365,8 @@ def auxKeyDorsal(f, col):
         return "-"
 
     dato = f[col]
+    print(f,col,dato)
+
     result = -1 if dato == "00" else int(dato)
 
     return result
