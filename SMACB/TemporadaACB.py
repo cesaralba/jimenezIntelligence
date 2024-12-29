@@ -33,7 +33,7 @@ from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoCl
                         infoClasifComplMasD2, infoClasifComplPareja, )
 from .FichaJugador import FichaJugador, CAMBIOSJUGADORES
 from .PartidoACB import PartidoACB
-from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB
+from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB, CAMBIOSCLUB, CambiosPlantillaTipo
 
 logger = logging.getLogger()
 
@@ -90,6 +90,15 @@ class TemporadaACB(object):
     # TODO: función __str__
 
     def __init__(self, **kwargs):
+        """
+
+        :param kwargs:
+        * competicion: Defecto "LACB")
+        * edicion Defecto: None
+        * descargaFichas Defecto= False
+        * descargaPlantillas Defecto= False)
+
+        """
         self.competicion = kwargs.get('competicion', "LACB")
         self.edicion = kwargs.get('edicion', None)
         self.urlbase = kwargs.get('urlbase', calendario_URLBASE)
@@ -105,7 +114,7 @@ class TemporadaACB(object):
         self.descargaPlantillas = descargaPlantillas
         self.fichaJugadores: Dict[str, FichaJugador] = dict()
         self.fichaEntrenadores = dict()
-        self.plantillas = dict()
+        self.plantillas:Dict[str,PlantillaACB] = {}
 
     def __repr__(self):
         tstampStr = strftime("%Y%m%d-%H:%M:%S", self.timestamp)
@@ -143,7 +152,10 @@ class TemporadaACB(object):
         self.changed |= (len(partidosBajados) > 0)
 
         if self.descargaPlantillas:
-            self.actualizaPlantillas(browser=browser, config=config)
+            resPlant = self.actualizaPlantillas(browser=browser, config=config)
+            self.changed |= resPlant
+            if resPlant:
+                self.changed |= self.actualizaFichaJugadoresFromCambiosPlant(CAMBIOSCLUB)
 
         if self.changed != changeOrig:
             self.timestamp = gmtime()
@@ -183,6 +195,7 @@ class TemporadaACB(object):
     def cargaTemporada(self, filename):
         # TODO: Protect this
         retry = False
+        setUpdatePlantillaFormat = False
         try:
             aux = load(open(filename, "rb"))
         except ModuleNotFoundError:
@@ -190,14 +203,26 @@ class TemporadaACB(object):
             sys.modules['Utils.LoggedDict'] = sys.modules['CAPcore.LoggedDict']
             sys.modules['Utils.LoggedValue'] = sys.modules['CAPcore.LoggedValue']
             retry = True
+        except AttributeError:
+            # Para compatibilidad hacia atras (ficheros grabados antes de revamping de CAPcore.*Logged*)
+            sys.modules['CAPcore.LoggedDict'].DictOfLoggedDict = sys.modules['CAPcore.DictLoggedDict'].DictOfLoggedDict
+            retry = True
+            setUpdatePlantillaFormat = True
+
         if retry:
             print(f"SMACB.TemporadaACB.TemporadaACB.cargaTemporada: retrying load of '{filename}'")
             aux = load(open(filename, "rb"))
 
-        for atributo in aux.__dict__.keys():
-            if atributo in {'changed'}:
+        fields2skip = {'changed','tradEquipos'}
+        for attr in dir(aux):
+            if (attr in fields2skip) or callable(getattr(aux, attr)) or attr.startswith('__'):
                 continue
-            self.__setattr__(atributo, aux.__getattribute__(atributo))
+            setattr(self, attr, getattr(aux, attr))
+
+        if setUpdatePlantillaFormat:
+            print("SMACB.TemporadaACB.TemporadaACB.cargaTemporada: actualizando clases base de plantillas")
+            for idEq,data in self.plantillas.items():
+                self.plantillas[idEq]=data.actualizaClasesBase()
 
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
 
@@ -249,20 +274,21 @@ class TemporadaACB(object):
             pass
 
     def actualizaPlantillas(self, browser=None, config=None):
+        result = False
         if self.descargaPlantillas:
+
             browser, config = prepareDownloading(browser, config, URL_BASE)
 
-            changedList=[]
             datosPlantillas = descargaPlantillasCabecera(browser, config)
             for p_id in datosPlantillas:
                 if p_id not in self.plantillas:
                     self.plantillas[p_id] = PlantillaACB(p_id)
 
                 resPlant=self.plantillas[p_id].descargaYactualizaPlantilla(browser=None, config=config)
-                changedList.append(resPlant)
+                result |= resPlant
 
-            self.changed |= any(changedList)
-            return changedList
+                self.changed |= result
+        return result
 
     def actualizaTraduccionesJugador(self, nuevoPartido):
         for codJ, datosJug in nuevoPartido.Jugadores.items():
@@ -791,6 +817,32 @@ class TemporadaACB(object):
     def idEquipos(self):
         return list(self.tradEquipos['i2c'].keys())
 
+    def actualizaFichaJugadoresFromCambiosPlant(self, cambiosClub:Dict[str,CambiosPlantillaTipo])->bool :
+        result = False
+        for idClub,cambios in cambiosClub.items():
+            timestampPlant = self.plantillas[idClub].timestamp
+            if not cambios.jugadores:
+                continue
+            for jugNuevo,datos in cambios.jugadores.added.items():
+                datos['timestamp'] = timestampPlant
+                if jugNuevo not in self.fichaJugadores:
+                    infoJug =  FichaJugador.fromDatosPlantilla(datos,idClub)
+                    if infoJug is not None:
+                        self.fichaJugadores[jugNuevo] = infoJug
+                        result = True
+                else:
+                    result |= self.fichaJugadores[jugNuevo].actualizaFromPlantilla(datos,idClub)
+            for jugCambiado,datos in cambios.jugadores.removed.items():
+                datos['timestamp'] = timestampPlant
+                datos.update(self.plantillas[idClub].jugadores.get(jugNuevo))
+                if jugNuevo not in self.fichaJugadores:
+                    infoJug =  FichaJugador.fromDatosPlantilla(datos,idClub)
+                    if infoJug is not None:
+                        self.fichaJugadores[jugNuevo] = infoJug
+                        result = True
+                else:
+                    result |= self.fichaJugadores[jugNuevo].actualizaFromPlantilla(datos,idClub)
+        return result
 
 def calculaTempStats(datos, clave, filtroFechas=None):
     if clave not in datos:

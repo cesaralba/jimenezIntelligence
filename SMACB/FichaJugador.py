@@ -4,8 +4,10 @@ from time import gmtime
 from typing import Optional
 
 import pandas as pd
+from CAPcore.Misc import onlySetElement
 from CAPcore.Web import downloadPage, mergeURL
 
+from SMACB.Constants import URLIMG2IGNORE
 from Utils.FechaHora import PATRONFECHA
 from Utils.Web import getObjID, prepareDownloading
 
@@ -16,7 +18,7 @@ CLAVESDICT = ['id', 'URL', 'alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion'
 
 TRADPOSICION = {'Alero': 'A', 'Escolta': 'E', 'Base': 'B', 'Pívot': 'P', 'Ala-pívot': 'AP', '': '?'}
 
-URLIMG2IGNORE = {'/Images/Web/silueta1.gif', '/Images/Web/silueta2.gif'}
+POSABREV2NOMBRE = {'A':'Alero', 'E':'Escolta', 'B':'Base', 'P':'Pívot', 'AP':'Ala-pívot'}
 
 CAMBIOSJUGADORES = defaultdict(dict)
 
@@ -31,8 +33,8 @@ class FichaJugador:
         self.sinDatos: Optional[bool] = None
 
         self.timestamp = kwargs.get('timestamp', None)
-        self.alias = kwargs.get('alias', None)
         self.nombre = kwargs.get('nombre', None)
+        self.alias = kwargs.get('alias', self.nombre)
         self.lugarNac = kwargs.get('lugarNac', None)
         self.fechaNac = kwargs.get('fechaNac', None)
         self.posicion = kwargs.get('posicion', None)
@@ -71,7 +73,7 @@ class FichaJugador:
         changesInfo.update(addedData)
         CAMBIOSJUGADORES[self.id].update(changesInfo)
 
-    def updateFoto(self, urlFoto: str, urlBase: str, changeDict: Optional[dict] = None):
+    def updateFoto(self, urlFoto: Optional[str], urlBase: str, changeDict: Optional[dict] = None):
         changes = False
 
         if urlFoto is not None and urlFoto not in URLIMG2IGNORE:
@@ -89,6 +91,15 @@ class FichaJugador:
         fichaJug = descargaURLficha(urlFicha, datosPartido=datosPartido, home=home, browser=browser, config=config)
 
         return FichaJugador(**fichaJug)
+
+    @staticmethod
+    def fromDatosPlantilla(datosFichaPlantilla: Optional[dict] = None,idClub:Optional[str]=None):
+        if datosFichaPlantilla is None:
+            return None
+        datosFichaPlantilla=adaptaDatosFichaPlantilla(datosFichaPlantilla, idClub)
+
+        return FichaJugador(**datosFichaPlantilla)
+
 
     def actualizaFicha(self, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
 
@@ -134,6 +145,52 @@ class FichaJugador:
             CAMBIOSJUGADORES[self.id].update(changeInfo)
 
         return changes
+
+    def actualizaFromPlantilla(self,datosFichaPlantilla: Optional[dict] = None,idClub:Optional[str]=None):
+        if datosFichaPlantilla is None:
+            return False
+        datosFichaPlantilla = adaptaDatosFichaPlantilla(datosFichaPlantilla,idClub)
+
+        result = False
+        changeInfo = dict()
+
+        result |= self.addAtributosQueFaltan()
+
+        # No hay necesidad de poner la URL en el informe
+        if self.URL != datosFichaPlantilla['URL']:
+            self.urlConocidas.add(datosFichaPlantilla['URL'])
+            self.URL = datosFichaPlantilla['URL']
+            result |= True
+
+        for k in CLAVESFICHA:
+            if k not in datosFichaPlantilla:
+                continue
+            if getattr(self, k) != datosFichaPlantilla[k]:
+                result |= True
+                changeInfo[k] = (getattr(self, k), datosFichaPlantilla[k])
+                setattr(self, k, datosFichaPlantilla[k])
+
+        if self.nombre is not None:
+            self.nombresConocidos.add(self.nombre)
+        if self.alias is not None:
+            self.nombresConocidos.add(self.alias)
+
+        result |= self.updateFoto(datosFichaPlantilla['urlFoto'], self.URL, changeInfo)
+
+        ultClub = datosFichaPlantilla.get('club', None)
+        if self.ultClub != ultClub:
+            result |= True
+            if ultClub is not None:
+                self.equipos.add(ultClub)
+            self.ultClub = ultClub
+
+        if result:
+            self.timestamp = datosFichaPlantilla.get('timestamp', gmtime())
+            CAMBIOSJUGADORES[self.id].update(changeInfo)
+
+        return result
+
+
 
     def addAtributosQueFaltan(self) -> bool:
         """
@@ -233,11 +290,11 @@ class FichaJugador:
         return result
 
 
-def descargaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
+def descargaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=None) ->dict:
     browser, config = prepareDownloading(browser, config)
 
+    result = dict()
     try:
-        result = dict()
         # Asume que todo va a fallar
         if datosPartido is not None:
             result['sinDatos'] = True
@@ -306,3 +363,17 @@ def muestraDiferenciasJugador(jugador, changeInfo):
     auxChangeStr = ", ".join([f"{k}: '{changeInfo[k][0]}'->'{changeInfo[k][1]}'" for k in sorted(changeInfo.keys())])
     changeStr = f" Cambios: {auxChangeStr} " if auxChangeStr else ""
     print(f"Ficha actualizada: {jugador}. {changeStr}")
+
+
+def adaptaDatosFichaPlantilla(datosFichaPlantilla: dict, idClub: Optional[str]) -> dict:
+    datosFichaPlantilla['nombre'] = onlySetElement(datosFichaPlantilla['nombre'])
+    if 'URLimg' in datosFichaPlantilla:
+        datosFichaPlantilla['urlFoto'] = datosFichaPlantilla.pop('URLimg')
+    if 'pos' in datosFichaPlantilla:
+        auxPos = POSABREV2NOMBRE.get(datosFichaPlantilla.pop('pos'), "?")
+        if auxPos != "?":
+            datosFichaPlantilla['posicion'] = auxPos
+    if idClub is not None:
+        datosFichaPlantilla['club'] = idClub
+
+    return datosFichaPlantilla
