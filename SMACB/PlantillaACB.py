@@ -148,7 +148,7 @@ def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=None):
         result['timestamp'] = gmtime()
         result['edicion'] = encuentraUltEdicion(pagPlant)
     except Exception as exc:
-        print(f"descargaURLficha: problemas descargando '{urlPlantilla}': {exc}")
+        print(f"descargaYparseaURLficha: problemas descargando '{urlPlantilla}': {exc}")
         raise exc
 
     return result

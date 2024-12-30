@@ -64,3 +64,5 @@ def generaURLClubes(edicion: Optional[str] = None, urlRef: str = None):
     result = mergeURL(urlRef, urlSTR)
 
     return result
+
+#TODO: Generar URL jugadores y URL entrenadores

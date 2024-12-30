@@ -1,14 +1,11 @@
-import re
 from collections import defaultdict
 from time import gmtime
 from typing import Optional
 
-import pandas as pd
 from CAPcore.Misc import onlySetElement
 from CAPcore.Web import downloadPage, mergeURL
 
 from SMACB.Constants import URLIMG2IGNORE, CLAVESFICHAJUGADOR, CLAVESDICT, TRADPOSICION, POSABREV2NOMBRE
-from Utils.FechaHora import PATRONFECHA
 from Utils.ParseoData import parseaAltura, parseFecha
 from Utils.Web import getObjID, prepareDownloading
 
@@ -80,19 +77,27 @@ class FichaJugador:
     def fromURL(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
         browser, config = prepareDownloading(browser, config)
 
-        fichaJug = descargaURLficha(urlFicha, datosPartido=datosPartido, home=home, browser=browser, config=config)
-        print(fichaJug)
+        fichaJug = descargaYparseaURLficha(urlFicha, datosPartido=datosPartido, home=home, browser=browser,
+                                           config=config)
+        print("Ficha From URL", fichaJug)
         return FichaJugador(**fichaJug)
 
     @staticmethod
-    def fromDatosPlantilla(datosFichaPlantilla: Optional[dict] = None, idClub: Optional[str] = None):
+    def fromDatosPlantilla(datosFichaPlantilla: Optional[dict] = None, idClub: Optional[str] = None, home=None,
+                           browser=None, config=None
+                           ):
         if datosFichaPlantilla is None:
             return None
         datosFichaPlantilla = adaptaDatosFichaPlantilla(datosFichaPlantilla, idClub)
+        fichaJug = descargaYparseaURLficha(datosFichaPlantilla['URL'], home=home, browser=browser, config=config)
 
-        return FichaJugador(**datosFichaPlantilla)
+        newData = {}
+        newData.update(datosFichaPlantilla)
+        newData.update(fichaJug)
+        print("Ficha From Plantilla", newData)
+        return FichaJugador(**newData)
 
-    def actualizaFicha(self, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
+    def actualizaFromWeb(self, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
 
         changes = False
         changeInfo = dict()
@@ -100,7 +105,8 @@ class FichaJugador:
         changes |= self.addAtributosQueFaltan()
 
         browser, config = prepareDownloading(browser, config)
-        newData = descargaURLficha(self.URL, datosPartido=datosPartido, home=home, browser=browser, config=config)
+        newData = descargaYparseaURLficha(self.URL, datosPartido=datosPartido, home=home, browser=browser,
+                                          config=config)
 
         if self.sinDatos is None or self.sinDatos:
             self.sinDatos = newData.get('sinDatos', False)
@@ -111,7 +117,7 @@ class FichaJugador:
         if changes:
             self.timestamp = newData.get('timestamp', gmtime())
             if changeInfo:
-                print(self.id, "Cambio actualizaFicha",changeInfo)
+                print(self.id, "Cambio actualizaFromWeb", changeInfo)
                 CAMBIOSJUGADORES[self.id].update(changeInfo)
 
         return changes
@@ -131,7 +137,7 @@ class FichaJugador:
         if result:
             self.timestamp = datosFichaPlantilla.get('timestamp', gmtime())
             if changeInfo:
-                print(self.id,  "Cambio actualizaFromPlantilla",changeInfo)
+                print(self.id, "Cambio actualizaFromPlantilla", changeInfo)
                 CAMBIOSJUGADORES[self.id].update(changeInfo)
 
         return result
@@ -272,7 +278,8 @@ class FichaJugador:
         return result
 
 
-def descargaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=None) -> dict:
+def descargaYparseaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=None
+                            ) -> dict:
     browser, config = prepareDownloading(browser, config)
 
     auxResult = {}
@@ -293,12 +300,14 @@ def descargaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=None, b
 
         cosasUtiles = fichaData.find(name='div', attrs={'class': 'datos'})
 
-        COPIAVERBATIM = {'posicion','licencia','lugar_nacimiento','nacionalidad'}
-        CLASS2KEY={'lugar_nacimiento':'lugarNac'}
-        CLASS2SKIP={'equipo','dorsal'}
+        COPIAVERBATIM = {'posicion', 'licencia', 'lugar_nacimiento', 'nacionalidad'}
+        CLASS2KEY = {'lugar_nacimiento': 'lugarNac'}
+        CLASS2SKIP = {'equipo', 'dorsal'}
         if cosasUtiles is not None:
             auxResult['sinDatos'] = False
-            auxResult['urlFoto'] = cosasUtiles.find('div', attrs={'class': 'foto'}).find('img')['src']
+            auxFoto = cosasUtiles.find('div', attrs={'class': 'foto'}).find('img')['src']
+            if auxFoto not in URLIMG2IGNORE:
+                auxResult['urlFoto'] = mergeURL(auxResult['URL'], auxFoto)
             auxResult['alias'] = cosasUtiles.find('h1').get_text().strip()
 
             for row in cosasUtiles.findAll('div', {'class': ['datos_basicos', 'datos_secundarios']}):
@@ -309,9 +318,9 @@ def descargaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=None, b
                 if CLASS2SKIP.intersection(classDiv):
                     continue
                 elif COPIAVERBATIM.intersection(classDiv):
-                    clavesSet=COPIAVERBATIM.intersection(classDiv)
-                    clave=onlySetElement(clavesSet)
-                    auxResult[CLASS2KEY.get(clave,clave)]=valor
+                    clavesSet = COPIAVERBATIM.intersection(classDiv)
+                    clave = onlySetElement(clavesSet)
+                    auxResult[CLASS2KEY.get(clave, clave)] = valor
                 elif 'altura' in classDiv:
                     auxResult['altura'] = parseaAltura(valor)
                 elif 'fecha_nacimiento' in classDiv:
@@ -323,10 +332,10 @@ def descargaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=None, b
                         print("Fila no casa categorías conocidas", row)
 
     except Exception as exc:
-        print(f"descargaURLficha: problemas descargando '{urlFicha}': {exc}")
+        print(f"descargaYparseaURLficha: problemas descargando '{urlFicha}': {exc}")
         raise exc
 
-    result = {k:v for k,v in auxResult.items() if (v is not None) and (v != "")}
+    result = {k: v for k, v in auxResult.items() if (v is not None) and (v != "")}
     return result
 
 

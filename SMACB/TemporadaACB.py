@@ -265,8 +265,8 @@ class TemporadaACB(object):
                     self.fichaJugadores[codJ].URL = urlJugAux
                     self.changed = True
                 try:
-                    self.changed |= self.fichaJugadores[codJ].actualizaFicha(datosPartido=datosJug, browser=browser,
-                                                                             config=config)
+                    self.changed |= self.fichaJugadores[codJ].actualizaFromWeb(datosPartido=datosJug, browser=browser,
+                                                                               config=config)
                     JUGADORESDESCARGADOS.add(codJ)
                 except Exception as exc:
                     print(f"SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido [{nuevoPartido.url}]: something "
@@ -825,7 +825,7 @@ class TemporadaACB(object):
     def idEquipos(self):
         return list(self.tradEquipos['i2c'].keys())
 
-    def actualizaFichaJugadoresFromCambiosPlant(self, cambiosClub: Dict[str, CambiosPlantillaTipo]) -> bool:
+    def actualizaFichaJugadoresFromCambiosPlant(self, cambiosClub: Dict[str, CambiosPlantillaTipo], browser=None, config=None) -> bool:
         result = False
         for idClub, cambios in cambiosClub.items():
             timestampPlant = self.plantillas[idClub].timestamp
@@ -834,7 +834,7 @@ class TemporadaACB(object):
             for jugNuevo, datos in cambios.jugadores.added.items():
                 datos['timestamp'] = timestampPlant
                 if jugNuevo not in self.fichaJugadores:
-                    infoJug = FichaJugador.fromDatosPlantilla(datos, idClub)
+                    infoJug = FichaJugador.fromDatosPlantilla(datos, idClub,browser=browser,config=config)
 
                     print(f"actualizaFichaJugadoresFromCambiosPlant JUG Nuevo!\nDatos from cambios {datos}\nFicha creada {infoJug} {infoJug.dictDatosJugador()}")
                     if infoJug is not None:
