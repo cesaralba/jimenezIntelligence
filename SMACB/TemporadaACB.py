@@ -837,9 +837,8 @@ class TemporadaACB(object):
                 else:
                     result |= self.fichaJugadores[jugNuevo].actualizaFromPlantilla(datos, idClub)
             for jugQuitado, datos in cambios.jugadores.removed.items():
-                print(
-                    f"Eliminación de jugadores no contemplada id:{jugQuitado} jugador"
-                    f"{self.fichaJugadores[jugQuitado]} idClub: {idClub} {self.plantillas[idClub]}")
+                print(f"Eliminación de jugadores no contemplada id:{jugQuitado} jugador"
+                      f"{self.fichaJugadores[jugQuitado]} idClub: {idClub} {self.plantillas[idClub]}")
             for jugCambiado in cambios.jugadores.changed.keys():
                 datos = self.plantillas[idClub].jugadores[jugCambiado]
                 datos['timestamp'] = timestampPlant

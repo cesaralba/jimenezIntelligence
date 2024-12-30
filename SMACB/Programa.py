@@ -16,13 +16,13 @@ from reportlab.lib.units import mm
 from reportlab.platypus import NextPageTemplate, PageBreak, Paragraph, Spacer, Table, TableStyle
 
 import SMACB.TemporadaACB as TempACB
-from .Constants import (CATESTADSEQ2IGNORE, CATESTADSEQASCENDING, DEFAULTNUMFORMAT, DESCENSOS, filaTrayectoriaEq,
-                             haGanado2esp, infoClasifEquipo, infoSigPartido, local2espLargo, LocalVisitante,
-                             MARCADORESCLASIF, RANKFORMAT, REPORTLEYENDAS, TRADPOSICION, )
-from .TemporadaACB import (auxEtiqPartido, calculaEstadsYOrdenLiga, equipo2clasif, esEstCreciente,
-                                extraeCampoYorden, TemporadaACB, )
 from Utils.FechaHora import NEVER, secs2TimeStr, time2Str
 from Utils.ReportLab.RLverticalText import VerticalParagraph
+from .Constants import (CATESTADSEQ2IGNORE, CATESTADSEQASCENDING, DEFAULTNUMFORMAT, DESCENSOS, filaTrayectoriaEq,
+                        haGanado2esp, infoClasifEquipo, infoSigPartido, local2espLargo, LocalVisitante,
+                        MARCADORESCLASIF, RANKFORMAT, REPORTLEYENDAS, TRADPOSICION, )
+from .TemporadaACB import (auxEtiqPartido, calculaEstadsYOrdenLiga, equipo2clasif, esEstCreciente, extraeCampoYorden,
+                           TemporadaACB, )
 
 # Variables globales
 estadGlobales: Optional[pd.DataFrame] = None

@@ -65,4 +65,4 @@ def generaURLClubes(edicion: Optional[str] = None, urlRef: str = None):
 
     return result
 
-#TODO: Generar URL jugadores y URL entrenadores
+# TODO: Generar URL jugadores y URL entrenadores
