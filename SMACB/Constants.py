@@ -149,7 +149,7 @@ filaTrayectoriaEq = namedtuple(typename='filaTrayectoriaEq',
 filaMergeTrayectoria = namedtuple(typename='filaMergeTrayectoria',
                                   field_names=['jornada', 'izda', 'dcha', 'precedente'],
                                   defaults=[None, None, None, None])
-URLIMG2IGNORE = {'/Images/Web/silueta1.gif', '/Images/Web/silueta2.gif'}
+URLIMG2IGNORE = {'/Images/Web/silueta1.gif', '/Images/Web/silueta2.gif', ''}
 CLAVESFICHAJUGADOR = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia']
 CLAVESDICT = ['id', 'URL', 'alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia',
               'primPartidoT', 'ultPartidoT', 'ultPartidoP']
