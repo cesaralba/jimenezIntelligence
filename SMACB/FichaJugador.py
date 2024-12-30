@@ -30,6 +30,7 @@ class FichaJugador:
         self.altura = kwargs.get('altura', None)
         self.nacionalidad = kwargs.get('nacionalidad', None)
         self.licencia = kwargs.get('licencia', None)
+        self.junior = kwargs.get('junior', False)
         self.ultClub = None
 
         self.nombresConocidos = set()
@@ -99,10 +100,10 @@ class FichaJugador:
 
     def actualizaFromWeb(self, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
 
-        changes = False
+        result = False
         changeInfo = dict()
 
-        changes |= self.addAtributosQueFaltan()
+        result |= self.addAtributosQueFaltan()
 
         browser, config = prepareDownloading(browser, config)
         newData = descargaYparseaURLficha(self.URL, datosPartido=datosPartido, home=home, browser=browser,
@@ -110,17 +111,17 @@ class FichaJugador:
 
         if self.sinDatos is None or self.sinDatos:
             self.sinDatos = newData.get('sinDatos', False)
-            changes = True
+            result = True
 
-        changes |= self.updateFichaJugadorFromDownloadedData(changeInfo, newData)
+        result |= self.updateFichaJugadorFromDownloadedData(changeInfo, newData)
 
-        if changes:
+        if result:
             self.timestamp = newData.get('timestamp', gmtime())
             if changeInfo:
                 print(self.id, "Cambio actualizaFromWeb", changeInfo)
                 CAMBIOSJUGADORES[self.id].update(changeInfo)
 
-        return changes
+        return result
 
     def actualizaFromPlantilla(self, datosFichaPlantilla: Optional[dict] = None, idClub: Optional[str] = None):
         if datosFichaPlantilla is None:
@@ -173,10 +174,13 @@ class FichaJugador:
         if self.ultClub != ultClub:
             result |= True
             if ultClub is not None:
+                result |= (ultClub not in self.equipos)
                 self.equipos.add(ultClub)
                 if (self.ultClub != ultClub):
-                    changeInfo['ultClub'] = (self.ultClub, ultClub)
-            self.ultClub = ultClub
+                    if (self.ultClub is None) or (newData.get('activo', False)):
+                        changeInfo['ultClub'] = (self.ultClub, ultClub)
+                        self.ultClub = ultClub
+                        result |= True
         return result
 
     def addAtributosQueFaltan(self) -> bool:
@@ -199,6 +203,9 @@ class FichaJugador:
         if not hasattr(self, 'ultClub'):
             changes = True
             self.__setattr__('ultClub', None)
+        if not hasattr(self, 'junior'):
+            changes = True
+            self.__setattr__('junior', None)
         if not hasattr(self, 'urlConocidas'):
             changes = True
             self.__setattr__('urlConocidas', set())
@@ -239,6 +246,18 @@ class FichaJugador:
             f"{self.primPartidoT.strftime('%Y-%m-%d')} -> "
             f"{self.ultPartidoT.strftime('%Y-%m-%d')}")
         return (f"{nombreStr} ({self.id}) {fechaNacStr} P:[{len(self.partidos)}] "
+                f"{gamesStr} ({len(self.equipos)})")
+
+    def nombreFicha(self):
+        nombreStr = self.alias or self.nombre
+        fechaNacStr = "Sin datos" if self.fechaNac is None else self.fechaNac.strftime('%Y-%m-%d')
+        gamesStr = "Sin partidos registrados" if self.primPartidoT is None else (
+            f"{self.primPartidoT.strftime('%Y-%m-%d')} -> "
+            f"{self.ultPartidoT.strftime('%Y-%m-%d')}")
+        alturaStr = f"{self.altura}cm " if self.altura > 0 else ""
+        posStr = f"{self.posicion} " if self.posicion != "" else ""
+
+        return (f"{nombreStr} ({self.id}) {fechaNacStr} {alturaStr}{posStr}P:[{len(self.partidos)}] "
                 f"{gamesStr} ({len(self.equipos)})")
 
     def limpiaPartidos(self):

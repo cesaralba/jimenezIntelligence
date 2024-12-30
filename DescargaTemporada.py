@@ -46,19 +46,37 @@ def parse_arguments() -> Namespace:
 
 
 def resumenCambioJugadores(cambiosJugadores: dict, temporada: TemporadaACB):
-    global jugList
     jugList = []
     for jugCod, jugData in cambiosJugadores.items():
         if not jugData:
             continue
+        ultClub = temporada.fichaJugadores[jugCod].ultClub
+        clubStr = "" if ultClub is None else f"{temporada.plantillas[ultClub].nombreClub()} "
+        jugadorStr = f"{temporada.fichaJugadores[jugCod].nombreFicha()}"
         if 'NuevoJugador' in jugData:
-            jugList.append(f"{jugCod} Nuevo : {temporada.fichaJugadores[jugCod]}")
+            jugList.append(f"{jugadorStr} Nuevo fichaje de {clubStr}")
         else:
             claves2skip = {'urlFoto'}
-            cambiosJusg = [f"{k}: '{v[0]}'->'{v[1]}'" for k, v in jugData.items() if k not in claves2skip]
+            tradClaves = {'licencia': 'Cupo', 'nacionalidad': 'Pais', 'lugarNac': 'Origen', 'nombre': 'Nombre'}
+            cambiosJug = []
+            for k, v in jugData.items():
+                if k in claves2skip:
+                    continue
+                elif k == 'ultClub':
+                    if v[0] is None:
+                        continue
+                    club0 = temporada.plantillas[v[0]].nombreClub()
+                    club1 = "" if v[1] is None else temporada.plantillas[v[1]].nombreClub()
+                    cambioStr = f"Club: baja en {club0}" if v[1] is None else f"Club: {club0} -> {club1}"
+                else:
+                    cambioStr = f"{tradClaves.get(k, k)}: '{v[0]}'->'{v[1]}'"
+
+                cambiosJug.append(cambioStr)
             if 'urlFoto' in jugData:
-                cambiosJusg.append("Nueva foto")
-            jugList.append(f"{jugCod} Cambios: {temporada.fichaJugadores[jugCod]}: {','.join(sorted(cambiosJusg))}")
+                cambiosJug.append("Nueva foto")
+            if len(cambiosJug) == 0:
+                continue
+            jugList.append(f"{jugadorStr} {clubStr}Cambios: {','.join(sorted(cambiosJug))}")
 
     print(f"Cambios en jugadores:\n{'\n'.join(sorted(jugList))}")
 

@@ -66,7 +66,6 @@ class PlantillaACB():
 
         cambiosAux = {k: getattr(self, k).diff(data.get(k, {}), doUpdate=True) for k in CambiosPlantillaTipo._fields}
 
-        print(cambiosAux)
         result |= self.club.update(data.get('club', {}), timestamp=currTimestamp)
         result |= self.jugadores.update(data.get('jugadores', {}), timestamp=currTimestamp)
         result |= self.tecnicos.update(data.get('tecnicos', {}), timestamp=currTimestamp)

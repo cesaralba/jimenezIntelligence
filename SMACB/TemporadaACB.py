@@ -155,14 +155,6 @@ class TemporadaACB(object):
             resPlant = self.actualizaPlantillas(browser=browser, config=config)
             self.changed |= resPlant
             if resPlant:
-                for k,cambios in CAMBIOSCLUB.items():
-                    print(k,self.plantillas[k])
-                    for c,clist in cambios._asdict().items():
-                        if not clist:
-                            continue
-                        print(c,"\n")
-                        print(clist.show(compact=False))
-                    print("---------------------")
                 self.changed |= self.actualizaFichaJugadoresFromCambiosPlant(CAMBIOSCLUB)
 
         if self.changed != changeOrig:
@@ -825,7 +817,9 @@ class TemporadaACB(object):
     def idEquipos(self):
         return list(self.tradEquipos['i2c'].keys())
 
-    def actualizaFichaJugadoresFromCambiosPlant(self, cambiosClub: Dict[str, CambiosPlantillaTipo], browser=None, config=None) -> bool:
+    def actualizaFichaJugadoresFromCambiosPlant(self, cambiosClub: Dict[str, CambiosPlantillaTipo], browser=None,
+                                                config=None
+                                                ) -> bool:
         result = False
         for idClub, cambios in cambiosClub.items():
             timestampPlant = self.plantillas[idClub].timestamp
@@ -834,27 +828,31 @@ class TemporadaACB(object):
             for jugNuevo, datos in cambios.jugadores.added.items():
                 datos['timestamp'] = timestampPlant
                 if jugNuevo not in self.fichaJugadores:
-                    infoJug = FichaJugador.fromDatosPlantilla(datos, idClub,browser=browser,config=config)
-
-                    print(f"actualizaFichaJugadoresFromCambiosPlant JUG Nuevo!\nDatos from cambios {datos}\nFicha creada {infoJug} {infoJug.dictDatosJugador()}")
+                    infoJug = FichaJugador.fromDatosPlantilla(datos, idClub, browser=browser, config=config)
                     if infoJug is not None:
                         self.fichaJugadores[jugNuevo] = infoJug
                         result = True
-
                     else:
                         print(f"NO INFOJUG {jugNuevo}")
                 else:
                     result |= self.fichaJugadores[jugNuevo].actualizaFromPlantilla(datos, idClub)
-            for jugCambiado, datos in cambios.jugadores.removed.items():
+            for jugQuitado, datos in cambios.jugadores.removed.items():
+                print(
+                    f"Eliminación de jugadores no contemplada id:{jugQuitado} jugador"
+                    f"{self.fichaJugadores[jugQuitado]} idClub: {idClub} {self.plantillas[idClub]}")
+            for jugCambiado in cambios.jugadores.changed.keys():
+                datos = self.plantillas[idClub].jugadores[jugCambiado]
                 datos['timestamp'] = timestampPlant
-                datos.update(self.plantillas[idClub].jugadores.get(jugNuevo))
-                if jugNuevo not in self.fichaJugadores:
-                    infoJug = FichaJugador.fromDatosPlantilla(datos, idClub)
+                if jugCambiado not in self.fichaJugadores:
+                    infoJug = FichaJugador.fromDatosPlantilla(datos, idClub, browser=browser, config=config)
                     if infoJug is not None:
-                        self.fichaJugadores[jugNuevo] = infoJug
+                        self.fichaJugadores[jugCambiado] = infoJug
                         result = True
+                    else:
+                        print(f"NO INFOJUG {jugCambiado}")
                 else:
-                    result |= self.fichaJugadores[jugNuevo].actualizaFromPlantilla(datos, idClub)
+                    result |= self.fichaJugadores[jugCambiado].actualizaFromPlantilla(datos, idClub)
+
         return result
 
 
