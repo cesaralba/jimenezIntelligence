@@ -1,37 +1,40 @@
 import re
-import pandas as pd
 from typing import Optional, Any
 
+import pandas as pd
 from bs4 import NavigableString
 
 from .FechaHora import PATRONFECHA
 
-def extractPlantillaInfoDiv(divData, claseEntrada)->dict:
+
+def extractPlantillaInfoDiv(divData, claseEntrada) -> dict:
     auxResult = {}
     dataFields = splitDiv(divData)
 
-    if claseEntrada=='jugadores':
+    if claseEntrada == 'jugadores':
         # los datos son ['1,93 m', 'EE.UU.', '29 años', 'EXT']
-        auxResult['altura']=parseaAltura(dataFields[0].strip())
-        auxResult['nacionalidad']=dataFields[1].strip()
-        auxLicencia=dataFields[3].strip()
-        auxLicenciaList=auxLicencia.split(" | ",maxsplit=1)
-        auxResult['licencia']=auxLicenciaList[0]
-        auxResult['junior']=(len(auxLicenciaList)>1)
-    elif claseEntrada=='tecnicos':
-        auxResult['nacionalidad']=dataFields[0].strip()
+        auxResult['altura'] = parseaAltura(dataFields[0].strip())
+        auxResult['nacionalidad'] = dataFields[1].strip()
+        auxLicencia = dataFields[3].strip()
+        auxLicenciaList = auxLicencia.split(" | ", maxsplit=1)
+        auxResult['licencia'] = auxLicenciaList[0]
+        auxResult['junior'] = (len(auxLicenciaList) > 1)
+    elif claseEntrada == 'tecnicos':
+        auxResult['nacionalidad'] = dataFields[0].strip()
     else:
         raise ValueError(f"Unknown claseEntrada '{claseEntrada}'")
 
-    result = {k:v for k,v in auxResult.items() if v is not None}
+    result = {k: v for k, v in auxResult.items() if v is not None}
     return result
+
 
 def splitDiv(divData):
-    result = [t.get_text() for t in divData.descendants if isinstance(t,NavigableString)]
+    result = [t.get_text() for t in divData.descendants if isinstance(t, NavigableString)]
 
     return result
 
-def parseaAltura(data:str)->Optional[int]:
+
+def parseaAltura(data: str) -> Optional[int]:
     REaltura = r'^(\d)[,.](\d{2})\s*m$'
     result = None
 
@@ -43,7 +46,8 @@ def parseaAltura(data:str)->Optional[int]:
 
     return result
 
-def parseFecha(data:str)->Optional[Any]:
+
+def parseFecha(data: str) -> Optional[Any]:
     REfechaNac = r'^(?P<fechanac>\d{2}/\d{2}/\d{4})\s*.*'
     result = None
 

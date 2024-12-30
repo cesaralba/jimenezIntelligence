@@ -207,8 +207,7 @@ def procesaPlantillaDescargada(plantDesc: DownloadedPage):
             else:
                 raise ValueError(f"procesaPlantillaDescargada: no sé cómo tratar entrada: {jugArt}")
 
-
-            extraData = extractPlantillaInfoDiv(jugArt.find("div", {"class": "info_personal"}),destClass)
+            extraData = extractPlantillaInfoDiv(jugArt.find("div", {"class": "info_personal"}), destClass)
             data.update(extraData)
 
             data['dorsal'] = jugArt.find("div", {"class": "dorsal"}).get_text().strip()
@@ -245,10 +244,15 @@ def procesaTablaBajas(tablaBajas: bs4.element) -> dict:
         data['dorsal'] = row.find("td", {"class": "dorsal"}).get_text().strip()
         nuevosNombres = {sp.get_text().strip() for sp in row.find("td", {"class": "jugador"}).find_all("span")}
         data['alias'] = onlySetElement(nuevosNombres)
-
+        data['nacionalidad'] = tds[3].get_text().strip()
         posics = {tds[2].find("span").get_text().strip()}
 
         destClass = 'tecnicos' if "ENT" in posics else 'jugadores'
+
+        if destClass == 'jugadores':
+            data['posicion'] = onlySetElement(posics)
+            data['licencia'] = tds[4].get_text().strip()
+
         result[destClass][data['id']] = data
 
     return result
