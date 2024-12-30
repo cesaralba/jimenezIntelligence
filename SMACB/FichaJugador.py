@@ -13,6 +13,7 @@ from Utils.Web import getObjID, prepareDownloading
 
 CAMBIOSJUGADORES = defaultdict(dict)
 
+
 class FichaJugador:
     def __init__(self, **kwargs):
         changesInfo = {'NuevoJugador': True}
@@ -63,7 +64,7 @@ class FichaJugador:
         changesInfo.update(addedData)
         CAMBIOSJUGADORES[self.id].update(changesInfo)
 
-    def updateFoto(self, urlFoto: Optional[str], urlBase: str, changeDict: Optional[dict] = None):
+    def updateFoto(self, urlFoto: Optional[str], urlBase: Optional[str], changeDict: Optional[dict] = None):
         changes = False
 
         if urlFoto is not None and urlFoto not in URLIMG2IGNORE:
@@ -104,30 +105,7 @@ class FichaJugador:
             self.sinDatos = newData.get('sinDatos', False)
             changes = True
 
-        # No hay necesidad de poner la URL en el informe
-        if self.URL != newData['URL']:
-            self.urlConocidas.add(newData['URL'])
-            self.URL = newData['URL']
-            changes = True
-
-        for k in CLAVESFICHAJUGADOR:
-            if getattr(self, k) != newData[k]:
-                changes = True
-                changeInfo[k] = (getattr(self, k), newData[k])
-                setattr(self, k, newData[k])
-
-        if self.nombre is not None:
-            self.nombresConocidos.add(self.nombre)
-        if self.alias is not None:
-            self.nombresConocidos.add(self.alias)
-
-        changes |= self.updateFoto(newData['urlFoto'], self.URL, changeInfo)
-
-        ultClub = newData.get('club', None)
-        if self.ultClub != ultClub:
-            changes = True
-            self.equipos.add(ultClub)
-            self.ultClub = ultClub
+        changes |= self.updateFichaJugadorFromDownloadedData(changeInfo, newData)
 
         if changes:
             self.timestamp = newData.get('timestamp', gmtime())
@@ -145,6 +123,17 @@ class FichaJugador:
 
         result |= self.addAtributosQueFaltan()
 
+        result |= self.updateFichaJugadorFromDownloadedData(changeInfo, datosFichaPlantilla)
+
+        if result:
+            self.timestamp = datosFichaPlantilla.get('timestamp', gmtime())
+            print(self.id, )
+            CAMBIOSJUGADORES[self.id].update(changeInfo)
+
+        return result
+
+    def updateFichaJugadorFromDownloadedData(self, changeInfo, newData):
+        result = False
         # No hay necesidad de poner la URL en el informe
         if self.URL != datosFichaPlantilla['URL']:
             self.urlConocidas.add(datosFichaPlantilla['URL'])
@@ -152,28 +141,31 @@ class FichaJugador:
             result |= True
 
         for k in CLAVESFICHAJUGADOR:
-            if k not in datosFichaPlantilla:
+            if k not in newData:
                 continue
-            if getattr(self, k) != datosFichaPlantilla[k]:
+            if getattr(self, k) != newData[k]:
                 result |= True
-                changeInfo[k] = (getattr(self, k), datosFichaPlantilla[k])
-                setattr(self, k, datosFichaPlantilla[k])
+                changeInfo[k] = (getattr(self, k), newData[k])
+                setattr(self, k, newData[k])
 
         if self.nombre is not None:
             self.nombresConocidos.add(self.nombre)
+            result |= True
+
         if self.alias is not None:
             self.nombresConocidos.add(self.alias)
+            result |= True
 
-        if 'urlFoto' in datosFichaPlantilla:
-            result |= self.updateFoto(datosFichaPlantilla['urlFoto'], self.URL, changeInfo)
+        if 'urlFoto' in newData:
+            result |= self.updateFoto(newData['urlFoto'], self.URL, changeInfo)
 
-        ultClub = datosFichaPlantilla.get('club', None)
+        ultClub = newData.get('club', None)
         if self.ultClub != ultClub:
             result |= True
             if ultClub is not None:
                 self.equipos.add(ultClub)
                 if (self.ultClub != ultClub):
-                    changeInfo['ultClub']=(self.ultClub ,ultClub)
+                    changeInfo['ultClub'] = (self.ultClub, ultClub)
             self.ultClub = ultClub
 
         if result:
@@ -237,11 +229,12 @@ class FichaJugador:
         return True
 
     def __repr__(self):
+        nombreStr = self.alias or self.nombre
         fechaNacStr = "Sin datos" if self.fechaNac is None else self.fechaNac.strftime('%Y-%m-%d')
         gamesStr = "Sin partidos registrados" if self.primPartidoT is None else (
             f"{self.primPartidoT.strftime('%Y-%m-%d')} -> "
             f"{self.ultPartidoT.strftime('%Y-%m-%d')}")
-        return (f"{self.nombre} ({self.id}) {fechaNacStr} P:[{len(self.partidos)}] "
+        return (f"{nombreStr} ({self.id}) {fechaNacStr} P:[{len(self.partidos)}] "
                 f"{gamesStr} ({len(self.equipos)})")
 
     def limpiaPartidos(self):
