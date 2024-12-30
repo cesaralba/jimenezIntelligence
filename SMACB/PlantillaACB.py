@@ -11,6 +11,7 @@ from CAPcore.LoggedDict import LoggedDict, LoggedDictDiff
 from CAPcore.Misc import onlySetElement
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
+from Utils.ParseoData import extractPlantillaInfoDiv
 from Utils.Web import getObjID, generaURLPlantilla, generaURLClubes, prepareDownloading
 from .Constants import URL_BASE, URLIMG2IGNORE
 
@@ -49,7 +50,7 @@ class PlantillaACB():
         browser, config = prepareDownloading(browser, config)
         try:
             data = descargaURLplantilla(self.URL, home, browser, config)
-        except Exception as exc:
+        except Exception:
             print(
                 f"SMACB.PlantillaACB.PlantillaACB.descargaYactualizaPlantilla: something happened updating record of  "
                 f"'{self.club}']'", sys.exc_info())
@@ -84,11 +85,43 @@ class PlantillaACB():
         return self.jugadores.extractKey(key=clave, default=default)
 
     def actualizaClasesBase(self):
-        keyRenaming = {'URLimg': 'urlFoto'}
-        self.tecnicos = DictOfLoggedDict.updateRelease(self.tecnicos)
-        self.tecnicos.renameKeys(keyMapping=keyRenaming)
-        self.jugadores = DictOfLoggedDict.updateRelease(self.jugadores)
-        self.jugadores.renameKeys(keyMapping=keyRenaming)
+        keyRenamingFoto = {'URLimg': 'urlFoto'}
+        keyRenamingJugs = {'nombre': 'alias'}
+        keyRenamingJugs.update(keyRenamingFoto)
+        self.tecnicos: DictOfLoggedDict = DictOfLoggedDict.updateRelease(self.tecnicos)
+        self.tecnicos.renameKeys(keyMapping=keyRenamingFoto)  # Ya tienen nombre y alias
+        self.jugadores: DictOfLoggedDict = DictOfLoggedDict.updateRelease(self.jugadores)
+        self.jugadores.renameKeys(keyMapping=keyRenamingJugs)  # Lo que se encuentra en la tabla es el alias
+
+        def getFromSet(auxNombre, idx):
+            sortedVals = sorted(auxNombre, key=len)
+            result = sortedVals[idx]
+            return result
+
+        for k, v in self.tecnicos.itemsV():
+            auxFoto = v.get('urlFoto', None)
+            if auxFoto is None or auxFoto in URLIMG2IGNORE:
+                v.purge({'urlFoto'})
+
+            auxNombre = v.get('nombre', None)
+            auxAlias = v.get('alias', None) or auxNombre
+            changes = dict()
+            if auxNombre is not None and isinstance(auxNombre, set):
+                changes.update({'nombre': getFromSet(auxNombre, -1)})
+            if auxAlias is not None and isinstance(auxAlias, set):
+                changes.update({'alias': getFromSet(auxNombre, 0)})
+            v.update(changes)
+
+        for k, v in self.jugadores.itemsV():
+            auxFoto = v.get('urlFoto', None)
+            if auxFoto is None or auxFoto in URLIMG2IGNORE:
+                v.purge({'urlFoto'})
+
+            auxAlias = v.get('alias', None)
+            changes = dict()
+            if auxAlias is not None and isinstance(auxAlias, set):
+                changes.update({'alias': getFromSet(auxAlias, 0)})
+            v.update(changes)
 
         return self
 
@@ -163,6 +196,9 @@ def procesaPlantillaDescargada(plantDesc: DownloadedPage):
                 if 'caja_entrenador_principal' in jugArt.attrs['class']:
                     data['alias'] = jugArt.find("div", {"class": "nombre"}).get_text().strip()
                     data['nombre'] = jugArt.find("img").attrs['alt'].strip()
+                    data['nombre'] = data['nombre'] or data['alias']
+                    data['alias'] = data['alias'] or data['nombre']
+
                 else:
                     # curiosamente los segundos entrenadores tienen los 2 nombres, no así los jugadores
                     for sp in jugArt.find("div", {"class": "nombre"}).find_all("span"):
@@ -170,6 +206,10 @@ def procesaPlantillaDescargada(plantDesc: DownloadedPage):
                         data[class2clave[classId]] = sp.get_text().strip()
             else:
                 raise ValueError(f"procesaPlantillaDescargada: no sé cómo tratar entrada: {jugArt}")
+
+
+            extraData = extractPlantillaInfoDiv(jugArt.find("div", {"class": "info_personal"}),destClass)
+            data.update(extraData)
 
             data['dorsal'] = jugArt.find("div", {"class": "dorsal"}).get_text().strip()
 

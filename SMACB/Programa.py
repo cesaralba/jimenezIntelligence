@@ -365,7 +365,7 @@ def auxKeyDorsal(f, col):
         return "-"
 
     dato = f[col]
-    print(f,col,dato)
+    print(f, col, dato)
 
     result = -1 if dato == "00" else int(dato)
 

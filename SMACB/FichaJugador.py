@@ -9,6 +9,7 @@ from CAPcore.Web import downloadPage, mergeURL
 
 from SMACB.Constants import URLIMG2IGNORE, CLAVESFICHAJUGADOR, CLAVESDICT, TRADPOSICION, POSABREV2NOMBRE
 from Utils.FechaHora import PATRONFECHA
+from Utils.ParseoData import parseaAltura, parseFecha
 from Utils.Web import getObjID, prepareDownloading
 
 CAMBIOSJUGADORES = defaultdict(dict)
@@ -109,7 +110,9 @@ class FichaJugador:
 
         if changes:
             self.timestamp = newData.get('timestamp', gmtime())
-            CAMBIOSJUGADORES[self.id].update(changeInfo)
+            if changeInfo:
+                print(self.id, "Cambio actualizaFicha",changeInfo)
+                CAMBIOSJUGADORES[self.id].update(changeInfo)
 
         return changes
 
@@ -127,17 +130,18 @@ class FichaJugador:
 
         if result:
             self.timestamp = datosFichaPlantilla.get('timestamp', gmtime())
-            print(self.id, )
-            CAMBIOSJUGADORES[self.id].update(changeInfo)
+            if changeInfo:
+                print(self.id,  "Cambio actualizaFromPlantilla",changeInfo)
+                CAMBIOSJUGADORES[self.id].update(changeInfo)
 
         return result
 
     def updateFichaJugadorFromDownloadedData(self, changeInfo, newData):
         result = False
         # No hay necesidad de poner la URL en el informe
-        if self.URL != datosFichaPlantilla['URL']:
-            self.urlConocidas.add(datosFichaPlantilla['URL'])
-            self.URL = datosFichaPlantilla['URL']
+        if self.URL != newData['URL']:
+            self.urlConocidas.add(newData['URL'])
+            self.URL = newData['URL']
             result |= True
 
         for k in CLAVESFICHAJUGADOR:
@@ -167,12 +171,6 @@ class FichaJugador:
                 if (self.ultClub != ultClub):
                     changeInfo['ultClub'] = (self.ultClub, ultClub)
             self.ultClub = ultClub
-
-        if result:
-            self.timestamp = datosFichaPlantilla.get('timestamp', gmtime())
-            print(self.id, )
-            CAMBIOSJUGADORES[self.id].update(changeInfo)
-
         return result
 
     def addAtributosQueFaltan(self) -> bool:
@@ -277,62 +275,50 @@ class FichaJugador:
 def descargaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=None) -> dict:
     browser, config = prepareDownloading(browser, config)
 
-    result = dict()
+    auxResult = {}
     try:
         # Asume que todo va a fallar
         if datosPartido is not None:
-            result['sinDatos'] = True
-            result['nombre'] = datosPartido['nombre']
+            auxResult['sinDatos'] = True
+            auxResult['alias'] = datosPartido['nombre']
 
         fichaJug = downloadPage(urlFicha, home=home, browser=browser, config=config)
 
-        result['URL'] = browser.get_url()
-        result['timestamp'] = gmtime()
+        auxResult['URL'] = browser.get_url()
+        auxResult['timestamp'] = gmtime()
 
-        result['id'] = getObjID(urlFicha, 'ver')
+        auxResult['id'] = getObjID(urlFicha, 'ver')
 
         fichaData = fichaJug.data
 
         cosasUtiles = fichaData.find(name='div', attrs={'class': 'datos'})
 
+        COPIAVERBATIM = {'posicion','licencia','lugar_nacimiento','nacionalidad'}
+        CLASS2KEY={'lugar_nacimiento':'lugarNac'}
+        CLASS2SKIP={'equipo','dorsal'}
         if cosasUtiles is not None:
-            result['urlFoto'] = cosasUtiles.find('div', attrs={'class': 'foto'}).find('img')['src']
-            result['alias'] = cosasUtiles.find('h1').get_text().strip()
-            result['sinDatos'] = False
+            auxResult['sinDatos'] = False
+            auxResult['urlFoto'] = cosasUtiles.find('div', attrs={'class': 'foto'}).find('img')['src']
+            auxResult['alias'] = cosasUtiles.find('h1').get_text().strip()
+
             for row in cosasUtiles.findAll('div', {'class': ['datos_basicos', 'datos_secundarios']}):
 
                 valor = row.find("span", {'class': 'roboto_condensed_bold'}).get_text().strip()
                 classDiv = row.attrs['class']
 
-                if 'equipo' in classDiv:
+                if CLASS2SKIP.intersection(classDiv):
                     continue
-                if 'dorsal' in classDiv:
-                    continue
-                if 'posicion' in classDiv:
-                    result['posicion'] = valor
+                elif COPIAVERBATIM.intersection(classDiv):
+                    clavesSet=COPIAVERBATIM.intersection(classDiv)
+                    clave=onlySetElement(clavesSet)
+                    auxResult[CLASS2KEY.get(clave,clave)]=valor
                 elif 'altura' in classDiv:
-                    REaltura = r'^(\d)[,.](\d{2})\s*m$'
-                    reProc = re.match(REaltura, valor)
-                    if reProc:
-                        result['altura'] = 100 * int(reProc.group(1)) + int(reProc.group(2))
-                    else:
-                        print(cosasUtiles, f"ALTURA '{valor}' no casa RE '{REaltura}'")
-                elif 'lugar_nacimiento' in classDiv:
-                    result['lugarNac'] = valor
+                    auxResult['altura'] = parseaAltura(valor)
                 elif 'fecha_nacimiento' in classDiv:
-                    REfechaNac = r'^(?P<fechanac>\d{2}/\d{2}/\d{4})\s*.*'
-                    reProc = re.match(REfechaNac, valor)
-                    if reProc:
-                        result['fechaNac'] = pd.to_datetime(reProc['fechanac'], format=PATRONFECHA)
-                    else:
-                        print("FECHANAC no casa RE", valor, REfechaNac)
-                elif 'nacionalidad' in classDiv:
-                    result['nacionalidad'] = valor
-                elif 'licencia' in classDiv:
-                    result['licencia'] = valor
+                    auxResult['fechaNac'] = parseFecha(valor)
                 else:
                     if 'Nombre completo:' in row.get_text():
-                        result['nombre'] = valor
+                        auxResult['nombre'] = valor
                     else:
                         print("Fila no casa categorías conocidas", row)
 
@@ -340,6 +326,7 @@ def descargaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=None, b
         print(f"descargaURLficha: problemas descargando '{urlFicha}': {exc}")
         raise exc
 
+    result = {k:v for k,v in auxResult.items() if (v is not None) and (v != "")}
     return result
 
 

@@ -155,6 +155,14 @@ class TemporadaACB(object):
             resPlant = self.actualizaPlantillas(browser=browser, config=config)
             self.changed |= resPlant
             if resPlant:
+                for k,cambios in CAMBIOSCLUB.items():
+                    print(k,self.plantillas[k])
+                    for c,clist in cambios._asdict().items():
+                        if not clist:
+                            continue
+                        print(c,"\n")
+                        print(clist.show(compact=False))
+                    print("---------------------")
                 self.changed |= self.actualizaFichaJugadoresFromCambiosPlant(CAMBIOSCLUB)
 
         if self.changed != changeOrig:
@@ -827,9 +835,14 @@ class TemporadaACB(object):
                 datos['timestamp'] = timestampPlant
                 if jugNuevo not in self.fichaJugadores:
                     infoJug = FichaJugador.fromDatosPlantilla(datos, idClub)
+
+                    print(f"actualizaFichaJugadoresFromCambiosPlant JUG Nuevo!\nDatos from cambios {datos}\nFicha creada {infoJug} {infoJug.dictDatosJugador()}")
                     if infoJug is not None:
                         self.fichaJugadores[jugNuevo] = infoJug
                         result = True
+
+                    else:
+                        print(f"NO INFOJUG {jugNuevo}")
                 else:
                     result |= self.fichaJugadores[jugNuevo].actualizaFromPlantilla(datos, idClub)
             for jugCambiado, datos in cambios.jugadores.removed.items():
