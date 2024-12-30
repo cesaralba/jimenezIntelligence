@@ -15,11 +15,11 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import NextPageTemplate, PageBreak, Paragraph, Spacer, Table, TableStyle
 
-import SMACB.TemporadaACB as Constants
-from SMACB.Constants import (CATESTADSEQ2IGNORE, CATESTADSEQASCENDING, DEFAULTNUMFORMAT, DESCENSOS, filaTrayectoriaEq,
+import SMACB.TemporadaACB as TempACB
+from .Constants import (CATESTADSEQ2IGNORE, CATESTADSEQASCENDING, DEFAULTNUMFORMAT, DESCENSOS, filaTrayectoriaEq,
                              haGanado2esp, infoClasifEquipo, infoSigPartido, local2espLargo, LocalVisitante,
                              MARCADORESCLASIF, RANKFORMAT, REPORTLEYENDAS, TRADPOSICION, )
-from SMACB.TemporadaACB import (auxEtiqPartido, calculaEstadsYOrdenLiga, equipo2clasif, esEstCreciente,
+from .TemporadaACB import (auxEtiqPartido, calculaEstadsYOrdenLiga, equipo2clasif, esEstCreciente,
                                 extraeCampoYorden, TemporadaACB, )
 from Utils.FechaHora import NEVER, secs2TimeStr, time2Str
 from Utils.ReportLab.RLverticalText import VerticalParagraph
@@ -365,7 +365,6 @@ def auxKeyDorsal(f, col):
         return "-"
 
     dato = f[col]
-    print(f, col, dato)
 
     result = -1 if dato == "00" else int(dato)
 
@@ -784,7 +783,7 @@ def paginasJugadores(tempData, abrEqs, juLocal, juVisit):
     return result
 
 
-def partidoTrayectoria(partido: Constants.filaTrayectoriaEq, datosTemp: TemporadaACB):
+def partidoTrayectoria(partido: TempACB.filaTrayectoriaEq, datosTemp: TemporadaACB):
     datoFecha = partido.fechaPartido
     strFecha = partido.fechaPartido.strftime(FMTECHACORTA) if datoFecha != NEVER else "TBD"
     etiqLoc = "vs " if partido.esLocal else "@"

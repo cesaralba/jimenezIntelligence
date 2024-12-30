@@ -7,7 +7,6 @@ from typing import Dict
 
 from CAPcore.Logging import prepareLogger
 from CAPcore.Web import createBrowser, extractGetParams
-from CAPcore.DictLoggedDict import DictOfLoggedDictDiff
 from configargparse import ArgumentParser, Namespace
 
 from SMACB.CalendarioACB import calendario_URLBASE
@@ -63,9 +62,9 @@ def resumenCambioJugadores(cambiosJugadores: dict, temporada: TemporadaACB):
             for k, v in jugData.items():
                 if k in claves2skip:
                     continue
+                if v[0] is None:
+                    continue
                 elif k == 'ultClub':
-                    if v[0] is None:
-                        continue
                     club0 = temporada.plantillas[v[0]].nombreClub()
                     club1 = "" if v[1] is None else temporada.plantillas[v[1]].nombreClub()
                     cambioStr = f"Club: baja en {club0}" if v[1] is None else f"Club: {club0} -> {club1}"
@@ -95,17 +94,20 @@ def resumenCambioClubes(cambiosClubes: Dict[str, CambiosPlantillaTipo], temporad
             continue
         nombreClub = temporada.plantillas[cl].nombreClub()
 
-        def textoJugador(temporada:TemporadaACB, idJug:str):
+        def textoJugador(temporada: TemporadaACB, idJug: str):
             return f"{temporada.fichaJugadores[idJug].nombreFicha()}"
-        def dataPlantJug(temporada:TemporadaACB,idJug:str,idClub:str):
-            return temporada.plantillas[idClub].jugadores._asdict()[idJug]
-        def dataPlantTec(temporada:TemporadaACB, idTec:str, idClub:str):
-            return temporada.plantillas[idClub].tecnicos._asdict()[idTec]
-        def textoTecnico(temporada:TemporadaACB, idTec:str,idClub:str):
-            auxInfo=dataPlantTec(temporada,idTec,idClub)
-            return f"ENT[{auxInfo['dorsal']}] {auxInfo['nombre']}"
 
-        cambiosClubList =[]
+        def dataPlantJug(temporada: TemporadaACB, idJug: str, idClub: str):
+            return temporada.plantillas[idClub].jugadores._asdict()[idJug]
+
+        def dataPlantTec(temporada: TemporadaACB, idTec: str, idClub: str):
+            return temporada.plantillas[idClub].tecnicos._asdict()[idTec]
+
+        def textoTecnico(temporada: TemporadaACB, idTec: str, idClub: str):
+            auxInfo = dataPlantTec(temporada, idTec, idClub)
+            return f"ENT[{auxInfo['dorsal']}] {auxInfo.get('alias', auxInfo.get('nombre', 'NONAME'))}"
+
+        cambiosClubList = []
 
         if cambios.club:
             cambiosClubList.append(f"Cambio en datos del club: {cambios.club.show(compact=True)}")
@@ -115,28 +117,30 @@ def resumenCambioClubes(cambiosClubes: Dict[str, CambiosPlantillaTipo], temporad
 
             if cambios.jugadores.added:
                 for idJug in cambios.jugadores.added:
-                    dorsal=dataPlantJug(temporada,idJug,cl)['dorsal']
-                    cambioJugsList.append(f"  * Alta: {textoJugador(temporada,idJug)} dorsal:[{dorsal}]")
+                    dorsal = dataPlantJug(temporada, idJug, cl)['dorsal']
+                    cambioJugsList.append(f"  * Alta: {textoJugador(temporada, idJug)} dorsal:[{dorsal}]")
             if cambios.jugadores.changed:
                 for idJug, dataJug in cambios.jugadores.changed.items():
-                    auxJug=dataPlantJug(temporada,idJug,cl)
-                    dorsal=auxJug['dorsal']
-                    auxDiffchanged=dataJug.changed
+                    auxJug = dataPlantJug(temporada, idJug, cl)
+                    dorsal = auxJug['dorsal']
+                    auxDiffchanged = dataJug.changed
                     if not auxDiffchanged:
                         continue
                     if ('activo' in auxDiffchanged) and (not auxDiffchanged['activo'][1]):
-                        cambioJugsList.append(f"  * Baja: {textoJugador(temporada,idJug)} Dorsal: {dorsal}")
+                        cambioJugsList.append(f"  * Baja: {textoJugador(temporada, idJug)} Dorsal: {dorsal}")
                     else:
-                        changeStr = ",".join([f"{k}: '{auxDiffchanged[k][0]}'->'{auxDiffchanged[k][1]}'" for k in sorted(auxDiffchanged.keys())])
-                        cambioJugsList.append(f"  * Cambios: {textoJugador(temporada,idJug)} Dorsal: {dorsal}: {changeStr}")
+                        changeStr = ",".join([f"{k}: '{auxDiffchanged[k][0]}'->'{auxDiffchanged[k][1]}'" for k in
+                                              sorted(auxDiffchanged.keys())])
+                        cambioJugsList.append(
+                            f"  * Cambios: {textoJugador(temporada, idJug)} Dorsal: {dorsal}: {changeStr}")
             if cambios.jugadores.removed:
                 for idJug, dataJug in cambios.jugadores.removed.items():
-                    auxJug=dataPlantJug(temporada,idJug,cl)
-                    dorsal=auxJug['dorsal']
-                    cambioJugsList.append(f"  * BORRADO: {textoJugador(temporada,idJug)} Dorsal: {dorsal}")
+                    auxJug = dataPlantJug(temporada, idJug, cl)
+                    dorsal = auxJug['dorsal']
+                    cambioJugsList.append(f"  * BORRADO: {textoJugador(temporada, idJug)} Dorsal: {dorsal}")
 
             if cambioJugsList:
-                lineaJugadores="Cambio en jugadores:\n"+"\n".join(sorted(cambioJugsList))
+                lineaJugadores = "Cambio en jugadores:\n" + "\n".join(sorted(cambioJugsList))
                 cambiosClubList.append(lineaJugadores)
 
         if cambios.tecnicos:
@@ -144,31 +148,33 @@ def resumenCambioClubes(cambiosClubes: Dict[str, CambiosPlantillaTipo], temporad
 
             if cambios.tecnicos.added:
                 for idJug in cambios.tecnicos.added:
-                    cambioTecList.append(f"  * Alta: {textoTecnico(temporada,idJug,cl)}")
+                    cambioTecList.append(f"  * Alta: {textoTecnico(temporada, idJug, cl)}")
             if cambios.tecnicos.changed:
                 for idJug, dataJug in cambios.tecnicos.changed.items():
-                    auxDiffchanged=dataJug.changed
+                    auxDiffchanged = dataJug.changed
                     if not auxDiffchanged:
                         continue
                     if ('activo' in auxDiffchanged) and (not auxDiffchanged['activo'][1]):
-                        cambioTecList.append(f"  * Baja: {textoTecnico(temporada,idJug,cl)}")
+                        cambioTecList.append(f"  * Baja: {textoTecnico(temporada, idJug, cl)}")
                     else:
-                        changeStr = ",".join([f"{k}: '{auxDiffchanged[k][0]}'->'{auxDiffchanged[k][1]}'" for k in sorted(auxDiffchanged.keys())])
-                        cambioTecList.append(f"  * Cambios: {textoTecnico(temporada,idJug,cl)}: {changeStr}")
+                        changeStr = ",".join([f"{k}: '{auxDiffchanged[k][0]}'->'{auxDiffchanged[k][1]}'" for k in
+                                              sorted(auxDiffchanged.keys())])
+                        cambioTecList.append(f"  * Cambios: {textoTecnico(temporada, idJug, cl)}: {changeStr}")
             if cambios.tecnicos.removed:
                 for idJug, dataJug in cambios.tecnicos.removed.items():
-                    cambioTecList.append(f"  * BORRADO:{textoTecnico(temporada,idJug,cl)}")
+                    cambioTecList.append(f"  * BORRADO:{textoTecnico(temporada, idJug, cl)}")
 
             if cambioTecList:
-                lineaTecnicos="Cambio en técnicos:\n"+"\n".join(sorted(cambioTecList))
+                lineaTecnicos = "Cambio en técnicos:\n" + "\n".join(sorted(cambioTecList))
                 cambiosClubList.append(lineaTecnicos)
 
         if cambiosClubList:
-            lineaClub= f"CLUB '{nombreClub}' [{cl}]:\n" + "\n".join(cambiosClubList)
+            lineaClub = f"CLUB '{nombreClub}' [{cl}]:\n" + "\n".join(cambiosClubList)
             listaCambios.append(lineaClub)
 
     if listaCambios:
-        print("CAMBIOS EN PLANTILLAS:\n"+"\n".join(sorted(listaCambios)))
+        print("CAMBIOS EN PLANTILLAS:\n" + "\n".join(sorted(listaCambios)))
+
 
 def main(args: Namespace):
     global temporada

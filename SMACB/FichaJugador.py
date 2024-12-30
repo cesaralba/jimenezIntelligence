@@ -80,7 +80,6 @@ class FichaJugador:
 
         fichaJug = descargaYparseaURLficha(urlFicha, datosPartido=datosPartido, home=home, browser=browser,
                                            config=config)
-        print("Ficha From URL", fichaJug)
         return FichaJugador(**fichaJug)
 
     @staticmethod
@@ -95,7 +94,6 @@ class FichaJugador:
         newData = {}
         newData.update(datosFichaPlantilla)
         newData.update(fichaJug)
-        print("Ficha From Plantilla", newData)
         return FichaJugador(**newData)
 
     def actualizaFromWeb(self, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
@@ -118,7 +116,6 @@ class FichaJugador:
         if result:
             self.timestamp = newData.get('timestamp', gmtime())
             if changeInfo:
-                print(self.id, "Cambio actualizaFromWeb", changeInfo)
                 CAMBIOSJUGADORES[self.id].update(changeInfo)
 
         return result
@@ -138,7 +135,6 @@ class FichaJugador:
         if result:
             self.timestamp = datosFichaPlantilla.get('timestamp', gmtime())
             if changeInfo:
-                print(self.id, "Cambio actualizaFromPlantilla", changeInfo)
                 CAMBIOSJUGADORES[self.id].update(changeInfo)
 
         return result
