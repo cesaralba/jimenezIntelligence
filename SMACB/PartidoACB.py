@@ -456,7 +456,6 @@ class PartidoACB():
         result = {loc: dict() for loc in LocalVisitante}
 
         for loc in LocalVisitante:
-            print(self, self.url, self.Equipos[loc].keys())
             result[loc].update(self.Equipos[loc]['estads'])
 
         for loc in LocalVisitante:

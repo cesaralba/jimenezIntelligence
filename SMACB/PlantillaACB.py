@@ -178,7 +178,6 @@ def procesaPlantillaDescargada(plantDesc: DownloadedPage):
 
     for bloqueDiv in cosasUtiles.find_all('div', {"class": "grid_plantilla"}):
         for jugArt in bloqueDiv.find_all("article"):
-            # CAP print(jugArt)
             data = dict()
 
             link = jugArt.find("a").attrs['href']
@@ -216,7 +215,7 @@ def procesaPlantillaDescargada(plantDesc: DownloadedPage):
             if (auxFoto not in URLIMG2IGNORE) and (auxFoto != ""):
                 data['urlFoto'] = mergeURL(URL_BASE, auxFoto)
 
-            result[destClass][data['id']] = data  # CAP: print(data)
+            result[destClass][data['id']] = data
 
     tablaBajas = cosasUtiles.find("table", {"class": "plantilla_bajas"})
 
