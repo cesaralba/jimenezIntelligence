@@ -2,7 +2,7 @@
 # Librerias para el programa
 
 #git+https://github.com/cesaralba/CAPcore-python@develop
-git+https://github.com/cesaralba/CAPcore-python@07_diff_LoggedData
+git+https://github.com/cesaralba/CAPcore-python@0.1.0
 
 ConfigArgParse==1.7
 
