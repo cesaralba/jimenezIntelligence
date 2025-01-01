@@ -1,13 +1,12 @@
 import logging
 import re
-from argparse import Namespace
 from collections import defaultdict
 from copy import copy, deepcopy
 from time import gmtime
 
 import pandas as pd
 from CAPcore.Misc import FORMATOtimestamp, listize, onlySetElement
-from CAPcore.Web import downloadPage, mergeURL, DownloadedPage, createBrowser
+from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA
 from Utils.Web import getObjID, prepareDownloading
@@ -16,7 +15,7 @@ from .Constants import URL_BASE, PLAYOFFFASE
 logger = logging.getLogger()
 
 calendario_URLBASE = "http://www.acb.com/calendario"
-template_URLFICHA = "http://www.acb.com/fichas/%s%i%03i.php"
+
 # http://www.acb.com/calendario/index/temporada_id/2018
 # http://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
 template_CALENDARIOYEAR = "http://www.acb.com/calendario/index/temporada_id/{year}"

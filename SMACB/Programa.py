@@ -15,15 +15,14 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import NextPageTemplate, PageBreak, Paragraph, Spacer, Table, TableStyle
 
-import SMACB.TemporadaACB as Constants
-from SMACB.Constants import (CATESTADSEQ2IGNORE, CATESTADSEQASCENDING, DEFAULTNUMFORMAT, DESCENSOS, filaTrayectoriaEq,
-                             haGanado2esp, infoClasifEquipo, infoSigPartido, local2espLargo, LocalVisitante,
-                             MARCADORESCLASIF, RANKFORMAT, REPORTLEYENDAS, )
-from SMACB.FichaJugador import TRADPOSICION
-from SMACB.TemporadaACB import (auxEtiqPartido, calculaEstadsYOrdenLiga, equipo2clasif, esEstCreciente,
-                                extraeCampoYorden, TemporadaACB, )
+import SMACB.TemporadaACB as TempACB
 from Utils.FechaHora import NEVER, secs2TimeStr, time2Str
 from Utils.ReportLab.RLverticalText import VerticalParagraph
+from .Constants import (CATESTADSEQ2IGNORE, CATESTADSEQASCENDING, DEFAULTNUMFORMAT, DESCENSOS, filaTrayectoriaEq,
+                        haGanado2esp, infoClasifEquipo, infoSigPartido, local2espLargo, LocalVisitante,
+                        MARCADORESCLASIF, RANKFORMAT, REPORTLEYENDAS, TRADPOSICION, )
+from .TemporadaACB import (auxEtiqPartido, calculaEstadsYOrdenLiga, equipo2clasif, esEstCreciente, extraeCampoYorden,
+                           TemporadaACB, )
 
 # Variables globales
 estadGlobales: Optional[pd.DataFrame] = None
@@ -366,6 +365,7 @@ def auxKeyDorsal(f, col):
         return "-"
 
     dato = f[col]
+
     result = -1 if dato == "00" else int(dato)
 
     return result
@@ -783,7 +783,7 @@ def paginasJugadores(tempData, abrEqs, juLocal, juVisit):
     return result
 
 
-def partidoTrayectoria(partido: Constants.filaTrayectoriaEq, datosTemp: TemporadaACB):
+def partidoTrayectoria(partido: TempACB.filaTrayectoriaEq, datosTemp: TemporadaACB):
     datoFecha = partido.fechaPartido
     strFecha = partido.fechaPartido.strftime(FMTECHACORTA) if datoFecha != NEVER else "TBD"
     etiqLoc = "vs " if partido.esLocal else "@"

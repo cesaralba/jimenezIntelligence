@@ -1,7 +1,7 @@
 import re
 from typing import Optional
 
-from CAPcore.Web import createBrowser
+from CAPcore.Web import createBrowser, mergeURL
 from configargparse import Namespace
 
 # https://effbot.org/zone/default-values.htm#what-to-do-instead
@@ -38,3 +38,31 @@ def prepareDownloading(browser, config, urlRef: Optional[str] = None):
         if urlRef:
             browser.open(urlRef)
     return browser, config
+
+
+def generaURLPlantilla(plantilla, urlRef: str):
+    # http://www.acb.com/club/plantilla/id/6/temporada_id/2016
+    params = ['/club', 'plantilla', 'id', plantilla.id]
+    if plantilla.edicion is not None:
+        params += ['temporada_id', plantilla.edicion]
+
+    urlSTR = "/".join(params)
+
+    result = mergeURL(urlRef, urlSTR)
+
+    return result
+
+
+def generaURLClubes(edicion: Optional[str] = None, urlRef: str = None):
+    # https://www.acb.com/club/index/temporada_id/2015
+    params = ['/club', 'index']
+    if edicion is not None:
+        params += ['temporada_id', edicion]
+
+    urlSTR = "/".join(params)
+
+    result = mergeURL(urlRef, urlSTR)
+
+    return result
+
+# TODO: Generar URL jugadores y URL entrenadores
