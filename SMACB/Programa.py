@@ -1,9 +1,9 @@
 import sys
-from _operator import itemgetter
 from collections import defaultdict, namedtuple
 from copy import copy
 from itertools import product
 from math import isnan
+from operator import itemgetter
 from time import gmtime, strftime
 from typing import Iterable, Optional
 
@@ -292,8 +292,8 @@ def auxEtFecha(f, col, formato=FMTECHACORTA):
 def auxFilasTablaEstadisticos(datosAmostrar: dict, clavesEquipo: list | None = None, clavesRival: list | None = None,
                               estiloCelda: ParagraphStyle = None, estiloCabCelda: ParagraphStyle = None
                               ) -> (list, dict):
-    result = list()
-    leyendas = dict()
+    result = []
+    leyendas = {}
     leyendasFlag = False
 
     auxClEq = clavesEquipo
@@ -385,20 +385,20 @@ def auxGeneraLeyendaEstadsCelda(leyenda: dict, FONTSIZE: int, listaEqs: Iterable
                                  leading=10, )
 
     separador = "<center>---</center><br/>"
-    textoEncab = ("""
-<b>Mejor</b>: Primero en el ranking<br/>    
-<b>ACB</b>: Media de la liga (+- desv estándar)<br/>    
-<b>Peor</b>: Último en el ranking<br/>    
-    """)
+    textoEncab = """
+<b>Mejor</b>: Primero en el ranking<br/>
+<b>ACB</b>: Media de la liga (+- desv estándar)<br/>
+<b>Peor</b>: Último en el ranking<br/>
+    """
 
-    textoEtEqs = ("""
-<b>Equipo</b>: Valores conseguidos por el equipo<br/>    
+    textoEtEqs = """
+<b>Equipo</b>: Valores conseguidos por el equipo<br/>
 <b>Rival</b>: Valores conseguidos por el rival<br/>
-    """)
-    textoCD = ("""
-<b>[C]</b>: <i>Mejor</i> cuanto menor<br/>    
+    """
+    textoCD = """
+<b>[C]</b>: <i>Mejor</i> cuanto menor<br/>
 <b>[D]</b>: <i>Mejor</i> cuanto mayor<br/>
-    """)
+    """
     textoEstads = "".join(
         [f"<b>{k.replace(' ', '&nbsp;')}</b>:&nbsp;{leyenda[k]}<br/>" for k in sorted(leyenda.keys())])
 
@@ -445,7 +445,7 @@ def auxJugsBajaTablaJugs(datos: pd.DataFrame, colActivo=('Jugador', 'Activo')) -
     estadoJugs = datos[colActivo]
 
     # Si son todos de baja, nos da igual señalar
-    if all(estadoJugs) or all(estadoJugs == False):
+    if all(estadoJugs) or all(not x for x in estadoJugs):
         return result
 
     result = [i for i, estado in enumerate(list(estadoJugs)) if not estado]
@@ -482,7 +482,7 @@ def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSp
     collist = infoTabla['columnas']
 
     if formatos is None:
-        formatos = dict()
+        formatos = {}
 
     abrevStr = ""
     abrevEq = kwargs.get('abrev', None)
@@ -694,7 +694,7 @@ def datosTablaLiga(tempData: TemporadaACB, currJornada: int = None):
     seqIDs = [(pos, list(equipo.idEq)[0]) for pos, equipo in enumerate(clasifLiga)]
 
     datosTabla = []
-    id2pos = dict()
+    id2pos = {}
 
     cabFila = [Paragraph('<b>Casa/Fuera</b>', style=estCelda)] + [
         Paragraph('<b>' + list(clasifLiga[pos].abrevsEq)[0] + '</b>', style=estCelda) for pos, _ in seqIDs] + [
@@ -809,12 +809,12 @@ def partidoTrayectoria(partido: TempACB.filaTrayectoriaEq, datosTemp: TemporadaA
         for loc in LocalVisitante:
             marcador[loc] = str(marcador[loc])
             if loc == locGanador:
-                marcador[loc] = "<b>{}</b>".format(marcador[loc])
+                marcador[loc] = f"<b>{marcador[loc]}</b>"
             if loc == locEq:
-                marcador[loc] = "<u>{}</u>".format(marcador[loc])
+                marcador[loc] = f"<u>{marcador[loc]}</u>"
 
         resAux = [marcador[loc] for loc in LocalVisitante]
-        strResultado = "{} ({})".format("-".join(resAux), haGanado2esp[partido.haGanado])
+        strResultado = f"{'-'.join(resAux)} ({haGanado2esp[partido.haGanado]})"
     return strRival, strResultado
 
 
@@ -826,8 +826,8 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
     filasPrecedentes = set()
     incrFila = 0
     marcaCurrJornada = None
-    mergeIzdaList = list()
-    mergeDchaList = list()
+    mergeIzdaList = []
+    mergeDchaList = []
 
     j17izda = None
     j17dcha = None
@@ -867,8 +867,7 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
                 marcaCurrJornada = numFila
                 incrFila = -1
                 continue
-            else:
-                filasPrecedentes.add(numFila + incrFila)
+            filasPrecedentes.add(numFila + incrFila)
 
         if fila.jornada == '17':
             if datosIzda and datosIzda.pendiente:
@@ -1129,7 +1128,7 @@ def datosRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     :param datosSig: resultado de tempData.sigPartido (info sobre el siguiente partido del equipo objetivo
     :return: lista con información sobre partidos sacada del Calendario
     """
-    result = list()
+    result = []
     sigPartido = datosSig.sigPartido
     jornada = int(sigPartido['jornada'])
     calJornada = tempData.Calendario.Jornadas[jornada]
@@ -1159,10 +1158,10 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
         return result
 
     def infoRes(partData: dict):
-        pts = list()
+        pts = []
         for loc in LocalVisitante:
             p = partData['resultado'][loc]
-            formato = ("<b>{:3}</b>" if partData['equipos'][loc]['haGanado'] else "{:3}")
+            formato = "<b>{:3}</b>" if partData['equipos'][loc]['haGanado'] else "{:3}"
             pts.append(formato.format(p))
         result = "-".join(pts)
         return result
@@ -1175,7 +1174,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
         return result
 
     def preparaDatos(datos, tstampRef):
-        intData = list()
+        intData = []
         for p in sorted(datos, key=itemgetter('fechaPartido')):
             info = {'pendiente': p['pendiente'], 'fecha': etFecha(p['fechaPartido'], tstampRef)}
             for loc in LocalVisitante:
@@ -1232,7 +1231,7 @@ def datosTablaClasif(tempData: TemporadaACB, datosSig: infoSigPartido) -> list[f
     muestraJornada = len(tempData.Calendario.Jornadas[jornada]['partidos']) > 0
     recuperaClasifLiga(tempData)
 
-    result = list()
+    result = []
     for posic, eq in enumerate(clasifLiga):
         nombEqAux = eq.nombreCorto
         notaClas = auxCalculaBalanceStrSuf(record=eq, addPendientes=True, currJornada=jornada,
@@ -1272,7 +1271,7 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
     recuperaClasifLiga(tempData)
     filasClasLiga = datosTablaClasif(tempData, datosSig)
     posFirstNegBal = auxCalculaFirstBalNeg(clasifLiga)
-    filasAresaltar = list()
+    filasAresaltar = []
     filaCab = [Paragraph("<para align='center'><b>#</b></para>"),
                Paragraph("<para align='center'><b>Equipo</b></para>"),
                Paragraph("<para align='center'><b>J</b></para>"), Paragraph("<para align='center'><b>V-D</b></para>"),
@@ -1345,17 +1344,23 @@ def calculaMaxMinMagn(ser: pd.Series, ser_orden: pd.Series):
                            maxAbrevs=maxAbrevs, abrevs2add=maxAbrevs.union(minAbrevs))
 
 
+sentinel = object()
+
+
 def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, magn2include: list, magnsAscending=None,
-                              infoCampos: dict = REPORTLEYENDAS
+                              infoCampos: dict = sentinel
                               ):
+    if infoCampos is sentinel:
+        infoCampos = REPORTLEYENDAS
+
     catsAscending = magnsAscending if magnsAscending else set()
-    auxEtiqLeyenda = infoCampos if infoCampos else dict()
+    auxEtiqLeyenda = infoCampos if infoCampos else {}
 
     recuperaEstadsGlobales(tempData)
 
     targetAbrevs = auxFindTargetAbrevs(tempData, datosSig)
 
-    result = dict()
+    result = {}
 
     estadsInexistentes = set()
     abrevs2leyenda = set()
@@ -1368,7 +1373,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
         if kMagn not in auxEtiqLeyenda:
             print(f"tablaAnalisisEstadisticos.filasTabla: magnitud '{kMagn}' no está en descripciones.Usando {kMagn} "
                   f"para etiqueta")
-        descrMagn = auxEtiqLeyenda.get(kMagn, dict())
+        descrMagn = auxEtiqLeyenda.get(kMagn, {})
 
         etiq = descrMagn.get('etiq', kMagn)
         formatoMagn = descrMagn.get('formato', DEFAULTNUMFORMAT)
@@ -1412,12 +1417,8 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
 
     if estadsInexistentes:
         raise ValueError(
-            f"datosAnalisisEstadisticos: los siguientes valores no existen: {estadsInexistentes}. " + f"Parametro: "
-                                                                                                      f"{magn2include}. "
-                                                                                                      f"Columnas "
-                                                                                                      f"posibles: "
-                                                                                                      f"{
-                                                                                                      clavesEnEstads}")
+            f"datosAnalisisEstadisticos: los siguientes valores no existen: {estadsInexistentes}. Parametro: "
+            f"{magn2include}. Columnas posibles: {clavesEnEstads}")
     return result, abrevs2leyenda
 
 
