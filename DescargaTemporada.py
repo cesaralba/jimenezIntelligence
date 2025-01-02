@@ -165,7 +165,7 @@ def preparaResumenPlantillasJugadores(cambios, cl, temporada):
     cambioJugsList = []
     for idJug in cambios.jugadores.added:
         dorsal = dataPlantJug(temporada, idJug, cl)['dorsal']
-        cambioJugsList.append(f"  * Alta: {textoJugador(temporada, idJug)} dorsal:[{dorsal}]")
+        cambioJugsList.append(f"  * Alta: {textoJugador(temporada, idJug)} dorsal: {dorsal}")
     for idJug, dataJug in cambios.jugadores.changed.items():
         auxJug = dataPlantJug(temporada, idJug, cl)
         dorsal = auxJug['dorsal']
