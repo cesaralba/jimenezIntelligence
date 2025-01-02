@@ -7,16 +7,16 @@ Created on Jan 4, 2018
 import logging
 import sys
 import traceback
-from _operator import itemgetter
 from collections import defaultdict
 from copy import copy
 from decimal import Decimal
 from itertools import chain
+from operator import itemgetter
 from pickle import dump, load
 from sys import exc_info, setrecursionlimit
 from time import gmtime, strftime
 from traceback import print_exception
-from typing import Any, Iterable, Dict
+from typing import Any, Iterable, Dict, BinaryIO, Tuple, List
 from typing import Optional
 
 import numpy as np
@@ -47,15 +47,15 @@ JUGADORESDESCARGADOS = set()
 AUXCAMBIOS = CAMBIOSJUGADORES  # For the sake of formatter
 
 
-def auxJorFech2periodo(dfTemp):
-    periodoAct = 0
-    jornada = dict()
-    claveMin = dict()
-    claveMax = dict()
-    curVal = None
+def auxJorFech2periodo(dfTemp: pd.DataFrame):
+    periodoAct: int = 0
+    jornada = {}
+    claveMin = {}
+    claveMax = {}
+    curVal: Optional[Tuple[Any, str]] = None
     jf2periodo = defaultdict(lambda: defaultdict(int))
 
-    dfPairs = dfTemp.apply(lambda r: (r['fechaPartido'].date(), r['jornada']), axis=1).unique()
+    dfPairs: List[Tuple[Any, str]] = dfTemp.apply(lambda r: (r['fechaPartido'].date(), r['jornada']), axis=1).unique()
     for p in sorted(list(dfPairs)):
         if curVal is None or curVal[1] != p[1]:
             if curVal:
@@ -70,19 +70,20 @@ def auxJorFech2periodo(dfTemp):
             claveMax[periodoAct] = p[0]
         jf2periodo[p[1]][p[0]] = periodoAct
 
-    p2k = {p: (("%s" % claveMin[p]) + (("\na %s" % claveMax[p]) if (claveMin[p] != claveMax[p]) else "") + (
-            "\n(J:%2i)" % jornada[p])) for p in jornada}
+    p2k = {jId: f"{claveMin[jId]}" + (
+        f"\na {claveMax[jId]}" if (claveMin[jId] != claveMax[jId]) else "") + f"\n(J:{jData:2i})" for jId, jData in
+           jornada.items()}
 
-    result = dict()
+    result = {}
     for j in jf2periodo:
-        result[j] = dict()
+        result[j] = {}
         for d in jf2periodo[j]:
             result[j][d] = p2k[jf2periodo[j][d]]
 
     return result
 
 
-class TemporadaACB(object):
+class TemporadaACB:
     """
     Aglutina calendario y lista de partidos
     """
@@ -143,7 +144,7 @@ class TemporadaACB(object):
                 print("actualizaTemporada: Ejecución terminada por el usuario")
                 break
             except BaseException:
-                print("actualizaTemporada: problemas descargando  partido '%s': %s" % (partido, exc_info()))
+                print(f"actualizaTemporada: problemas descargando  partido '{partido}': {exc_info()}")
                 print_exception(*exc_info())
 
             if 'justone' in config and config.justone:  # Just downloads a game (for testing/dev purposes)
@@ -184,20 +185,24 @@ class TemporadaACB(object):
         aux = copy(self)
 
         # Clean stuff that shouldn't be saved
-        for atributo in {'changed'}:
+        atrs2delete = {'changed'}
+        for atributo in atrs2delete:
             if hasattr(aux, atributo):
-                aux.__delattr__(atributo)
+                del (aux, atributo)
 
         setrecursionlimit(50000)
         # TODO: Protect this
-        dump(aux, open(filename, "wb"))
+        handler: BinaryIO
+        with open(filename, "wb") as handler:
+            dump(aux, handler)
 
     def cargaTemporada(self, filename):
         # TODO: Protect this
         retry = False
         setUpdatePlantillaFormat = False
         try:
-            aux = load(open(filename, "rb"))
+            with open(filename, "rb") as handler:
+                aux = load(handler)
         except ModuleNotFoundError:
             # Para compatibilidad hacia atras (ficheros grabados antes de CAPcore)
             sys.modules['Utils.LoggedDict'] = sys.modules['CAPcore.LoggedDict']
@@ -211,7 +216,8 @@ class TemporadaACB(object):
 
         if retry:
             print(f"SMACB.TemporadaACB.TemporadaACB.cargaTemporada: retrying load of '{filename}'")
-            aux = load(open(filename, "rb"))
+            with open(filename, "rb") as handler:
+                aux = load(handler)
 
         fields2skip = {'changed', 'tradEquipos'}
         for attr in dir(aux):
@@ -305,11 +311,11 @@ class TemporadaACB(object):
 
     def extraeDataframeJugadores(self, listaURLPartidos=None):
 
-        listaURLs = listaURLPartidos or self.Partidos.keys()
+        listaURLs: List[str] = listaURLPartidos or self.Partidos.keys()
 
-        dfPartidos = [self.Partidos[pURL].jugadoresAdataframe() for pURL in listaURLs]
+        dfPartidos: List[pd.DataFrame] = [self.Partidos[pURL].jugadoresAdataframe() for pURL in listaURLs]
 
-        dfResult = pd.concat(dfPartidos, axis=0, ignore_index=True, sort=True)
+        dfResult: pd.DataFrame = pd.concat(dfPartidos, axis=0, ignore_index=True, sort=True)
 
         periodos = auxJorFech2periodo(dfResult)
 
@@ -361,7 +367,7 @@ class TemporadaACB(object):
         * Si la abrev objetivo es local (True) o visit (False)
         """
         juCal, peCal = self.Calendario.partidosEquipo(abrEq)
-        peOrd = sorted([p for p in peCal], key=itemgetter('fechaPartido'))
+        peOrd = sorted(list(peCal), key=itemgetter('fechaPartido'))
 
         juOrdTem = sorted([p['url'] for p in juCal], key=lambda u: self.Partidos[u].fechaPartido)
 
@@ -469,7 +475,7 @@ class TemporadaACB(object):
 
         resultInicial = sorted(datosClasifEquipos, key=lambda x: funcKey(x, datosLR), reverse=True)
 
-        resultFinal = list()
+        resultFinal = []
         agrupClasif = defaultdict(set)
         for datosEq in resultInicial:
             abrev = datosEq.abrevAusar
@@ -871,7 +877,7 @@ class TemporadaACB(object):
 
 def calculaTempStats(datos, clave, filtroFechas=None):
     if clave not in datos:
-        raise KeyError("Clave '%s' no está en datos." % clave)
+        raise KeyError(f"Clave '{clave}' no está en datos.")
 
     datosWrk = datos
     if filtroFechas:  # TODO: Qué hacer con el filtro
@@ -879,7 +885,7 @@ def calculaTempStats(datos, clave, filtroFechas=None):
 
     agg = datosWrk.set_index('codigo')[clave].astype('float64').groupby('codigo').agg(
         ['mean', 'std', 'count', 'median', 'min', 'max', 'skew'])
-    agg1 = agg.rename(columns=dict([(x, clave + "-" + x) for x in agg.columns])).reset_index()
+    agg1 = agg.rename(columns=dict((x, clave + "-" + x) for x in agg.columns)).reset_index()
     return agg1
 
 
@@ -921,21 +927,23 @@ def calculaVars(temporada, clave, useStd=True, filtroFechas=None):
     colAdpt = {('half-' + clave + '-mean'): (clave + '-mejorMitad'),
                ('aboveAvg-' + clave + '-mean'): (clave + '-sobreMedia')}
     datos = calculaZ(temporada, clave, useStd=useStd, filtroFechas=filtroFechas)
-    result = dict()
+    result = {}
 
-    for comb in combs:
-        combfloat = combs[comb] + [(clZ + '-' + clave)]
-        resfloat = datos[combfloat].groupby(combs[comb]).agg(['mean', 'std', 'count', 'min', 'median', 'max', 'skew'])
-        combbool = combs[comb] + [('half-' + clave), ('aboveAvg-' + clave)]
-        resbool = datos[combbool].groupby(combs[comb]).agg(['mean'])
-        result[comb] = pd.concat([resbool, resfloat], axis=1, sort=True).reset_index()
-        newColNames = [((comb + "-" + colAdpt.get(x, x)) if clave in x else x) for x in
-                       combinaPDindexes(result[comb].columns)]
-        result[comb].columns = newColNames
-        result[comb]["-".join([comb, clave, (clZ.lower() + "Min")])] = (
-                result[comb]["-".join([comb, clZ, clave, 'mean'])] - result[comb]["-".join([comb, clZ, clave, 'std'])])
-        result[comb]["-".join([comb, clave, (clZ.lower() + "Max")])] = (
-                result[comb]["-".join([comb, clZ, clave, 'mean'])] + result[comb]["-".join([comb, clZ, clave, 'std'])])
+    for combN, combV in combs.items():
+        combfloat = combV + [(clZ + '-' + clave)]
+        resfloat = datos[combfloat].groupby(combV).agg(['mean', 'std', 'count', 'min', 'median', 'max', 'skew'])
+        combbool = combV + [('half-' + clave), ('aboveAvg-' + clave)]
+        resbool = datos[combbool].groupby(combV).agg(['mean'])
+        result[combN] = pd.concat([resbool, resfloat], axis=1, sort=True).reset_index()
+        newColNames = [((combN + "-" + colAdpt.get(x, x)) if clave in x else x) for x in
+                       combinaPDindexes(result[combN].columns)]
+        result[combN].columns = newColNames
+        result[combN]["-".join([combN, clave, (clZ.lower() + "Min")])] = (
+                result[combN]["-".join([combN, clZ, clave, 'mean'])] - result[combN][
+            "-".join([combN, clZ, clave, 'std'])])
+        result[combN]["-".join([combN, clave, (clZ.lower() + "Max")])] = (
+                result[combN]["-".join([combN, clZ, clave, 'mean'])] + result[combN][
+            "-".join([combN, clZ, clave, 'std'])])
 
     return result
 
@@ -948,7 +956,7 @@ def entradaClas2kVict(ent: infoClasifEquipo, *kargs) -> tuple:
     :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
     """
 
-    result = (ent.V)
+    result = ent.V
     return result
 
 
@@ -960,7 +968,7 @@ def entradaClas2kRatioVict(ent: infoClasifEquipo, *kargs) -> tuple:
     :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
     """
 
-    result = (ent.ratioVict)
+    result = ent.ratioVict
     return result
 
 
