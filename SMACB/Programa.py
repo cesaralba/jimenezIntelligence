@@ -366,7 +366,12 @@ def auxKeyDorsal(f, col):
 
     dato = f[col]
 
-    result = -1 if dato == "00" else int(dato)
+    try:
+        auxResult=int(dato)
+    except ValueError:
+        auxResult=999
+
+    result = -1 if dato == "00" else auxResult
 
     return result
 
@@ -600,7 +605,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     COLS_TRAYECT_TEMP_orig_names = ['enActa', 'haJugado', 'esTitular', 'haGanado', ]
     COLS_TRAYECT_TEMP_orig = [(col, 'sum') for col in COLS_TRAYECT_TEMP_orig_names]
     COLS_TRAYECT_TEMP = ['Acta', 'Jugados', 'Titular', 'Vict']
-    COLS_FICHA = ['id', 'alias', 'pos', 'altura', 'licencia', 'fechaNac']
+    COLS_FICHA = ['id', 'alias', 'pos', 'altura', 'licencia', 'fechaNac','Activo']
     VALS_ESTAD_JUGADOR = ['A', 'A-BP', 'A-TCI', 'BP', 'BR', 'FP-C', 'FP-F', 'P', 'ppTC', 'R-D', 'R-O', 'REB-T', 'Segs',
                           'T1-C', 'T1-I', 'T1%', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-I', 'TC-C', 'TC%',
                           'PTC', 'TAP-C', 'TAP-F']
@@ -615,21 +620,21 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     jugDF = auxDF.loc[auxDF['CODequipo'].isin(abrevsEq)]
 
     estadsJugDF = tempData.dfEstadsJugadores(jugDF, abrEq=abrEq)
-    fichasJugadores = tempData.dataFrameFichasJugadores()
+    fichasJugadores = tempData.dataFrameFichasJugadores(abrEq=abrEq)
     fichasJugadores.posicion = fichasJugadores.posicion.map(TRADPOSICION)
+
+    COLS_IDENTIFIC_JUG_aux = COLS_IDENTIFIC_JUG.copy()
+    COLS_FICHA_aux = COLS_FICHA.copy()
+
+    if 'dorsal' in fichasJugadores.columns:
+        COLS_IDENTIFIC_JUG_aux.remove('dorsal')
+        COLS_FICHA_aux.append('dorsal')
 
     trayectTemp = estadsJugDF[COLS_TRAYECT_TEMP_orig]
     trayectTemp.columns = pd.Index(COLS_TRAYECT_TEMP)
 
-    identifJug = pd.concat([estadsJugDF['Jugador'][COLS_IDENTIFIC_JUG], fichasJugadores[COLS_FICHA]], axis=1,
+    identifJug = pd.concat([estadsJugDF['Jugador'][COLS_IDENTIFIC_JUG_aux], fichasJugadores[COLS_FICHA_aux]], axis=1,
                            join="inner")
-
-    if tempData.descargaPlantillas:
-        idEq = onlySetElement(tempData.Calendario.tradEquipos['c2i'][abrEq])
-        statusJugs = tempData.plantillas[idEq].jugadores.extractKey('activo', False)
-        identifJug['Activo'] = identifJug['codigo'].map(statusJugs, 'ignore')
-    else:
-        identifJug['Activo'] = True
 
     estadsPromedios = estadsJugDF[COLS_ESTAD_PROM].droplevel(1, axis=1)
     estadsTotales = estadsJugDF[COLS_ESTAD_TOTAL].droplevel(1, axis=1)

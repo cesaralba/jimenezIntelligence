@@ -489,18 +489,32 @@ class TemporadaACB(object):
         result = resultFinal
         return result
 
-    def dataFrameFichasJugadores(self):
-        auxdict = {j_id: ficha.dictDatosJugador() for j_id, ficha in self.fichaJugadores.items()}
+    def dataFrameFichasJugadores(self, abrEq:Optional[str]=None):
+        jugsIter = self.fichaJugadores.keys()
+        activos = dorsales = {}
+        if (abrEq is not None) and self.descargaPlantillas:
+            codEq = self.tradEqAbrev2Id(abrEq)
+            jugsIter = self.plantillas[codEq].jugadores.keys()
+            dorsales = self.plantillas[codEq].jugadores.extractKey('dorsal', 100)
+            activos = self.plantillas[codEq].jugadores.extractKey('activo', False)
+        auxdict = {j_id: self.fichaJugadores[j_id].dictDatosJugador() for j_id in jugsIter}
 
-        for eq_id, ficha in auxdict.items():
-            partido = self.Partidos[ficha['ultPartidoP']]
-            entradaJug = partido.Jugadores[eq_id]
-            auxdict[eq_id]['ultEquipo'] = entradaJug['equipo']
-            auxdict[eq_id]['ultEquipoAbr'] = entradaJug['CODequipo']
+        for jugId, ficha in auxdict.items():
+            if self.descargaPlantillas:
+                auxdict[jugId]['dorsal'] = dorsales[jugId]
+                auxdict[jugId]['Activo'] = activos[jugId]
+            else:
+                auxdict[jugId]['Activo'] = True
+
+            if ficha['ultPartidoP'] is not None:
+                partido = self.Partidos[ficha['ultPartidoP']]
+                entradaJug = partido.Jugadores[jugId]
+                auxdict[jugId]['ultEquipo'] = entradaJug['equipo']
+                auxdict[jugId]['ultEquipoAbr'] = entradaJug['CODequipo']
 
         auxDF = pd.DataFrame.from_dict(auxdict, orient='index')
         for col in ['fechaNac', 'primPartidoT', 'ultPartidoT']:
-            auxDF[col] = pd.to_datetime(auxDF[col])  # TODO: Esto no era
+            auxDF[col] = pd.to_datetime(auxDF[col])
 
         return auxDF
 
