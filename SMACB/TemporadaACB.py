@@ -16,7 +16,7 @@ from pickle import dump, load
 from sys import exc_info, setrecursionlimit
 from time import gmtime, strftime
 from traceback import print_exception
-from typing import Any, Iterable, Dict, BinaryIO, Tuple, List
+from typing import Any, Iterable, Dict, Tuple, List
 from typing import Optional
 
 import numpy as np
@@ -71,7 +71,7 @@ def auxJorFech2periodo(dfTemp: pd.DataFrame):
         jf2periodo[p[1]][p[0]] = periodoAct
 
     p2k = {jId: f"{claveMin[jId]}" + (
-        f"\na {claveMax[jId]}" if (claveMin[jId] != claveMax[jId]) else "") + f"\n(J:{jData:2i})" for jId, jData in
+        f"\na {claveMax[jId]}" if (claveMin[jId] != claveMax[jId]) else "") + f"\n(J:{jData:2})" for jId, jData in
            jornada.items()}
 
     result = {}
@@ -188,11 +188,10 @@ class TemporadaACB:
         atrs2delete = {'changed'}
         for atributo in atrs2delete:
             if hasattr(aux, atributo):
-                del (aux, atributo)
+                delattr(aux, atributo)
 
         setrecursionlimit(50000)
         # TODO: Protect this
-        handler: BinaryIO
         with open(filename, "wb") as handler:
             dump(aux, handler)
 
