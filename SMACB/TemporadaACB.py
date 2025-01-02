@@ -489,7 +489,7 @@ class TemporadaACB(object):
         result = resultFinal
         return result
 
-    def dataFrameFichasJugadores(self, abrEq:Optional[str]=None):
+    def dataFrameFichasJugadores(self, abrEq: Optional[str] = None):
         jugsIter = self.fichaJugadores.keys()
         activos = dorsales = {}
         if (abrEq is not None) and self.descargaPlantillas:

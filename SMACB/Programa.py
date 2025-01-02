@@ -8,7 +8,7 @@ from time import gmtime, strftime
 from typing import Iterable, Optional
 
 import pandas as pd
-from CAPcore.Misc import listize, onlySetElement
+from CAPcore.Misc import listize
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -367,9 +367,9 @@ def auxKeyDorsal(f, col):
     dato = f[col]
 
     try:
-        auxResult=int(dato)
+        auxResult = int(dato)
     except ValueError:
-        auxResult=999
+        auxResult = 999
 
     result = -1 if dato == "00" else auxResult
 
@@ -605,7 +605,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     COLS_TRAYECT_TEMP_orig_names = ['enActa', 'haJugado', 'esTitular', 'haGanado', ]
     COLS_TRAYECT_TEMP_orig = [(col, 'sum') for col in COLS_TRAYECT_TEMP_orig_names]
     COLS_TRAYECT_TEMP = ['Acta', 'Jugados', 'Titular', 'Vict']
-    COLS_FICHA = ['id', 'alias', 'pos', 'altura', 'licencia', 'fechaNac','Activo']
+    COLS_FICHA = ['id', 'alias', 'pos', 'altura', 'licencia', 'fechaNac', 'Activo']
     VALS_ESTAD_JUGADOR = ['A', 'A-BP', 'A-TCI', 'BP', 'BR', 'FP-C', 'FP-F', 'P', 'ppTC', 'R-D', 'R-O', 'REB-T', 'Segs',
                           'T1-C', 'T1-I', 'T1%', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-I', 'TC-C', 'TC%',
                           'PTC', 'TAP-C', 'TAP-F']
