@@ -1,18 +1,20 @@
+import logging
 import re
-from argparse import Namespace
 from itertools import product
 from time import gmtime
 from traceback import print_exc
+from typing import Optional
 
 import numpy as np
 import pandas as pd
 from CAPcore.Misc import BadParameters, BadString, extractREGroups
-from CAPcore.Web import getObjID, downloadPage, extractGetParams, DownloadedPage
+from CAPcore.Web import downloadPage, extractGetParams, DownloadedPage
 from babel.numbers import parse_number
 from bs4 import Tag
 
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
+from Utils.Web import getObjID, prepareDownloading
 from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp)
 from .PlantillaACB import PlantillaACB
 
@@ -29,6 +31,7 @@ class PartidoACB():
         self.Arbitros = []
         self.ResultadosParciales = []
         self.prorrogas = 0
+        self.timestamp = None
 
         self.Equipos = {x: {'Jugadores': []} for x in LocalVisitante}
 
@@ -54,7 +57,9 @@ class PartidoACB():
         for loc in LocalVisitante:
             self.Equipos[loc]['haGanado'] = self.ResultadoCalendario[loc] > self.ResultadoCalendario[OtherLoc(loc)]
 
-    def descargaPartido(self, home=None, browser=None, config=Namespace()):
+    def descargaPartido(self, home=None, browser=None, config=None):
+
+        browser, config = prepareDownloading(browser, config)
 
         if not hasattr(self, 'url'):
             raise BadParameters("PartidoACB: DescargaPartido: imposible encontrar la URL del partido")
@@ -67,10 +72,8 @@ class PartidoACB():
 
     def procesaPartido(self, content: DownloadedPage):
         raiser = False
-        if 'timestamp' in content:
-            self.timestamp = content.timestamp
-        else:
-            self.timestamp = gmtime()
+        self.timestamp = getattr(content,'timestamp',gmtime())
+
         if 'source' in content:
             self.url = content.source
 
@@ -102,7 +105,7 @@ class PartidoACB():
             colHeaders = extractPrefijosTablaEstads(tRes)
             self.extraeEstadsJugadores(tRes, loc, colHeaders)
 
-            cachedTeam = None
+            cachedTeam: Optional[PlantillaACB] = None
             newPendientes = list()
             if self.pendientes[loc]:
                 for datosJug in self.pendientes[loc]:
@@ -152,6 +155,16 @@ class PartidoACB():
                     f"{self.url}': {newPendientes}")
 
         return divCabecera
+
+    def check(self):
+        result = True
+
+        for loc in LocalVisitante:
+            if not self.Equipos[loc].get('estads', {}):
+                logging.error("Partido: '{}' no se han encontrado estadisticas para {}.")
+                result &= False
+
+        return result
 
     def procesaDivFechas(self, divFecha):
         espTiempo = list(map(lambda x: x.strip(), divFecha.next.split("|")))
@@ -441,6 +454,7 @@ class PartidoACB():
 
     def estadsPartido(self):
         result = {loc: dict() for loc in LocalVisitante}
+
         for loc in LocalVisitante:
             result[loc].update(self.Equipos[loc]['estads'])
 
@@ -569,17 +583,17 @@ def GeneraURLpartido(link):
                 missingParameters.add(par)
 
         if errores:
-            raise BadParameters("GeneraURLpartido: falta informacion en parámetro: %s." % missingParameters)
+            raise BadParameters(f"GeneraURLpartido: falta informacion en parámetro: {missingParameters}.")
 
-    if type(link) is Tag:  # Enlace a sacado con BeautifulSoup
+    if isinstance(link, Tag):  # Enlace a sacado con BeautifulSoup
         link2process = link['href']
-    elif type(link) is str:  # Cadena URL
+    elif isinstance(link, str):  # Cadena URL
         link2process = link
-    elif type(link) is dict:  # Diccionario con los parametros necesarios s(sacados de la URL, se supone)
+    elif isinstance(link, dict):  # Diccionario con los parametros necesarios s(sacados de la URL, se supone)
         CheckParameters(link)
         return templateURLficha % (link['cod_competicion'], int(link['cod_edicion']), int(link['partido']))
     else:
-        raise TypeError("GeneraURLpartido: incapaz de procesar %s (%s)" % (link, type(link)))
+        raise TypeError(f"GeneraURLpartido: incapaz de procesar {link} ({type(link)})")
 
     liurlcomps = extractGetParams(link2process)
     CheckParameters(liurlcomps)
@@ -601,8 +615,8 @@ def extractPrefijosTablaEstads(tablaEstads):
     coltexts[0] = ""  # La primera celda es el resultado del equipo. No un prefijo
     prefixes = []
 
-    for i in range(len(colspans)):
-        prefixes += ([coltexts[i]] * colspans[i])
+    for i, v in enumerate(colspans):
+        prefixes += ([coltexts[i]] * v)
 
     estheaders = [x.get_text().strip() for x in filasCab[1].find_all("th")]
 

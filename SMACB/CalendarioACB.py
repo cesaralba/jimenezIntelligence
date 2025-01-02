@@ -1,21 +1,21 @@
 import logging
 import re
-from argparse import Namespace
 from collections import defaultdict
 from copy import copy, deepcopy
 from time import gmtime
 
 import pandas as pd
 from CAPcore.Misc import FORMATOtimestamp, listize, onlySetElement
-from CAPcore.Web import getObjID, downloadPage, mergeURL, DownloadedPage
+from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA
+from Utils.Web import getObjID, prepareDownloading
 from .Constants import URL_BASE, PLAYOFFFASE
 
 logger = logging.getLogger()
 
 calendario_URLBASE = "http://www.acb.com/calendario"
-template_URLFICHA = "http://www.acb.com/fichas/%s%i%03i.php"
+
 # http://www.acb.com/calendario/index/temporada_id/2018
 # http://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
 template_CALENDARIOYEAR = "http://www.acb.com/calendario/index/temporada_id/{year}"
@@ -43,8 +43,9 @@ class CalendarioACB:
         self.urlbase = urlbase
         self.url = None
 
-    def actualizaCalendario(self, home=None, browser=None, config=Namespace()):
+    def actualizaCalendario(self, home=None, browser=None, config=None):
         calendarioPage: DownloadedPage = self.descargaCalendario(home=home, browser=browser, config=config)
+        browser, config = prepareDownloading(browser, config)
 
         self.procesaCalendario(calendarioPage, home=self.url, browser=browser, config=config)
 
@@ -127,8 +128,10 @@ class CalendarioACB:
 
         return result
 
-    def descargaCalendario(self, home=None, browser=None, config=Namespace()) -> DownloadedPage:
+    def descargaCalendario(self, home=None, browser=None, config=None) -> DownloadedPage:
         logger.info("descargaCalendario")
+        browser, config = prepareDownloading(browser, config)
+
         if self.url is None:
             pagCalendario = downloadPage(self.urlbase, home=home, browser=browser, config=config)
             pagCalendarioData = pagCalendario.data
@@ -467,12 +470,13 @@ def procesaFechaHoraPartido(cadFecha, cadHora, datosCab):
     return resultado
 
 
-def recuperaPartidosEquipo(idEquipo, home=None, browser=None, config=Namespace()):
+def recuperaPartidosEquipo(idEquipo, home=None, browser=None, config=None):
     if idEquipo in CALENDARIOEQUIPOS:
         return CALENDARIOEQUIPOS[idEquipo]
 
     urlDest = template_PARTIDOSEQUIPO.format(idequipo=idEquipo)
 
+    browser, config = prepareDownloading(browser, config)
     partidosPage = downloadPage(dest=urlDest, home=home, browser=browser, config=config)
 
     if partidosPage is None:
