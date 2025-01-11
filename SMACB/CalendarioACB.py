@@ -312,6 +312,14 @@ class CalendarioACB:
         result = ",".join(map(str, sorted([onlySetElement(self.tradEquipos['c2i'][e]) for e in conjAbrevs])))
         return result
 
+    def jornadasCompletas(self):
+        """
+        Devuelve las IDs de jornadas para las que se han jugado todos los partidos
+        :return: set con las jornadas para las que no quedan partidos (el id, entero)
+        """
+        result = {j for j, data in self.Jornadas.items() if len(data['pendientes']) == 0}
+        return result
+
 
 def BuscaCalendario(url=URL_BASE, home=None, browser=None, config=None):
     if config is None:
