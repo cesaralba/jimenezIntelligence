@@ -18,9 +18,9 @@ from reportlab.platypus import NextPageTemplate, PageBreak, Paragraph, Spacer, T
 import SMACB.TemporadaACB as TempACB
 from Utils.FechaHora import NEVER, secs2TimeStr, time2Str
 from Utils.ReportLab.RLverticalText import VerticalParagraph
-from .Constants import (CATESTADSEQ2IGNORE, CATESTADSEQASCENDING, DEFAULTNUMFORMAT, DESCENSOS, filaTrayectoriaEq,
-                        haGanado2esp, infoClasifEquipo, infoSigPartido, local2espLargo, LocalVisitante,
-                        MARCADORESCLASIF, RANKFORMAT, REPORTLEYENDAS, TRADPOSICION, )
+from .Constants import (CATESTADSEQ2IGNORE, CATESTADSEQASCENDING, DEFAULTNUMFORMAT, filaTrayectoriaEq, haGanado2esp,
+                        infoClasifEquipo, infoSigPartido, local2espLargo, LocalVisitante, MARCADORESCLASIF, RANKFORMAT,
+                        REPORTLEYENDAS, TRADPOSICION, )
 from .TemporadaACB import (auxEtiqPartido, calculaEstadsYOrdenLiga, equipo2clasif, esEstCreciente, extraeCampoYorden,
                            TemporadaACB, )
 
@@ -37,6 +37,9 @@ ESTILOS = getSampleStyleSheet()
 
 CANTGREYEQ = .80
 colEq = colors.rgb2cmyk(CANTGREYEQ, CANTGREYEQ, CANTGREYEQ)
+
+estiloPosMarker = [colors.black]
+estiloNegBal = [colors.black, "squared", (2, 6)]
 
 FMTECHACORTA = "%d-%m"
 DEFTABVALUE = "-"
@@ -1009,24 +1012,18 @@ def auxTablaLigaListaEstilos(CELLPAD, FONTSIZE, coordsJuPe, datosAux, equiposAma
     for i in range(1, len(datosAux) - 1):
         listaEstilos.append(("BACKGROUND", (i, i), (i, i), colBal))
 
-    listNegBal = [(firstNegBal - 1, [colors.black, "squared", (2, 8)])] if firstNegBal else []
-
-    for pos, resto in list(product(MARCADORESCLASIF, [[colors.black]])) + listNegBal:
+    auxListaPosMarkers = []
+    for pos in MARCADORESCLASIF:
+        auxEstilo = estiloNegBal if (firstNegBal and pos == (firstNegBal - 1)) else estiloPosMarker
+        auxListaPosMarkers.append((pos, auxEstilo))
+    if (firstNegBal and (firstNegBal - 1) not in MARCADORESCLASIF):
+        auxListaPosMarkers.append((firstNegBal - 1, estiloNegBal))
+    for pos, resto in auxListaPosMarkers:
         commH, commV, incr = ("LINEBELOW", "LINEAFTER", 0) if pos >= 0 else ("LINEABOVE", "LINEBEFORE", -1)
         posIni, posFin = (0, pos + incr) if pos >= 0 else (pos + incr, -1)
 
         listaEstilos.append([commH, (posIni, pos + incr), (posFin, pos + incr), ANCHOMARCAPOS] + resto)
         listaEstilos.append([commV, (pos + incr, posIni), (pos + incr, posFin), ANCHOMARCAPOS] + resto)
-
-    # Etiquetas de equipos en descenso
-    # Equipos para descenso (horizontal)
-    listaEstilos.append(("LINEBEFORE", (-DESCENSOS - 1, 0), (-DESCENSOS - 1, 0), ANCHOMARCAPOS, colors.black))
-    listaEstilos.append(("LINEBEFORE", (-1, 0), (-1, 0), ANCHOMARCAPOS, colors.black))
-    listaEstilos.append(("LINEBELOW", (-DESCENSOS - 1, 0), (-2, 0), ANCHOMARCAPOS, colors.black))
-    # Equipos para descenso (vertical)
-    listaEstilos.append(("LINEAFTER", (0, -DESCENSOS - 1), (0, -2), ANCHOMARCAPOS, colors.black))
-    listaEstilos.append(("LINEABOVE", (0, -DESCENSOS - 1), (0, -DESCENSOS - 1), ANCHOMARCAPOS, colors.black))
-    listaEstilos.append(("LINEABOVE", (0, -1), (0, -1), ANCHOMARCAPOS, colors.black))
 
     # Marca los partidos del tipo (jugados o pendientes) que tenga menos
     claveJuPe = 'ju' if len(coordsJuPe['ju']) <= len(coordsJuPe['pe']) else 'pe'
@@ -1300,17 +1297,13 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
         commH = "LINEBELOW"
         incr = 0 if pos >= 0 else -1
         t = 0 if pos >= 0 else 1
-        fullCommand = [commH, (0, pos + incr), (-1, pos + incr), ANCHOMARCAPOS, colors.black]
-        if (posFirstNegBal is not None) and (posFirstNegBal - 1) == pos:
-            fullCommand.extend(["squared", (1, 8)])
-        listasStyles[t].add(*fullCommand)
+        estilo = estiloNegBal if (posFirstNegBal is not None) and ((posFirstNegBal - 1) == pos) else estiloPosMarker
+        listasStyles[t].add(commH, (0, pos + incr), (-1, pos + incr), ANCHOMARCAPOS, *estilo)
 
     # Balance negativo
     if (posFirstNegBal is not None) and ((posFirstNegBal - 1) not in MARCADORESCLASIF):
         t, e = (posFirstNegBal - 1) // mitadEqs, (posFirstNegBal - 1) % mitadEqs
-        print(f"CAP posFirstNegBal {posFirstNegBal} tab {t} e {e} mitadEqs {mitadEqs}")
-
-        listasStyles[t].add("LINEBELOW", (0, e), (-1, e), ANCHOMARCAPOS, colors.black, "squared", (1, 8))
+        listasStyles[t].add("LINEBELOW", (0, e), (-1, e), ANCHOMARCAPOS, *estiloNegBal)
 
     # Marca equipos del programa
     if filasAresaltar:
