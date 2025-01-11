@@ -24,7 +24,7 @@ import pandas as pd
 from CAPcore.Misc import onlySetElement
 from CAPcore.Web import mergeURL
 
-from Utils.FechaHora import fechaParametro2pddatetime
+from Utils.FechaHora import fechaParametro2pddatetime, fecha2fechaCalDif
 from Utils.Pandas import combinaPDindexes
 from Utils.Web import prepareDownloading
 from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
@@ -873,6 +873,15 @@ class TemporadaACB:
                         print(f"NO INFOJUG {jugCambiado}")
                 else:
                     result |= self.fichaJugadores[jugCambiado].actualizaFromPlantilla(datos, idClub)
+
+        return result
+
+    def calendario2dict(self):
+        result = {}
+        auxCalendDict = self.Calendario.cal2dict()
+        result.update(auxCalendDict['pendientes'])
+        for k, url in auxCalendDict['jugados'].items():
+            result[k] = fecha2fechaCalDif(self.Partidos[url].fechaPartido)
 
         return result
 
