@@ -3,7 +3,6 @@ import re
 from collections import defaultdict
 from copy import copy, deepcopy
 from time import gmtime
-from typing import Tuple
 
 import pandas as pd
 from CAPcore.Misc import FORMATOtimestamp, listize, onlySetElement
@@ -323,12 +322,12 @@ class CalendarioACB:
 
     def cal2dict(self):
 
-        result = {'pendientes':{},'jugados':{}}
+        result = {'pendientes': {}, 'jugados': {}}
         for data in self.Jornadas.values():
             for pend in data['pendientes']:
-                result['pendientes'][p2DictK(self,pend)]= fecha2fechaCalDif(pend['fechaPartido'])
+                result['pendientes'][p2DictK(self, pend)] = fecha2fechaCalDif(pend['fechaPartido'])
             for jug in data['partidos']:
-                result['jugados'][p2DictK(self,jug)]=jug['url']
+                result['jugados'][p2DictK(self, jug)] = jug['url']
 
         return result
 
@@ -556,17 +555,19 @@ def procesaPaginaPartidosEquipo(content: DownloadedPage):
 
     return result
 
-def p2DictK(cal:CalendarioACB, datosPart:dict)->str:
-    jor=datosPart['jornada']
-    idLoc=onlySetElement(cal.tradEquipos['c2i'][datosPart['loc2abrev']['Local']])
-    idVis=onlySetElement(cal.tradEquipos['c2i'][datosPart['loc2abrev']['Visitante']])
-    result = "#".join((jor,idLoc,idVis))
+
+def p2DictK(cal: CalendarioACB, datosPart: dict) -> str:
+    jor = datosPart['jornada']
+    idLoc = onlySetElement(cal.tradEquipos['c2i'][datosPart['loc2abrev']['Local']])
+    idVis = onlySetElement(cal.tradEquipos['c2i'][datosPart['loc2abrev']['Visitante']])
+    result = "#".join((jor, idLoc, idVis))
     return result
 
-def dictK2partStr(cal:CalendarioACB, partK:str)->str:
-    jor,idLoc,idVis=partK.split('#')
-    abrLoc=list(cal.tradEquipos['i2c'][idLoc])[-1]
-    abrVis=list(cal.tradEquipos['i2c'][idVis])[-1]
+
+def dictK2partStr(cal: CalendarioACB, partK: str) -> str:
+    jor, idLoc, idVis = partK.split('#')
+    abrLoc = list(cal.tradEquipos['i2c'][idLoc])[-1]
+    abrVis = list(cal.tradEquipos['i2c'][idVis])[-1]
 
     result = f"J{int(jor):02}:{abrLoc}-{abrVis}"
     return result
