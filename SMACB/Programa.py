@@ -5,7 +5,7 @@ from itertools import product
 from math import isnan
 from operator import itemgetter
 from time import gmtime, strftime
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Set
 
 import pandas as pd
 from CAPcore.Misc import listize
@@ -32,6 +32,8 @@ clasifLiga: Optional[list] = None
 numEqs: Optional[int] = None
 mitadEqs: Optional[int] = None
 tradEquipos: Optional[dict] = {'a2n': defaultdict(str), 'n2a': defaultdict(str), 'i2a': defaultdict(str)}
+
+sentinel = object()
 
 ESTILOS = getSampleStyleSheet()
 
@@ -208,15 +210,18 @@ INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
 
 
 def auxCalculaBalanceStrSuf(record: infoClasifEquipo, addPendientes: bool = False, currJornada: int = None,
-                            addPendJornada: bool = False
+                            addPendJornada: bool = False, jornadasCompletas: Set[int] = sentinel
                             ) -> str:
+    if jornadasCompletas is sentinel:
+        jornadasCompletas = set()
+
     textoAux = ""
     if currJornada is not None:
         pendJornada = currJornada not in record.Jjug
         pendientes = [p for p in range(1, currJornada) if p not in record.Jjug]
-        adelantados = [p for p in record.Jjug if p > currJornada]
-        textoAux = ("" + ("J" if (pendJornada and addPendJornada) else "") + ("P" if pendientes else "") + (
-            "A" if adelantados else ""))
+        adelantados = [p for p in record.Jjug if (p > currJornada) and (p not in jornadasCompletas)]
+        textoAux = ("" + ("J" if (pendJornada and addPendJornada) else "") + ("P" * len(pendientes)) + (
+                "A" * len(adelantados)))
 
     strPendiente = f" ({textoAux})" if (addPendientes and textoAux) else ""
 
@@ -224,9 +229,9 @@ def auxCalculaBalanceStrSuf(record: infoClasifEquipo, addPendientes: bool = Fals
 
 
 def auxCalculaBalanceStr(record: infoClasifEquipo, addPendientes: bool = False, currJornada: int = None,
-                         addPendJornada: bool = False
+                         addPendJornada: bool = False, jornadasCompletas: Set[int] = sentinel
                          ) -> str:
-    strPendiente = auxCalculaBalanceStrSuf(record, addPendientes, currJornada, addPendJornada)
+    strPendiente = auxCalculaBalanceStrSuf(record, addPendientes, currJornada, addPendJornada, jornadasCompletas)
     victorias = record.V
     derrotas = record.D
     texto = f"{victorias}-{derrotas}{strPendiente}"
@@ -728,7 +733,8 @@ def datosTablaLiga(tempData: TemporadaACB, currJornada: int = None):
                     texto = f"J:{jornada}<br/><b>{pLocal}-{pVisit}</b>"
             else:
                 auxTexto = auxCalculaBalanceStr(datosEq, addPendientes=True, currJornada=currJornada,
-                                                addPendJornada=muestraJornada)
+                                                addPendJornada=muestraJornada,
+                                                jornadasCompletas=tempData.jornadasCompletas())
                 texto = f"<b>{auxTexto}</b>"
             fila.append(Paragraph(texto, style=estCelda))
 
@@ -771,7 +777,7 @@ def paginasJugadores(tempData, abrEqs, juLocal, juVisit):
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
 
-        for (infoTabla, t) in tablasJugadLocal:
+        for (_, t) in tablasJugadLocal:
             result.append(Spacer(100 * mm, 2 * mm))
             result.append(t)
             result.append(NextPageTemplate('apaisada'))
@@ -783,7 +789,7 @@ def paginasJugadores(tempData, abrEqs, juLocal, juVisit):
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
 
-        for (infoTabla, t) in tablasJugadVisit:
+        for (_, t) in tablasJugadVisit:
             result.append(Spacer(100 * mm, 2 * mm))
             result.append(NextPageTemplate('apaisada'))
             result.append(t)
@@ -1077,12 +1083,12 @@ def cargaTemporada(fname):
 
 def datosCabEquipo(datosEq, tempData, fecha, currJornada: int = None):
     recuperaClasifLiga(tempData, fecha)
-
     # TODO: Imagen (descargar imagen de escudo y plantarla)
     nombre = datosEq['nombcorto']
 
     clasifAux = equipo2clasif(clasifLiga, datosEq['abrev'])
-    clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=currJornada)
+    clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=currJornada,
+                                     jornadasCompletas=tempData.jornadasCompletas())
 
     result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b></para>"),
               Paragraph(f"<para align='center' fontSize='14'>{clasifStr}</para>")]
@@ -1105,7 +1111,6 @@ def recuperaClasifLiga(tempData: TemporadaACB, fecha=None):
     global clasifLiga
     global numEqs
     global mitadEqs
-    global tradEquipos
 
     if clasifLiga is None:
         clasifLiga = tempData.clasifLiga(fecha)
@@ -1144,11 +1149,12 @@ def datosRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
 
 
 def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
-    def infoEq(eqData: dict, jornada: int):
+    def infoEq(eqData: dict, jornada: int, jornadasCompletas: Set[int] = sentinel):
         abrev = eqData['abrev']
 
         clasifAux = equipo2clasif(clasifLiga, abrev)
-        clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=jornada, addPendJornada=False)
+        clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=jornada, addPendJornada=False,
+                                         jornadasCompletas=jornadasCompletas)
         formatoIn, formatoOut = ('<b>', '</b>') if eqData['haGanado'] else ('', '')
         formato = "{fIn}{nombre}{fOut} [{balance}]"
         result = formato.format(nombre=eqData['nombcorto'], balance=clasifStr, fIn=formatoIn, fOut=formatoOut)
@@ -1170,12 +1176,12 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
         result = tStamp.strftime(tFormato)
         return result
 
-    def preparaDatos(datos, tstampRef):
+    def preparaDatos(datos, tstampRef, jornadasCompletas: Set[int] = sentinel):
         intData = []
         for p in sorted(datos, key=itemgetter('fechaPartido')):
             info = {'pendiente': p['pendiente'], 'fecha': etFecha(p['fechaPartido'], tstampRef)}
             for loc in LocalVisitante:
-                info[loc] = infoEq(p['equipos'][loc], jornada=jornada)
+                info[loc] = infoEq(p['equipos'][loc], jornada=jornada, jornadasCompletas=jornadasCompletas)
             if not p['pendiente']:
                 info['resultado'] = infoRes(p)
 
@@ -1187,7 +1193,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     jornada = int(sigPartido['jornada'])
     recuperaClasifLiga(tempData)
     drj = datosRestoJornada(tempData, datosSig)
-    datosParts = preparaDatos(drj, sigPartido['fechaPartido'])
+    datosParts = preparaDatos(drj, sigPartido['fechaPartido'], jornadasCompletas=tempData.jornadasCompletas())
 
     if len(datosParts) == 0:
         return None
@@ -1226,13 +1232,15 @@ def datosTablaClasif(tempData: TemporadaACB, datosSig: infoSigPartido) -> list[f
     abrsEqs = sigPartido['participantes']
     jornada = int(sigPartido['jornada'])
     muestraJornada = len(tempData.Calendario.Jornadas[jornada]['partidos']) > 0
+
     recuperaClasifLiga(tempData)
 
     result = []
     for posic, eq in enumerate(clasifLiga):
         nombEqAux = eq.nombreCorto
         notaClas = auxCalculaBalanceStrSuf(record=eq, addPendientes=True, currJornada=jornada,
-                                           addPendJornada=muestraJornada)
+                                           addPendJornada=muestraJornada,
+                                           jornadasCompletas=tempData.jornadasCompletas())
         nombEq = f"{nombEqAux}{notaClas}"
         victs = eq.V
         derrs = eq.D
@@ -1340,9 +1348,6 @@ def calculaMaxMinMagn(ser: pd.Series, ser_orden: pd.Series):
 
     return tuplaMaxMinMagn(minVal=minVal, minEtq=minEtq, minAbrevs=minAbrevs, maxVal=maxVal, maxEtq=maxEtq,
                            maxAbrevs=maxAbrevs, abrevs2add=maxAbrevs.union(minAbrevs))
-
-
-sentinel = object()
 
 
 def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, magn2include: list, magnsAscending=None,
