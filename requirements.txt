@@ -11,7 +11,7 @@ pandas==2.2.3
 pytz==2024.2
 tzdata==2024.2
 
-scipy==1.14.1
+scipy>=1.15.0
 numpy>=2.2.1
 seaborn==0.13.2
 matplotlib>=3.10.0
@@ -21,7 +21,7 @@ pyparsing>=3.2.1
 fonttools>=4.55.3
 kiwisolver>=1.4.8
 packaging==24.2
-python-dateutil==2.9.0.post0
+python-dateutil>=2.9.0.post0
 
 Jinja2>=3.1.5
 MarkupSafe==3.0.2 # Quien necesita esto
@@ -29,6 +29,6 @@ MarkupSafe==3.0.2 # Quien necesita esto
 XlsxWriter==3.2.0
 
 reportlab==4.2.5
-pillow==11.0.0
+pillow>=11.1.0
 
 #Dependencias (añadidas por vulnerabilidades detectadas)

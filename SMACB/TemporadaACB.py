@@ -825,6 +825,9 @@ class TemporadaACB:
     def tradEquipos(self):
         return self.Calendario.tradEquipos
 
+    def jornadasCompletas(self):
+        return self.Calendario.jornadasCompletas()
+
     def tradEqAbrev2Id(self, abrev):
         aux = self.tradEquipos['c2i'][abrev]
         if (len(aux)) == 0:

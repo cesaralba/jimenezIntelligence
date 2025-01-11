@@ -29,7 +29,7 @@ def preparaLibro(outfile, tempData, datosSig):
                             bottomMargin=5 * mm, )
     doc.addPageTemplates([pagNormal, pagApaisada])
 
-    story = list()
+    story = []
 
     # Pagina 1
     story.append(cabeceraPortada(tempData, datosSig))
