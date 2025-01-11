@@ -69,3 +69,15 @@ def secs2TimeStr(x):
     result = f"{mins:.0f}" ":" f"{secs:02.0f}"
 
     return result
+
+
+def fecha2fechaCalDif(d: pd.Timestamp) -> str:
+    """
+    Convierte la fecha del partido en una cadena (para la comparación de calendario)
+    :param d: fecha a comparar
+    :return: fecha formateada (el formato depende del valor del parámetro)
+    """
+    if d == NEVER:
+        return "TBD"
+    result = f"{time2Str(d)} ({d.strftime('%a')})"
+    return result
