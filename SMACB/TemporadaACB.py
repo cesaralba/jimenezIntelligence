@@ -21,10 +21,11 @@ from typing import Optional
 
 import numpy as np
 import pandas as pd
+from CAPcore.LoggedDict import LoggedDictDiff, LoggedDict
 from CAPcore.Misc import onlySetElement
 from CAPcore.Web import mergeURL
 
-from Utils.FechaHora import fechaParametro2pddatetime
+from Utils.FechaHora import fechaParametro2pddatetime, fecha2fechaCalDif
 from Utils.Pandas import combinaPDindexes
 from Utils.Web import prepareDownloading
 from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
@@ -45,6 +46,7 @@ DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 
 
 JUGADORESDESCARGADOS = set()
 AUXCAMBIOS = CAMBIOSJUGADORES  # For the sake of formatter
+CAMBIOSCALENDARIO: Optional[LoggedDictDiff] = None
 
 
 def auxJorFech2periodo(dfTemp: pd.DataFrame):
@@ -87,6 +89,7 @@ class TemporadaACB:
     """
     Aglutina calendario y lista de partidos
     """
+    Calendario: CalendarioACB
 
     # TODO: función __str__
 
@@ -108,14 +111,15 @@ class TemporadaACB:
 
         self.timestamp = gmtime()
         self.Calendario = CalendarioACB(competicion=self.competicion, edicion=self.edicion, urlbase=self.urlbase)
-        self.Partidos = dict()
-        self.changed = False
+        self.Partidos: Dict[str, PartidoACB] = {}
+        self.changed: bool = False
         self.tradJugadores = {'id2nombres': defaultdict(set), 'nombre2ids': defaultdict(set)}
-        self.descargaFichas = descargaFichas
-        self.descargaPlantillas = descargaPlantillas
-        self.fichaJugadores: Dict[str, FichaJugador] = dict()
-        self.fichaEntrenadores = dict()
+        self.descargaFichas: bool = descargaFichas
+        self.descargaPlantillas: bool = descargaPlantillas
+        self.fichaJugadores: Dict[str, FichaJugador] = {}
+        self.fichaEntrenadores = {}
         self.plantillas: Dict[str, PlantillaACB] = {}
+        self.calendarioDict: LoggedDict = LoggedDict(timestamp=self.timestamp)
 
     def __repr__(self):
         tstampStr = strftime("%Y%m%d-%H:%M:%S", self.timestamp)
@@ -151,6 +155,7 @@ class TemporadaACB:
                 break
 
         self.changed |= (len(partidosBajados) > 0)
+        self.changed |= self.buscaCambiosCalendario()
 
         if self.descargaPlantillas:
             resPlant = self.actualizaPlantillas(browser=browser, config=config)
@@ -230,6 +235,7 @@ class TemporadaACB:
                 self.plantillas[idEq] = data.actualizaClasesBase()
 
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
+        self.changed |= self.actualizaClase()
 
     def actualizaFichasPartido(self, nuevoPartido, browser=None, config=None):
         browser, config = prepareDownloading(browser, config, URL_BASE)
@@ -875,6 +881,37 @@ class TemporadaACB:
                     result |= self.fichaJugadores[jugCambiado].actualizaFromPlantilla(datos, idClub)
 
         return result
+
+    def calendario2dict(self):
+        result = {}
+        auxCalendDict = self.Calendario.cal2dict()
+        result.update(auxCalendDict['pendientes'])
+        for k, url in auxCalendDict['jugados'].items():
+            result[k] = fecha2fechaCalDif(self.Partidos[url].fechaPartido)
+
+        return result
+
+    def actualizaClase(self):
+        """
+        Añade atributos no existentes cuando se creó el fichero y los carga con valores razonables
+        :return: True si hubo cambios en la clase que necesiten ser grabados (para actualizar self.changed)
+        """
+        result = False
+
+        if not hasattr(self, 'calendarioDict'):
+            setattr(self, 'calendarioDict', LoggedDict(timestamp=self.timestamp))
+        if len(self.calendarioDict) == 0:
+            result |= self.calendarioDict.replace(self.calendario2dict())
+
+        return result
+
+    def buscaCambiosCalendario(self):
+        global CAMBIOSCALENDARIO
+
+        calActualDict = self.calendario2dict()
+        CAMBIOSCALENDARIO = self.calendarioDict.diff(calActualDict)
+
+        return self.calendarioDict.replace(calActualDict)
 
 
 def calculaTempStats(datos, clave, filtroFechas=None):
