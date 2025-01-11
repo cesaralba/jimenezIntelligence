@@ -1300,12 +1300,17 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
         commH = "LINEBELOW"
         incr = 0 if pos >= 0 else -1
         t = 0 if pos >= 0 else 1
-        listasStyles[t].add(commH, (0, pos + incr), (-1, pos + incr), ANCHOMARCAPOS, colors.black)
+        fullCommand = [commH, (0, pos + incr), (-1, pos + incr), ANCHOMARCAPOS, colors.black]
+        if (posFirstNegBal is not None) and (posFirstNegBal - 1) == pos:
+            fullCommand.extend(["squared", (1, 8)])
+        listasStyles[t].add(*fullCommand)
 
     # Balance negativo
-    if posFirstNegBal is not None:
-        t, e = posFirstNegBal // mitadEqs, posFirstNegBal % mitadEqs
-        listasStyles[t].add("LINEABOVE", (0, e), (-1, e), ANCHOMARCAPOS, colors.black, "squared", (1, 8))
+    if (posFirstNegBal is not None) and ((posFirstNegBal - 1) not in MARCADORESCLASIF):
+        t, e = (posFirstNegBal - 1) // mitadEqs, (posFirstNegBal - 1) % mitadEqs
+        print(f"CAP posFirstNegBal {posFirstNegBal} tab {t} e {e} mitadEqs {mitadEqs}")
+
+        listasStyles[t].add("LINEBELOW", (0, e), (-1, e), ANCHOMARCAPOS, colors.black, "squared", (1, 8))
 
     # Marca equipos del programa
     if filasAresaltar:
