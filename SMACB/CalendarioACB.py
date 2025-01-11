@@ -569,5 +569,5 @@ def dictK2partStr(cal: CalendarioACB, partK: str) -> str:
     abrLoc = list(cal.tradEquipos['i2c'][idLoc])[-1]
     abrVis = list(cal.tradEquipos['i2c'][idVis])[-1]
 
-    result = f"J{int(jor):02}:{abrLoc}-{abrVis}"
+    result = f"J{int(jor):02}: {abrLoc}-{abrVis}"
     return result
