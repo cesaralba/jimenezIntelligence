@@ -327,9 +327,13 @@ class CalendarioACB:
         result = {'pendientes': {}, 'jugados': {}}
         for data in self.Jornadas.values():
             for pend in data['pendientes']:
-                result['pendientes'][p2DictK(self, pend)] = fecha2fechaCalDif(pend['fechaPartido'])
+                pendK = p2DictK(self, pend)
+                if pendK:
+                    result['pendientes'][pendK] = fecha2fechaCalDif(pend['fechaPartido'])
             for jug in data['partidos']:
-                result['jugados'][p2DictK(self, jug)] = jug['url']
+                pendK = p2DictK(self, jug)
+                if pendK:
+                    result['jugados'][pendK] = jug['url']
 
         return result
 
@@ -562,7 +566,7 @@ def p2DictK(cal: CalendarioACB, datosPart: dict) -> str:
     jor = datosPart['jornada']
     idLoc = onlySetElement(cal.tradEquipos['c2i'][datosPart['loc2abrev']['Local']])
     idVis = onlySetElement(cal.tradEquipos['c2i'][datosPart['loc2abrev']['Visitante']])
-    result = "#".join((jor, idLoc, idVis))
+    result = "#".join((jor, idLoc, idVis)) if (isinstance(idLoc, str) and isinstance(idVis, str)) else None
     return result
 
 
