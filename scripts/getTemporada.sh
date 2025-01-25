@@ -55,7 +55,7 @@ else
   ORIGPARAM="-f"
 fi
 
-python ${WRKDIR}/DescargaTemporada.py ${ORIGPARAM} -o ${DESTSMFILE} -b
+python ${WRKDIR}/bin/DescargaTemporada.py ${ORIGPARAM} -o ${DESTSMFILE} -b
 
 if [ $? = 0 ]
 then

@@ -44,8 +44,8 @@ class CalendarioACB:
         self.url = None
 
     def actualizaCalendario(self, home=None, browser=None, config=None):
-        calendarioPage: DownloadedPage = self.descargaCalendario(home=home, browser=browser, config=config)
         browser, config = prepareDownloading(browser, config)
+        calendarioPage: DownloadedPage = self.descargaCalendario(home=home, browser=browser, config=config)
 
         self.procesaCalendario(calendarioPage, home=self.url, browser=browser, config=config)
 
@@ -129,10 +129,11 @@ class CalendarioACB:
         return result
 
     def descargaCalendario(self, home=None, browser=None, config=None) -> DownloadedPage:
-        logger.info("descargaCalendario")
         browser, config = prepareDownloading(browser, config)
 
         if self.url is None:
+            logger.info("DescargaCalendario. Creando URL %s. Edicion: %s. Compo: %s", self.url, self.edicion,
+                        self.competicion)
             pagCalendario = downloadPage(self.urlbase, home=home, browser=browser, config=config)
             pagCalendarioData = pagCalendario.data
             divTemporadas = pagCalendarioData.find("div", {"class": "desplegable_temporada"})
@@ -173,6 +174,7 @@ class CalendarioACB:
             else:
                 result = downloadPage(self.url, browser=browser, home=None, config=config)
         else:
+            logger.info("DescargaCalendario. URL %s", self.url)
             result = downloadPage(self.url, browser=browser, home=None, config=config)
 
         return result
@@ -325,9 +327,13 @@ class CalendarioACB:
         result = {'pendientes': {}, 'jugados': {}}
         for data in self.Jornadas.values():
             for pend in data['pendientes']:
-                result['pendientes'][p2DictK(self, pend)] = fecha2fechaCalDif(pend['fechaPartido'])
+                pendK = p2DictK(self, pend)
+                if pendK:
+                    result['pendientes'][pendK] = fecha2fechaCalDif(pend['fechaPartido'])
             for jug in data['partidos']:
-                result['jugados'][p2DictK(self, jug)] = jug['url']
+                pendK = p2DictK(self, jug)
+                if pendK:
+                    result['jugados'][pendK] = jug['url']
 
         return result
 
@@ -560,7 +566,7 @@ def p2DictK(cal: CalendarioACB, datosPart: dict) -> str:
     jor = datosPart['jornada']
     idLoc = onlySetElement(cal.tradEquipos['c2i'][datosPart['loc2abrev']['Local']])
     idVis = onlySetElement(cal.tradEquipos['c2i'][datosPart['loc2abrev']['Visitante']])
-    result = "#".join((jor, idLoc, idVis))
+    result = "#".join((jor, idLoc, idVis)) if (isinstance(idLoc, str) and isinstance(idVis, str)) else None
     return result
 
 
