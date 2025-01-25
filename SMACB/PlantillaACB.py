@@ -108,7 +108,7 @@ class PlantillaACB():
             result = sortedVals[idx]
             return result
 
-        for k, v in self.tecnicos.itemsV():
+        for v in self.tecnicos.valuesV():
             auxFoto = v.get('urlFoto', None)
             if auxFoto is None or auxFoto in URLIMG2IGNORE:
                 v.purge({'urlFoto'})
@@ -122,7 +122,7 @@ class PlantillaACB():
                 changes.update({'alias': getFromSet(auxNombre, 0)})
             v.update(changes)
 
-        for k, v in self.jugadores.itemsV():
+        for v in self.jugadores.valuesV():
             auxFoto = v.get('urlFoto', None)
             if auxFoto is None or auxFoto in URLIMG2IGNORE:
                 v.purge({'urlFoto'})
