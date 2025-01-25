@@ -39,7 +39,7 @@ python ReadMercadoFiles.py /home/calba/devel/SuperManager/SuperManager-201711030
 Para actualizar los datos:
 * Actualiza datos Temporada
 ~~~
-python DescargaTemporada.py -e 62 -i /home/calba/devel/SuperManager/temporada/ACB2017.latest.p -o /tmp/kk1.p
+python bin/DescargaTemporada.py -e 62 -i /home/calba/devel/SuperManager/temporada/ACB2017.latest.p -o /tmp/kk1.p
 ~~~
 * Actualiza datos Supermanager (mercado incluido)
 ~~~
