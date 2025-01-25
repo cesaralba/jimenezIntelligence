@@ -52,13 +52,12 @@ class PlantillaACB():
         try:
             auxURL = generaURLPlantilla(self, URL_BASE)
             if auxURL != self.URL:
-                print(
-                    f"[{self.id}] '{self.club['nombreActual']}' {self.edicion} URL cambiada: '{self.URL}' -> '"
-                    f"{auxURL}'")
+                print(f"[{self.id}] '{self.club['nombreActual']}' {self.edicion} URL cambiada: '{self.URL}' -> '"
+                      f"{auxURL}'")
                 self.URL = auxURL
                 result |= True
-            logger.info("descargaYactualizaPlantilla. [%s] '%s' (%s) URL %s", self.id, self.club['nombreActual'],
-                        self.edicion, self.URL)
+            logger.info("descargaYactualizaPlantilla. [%s] '%s' (%s) URL %s", self.id,
+                        self.club.get('nombreActual', 'Desconocido'), self.edicion, self.URL)
             data = descargaURLplantilla(self.URL, home, browser, config)
         except Exception:
             print(
