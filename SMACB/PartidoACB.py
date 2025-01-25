@@ -18,7 +18,7 @@ from Utils.Web import getObjID, prepareDownloading
 from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp)
 from .PlantillaACB import PlantillaACB
 
-templateURLficha = "http://www.acb.com/fichas/%s%i%03i.php"
+templateURLficha = "https://www.acb.com/fichas/%s%i%03i.php"
 
 
 class PartidoACB():

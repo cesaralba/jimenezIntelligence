@@ -14,13 +14,13 @@ from .Constants import URL_BASE, PLAYOFFFASE
 
 logger = logging.getLogger()
 
-calendario_URLBASE = "http://www.acb.com/calendario"
+calendario_URLBASE = "https://www.acb.com/calendario"
 
-# http://www.acb.com/calendario/index/temporada_id/2018
-# http://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
-template_CALENDARIOYEAR = "http://www.acb.com/calendario/index/temporada_id/{year}"
-template_CALENDARIOFULL = "http://www.acb.com/calendario/index/temporada_id/{year}/edicion_id/{compoID}"
-template_PARTIDOSEQUIPO = "http://www.acb.com/club/partidos/id/{idequipo}"
+# https://www.acb.com/calendario/index/temporada_id/2018
+# https://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
+template_CALENDARIOYEAR = "https://www.acb.com/calendario/index/temporada_id/{year}"
+template_CALENDARIOFULL = "https://www.acb.com/calendario/index/temporada_id/{year}/edicion_id/{compoID}"
+template_PARTIDOSEQUIPO = "https://www.acb.com/club/partidos/id/{idequipo}"
 
 ETIQubiq = ['local', 'visitante']
 
