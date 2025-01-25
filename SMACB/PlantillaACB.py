@@ -50,10 +50,15 @@ class PlantillaACB():
         result = False
         browser, config = prepareDownloading(browser, config)
         try:
-            auxURL=generaURLPlantilla(self, URL_BASE)
+            auxURL = generaURLPlantilla(self, URL_BASE)
             if auxURL != self.URL:
+                print(
+                    f"[{self.id}] '{self.club['nombreActual']}' {self.edicion} URL cambiada: '{self.URL}' -> '"
+                    f"{auxURL}'")
                 self.URL = auxURL
                 result |= True
+            logger.info("descargaYactualizaPlantilla. [%s] '%s' (%s) URL %s", self.id, self.club['nombreActual'],
+                        self.edicion, self.URL)
             data = descargaURLplantilla(self.URL, home, browser, config)
         except Exception:
             print(
