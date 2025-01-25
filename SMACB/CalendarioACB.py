@@ -44,8 +44,8 @@ class CalendarioACB:
         self.url = None
 
     def actualizaCalendario(self, home=None, browser=None, config=None):
-        calendarioPage: DownloadedPage = self.descargaCalendario(home=home, browser=browser, config=config)
         browser, config = prepareDownloading(browser, config)
+        calendarioPage: DownloadedPage = self.descargaCalendario(home=home, browser=browser, config=config)
 
         self.procesaCalendario(calendarioPage, home=self.url, browser=browser, config=config)
 
@@ -129,10 +129,11 @@ class CalendarioACB:
         return result
 
     def descargaCalendario(self, home=None, browser=None, config=None) -> DownloadedPage:
-        logger.info("descargaCalendario")
         browser, config = prepareDownloading(browser, config)
 
         if self.url is None:
+            logger.info("DescargaCalendario. Creando URL %s. Edicion: %s. Compo: %s", self.url, self.edicion,
+                        self.competicion)
             pagCalendario = downloadPage(self.urlbase, home=home, browser=browser, config=config)
             pagCalendarioData = pagCalendario.data
             divTemporadas = pagCalendarioData.find("div", {"class": "desplegable_temporada"})
@@ -173,6 +174,7 @@ class CalendarioACB:
             else:
                 result = downloadPage(self.url, browser=browser, home=None, config=config)
         else:
+            logger.info("DescargaCalendario. URL %s", self.url)
             result = downloadPage(self.url, browser=browser, home=None, config=config)
 
         return result

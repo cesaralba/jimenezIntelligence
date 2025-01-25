@@ -293,7 +293,7 @@ class TemporadaACB:
             datosPlantillas = descargaPlantillasCabecera(browser, config)
             for p_id in datosPlantillas:
                 if p_id not in self.plantillas:
-                    self.plantillas[p_id] = PlantillaACB(p_id)
+                    self.plantillas[p_id] = PlantillaACB(p_id, edicion=self.edicion)
 
                 resPlant = self.plantillas[p_id].descargaYactualizaPlantilla(browser=None, config=config)
                 result |= resPlant

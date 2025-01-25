@@ -47,8 +47,18 @@ class PlantillaACB():
         :param extraTrads:
         :return:
         """
+        result = False
         browser, config = prepareDownloading(browser, config)
         try:
+            auxURL = generaURLPlantilla(self, URL_BASE)
+            if auxURL != self.URL:
+                print(
+                    f"[{self.id}] '{self.club['nombreActual']}' {self.edicion} URL cambiada: '{self.URL}' -> '"
+                    f"{auxURL}'")
+                self.URL = auxURL
+                result |= True
+            logger.info("descargaYactualizaPlantilla. [%s] '%s' (%s) URL %s", self.id, self.club['nombreActual'],
+                        self.edicion, self.URL)
             data = descargaURLplantilla(self.URL, home, browser, config)
         except Exception:
             print(
@@ -57,7 +67,8 @@ class PlantillaACB():
             traceback.print_tb(sys.exc_info()[2])
             return False
 
-        return self.actualizaPlantillaDescargada(data)
+        result |= self.actualizaPlantillaDescargada(data)
+        return result
 
     def actualizaPlantillaDescargada(self, data) -> bool:
         result = False
@@ -97,7 +108,7 @@ class PlantillaACB():
             result = sortedVals[idx]
             return result
 
-        for k, v in self.tecnicos.itemsV():
+        for v in self.tecnicos.valuesV():
             auxFoto = v.get('urlFoto', None)
             if auxFoto is None or auxFoto in URLIMG2IGNORE:
                 v.purge({'urlFoto'})
@@ -111,7 +122,7 @@ class PlantillaACB():
                 changes.update({'alias': getFromSet(auxNombre, 0)})
             v.update(changes)
 
-        for k, v in self.jugadores.itemsV():
+        for v in self.jugadores.valuesV():
             auxFoto = v.get('urlFoto', None)
             if auxFoto is None or auxFoto in URLIMG2IGNORE:
                 v.purge({'urlFoto'})
