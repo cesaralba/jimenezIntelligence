@@ -47,8 +47,13 @@ class PlantillaACB():
         :param extraTrads:
         :return:
         """
+        result = False
         browser, config = prepareDownloading(browser, config)
         try:
+            auxURL=generaURLPlantilla(self, URL_BASE)
+            if auxURL != self.URL:
+                self.URL = auxURL
+                result |= True
             data = descargaURLplantilla(self.URL, home, browser, config)
         except Exception:
             print(
@@ -57,7 +62,8 @@ class PlantillaACB():
             traceback.print_tb(sys.exc_info()[2])
             return False
 
-        return self.actualizaPlantillaDescargada(data)
+        result |= self.actualizaPlantillaDescargada(data)
+        return result
 
     def actualizaPlantillaDescargada(self, data) -> bool:
         result = False
