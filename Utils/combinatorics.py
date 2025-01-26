@@ -26,7 +26,7 @@ specified collection of items, with ks[i] items in the ith group, i= 0, 1, 2,
 means that the relative order of equal- size groups is important; the order of
 the items within any group is not important.  The total number of combinations
 generated is given by the multinomial coefficient formula (see
-http://en.wikipedia.org/wiki/Multinomial_theorem#Multinomial_coefficients).
+https://en.wikipedia.org/wiki/Multinomial_theorem#Multinomial_coefficients).
 
 m_way_unordered_combinations(items, ks): This function returns a generator that
 produces all m-way unordered combinations from the specified collection of
@@ -135,7 +135,7 @@ partitions(n): 'In number theory and combinatorics, a partition of a positive
 integer n, also called an integer partition, is a way of writing n as a sum of
 positive integers. Two sums that differ only in the order of their summands are
 considered to be the same partition.'  The quote is from
-http://en.wikipedia.org/wiki/Partition_(number_theory).  We can generate all
+https://en.wikipedia.org/wiki/Partition_(number_theory).  We can generate all
 partitions of an integer using `unlabeled_balls_in_unlabeled_boxes`.
 
 off_by_one(n): This function returns a generator that enumerates all possible
@@ -924,7 +924,7 @@ def partitions(n):
     also called an integer partition, is a way of writing n as a sum of positive
     integers.  Two sums that differ only in the order of their summands are
     considered to be the same partition.'  The quote is from
-    http://en.wikipedia.org/wiki/Partition_(number_theory).  We can generate all
+    https://en.wikipedia.org/wiki/Partition_(number_theory).  We can generate all
     partitions of an integer using `unlabeled_balls_in_unlabeled_boxes`.
 
     Note: This is an inefficient method for generating partitions.  `partitions2`

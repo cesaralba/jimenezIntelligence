@@ -55,6 +55,8 @@ else
   ORIGPARAM="-f"
 fi
 
+export PYTHONPATH=${PYTHONPATH:-}:${WRKDIR}
+
 python ${WRKDIR}/bin/DescargaTemporada.py ${ORIGPARAM} -o ${DESTSMFILE} -b
 
 if [ $? = 0 ]

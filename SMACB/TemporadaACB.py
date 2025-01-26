@@ -289,7 +289,7 @@ class TemporadaACB:
         if self.descargaPlantillas:
 
             browser, config = prepareDownloading(browser, config, URL_BASE)
-
+            logger.info("%s Actualizando plantillas", self)
             datosPlantillas = descargaPlantillasCabecera(browser, config)
             for p_id in datosPlantillas:
                 if p_id not in self.plantillas:
