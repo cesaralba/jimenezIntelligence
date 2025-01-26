@@ -369,14 +369,18 @@ def compo2clave(listaCompos):
     :param listaCompos:
     :return:
     """
+    PATliga = r'^liga\W'
+    PATsupercopa = r'^supercopa\W'
+    PATcopa = r'^copa\W.*rey'
+
     result = dict()
 
     for idComp, label in listaCompos.items():
-        if 'liga' in label.lower():
+        if re.match(PATliga, label, re.IGNORECASE):
             result['LACB'] = idComp
-        elif 'supercopa' in label.lower():
+        elif re.match(PATsupercopa, label, re.IGNORECASE):
             result['SCOPA'] = idComp
-        elif 'copa' in label.lower():
+        elif re.match(PATcopa, label, re.IGNORECASE):
             result['COPA'] = idComp
 
     return result

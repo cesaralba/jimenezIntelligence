@@ -72,7 +72,7 @@ class PartidoACB():
 
     def procesaPartido(self, content: DownloadedPage):
         raiser = False
-        self.timestamp = getattr(content,'timestamp',gmtime())
+        self.timestamp = getattr(content, 'timestamp', gmtime())
 
         if 'source' in content:
             self.url = content.source

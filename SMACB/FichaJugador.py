@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from time import gmtime
 from typing import Optional
@@ -307,6 +308,7 @@ def descargaYparseaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=
             auxResult['sinDatos'] = True
             auxResult['alias'] = datosPartido['nombre']
 
+        logging.info("Descargando ficha jugador '%s'", urlFicha)
         fichaJug = downloadPage(urlFicha, home=home, browser=browser, config=config)
 
         auxResult['URL'] = browser.get_url()
