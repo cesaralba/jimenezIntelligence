@@ -14,13 +14,13 @@ from .Constants import URL_BASE, PLAYOFFFASE
 
 logger = logging.getLogger()
 
-calendario_URLBASE = "http://www.acb.com/calendario"
+calendario_URLBASE = "https://www.acb.com/calendario"
 
-# http://www.acb.com/calendario/index/temporada_id/2018
-# http://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
-template_CALENDARIOYEAR = "http://www.acb.com/calendario/index/temporada_id/{year}"
-template_CALENDARIOFULL = "http://www.acb.com/calendario/index/temporada_id/{year}/edicion_id/{compoID}"
-template_PARTIDOSEQUIPO = "http://www.acb.com/club/partidos/id/{idequipo}"
+# https://www.acb.com/calendario/index/temporada_id/2018
+# https://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
+template_CALENDARIOYEAR = "https://www.acb.com/calendario/index/temporada_id/{year}"
+template_CALENDARIOFULL = "https://www.acb.com/calendario/index/temporada_id/{year}/edicion_id/{compoID}"
+template_PARTIDOSEQUIPO = "https://www.acb.com/club/partidos/id/{idequipo}"
 
 ETIQubiq = ['local', 'visitante']
 
@@ -369,14 +369,18 @@ def compo2clave(listaCompos):
     :param listaCompos:
     :return:
     """
+    PATliga = r'^liga\W'
+    PATsupercopa = r'^supercopa\W'
+    PATcopa = r'^copa\W.*rey'
+
     result = dict()
 
     for idComp, label in listaCompos.items():
-        if 'liga' in label.lower():
+        if re.match(PATliga, label, re.IGNORECASE):
             result['LACB'] = idComp
-        elif 'supercopa' in label.lower():
+        elif re.match(PATsupercopa, label, re.IGNORECASE):
             result['SCOPA'] = idComp
-        elif 'copa' in label.lower():
+        elif re.match(PATcopa, label, re.IGNORECASE):
             result['COPA'] = idComp
 
     return result

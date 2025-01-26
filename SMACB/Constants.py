@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from CAPcore.Misc import BadParameters
 
-URL_BASE = "http://www.acb.com"
+URL_BASE = "https://www.acb.com"
 
 bool2esp = {True: "S", False: "N"}
 haGanado2esp = {True: "V", False: "D"}
