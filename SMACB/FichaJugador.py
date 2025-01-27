@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from time import gmtime
 from typing import Optional
@@ -172,7 +173,7 @@ class FichaJugador:
             if ultClub is not None:
                 result |= (ultClub not in self.equipos)
                 self.equipos.add(ultClub)
-                if (self.ultClub != ultClub):
+                if self.ultClub != ultClub:
                     if (self.ultClub is None) or (newData.get('activo', False)):
                         changeInfo['ultClub'] = (self.ultClub, ultClub)
                         self.ultClub = ultClub
@@ -188,23 +189,23 @@ class FichaJugador:
         changes = False
         if not hasattr(self, 'sinDatos'):
             changes = True
-            self.__setattr__('sinDatos', None)
+            setattr(self, 'sinDatos', None)
         if not hasattr(self, 'nombresConocidos'):
             changes = True
-            self.__setattr__('nombresConocidos', set())
+            setattr(self, 'nombresConocidos', set())
             if self.nombre is not None:
                 self.nombresConocidos.add(self.nombre)
             if self.alias is not None:
                 self.nombresConocidos.add(self.alias)
         if not hasattr(self, 'ultClub'):
             changes = True
-            self.__setattr__('ultClub', None)
+            setattr(self, 'ultClub', None)
         if not hasattr(self, 'junior'):
             changes = True
-            self.__setattr__('junior', None)
+            setattr(self, 'junior', None)
         if not hasattr(self, 'urlConocidas'):
             changes = True
-            self.__setattr__('urlConocidas', set())
+            setattr(self, 'urlConocidas', set())
             self.urlConocidas.add(self.URL)
         return changes
 
@@ -225,6 +226,9 @@ class FichaJugador:
 
         datosJug = partido.Jugadores[self.id]
         self.equipos.add(datosJug['IDequipo'])
+
+        if self.ultClub is None:
+            self.ultClub = datosJug['IDequipo']
 
         if (self.primPartidoT is None) or (partido.fechaPartido < self.primPartidoT):
             self.primPartidoP = partido.url
@@ -250,8 +254,8 @@ class FichaJugador:
         gamesStr = "Sin partidos registrados" if self.primPartidoT is None else (
             f"{self.primPartidoT.strftime('%Y-%m-%d')} -> "
             f"{self.ultPartidoT.strftime('%Y-%m-%d')}")
-        alturaStr = f"{self.altura}cm " if self.altura > 0 else ""
-        posStr = f"{self.posicion} " if self.posicion != "" else ""
+        alturaStr = f"{self.altura}cm " if (self.altura is not None) and (self.altura > 0) else ""
+        posStr = f"{self.posicion} " if (self.posicion is not None) and (self.posicion != "") else ""
 
         return (f"{nombreStr} ({self.id}) {fechaNacStr} {alturaStr}{posStr}P:[{len(self.partidos)}] "
                 f"{gamesStr} ({len(self.equipos)})")
@@ -304,6 +308,7 @@ def descargaYparseaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=
             auxResult['sinDatos'] = True
             auxResult['alias'] = datosPartido['nombre']
 
+        logging.info("Descargando ficha jugador '%s'", urlFicha)
         fichaJug = downloadPage(urlFicha, home=home, browser=browser, config=config)
 
         auxResult['URL'] = browser.get_url()
@@ -332,7 +337,7 @@ def descargaYparseaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=
 
                 if CLASS2SKIP.intersection(classDiv):
                     continue
-                elif COPIAVERBATIM.intersection(classDiv):
+                if COPIAVERBATIM.intersection(classDiv):
                     clavesSet = COPIAVERBATIM.intersection(classDiv)
                     clave = onlySetElement(clavesSet)
                     auxResult[CLASS2KEY.get(clave, clave)] = valor

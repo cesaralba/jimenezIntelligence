@@ -8,19 +8,19 @@ import pandas as pd
 from CAPcore.Misc import FORMATOtimestamp, listize, onlySetElement
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
-from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA
+from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif
 from Utils.Web import getObjID, prepareDownloading
 from .Constants import URL_BASE, PLAYOFFFASE
 
 logger = logging.getLogger()
 
-calendario_URLBASE = "http://www.acb.com/calendario"
+calendario_URLBASE = "https://www.acb.com/calendario"
 
-# http://www.acb.com/calendario/index/temporada_id/2018
-# http://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
-template_CALENDARIOYEAR = "http://www.acb.com/calendario/index/temporada_id/{year}"
-template_CALENDARIOFULL = "http://www.acb.com/calendario/index/temporada_id/{year}/edicion_id/{compoID}"
-template_PARTIDOSEQUIPO = "http://www.acb.com/club/partidos/id/{idequipo}"
+# https://www.acb.com/calendario/index/temporada_id/2018
+# https://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
+template_CALENDARIOYEAR = "https://www.acb.com/calendario/index/temporada_id/{year}"
+template_CALENDARIOFULL = "https://www.acb.com/calendario/index/temporada_id/{year}/edicion_id/{compoID}"
+template_PARTIDOSEQUIPO = "https://www.acb.com/club/partidos/id/{idequipo}"
 
 ETIQubiq = ['local', 'visitante']
 
@@ -44,8 +44,8 @@ class CalendarioACB:
         self.url = None
 
     def actualizaCalendario(self, home=None, browser=None, config=None):
-        calendarioPage: DownloadedPage = self.descargaCalendario(home=home, browser=browser, config=config)
         browser, config = prepareDownloading(browser, config)
+        calendarioPage: DownloadedPage = self.descargaCalendario(home=home, browser=browser, config=config)
 
         self.procesaCalendario(calendarioPage, home=self.url, browser=browser, config=config)
 
@@ -129,10 +129,11 @@ class CalendarioACB:
         return result
 
     def descargaCalendario(self, home=None, browser=None, config=None) -> DownloadedPage:
-        logger.info("descargaCalendario")
         browser, config = prepareDownloading(browser, config)
 
         if self.url is None:
+            logger.info("DescargaCalendario. Creando URL %s. Edicion: %s. Compo: %s", self.url, self.edicion,
+                        self.competicion)
             pagCalendario = downloadPage(self.urlbase, home=home, browser=browser, config=config)
             pagCalendarioData = pagCalendario.data
             divTemporadas = pagCalendarioData.find("div", {"class": "desplegable_temporada"})
@@ -173,6 +174,7 @@ class CalendarioACB:
             else:
                 result = downloadPage(self.url, browser=browser, home=None, config=config)
         else:
+            logger.info("DescargaCalendario. URL %s", self.url)
             result = downloadPage(self.url, browser=browser, home=None, config=config)
 
         return result
@@ -312,6 +314,29 @@ class CalendarioACB:
         result = ",".join(map(str, sorted([onlySetElement(self.tradEquipos['c2i'][e]) for e in conjAbrevs])))
         return result
 
+    def jornadasCompletas(self):
+        """
+        Devuelve las IDs de jornadas para las que se han jugado todos los partidos
+        :return: set con las jornadas para las que no quedan partidos (el id, entero)
+        """
+        result = {j for j, data in self.Jornadas.items() if len(data['pendientes']) == 0}
+        return result
+
+    def cal2dict(self):
+
+        result = {'pendientes': {}, 'jugados': {}}
+        for data in self.Jornadas.values():
+            for pend in data['pendientes']:
+                pendK = p2DictK(self, pend)
+                if pendK:
+                    result['pendientes'][pendK] = fecha2fechaCalDif(pend['fechaPartido'])
+            for jug in data['partidos']:
+                pendK = p2DictK(self, jug)
+                if pendK:
+                    result['jugados'][pendK] = jug['url']
+
+        return result
+
 
 def BuscaCalendario(url=URL_BASE, home=None, browser=None, config=None):
     if config is None:
@@ -344,14 +369,18 @@ def compo2clave(listaCompos):
     :param listaCompos:
     :return:
     """
+    PATliga = r'^liga\W'
+    PATsupercopa = r'^supercopa\W'
+    PATcopa = r'^copa\W.*rey'
+
     result = dict()
 
     for idComp, label in listaCompos.items():
-        if 'liga' in label.lower():
+        if re.match(PATliga, label, re.IGNORECASE):
             result['LACB'] = idComp
-        elif 'supercopa' in label.lower():
+        elif re.match(PATsupercopa, label, re.IGNORECASE):
             result['SCOPA'] = idComp
-        elif 'copa' in label.lower():
+        elif re.match(PATcopa, label, re.IGNORECASE):
             result['COPA'] = idComp
 
     return result
@@ -534,4 +563,21 @@ def procesaPaginaPartidosEquipo(content: DownloadedPage):
 
         result['jornadas'][jornada] = fechaPart
 
+    return result
+
+
+def p2DictK(cal: CalendarioACB, datosPart: dict) -> str:
+    jor = datosPart['jornada']
+    idLoc = onlySetElement(cal.tradEquipos['c2i'][datosPart['loc2abrev']['Local']])
+    idVis = onlySetElement(cal.tradEquipos['c2i'][datosPart['loc2abrev']['Visitante']])
+    result = "#".join((jor, idLoc, idVis)) if (isinstance(idLoc, str) and isinstance(idVis, str)) else None
+    return result
+
+
+def dictK2partStr(cal: CalendarioACB, partK: str) -> str:
+    jor, idLoc, idVis = partK.split('#')
+    abrLoc = list(cal.tradEquipos['i2c'][idLoc])[-1]
+    abrVis = list(cal.tradEquipos['i2c'][idVis])[-1]
+
+    result = f"J{int(jor):02}: {abrLoc}-{abrVis}"
     return result

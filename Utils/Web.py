@@ -41,7 +41,7 @@ def prepareDownloading(browser, config, urlRef: Optional[str] = None):
 
 
 def generaURLPlantilla(plantilla, urlRef: str):
-    # http://www.acb.com/club/plantilla/id/6/temporada_id/2016
+    # https://www.acb.com/club/plantilla/id/6/temporada_id/2016
     params = ['/club', 'plantilla', 'id', plantilla.id]
     if plantilla.edicion is not None:
         params += ['temporada_id', plantilla.edicion]

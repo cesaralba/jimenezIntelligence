@@ -1,47 +1,10 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+from typing import Set, Dict
 
-import logging
-import sys
-from typing import Dict
+from CAPcore.LoggedDict import LoggedDictDiff
 
-from CAPcore.Logging import prepareLogger
-from CAPcore.Web import createBrowser, extractGetParams
-from configargparse import ArgumentParser, Namespace
-
-from SMACB.CalendarioACB import calendario_URLBASE
+from SMACB.CalendarioACB import dictK2partStr
 from SMACB.PlantillaACB import CambiosPlantillaTipo
-from SMACB.TemporadaACB import TemporadaACB, CAMBIOSJUGADORES, CAMBIOSCLUB
-
-
-def parse_arguments() -> Namespace:
-    parser = ArgumentParser()
-    parser.add('-v', dest='verbose', action="count", env_var='SM_VERBOSE', required=False, help='Salida más detallada',
-               default=0)
-    parser.add('-d', dest='debug', action="store_true", env_var='SM_DEBUG', required=False, help='Salida más detallada',
-               default=False)
-    parser.add('-j', dest='justone', action="store_true", env_var='SM_JUSTONE', required=False,
-               help='Solo descarga un partido', default=False)
-    parser.add('-f', dest='saveanyway', action="store_true", env_var='SM_SAVEANYWAY', required=False,
-               help='Graba el fichero aunque no haya habido cambios', default=False)
-    parser.add('-r', dest='refresh', action="store_true", env_var='SM_REFRESH', required=False,
-               help='Recarga las fichas de jugadores', default=False)
-    parser.add('-e', dest='edicion', action="store", env_var='SM_EDICION', required=False,
-               help=('Año de la temporada (para 2015-2016 sería 2016). La ACB empieza en 1983. '
-                     'La copa se referencia por el año menor '), default=None)
-    parser.add('-c', dest='competicion', action="store", env_var='SM_COMPETICION', required=False,
-               choices=['LACB', 'COPA', 'SCOPA'], help='Clave de la competición: Liga=LACB, Copa=COPA, Supercopa=SCOPA',
-               default="LACB")
-    parser.add('-u', dest='url', action="store", env_var='SM_URLCAL', help='', required=False)
-    parser.add('-b', dest='procesaBio', action="store_true", env_var='SM_STOREBIO',
-               help='Descarga los datos biográficos de los jugadores', required=False, default=False)
-    parser.add('-p', dest='procesaPlantilla', action="store_true", env_var='SM_STOREPLANT',
-               help='Descarga las plantillas de los equipos', required=False, default=False)
-    parser.add('-i', dest='infile', type=str, env_var='SM_INFILE', help='Fichero de entrada', required=False)
-    parser.add('-o', dest='outfile', type=str, env_var='SM_OUTFILE', help='Fichero de salida', required=False)
-    args = parser.parse_args()
-
-    return args
+from SMACB.TemporadaACB import TemporadaACB
 
 
 def resumenCambioJugadores(cambiosJugadores: dict, temporada: TemporadaACB):
@@ -78,13 +41,13 @@ def resumenCambioJugadores(cambiosJugadores: dict, temporada: TemporadaACB):
                 continue
             jugList.append(f"* {jugadorStr} {clubStr}Cambios: {','.join(sorted(cambiosJug))}")
 
-    print(f"Cambios en jugadores:\n{'\n'.join(sorted(jugList))}")
+    return '\n'.join(sorted(jugList))
 
 
-def muestraResumenPartidos(nuevosPartidos, temporada):
+def resumenNuevosPartidos(nuevosPartidos: Set[str], temporada: TemporadaACB):
     resumenPartidos = [str(temporada.Partidos[x]) for x in sorted(list(nuevosPartidos), key=lambda p: (
         temporada.Partidos[p].fechaPartido, temporada.Partidos[p].jornada))]
-    print("Nuevos partidos incorporados:\n%s" % ("\n".join(resumenPartidos)))
+    return "\n".join(resumenPartidos)
 
 
 def textoJugador(temporada: TemporadaACB, idJug: str):
@@ -136,10 +99,12 @@ def resumenCambioClubes(cambiosClubes: Dict[str, CambiosPlantillaTipo], temporad
             listaCambios.append(lineaClub)
 
     if listaCambios:
-        print("CAMBIOS EN PLANTILLAS:\n" + "\n".join(sorted(listaCambios)))
+        return "\n".join(sorted(listaCambios))
+
+    return ""
 
 
-def preparaResumenPlantillasTecnicos(cambios, cl, temporada):
+def preparaResumenPlantillasTecnicos(cambios, cl, temporada: TemporadaACB):
     cambioTecList = []
 
     for idJug in cambios.tecnicos.added:
@@ -161,7 +126,7 @@ def preparaResumenPlantillasTecnicos(cambios, cl, temporada):
     return cambioTecList
 
 
-def preparaResumenPlantillasJugadores(cambios, cl, temporada):
+def preparaResumenPlantillasJugadores(cambios, cl, temporada: TemporadaACB):
     cambioJugsList = []
     for idJug in cambios.jugadores.added:
         dorsal = dataPlantJug(temporada, idJug, cl)['dorsal']
@@ -187,64 +152,22 @@ def preparaResumenPlantillasJugadores(cambios, cl, temporada):
     return cambioJugsList
 
 
-def main(args: Namespace):
-    browser = createBrowser(config=args)
-    preparaLogs(args)
+def resumenCambiosCalendario(cambios: LoggedDictDiff, temporada: TemporadaACB):
+    if not cambios:
+        return ""
+    cambiosCalendario = []
 
-    sourceURL = args.url or calendario_URLBASE
+    for pk, fh in cambios.added.items():
+        claveP = dictK2partStr(temporada.Calendario, pk)
+        cambiosCalendario.append(f"* {claveP} Nuevo partido @{fh}")
 
-    if args.edicion is not None:
-        parEdicion = args.edicion
-        parCompeticion = args.competicion
-    else:
-        paramsURL = extractGetParams(sourceURL)
-        parCompeticion = paramsURL['cod_competicion']
-        parEdicion = paramsURL['cod_edicion']
+    for pk in cambios.removed.keys():
+        claveP = dictK2partStr(temporada.Calendario, pk)
+        cambiosCalendario.append(f"* {claveP} Partido eliminado")
 
-    temporada = TemporadaACB(competicion=parCompeticion, edicion=parEdicion, urlbase=sourceURL)
-    ajustaInternalsTemporada(args, temporada)
+    for pk, fhs in cambios.changed.items():
+        claveP = dictK2partStr(temporada.Calendario, pk)
+        hini, hfin = fhs
+        cambiosCalendario.append(f"* {claveP} Cambia: pasa de @{hini} a @{hfin}")
 
-    nuevosPartidos = temporada.actualizaTemporada(browser=browser, config=args)
-    resultOS = 1  # No hubo cambios
-    if nuevosPartidos or temporada.changed or args.saveanyway:
-        sys.setrecursionlimit(50000)
-        if 'outfile' in args and args.outfile:
-            resultOS = 0
-            temporada.grabaTemporada(args.outfile)
-
-    if nuevosPartidos:
-        muestraResumenPartidos(nuevosPartidos, temporada)
-
-    if CAMBIOSJUGADORES:
-        resumenCambioJugadores(CAMBIOSJUGADORES, temporada=temporada)
-
-    if CAMBIOSCLUB:
-        resumenCambioClubes(CAMBIOSCLUB, temporada=temporada)
-
-    sys.exit(resultOS)
-
-
-def ajustaInternalsTemporada(args, temporada):
-    if 'infile' in args and args.infile:
-        temporada.cargaTemporada(args.infile)
-    if 'procesaBio' in args and args.procesaBio and not temporada.descargaFichas:
-        temporada.descargaFichas = True
-        temporada.changed = True
-    if 'procesaPlantilla' in args and args.procesaPlantilla and not temporada.descargaPlantillas:
-        temporada.descargaPlantillas = True
-        temporada.changed = True
-
-
-def preparaLogs(args: Namespace):
-    logger = logging.getLogger()
-    if args.debug:
-        prepareLogger(logger=logger, level=logging.DEBUG)
-    elif args.verbose:
-        prepareLogger(logger=logger, level=logging.INFO)
-    else:
-        prepareLogger(logger=logger)
-
-
-if __name__ == '__main__':
-    argsCLI = parse_arguments()
-    main(argsCLI)
+    return "\n".join(sorted(cambiosCalendario))
