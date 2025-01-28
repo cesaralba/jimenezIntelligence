@@ -78,7 +78,7 @@ def find_filters(dfSorted, abrev1, abrev2):
 
     :return: dictionary with all envisioned filters
     """
-    result = dict()
+    result = {}
     result['games1'] = teamMatch(dfSorted, abrev1, teamOnly=True)
     result['games2'] = teamMatch(dfSorted, abrev2, teamOnly=True)
     result['precs1'] = teamMatch(dfSorted, abrev1) & teamMatch(dfSorted, abrev2) & (dfSorted[('Eq', 'abrev')] == abrev1)
@@ -230,10 +230,11 @@ def teamsTrayectoryDataframe(dataTemp: TemporadaACB, dfGames: pd.DataFrame, abre
     for linData in lineas:
         print(linData)
         df1 = df2 = None
-        url1 = linData.izda.url
+        url1 = linData.izda.url if linData.izda else None
+
         if url1:
             df1 = gamesDF1[gamesDF1[('Info', 'url')] == url1].reset_index()
-        url2 = linData.dcha.url
+        url2 = linData.dcha.url  if linData.dcha else None
         if url2:
             df2 = gamesDF2[gamesDF2[('Info', 'url')] == url2].reset_index()
 
@@ -250,14 +251,14 @@ def datosTablaAux(dfMerged: pd.DataFrame, categ, abrevsDuple, target='Eq', categ
     if (len(abrevsDuple)) != 2:
         raise ValueError(f"datosTablaAux: abrevsDuple {abrevsDuple} len must be 2. Current:{len(abrevsDuple)}")
 
-    abrevTeam = dict()
+    abrevTeam = {}
     abrevTeam['Eq1'] = abrevsDuple[0]
     abrevTeam['Eq2'] = abrevsDuple[1]
     auxCateg = categ if categLabel is None else categLabel
 
     colList = []
     colNames = []
-    formats = dict()
+    formats = {}
 
     diffJornadas = ~((dfMerged[('Eq1', 'Info', 'jornada')] == dfMerged[('Eq2', 'Info', 'jornada')]).all())
     if ~diffJornadas:
