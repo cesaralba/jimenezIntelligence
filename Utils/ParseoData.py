@@ -1,3 +1,4 @@
+import logging
 import re
 from typing import Optional, Any
 
@@ -12,13 +13,20 @@ def extractPlantillaInfoDiv(divData, claseEntrada) -> dict:
     dataFields = splitDiv(divData)
 
     if claseEntrada == 'jugadores':
+        # For some reason Iss 256, age of a player wasn't included this is completely adhoc (that's life)
+        if len(dataFields) == 3 and 'años' not in dataFields[2]:
+            logging.error("Added missing data for player len data: %i, '%s'", len(dataFields), dataFields)
+
+            newDataFields = dataFields[:2] + [None] + dataFields[2:]
+            dataFields = newDataFields
+
         # los datos son ['1,93 m', 'EE.UU.', '29 años', 'EXT']
         auxResult['altura'] = parseaAltura(dataFields[0].strip())
         auxResult['nacionalidad'] = dataFields[1].strip()
         auxLicencia = dataFields[3].strip()
         auxLicenciaList = auxLicencia.split(" | ", maxsplit=1)
         auxResult['licencia'] = auxLicenciaList[0]
-        auxResult['junior'] = (len(auxLicenciaList) > 1)
+        auxResult['junior'] = len(auxLicenciaList) > 1
     elif claseEntrada == 'tecnicos':
         auxResult['nacionalidad'] = dataFields[0].strip()
     else:
