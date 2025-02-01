@@ -252,13 +252,14 @@ class FichaJugador:
         nombreStr = self.alias or self.nombre
         fechaNacStr = "Sin datos" if self.fechaNac is None else self.fechaNac.strftime('%Y-%m-%d')
         gamesStr = "Sin partidos registrados" if self.primPartidoT is None else (
-            f"{self.primPartidoT.strftime('%Y-%m-%d')} -> "
+            f"Parts:[{len(self.partidos)}]  {self.primPartidoT.strftime('%Y-%m-%d')} -> "
             f"{self.ultPartidoT.strftime('%Y-%m-%d')}")
         alturaStr = f"{self.altura}cm " if (self.altura is not None) and (self.altura > 0) else ""
-        posStr = f"{self.posicion} " if (self.posicion is not None) and (self.posicion != "") else ""
+        posStr = f"{self.posicion}" if (self.posicion is not None) and (self.posicion != "") else ""
+        eqPlural = "s" if len(self.equipos) != 1 else ""
 
-        return (f"{nombreStr} ({self.id}) {fechaNacStr} {alturaStr}{posStr}P:[{len(self.partidos)}] "
-                f"{gamesStr} ({len(self.equipos)})")
+        return (f"{nombreStr} ({self.id}) {fechaNacStr} {alturaStr}{posStr} "
+                f"({len(self.equipos)} eq{eqPlural}) {gamesStr}")
 
     def limpiaPartidos(self):
         self.primPartidoP = None
