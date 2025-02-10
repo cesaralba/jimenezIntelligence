@@ -1,14 +1,18 @@
 import logging
 import re
-from typing import Optional, Any
+from typing import Optional, Any, List
 
+import bs4
 import pandas as pd
+from CAPcore.Misc import onlySetElement
+from CAPcore.Web import mergeURL
 from bs4 import NavigableString
 
+from SMACB.Constants import URLIMG2IGNORE
 from .FechaHora import PATRONFECHA
 
 
-def extractPlantillaInfoDiv(divData, claseEntrada) -> dict:
+def extractPlantillaInfoDiv(divData: bs4.BeautifulSoup, claseEntrada: str) -> dict:
     auxResult = {}
     dataFields = splitDiv(divData)
 
@@ -36,7 +40,7 @@ def extractPlantillaInfoDiv(divData, claseEntrada) -> dict:
     return result
 
 
-def splitDiv(divData):
+def splitDiv(divData: bs4.BeautifulSoup) -> List[str]:
     result = [t.get_text() for t in divData.descendants if isinstance(t, NavigableString)]
 
     return result
@@ -65,4 +69,58 @@ def parseFecha(data: str) -> Optional[Any]:
     else:
         print("FECHANAC no casa RE", data, REfechaNac)
 
+    return result
+
+
+def findLocucionNombre(data: bs4.BeautifulSoup) -> dict:
+    result = {}
+
+    for scr in data.findAll('script'):
+        dataText = scr.getText()
+        if 'new Audio' not in dataText:
+            continue
+        PATaudio = r".*new Audio\('(?P<url>[^']+)'\).*"
+        match = re.match(PATaudio, dataText.replace('\n', ''), re.MULTILINE)
+
+        if match:
+            url = match.group('url')
+            result['audioNombre'] = url
+            break
+        print(f"No RE '{PATaudio}'")
+
+    return result
+
+
+COPIAVERBATIM = {'posicion', 'licencia', 'lugar_nacimiento', 'nacionalidad'}
+CLASS2KEY = {'lugar_nacimiento': 'lugarNac'}
+CLASS2SKIP = {'equipo', 'dorsal'}
+
+
+def procesaCosasUtilesPlantilla(data: bs4.BeautifulSoup, urlRef: str):
+    result = {}
+    result['sinDatos'] = False
+    auxFoto = data.find('div', attrs={'class': 'foto'}).find('img')['src']
+    if auxFoto not in URLIMG2IGNORE:
+        result['urlFoto'] = mergeURL(urlRef, auxFoto)
+    result['alias'] = data.find('h1').get_text().strip()
+    for row in data.findAll('div', {'class': ['datos_basicos', 'datos_secundarios']}):
+
+        valor = row.find("span", {'class': 'roboto_condensed_bold'}).get_text().strip()
+        classDiv = row.attrs['class']
+
+        if CLASS2SKIP.intersection(classDiv):
+            continue
+        if COPIAVERBATIM.intersection(classDiv):
+            clavesSet = COPIAVERBATIM.intersection(classDiv)
+            clave = onlySetElement(clavesSet)
+            result[CLASS2KEY.get(clave, clave)] = valor
+        elif 'altura' in classDiv:
+            result['altura'] = parseaAltura(valor)
+        elif 'fecha_nacimiento' in classDiv:
+            result['fechaNac'] = parseFecha(valor)
+        else:
+            if 'Nombre completo:' in row.get_text():
+                result['nombre'] = valor
+            else:
+                print("Fila no casa categorías conocidas", row)
     return result

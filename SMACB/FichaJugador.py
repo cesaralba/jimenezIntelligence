@@ -3,11 +3,11 @@ from collections import defaultdict
 from time import gmtime
 from typing import Optional
 
-from CAPcore.Misc import onlySetElement
-from CAPcore.Web import downloadPage, mergeURL
+import bs4
+from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
 from SMACB.Constants import URLIMG2IGNORE, CLAVESFICHAJUGADOR, CLAVESDICT, TRADPOSICION, POSABREV2NOMBRE
-from Utils.ParseoData import parseaAltura, parseFecha
+from Utils.ParseoData import findLocucionNombre, procesaCosasUtilesPlantilla
 from Utils.Web import getObjID, prepareDownloading
 
 CAMBIOSJUGADORES = defaultdict(dict)
@@ -312,47 +312,21 @@ def descargaYparseaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=
             auxResult['alias'] = datosPartido['nombre']
 
         logging.info("Descargando ficha jugador '%s'", urlFicha)
-        fichaJug = downloadPage(urlFicha, home=home, browser=browser, config=config)
+        fichaJug: DownloadedPage = downloadPage(urlFicha, home=home, browser=browser, config=config)
 
         auxResult['URL'] = browser.get_url()
         auxResult['timestamp'] = gmtime()
 
         auxResult['id'] = getObjID(urlFicha, 'ver')
 
-        fichaData = fichaJug.data
+        fichaData: bs4.BeautifulSoup = fichaJug.data
 
-        cosasUtiles = fichaData.find(name='div', attrs={'class': 'datos'})
+        cosasUtiles: Optional[bs4.BeautifulSoup] = fichaData.find(name='div', attrs={'class': 'datos'})
 
-        COPIAVERBATIM = {'posicion', 'licencia', 'lugar_nacimiento', 'nacionalidad'}
-        CLASS2KEY = {'lugar_nacimiento': 'lugarNac'}
-        CLASS2SKIP = {'equipo', 'dorsal'}
         if cosasUtiles is not None:
-            auxResult['sinDatos'] = False
-            auxFoto = cosasUtiles.find('div', attrs={'class': 'foto'}).find('img')['src']
-            if auxFoto not in URLIMG2IGNORE:
-                auxResult['urlFoto'] = mergeURL(auxResult['URL'], auxFoto)
-            auxResult['alias'] = cosasUtiles.find('h1').get_text().strip()
+            auxResult.update(procesaCosasUtilesPlantilla(data=cosasUtiles, urlRef=auxResult['URL']))
 
-            for row in cosasUtiles.findAll('div', {'class': ['datos_basicos', 'datos_secundarios']}):
-
-                valor = row.find("span", {'class': 'roboto_condensed_bold'}).get_text().strip()
-                classDiv = row.attrs['class']
-
-                if CLASS2SKIP.intersection(classDiv):
-                    continue
-                if COPIAVERBATIM.intersection(classDiv):
-                    clavesSet = COPIAVERBATIM.intersection(classDiv)
-                    clave = onlySetElement(clavesSet)
-                    auxResult[CLASS2KEY.get(clave, clave)] = valor
-                elif 'altura' in classDiv:
-                    auxResult['altura'] = parseaAltura(valor)
-                elif 'fecha_nacimiento' in classDiv:
-                    auxResult['fechaNac'] = parseFecha(valor)
-                else:
-                    if 'Nombre completo:' in row.get_text():
-                        auxResult['nombre'] = valor
-                    else:
-                        print("Fila no casa categorías conocidas", row)
+        auxResult.update(findLocucionNombre(data=fichaData))
 
     except Exception as exc:
         print(f"descargaYparseaURLficha: problemas descargando '{urlFicha}': {exc}")
