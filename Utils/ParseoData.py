@@ -84,7 +84,7 @@ def findLocucionNombre(data: bs4.BeautifulSoup) -> dict:
 
         if match:
             url = match.group('url')
-            result['audioNombre'] = url
+            result['audioURL'] = url
             break
         print(f"No RE '{PATaudio}'")
 

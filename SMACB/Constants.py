@@ -151,7 +151,7 @@ filaMergeTrayectoria = namedtuple(typename='filaMergeTrayectoria',
                                   defaults=[None, None, None, None])
 URLIMG2IGNORE = {'/Images/Web/silueta1.gif', '/Images/Web/silueta2.gif', ''}
 CLAVESFICHAJUGADOR = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia',
-                      'junior']
+                      'junior','audioURL']
 CLAVESDICT = ['id', 'URL', 'alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia',
               'primPartidoT', 'ultPartidoT', 'ultPartidoP']
 TRADPOSICION = {'Alero': 'A', 'Escolta': 'E', 'Base': 'B', 'Pívot': 'P', 'Ala-pívot': 'AP', '': '?'}

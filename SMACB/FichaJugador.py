@@ -32,6 +32,8 @@ class FichaJugador:
         self.nacionalidad = kwargs.get('nacionalidad', None)
         self.licencia = kwargs.get('licencia', None)
         self.junior = kwargs.get('junior', False)
+        self.audioURL = kwargs.get('audioURL', None)
+
         self.ultClub = None
 
         self.nombresConocidos = set()
@@ -203,6 +205,9 @@ class FichaJugador:
         if not hasattr(self, 'junior'):
             changes = True
             setattr(self, 'junior', None)
+        if not hasattr(self,'audioURL'):
+            changes = True
+            setattr(self, 'audioURL', None)
         if not hasattr(self, 'urlConocidas'):
             changes = True
             setattr(self, 'urlConocidas', set())
