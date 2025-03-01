@@ -205,7 +205,7 @@ class FichaJugador:
         if not hasattr(self, 'junior'):
             changes = True
             setattr(self, 'junior', None)
-        if not hasattr(self,'audioURL'):
+        if not hasattr(self, 'audioURL'):
             changes = True
             setattr(self, 'audioURL', None)
         if not hasattr(self, 'urlConocidas'):
