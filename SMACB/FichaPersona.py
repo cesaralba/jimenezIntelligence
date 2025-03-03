@@ -107,7 +107,7 @@ def extraeDatosPersonales(datosPag:Optional[DownloadedPage], datosPartido: Optio
         return auxResult
 
 
-    auxResult['URL'] = datosPag.home
+    auxResult['URL'] = datosPag.source
     auxResult['timestamp'] = datosPag.timestamp
 
     fichaData: bs4.BeautifulSoup = datosPag.data
