@@ -1,16 +1,22 @@
 import logging
+from collections import namedtuple
 from typing import Optional
 
 import bs4
 from CAPcore.Web import mergeURL, DownloadedPage, downloadPage
+
 from SMACB.Constants import URL_BASE, URLIMG2IGNORE
 from Utils.ParseoData import procesaCosasUtilesPlantilla, findLocucionNombre
-from Utils.Web import prepareDownloading
+from Utils.Web import prepareDownloading, getObjID
 
 VALIDTYPES = {'jugador', 'entrenador'}
 
+TempClubInfoBasic = namedtuple('TempClubInfoBasic', ['tempId', 'clubId', 'clubName'])
+TempClubInfo = namedtuple('TempClubInfo', ['tempId', 'tempName', 'clubId', 'clubName'])
+
+
 class FichaPersona:
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
         changesInfo = {'NuevoJugador': True}
         self.timestamp = kwargs.get('timestamp', None)
 
@@ -19,7 +25,7 @@ class FichaPersona:
         self.id = kwargs.get('id', None)
         self.URL = kwargs.get('URL', None)
         self.audioURL = kwargs.get('audioURL', None)
-        self.tipoFicha:Optional[str] = None
+        self.tipoFicha: Optional[str] = None
         self.sinDatos: Optional[bool] = None
 
         self.nombre = kwargs.get('nombre', None)
@@ -62,10 +68,10 @@ class FichaPersona:
         if self.tipoFicha not in VALIDTYPES:
             raise ValueError(f"buildURL: unknown type of data. Valid ones: {', '.join(sorted(VALIDTYPES))}")
 
-        newPathList = ['',self.tipoFicha,'temporada-a-temporada','id',self.id]
+        newPathList = ['', self.tipoFicha, 'temporada-a-temporada', 'id', self.id]
         newPath = '/'.join(newPathList)
 
-        result = mergeURL(URL_BASE,newPath)
+        result = mergeURL(URL_BASE, newPath)
 
         return result
 
@@ -80,23 +86,24 @@ class FichaPersona:
                 changeDict['urlFoto'] = ("", "Nueva")
         return changes
 
+
 def descargaPagina(datos, home=None, browser=None, config=None) -> Optional[DownloadedPage]:
     browser, config = prepareDownloading(browser, config)
 
-    url=datos.buildURL()
+    url = datos.buildURL()
 
     logging.info("Descargando ficha de %s '%s'", datos.tipoFicha, url)
     try:
         result: DownloadedPage = downloadPage(url, home=home, browser=browser, config=config)
     except Exception as exc:
         result = None
-        logging.error("Problemas descargando '%s'",url)
+        logging.error("Problemas descargando '%s'", url)
         logging.exception(exc)
 
     return result
 
-def extraeDatosPersonales(datosPag:Optional[DownloadedPage], datosPartido: Optional[dict] = None):
 
+def extraeDatosPersonales(datosPag: Optional[DownloadedPage], datosPartido: Optional[dict] = None):
     auxResult = {}
 
     if datosPartido is not None:
@@ -105,7 +112,6 @@ def extraeDatosPersonales(datosPag:Optional[DownloadedPage], datosPartido: Optio
 
     if datosPag is None:
         return auxResult
-
 
     auxResult['URL'] = datosPag.source
     auxResult['timestamp'] = datosPag.timestamp
@@ -120,3 +126,40 @@ def extraeDatosPersonales(datosPag:Optional[DownloadedPage], datosPartido: Optio
     auxResult.update(findLocucionNombre(data=fichaData))
 
     return auxResult
+
+
+def extraeTrayectoria(datosPag: Optional[DownloadedPage]) -> Optional[list]:
+    result = []
+    fichaData: bs4.BeautifulSoup = datosPag.data
+
+    intSection = fichaData.find('section', attrs={'class': 'contenedora_temporadas'})
+    if intSection is None:
+        return None
+    tabla = intSection.find('table', attrs={'class': 'roboto'})
+
+    for fila in tabla.findAll('tr'):
+        if 'totales' in fila.get('class', set()):
+            continue
+        celdaTemp = fila.find('td', attrs={'class': 'temporada'})
+        if celdaTemp is None:
+            continue
+        celdaClub = fila.find('td', attrs={'class': 'nombre'})
+        if celdaClub is None:
+            continue
+        auxTemp = extractTempClubInfo(celdaClub.find('a'))._asdict()
+        auxTemp.update({'tempName': celdaTemp.getText()})
+        result.append(TempClubInfo(**auxTemp))
+
+    return result
+
+
+def extractTempClubInfo(datos: bs4.element.Tag) -> TempClubInfoBasic:
+    if datos.name != 'a':
+        raise TypeError(f"extractTempClubInfo: expected tag 'a', got '{datos.name}'. Source: {datos}")
+
+    destURL = datos['href']
+    clubId = getObjID(destURL, 'id')
+    tempId = getObjID(destURL, clave='temporada_id')
+    clubName = datos.getText()
+
+    return TempClubInfoBasic(tempId=tempId, clubId=clubId, clubName=clubName)
