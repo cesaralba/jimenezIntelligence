@@ -1,6 +1,7 @@
 import logging
 from collections import namedtuple
-from typing import Optional
+from typing import Optional, Set
+from typing_extensions import NamedTuple
 
 import bs4
 from CAPcore.Web import mergeURL, DownloadedPage, downloadPage
@@ -13,6 +14,28 @@ VALIDTYPES = {'jugador', 'entrenador'}
 
 TempClubInfoBasic = namedtuple('TempClubInfoBasic', ['tempId', 'clubId', 'clubName'])
 TempClubInfo = namedtuple('TempClubInfo', ['tempId', 'tempName', 'clubId', 'clubName'])
+
+
+class EstanciaClub:
+    tempIni:Optional[str] = None
+    tempFin:Optional[str] = None
+    numTemps:int = 0
+    clubId:Optional[str] = None
+    clubNames:Set[str] = set()
+
+    def __init__(self,**kwargs):
+        pass
+
+    def esClub(self,clubId:str) -> bool:
+        return self.clubId == clubId
+
+    def esSigTemp(self,tempId:str):
+        return int(self.tempFin) +1 == int(tempId)
+
+    @classmethod
+    def fromTempClubInfo(cls,data:TempClubInfo):
+        sourceData = {'tempIni': data.tempId, 'tempFin': data.tempId, 'clubId':data.clubId, 'numTemps':0}
+
 
 
 class FichaPersona:
