@@ -976,7 +976,8 @@ def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None):
                          'ordena': [(COLDORSAL_IDX, True)]}}
     auxDF = jugDF.copy()
 
-    for claveTabla in ['totales', 'promedios', 'ultimo']:
+    # for claveTabla in ['totales', 'promedios', 'ultimo']:
+    for claveTabla in ['totales', 'promedios']:
         infoTabla = tablas[claveTabla]  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
         t = auxGeneraTablaJugs(auxDF, claveTabla, infoTabla, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA,
                                repeatRows=1, abrev=abrev)
