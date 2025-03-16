@@ -7,6 +7,7 @@ from CAPcore.Web import mergeURL, DownloadedPage, downloadPage
 from Utils.ParseoData import procesaCosasUtilesPlantilla, findLocucionNombre
 from Utils.Web import prepareDownloading
 from .Constants import URL_BASE, URLIMG2IGNORE
+from .Trayectoria import Trayectoria
 
 VALIDTYPES = {'jugador', 'entrenador'}
 
@@ -17,12 +18,13 @@ class FichaPersona:
         self.timestamp = kwargs.get('timestamp', None)
 
         if 'id' not in kwargs:
-            raise ValueError(f"Jugador nuevo sin 'id': {kwargs}")
+            raise ValueError(f"Ficha nueva sin 'id': {kwargs}")
         self.id = kwargs.get('id', None)
         self.URL = kwargs.get('URL', None)
         self.audioURL = kwargs.get('audioURL', None)
         self.tipoFicha: Optional[str] = None
         self.sinDatos: Optional[bool] = None
+        self.trayectoria: Optional[Trayectoria] = None
 
         self.nombre = kwargs.get('nombre', None)
         self.alias = kwargs.get('alias', self.nombre)
@@ -82,22 +84,23 @@ class FichaPersona:
                 changeDict['urlFoto'] = ("", "Nueva")
         return changes
 
+    def descargaPagina(self, home=None, browser=None, config=None) -> Optional[DownloadedPage]:
+        browser, config = prepareDownloading(browser, config)
 
-def descargaPagina(datos, home=None, browser=None, config=None) -> Optional[DownloadedPage]:
-    browser, config = prepareDownloading(browser, config)
+        url = self.buildURL()
 
-    url = datos.buildURL()
+        logging.info("Descargando ficha de %s '%s'", self.tipoFicha, url)
+        try:
+            result: DownloadedPage = downloadPage(url, home=home, browser=browser, config=config)
+        except Exception as exc:
+            result = None
+            logging.error("Problemas descargando '%s'", url)
+            logging.exception(exc)
 
-    logging.info("Descargando ficha de %s '%s'", datos.tipoFicha, url)
-    try:
-        result: DownloadedPage = downloadPage(url, home=home, browser=browser, config=config)
-    except Exception as exc:
-        result = None
-        logging.error("Problemas descargando '%s'", url)
-        logging.exception(exc)
+        return result
 
-    return result
-
+    def update(self):
+        pass
 
 def extraeDatosPersonales(datosPag: Optional[DownloadedPage], datosPartido: Optional[dict] = None):
     auxResult = {}

@@ -1,5 +1,5 @@
 from collections import namedtuple, defaultdict
-from typing import Optional, Set, List, Dict, Tuple
+from typing import Optional, Set, List, Dict
 
 import bs4
 from CAPcore.Web import DownloadedPage
@@ -10,6 +10,7 @@ from Utils.Web import getObjID
 TempClubInfoBasic = namedtuple('TempClubInfoBasic', ['tempId', 'clubId', 'clubName'])
 TempClubInfo = namedtuple('TempClubInfo', ['tempId', 'tempName', 'clubId', 'clubName'])
 ResEstanciasTray = namedtuple('ResEstanciasTray', ['clubId', 'numTemps', 'numPeriods', 'periodos'])
+EstanciaClubData = namedtuple('EstanciaClubData', ['numTemps', 'numPeriods', 'ultPeriodo'])
 
 
 class Trayectoria:
@@ -23,7 +24,7 @@ class Trayectoria:
         result = len(auxSet)
         return result
 
-    def tempsEnClub(self, ultimoPeriodo: bool = True) -> [int, Tuple[int, int]]:
+    def tempsEnClub(self, ultimoPeriodo: bool = True) -> [int, EstanciaClubData]:
         """
         :param ultimoPeriodo:
         :return:
@@ -32,7 +33,8 @@ class Trayectoria:
         if ultimoPeriodo:
             return ultEst.numTemps
         resEstancias = self.resumenTrayectoria()[ultEst.clubId]
-        return (resEstancias.numTemps, resEstancias.numPeriods)
+        return (EstanciaClubData(**{'numTemps': resEstancias.numTemps, 'numPeriods': resEstancias.numPeriods,
+                                    'ultPeriodo': ultEst.numTemps}))
 
     def resumenTrayectoria(self) -> Dict[str, ResEstanciasTray]:
         auxTrayect = defaultdict(lambda: {'clubId': None, 'numTemps': 0, 'numPeriods': 0, 'periodos': []})
