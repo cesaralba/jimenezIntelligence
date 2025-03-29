@@ -1,3 +1,4 @@
+import re
 import sys
 from collections import defaultdict, namedtuple
 from copy import copy
@@ -5,7 +6,7 @@ from itertools import product
 from math import isnan
 from operator import itemgetter
 from time import gmtime, strftime
-from typing import Iterable, Optional, Set
+from typing import Iterable, Optional, Set, List
 
 import pandas as pd
 from CAPcore.Misc import listize
@@ -1075,7 +1076,7 @@ def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
     return t
 
 
-def cargaTemporada(fname):
+def cargaTemporada(fname: str) -> TemporadaACB:
     result = TemporadaACB()
     result.cargaTemporada(fname)
 
@@ -1546,5 +1547,39 @@ def metadataPrograma(tempData: TemporadaACB):
     metadataStyle = ParagraphStyle('tabEstadsRowHeader', fontSize=FONTSIZE, alignment=TA_LEFT, leading=1)
 
     result = Paragraph(mensaje, style=metadataStyle)
+
+    return result
+
+
+def preparaListaTablas(paramTablas: str) -> Optional[List[str]]:
+    tablaKey = namedtuple('tablaKey', ['clave', 'ayuda'])
+    paramTabla2key = {'tot': tablaKey('TOTALES', 'Totales de los jugadores'),
+                      'prom': tablaKey('PROMEDIOS', 'Promedios de los jugadores'),
+                      'ultpar': tablaKey('ULTIMOPARTIDO', 'Ultimo partido de los jugadores con el equipo')}
+
+    result = []
+
+    if paramTablas.lower().strip() == "no":
+        return []
+
+    PATsepList = r'[ ,]+'
+
+    auxList = list(map(lambda s: s.strip().lower(), re.split(PATsepList, paramTablas)))
+
+    extraTablas = set(auxList).difference(paramTabla2key.keys())
+    if extraTablas:
+        if 'no' in extraTablas:
+            print(f" 'no' debe ir sólo. Parámetros: '{paramTablas}'")
+        else:
+            print(f"Tablas desconocidas en parámetro 'tablasjugs': {','.join(extraTablas)}. Suministrado: '"
+                  f"{paramTablas}'. Validas: {sorted(paramTabla2key.keys())} ")
+        return None
+
+    usedKeys = set()
+    for par in auxList:
+        if par in usedKeys:
+            continue
+        usedKeys.add(par)
+        result.append(paramTabla2key[par].clave)
 
     return result
