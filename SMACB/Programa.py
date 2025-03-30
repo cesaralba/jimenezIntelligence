@@ -463,8 +463,7 @@ def auxJugsBajaTablaJugs(datos: pd.DataFrame, colActivo=('Jugador', 'Activo')) -
 
 
 def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSpecs: dict, estiloTablaBaseOps,
-                       formatos=None, charWidth=10.0, **kwargs
-                       ):
+                       formatos=None, charWidth=10.0, **kwargs):
     dfColList = []
     filaCab = []
     anchoCols = []
@@ -768,7 +767,7 @@ def listaEquipos(tempData, beQuiet=False):
     sys.exit(0)
 
 
-def paginasJugadores(tempData:TemporadaACB, abrEqs, juLocal, juVisit,tablas:List[str]):
+def paginasJugadores(tempData: TemporadaACB, abrEqs, juLocal, juVisit, tablas: List[str]):
     result = []
 
     if not tablas:
@@ -776,7 +775,7 @@ def paginasJugadores(tempData:TemporadaACB, abrEqs, juLocal, juVisit,tablas:List
 
     if len(juLocal):
         datosLocal = datosJugadores(tempData, abrEqs[0], juLocal)
-        tablasJugadLocal = tablasJugadoresEquipo(datosLocal, abrev=abrEqs[0],tablasIncluidas=tablas)
+        tablasJugadLocal = tablasJugadoresEquipo(datosLocal, abrev=abrEqs[0], tablasIncluidas=tablas)
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
@@ -788,7 +787,7 @@ def paginasJugadores(tempData:TemporadaACB, abrEqs, juLocal, juVisit,tablas:List
 
     if len(juVisit):
         datosVisit = datosJugadores(tempData, abrEqs[1], juVisit)
-        tablasJugadVisit = tablasJugadoresEquipo(datosVisit, abrev=abrEqs[1],tablasIncluidas=tablas)
+        tablasJugadVisit = tablasJugadoresEquipo(datosVisit, abrev=abrEqs[1], tablasIncluidas=tablas)
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
@@ -932,9 +931,9 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
     return t
 
 
-def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None,tablasIncluidas:List[str]=sentinel):
+def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None, tablasIncluidas: List[str] = sentinel):
     if tablasIncluidas is sentinel:
-        tablasIncluidas=[]
+        tablasIncluidas = []
 
     result = []
 
@@ -979,8 +978,8 @@ def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None,tablasIncluidas:Lis
               'TOTALES': {'seq': 2, 'nombre': 'Totales', 'columnas': (COLSIDENT_TOT + COLS_TOTALES),
                           'extraCols': [('Jugador', 'Kdorsal')], 'ordena': [(COLACTIVO, False), (COLDORSAL_IDX, True)]},
               'ULTIMOPARTIDO': {'seq': 3, 'nombre': 'Último partido', 'columnas': (COLSIDENT_UP + COLS_ULTP),
-                         'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
-                         'ordena': [(COLDORSAL_IDX, True)]}}
+                                'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
+                                'ordena': [(COLDORSAL_IDX, True)]}}
     auxDF = jugDF.copy()
 
     # for claveTabla in ['totales', 'promedios', 'ultimo']:

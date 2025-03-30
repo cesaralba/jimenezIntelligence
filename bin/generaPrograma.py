@@ -12,19 +12,18 @@ from SMACB.Programa import (auxGeneraLeyendaLiga, bloqueRestoJYBasics, cabeceraP
                             tablaClasifLiga, tablaLiga, preparaListaTablas, )
 from SMACB.TemporadaACB import TemporadaACB
 
+MARGENFRAME = 2 * mm
+frameNormal = Frame(x1=MARGENFRAME, y1=MARGENFRAME, width=A4[0] - 2 * MARGENFRAME, height=A4[1] - 2 * MARGENFRAME,
+                    leftPadding=MARGENFRAME, bottomPadding=MARGENFRAME, rightPadding=MARGENFRAME,
+                    topPadding=MARGENFRAME)
+frameApaisado = Frame(x1=MARGENFRAME, y1=MARGENFRAME, width=A4[1] - 2 * MARGENFRAME, height=A4[0] - 2 * MARGENFRAME,
+                      leftPadding=MARGENFRAME, bottomPadding=MARGENFRAME, rightPadding=MARGENFRAME,
+                      topPadding=MARGENFRAME)
+pagNormal = PageTemplate('normal', pagesize=A4, frames=[frameNormal], autoNextPageTemplate='normal')
+pagApaisada = PageTemplate('apaisada', pagesize=landscape(A4), frames=[frameApaisado], autoNextPageTemplate='apaisada')
+
 
 def preparaLibro(args: Namespace, tempData: TemporadaACB, datosSig: infoSigPartido):
-    MARGENFRAME = 2 * mm
-    frameNormal = Frame(x1=MARGENFRAME, y1=MARGENFRAME, width=A4[0] - 2 * MARGENFRAME, height=A4[1] - 2 * MARGENFRAME,
-                        leftPadding=MARGENFRAME, bottomPadding=MARGENFRAME, rightPadding=MARGENFRAME,
-                        topPadding=MARGENFRAME)
-    frameApaisado = Frame(x1=MARGENFRAME, y1=MARGENFRAME, width=A4[1] - 2 * MARGENFRAME, height=A4[0] - 2 * MARGENFRAME,
-                          leftPadding=MARGENFRAME, bottomPadding=MARGENFRAME, rightPadding=MARGENFRAME,
-                          topPadding=MARGENFRAME)
-    pagNormal = PageTemplate('normal', pagesize=A4, frames=[frameNormal], autoNextPageTemplate='normal')
-    pagApaisada = PageTemplate('apaisada', pagesize=landscape(A4), frames=[frameApaisado],
-                               autoNextPageTemplate='apaisada')
-
     doc = SimpleDocTemplate(filename=args.outfile, pagesize=A4, bottomup=0, verbosity=4, initialFontName='Helvetica',
                             initialLeading=2 * mm, leftMargin=3 * mm, rightMargin=3 * mm, topMargin=5 * mm,
                             bottomMargin=5 * mm, )
@@ -51,7 +50,6 @@ def preparaLibro(args: Namespace, tempData: TemporadaACB, datosSig: infoSigParti
         story.append(trayectoria)
         story.append(Spacer(width=120 * mm, height=1 * mm))
 
-
     # Pagina 2
     story.append(NextPageTemplate('apaisada'))
     story.append(PageBreak())
@@ -63,7 +61,8 @@ def preparaLibro(args: Namespace, tempData: TemporadaACB, datosSig: infoSigParti
     tablasAmostrar = preparaListaTablas(args.tablasJugs)
     if tablasAmostrar:
         if len(datosSig.jugLocal) + len(datosSig.jugVis):
-            infoJugadores = paginasJugadores(tempData, datosSig.abrevLV, datosSig.jugLocal, datosSig.jugVis,tablasAmostrar)
+            infoJugadores = paginasJugadores(tempData, datosSig.abrevLV, datosSig.jugLocal, datosSig.jugVis,
+                                             tablasAmostrar)
             story.extend(infoJugadores)
 
     story.append(NextPageTemplate('normal'))
