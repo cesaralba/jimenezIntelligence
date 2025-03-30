@@ -768,15 +768,16 @@ def listaEquipos(tempData, beQuiet=False):
     sys.exit(0)
 
 
-def paginasJugadores(tempData, abrEqs, juLocal, juVisit):
+def paginasJugadores(tempData:TemporadaACB, abrEqs, juLocal, juVisit,tablas:List[str]):
     result = []
 
     if len(juLocal):
         datosLocal = datosJugadores(tempData, abrEqs[0], juLocal)
-        tablasJugadLocal = tablasJugadoresEquipo(datosLocal, abrev=abrEqs[0])
+        tablasJugadLocal = tablasJugadoresEquipo(datosLocal, abrev=abrEqs[0],tablasIncluidas=tablas)
 
-        result.append(NextPageTemplate('apaisada'))
-        result.append(PageBreak())
+        if tablas:
+            result.append(NextPageTemplate('apaisada'))
+            result.append(PageBreak())
 
         for (_, t) in tablasJugadLocal:
             result.append(Spacer(100 * mm, 2 * mm))
@@ -785,10 +786,11 @@ def paginasJugadores(tempData, abrEqs, juLocal, juVisit):
 
     if len(juVisit):
         datosVisit = datosJugadores(tempData, abrEqs[1], juVisit)
-        tablasJugadVisit = tablasJugadoresEquipo(datosVisit, abrev=abrEqs[1])
+        tablasJugadVisit = tablasJugadoresEquipo(datosVisit, abrev=abrEqs[1],tablasIncluidas=tablas)
 
-        result.append(NextPageTemplate('apaisada'))
-        result.append(PageBreak())
+        if tablas:
+            result.append(NextPageTemplate('apaisada'))
+            result.append(PageBreak())
 
         for (_, t) in tablasJugadVisit:
             result.append(Spacer(100 * mm, 2 * mm))
@@ -929,7 +931,10 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
     return t
 
 
-def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None):
+def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None,tablasIncluidas:List[str]=sentinel):
+    if tablasIncluidas is sentinel:
+        tablasIncluidas=[]
+
     result = []
 
     CELLPAD = 0.5
@@ -967,18 +972,18 @@ def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None):
                ('LEFTPADDING', (1, 0), (-1, -1), CELLPAD), ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD),
                ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD), ]
 
-    tablas = {'promedios': {'seq': 1, 'nombre': 'Promedios', 'columnas': (COLSIDENT_PROM + COLS_PROMED),
+    tablas = {'PROMEDIOS': {'seq': 1, 'nombre': 'Promedios', 'columnas': (COLSIDENT_PROM + COLS_PROMED),
                             'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
                             'ordena': [(COLDORSAL_IDX, True)]},
-              'totales': {'seq': 2, 'nombre': 'Totales', 'columnas': (COLSIDENT_TOT + COLS_TOTALES),
+              'TOTALES': {'seq': 2, 'nombre': 'Totales', 'columnas': (COLSIDENT_TOT + COLS_TOTALES),
                           'extraCols': [('Jugador', 'Kdorsal')], 'ordena': [(COLACTIVO, False), (COLDORSAL_IDX, True)]},
-              'ultimo': {'seq': 3, 'nombre': 'Último partido', 'columnas': (COLSIDENT_UP + COLS_ULTP),
+              'ULTIMOPARTIDO': {'seq': 3, 'nombre': 'Último partido', 'columnas': (COLSIDENT_UP + COLS_ULTP),
                          'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
                          'ordena': [(COLDORSAL_IDX, True)]}}
     auxDF = jugDF.copy()
 
     # for claveTabla in ['totales', 'promedios', 'ultimo']:
-    for claveTabla in ['totales', 'promedios']:
+    for claveTabla in tablasIncluidas:
         infoTabla = tablas[claveTabla]  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
         t = auxGeneraTablaJugs(auxDF, claveTabla, infoTabla, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA,
                                repeatRows=1, abrev=abrev)

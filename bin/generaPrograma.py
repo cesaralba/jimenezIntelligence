@@ -59,12 +59,14 @@ def preparaLibro(args: Namespace, tempData: TemporadaACB, datosSig: infoSigParti
     story.append(auxGeneraLeyendaLiga())
 
     # Paginas 3 y 4
-    if len(datosSig.jugLocal) + len(datosSig.jugVis):
-        infoJugadores = paginasJugadores(tempData, datosSig.abrevLV, datosSig.jugLocal, datosSig.jugVis)
-        story.extend(infoJugadores)
+    tablasAmostrar = preparaListaTablas(args.tablasJugs)
+    if tablasAmostrar:
+        if len(datosSig.jugLocal) + len(datosSig.jugVis):
+            infoJugadores = paginasJugadores(tempData, datosSig.abrevLV, datosSig.jugLocal, datosSig.jugVis,tablasAmostrar)
+            story.extend(infoJugadores)
 
-    story.append(NextPageTemplate('normal'))
-    story.append(PageBreak())
+        story.append(NextPageTemplate('normal'))
+        story.append(PageBreak())
 
     # Pagina 5
     reqData = {
