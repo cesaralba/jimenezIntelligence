@@ -39,19 +39,19 @@ python ReadMercadoFiles.py /home/calba/devel/SuperManager/SuperManager-201711030
 Para actualizar los datos:
 * Actualiza datos Temporada
 ~~~
-python bin/DescargaTemporada.py -e 62 -i /home/calba/devel/SuperManager/temporada/ACB2017.latest.p -o /tmp/kk1.p
+python DescargaTemporada.py -e 62 -i /home/LIVE/SuperManager/temporada/ACB2017.latest.p -o /tmp/kk1.p
 ~~~
 * Actualiza datos Supermanager (mercado incluido)
 ~~~
-python GetSuperManagerMerged.py -i /home/calba/devel/SuperManager/full/SM2017.latest.p -o /tmp/kk1.p -t /home/calba/devel/SuperManager/temporada/ACB2017.latest.p
+python GetSuperManagerMerged.py -i /home/calba/devel/SuperManager/full/SM2017.latest.p -o /tmp/kk1.p -t /home/LIVE/SuperManager/temporada/ACB2017.latest.p
 ~~~
 * Genera la información par Supermanager
 ~~~
-python InformeSuperManager.py -i /home/calba/devel/SuperManager/full/SM2017.latest.p -t /home/calba/devel/SuperManager/temporada/ACB2017.latest.p
+python InformeSuperManager.py -i /home/calba/devel/SuperManager/full/SM2017.latest.p -t /home/LIVE/SuperManager/temporada/ACB2017.latest.p
 ~~~
 
 ## Últimos ficheros:
-* Temporada (estadisticas y calendario): */home/calba/devel/SuperManager/temporada/ACB2017.latest.p*
+* Temporada (estadisticas y calendario): */home/LIVE/SuperManager/temporada/ACB2017.latest.p*
 * SuperManager: */home/calba/devel/SuperManager/full/SM2017.latest.p*
 
 ## Competiciones y temporadas

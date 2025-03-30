@@ -66,8 +66,8 @@ def mezclaJugadores(jugTemporada, jugSuperManager):
 
 
 def preparaDatosComunes(datosMezclados):
-    resultado = dict()
-    datosCabecera = dict()
+    resultado = {}
+    datosCabecera = {}
 
     titularCabecera = ['Pos', 'Cupo', 'Lesion', 'Nombre', 'Equipo', 'Promedio Val', 'Precio', 'Proximo Rival',
                        'Precio punto']
@@ -136,7 +136,7 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx"):
     #                   True: ['J 0'] + temporada.Calendario.nombresJornada()[:numJornadas]}
 
     def preparaFormatos(workbook):
-        resultado = dict()
+        resultado = {}
 
         for r in 'VD':
             for v in 'LF':
@@ -305,8 +305,8 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx"):
 
 
 def infoJugador(datosJugador, numdias=0):
-    resultados = dict()
-    Parts = dict()
+    resultados = {}
+    Parts = {}
 
     def auxDict():
         return defaultdict(int)

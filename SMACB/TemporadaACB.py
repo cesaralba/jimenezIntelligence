@@ -406,7 +406,7 @@ class TemporadaACB:
         auxResult = defaultdict(int)
         auxResult['Jjug'] = set()
         auxResult['auxCasaFuera'] = {'Local': defaultdict(int), 'Visitante': defaultdict(int)}
-        auxResult['CasaFuera'] = dict()
+        auxResult['CasaFuera'] = {}
         auxResult['sumaCoc'] = Decimal(0)
 
         urlGamesFull = self.extractGameList(fecha=fecha, abrevEquipos={abrEq}, playOffStatus=False)
@@ -697,7 +697,7 @@ class TemporadaACB:
 
     def dfEstadsLiga(self, fecha=None):
 
-        resultDict = dict()
+        resultDict = {}
         # Todos los partidos de la liga hasta fecha
         dfTodosPartidos = self.dataFramePartidosLV(fecha)
 
@@ -729,7 +729,7 @@ class TemporadaACB:
         for p in juCal + peCal:
             abrevAUsar = (p['participantes'].intersection(targetAbrevs)).pop()
             loc = p['abrev2loc'][abrevAUsar]
-            auxEntry = dict()
+            auxEntry = {}
             auxEntry['fechaPartido'] = p['fechaPartido'] if p['pendiente'] else self.Partidos[p['url']].fechaPartido
             auxEntry['jornada'] = p['jornada']
             auxEntry['cod_edicion'] = p['cod_edicion']
@@ -778,7 +778,7 @@ class TemporadaACB:
         abrevsPartido = set().union(abrevsIzda).union(abrevsDcha)
 
         while (len(partsIzdaAux) + len(partsDchaAux)) > 0:
-            bloque = dict()
+            bloque = {}
             bloque['precedente'] = False
 
             try:
@@ -1098,7 +1098,7 @@ def calculaEstadsYOrdenLiga(dataTemp: TemporadaACB, fecha: Any | None = None, es
 
         targetCols[isAscending].append(col)
 
-    rankDF = dict()
+    rankDF = {}
     for asctype in targetCols:
         interestingCols = targetCols[asctype]
         auxDF = dfEstads[interestingCols]
