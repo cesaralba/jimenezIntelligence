@@ -51,10 +51,11 @@ def preparaLibro(args: Namespace, tempData: TemporadaACB, datosSig: infoSigParti
         story.append(trayectoria)
         story.append(Spacer(width=120 * mm, height=1 * mm))
 
+
+    # Pagina 2
     story.append(NextPageTemplate('apaisada'))
     story.append(PageBreak())
 
-    # Pagina 2
     story.append(tablaLiga(tempData, equiposAmarcar=datosSig.abrevLV, currJornada=int(datosSig.sigPartido['jornada'])))
     story.append(auxGeneraLeyendaLiga())
 
@@ -65,8 +66,8 @@ def preparaLibro(args: Namespace, tempData: TemporadaACB, datosSig: infoSigParti
             infoJugadores = paginasJugadores(tempData, datosSig.abrevLV, datosSig.jugLocal, datosSig.jugVis,tablasAmostrar)
             story.extend(infoJugadores)
 
-        story.append(NextPageTemplate('normal'))
-        story.append(PageBreak())
+    story.append(NextPageTemplate('normal'))
+    story.append(PageBreak())
 
     # Pagina 5
     reqData = {
@@ -110,7 +111,7 @@ def parse_arguments():
 
     result = parser.parse_args()
 
-    if preparaListaTablas(result.tablasJugs):
+    if preparaListaTablas(result.tablasJugs) is None:
         parser.exit("Parametro incorrecto en lista de tablas.")
 
     return result

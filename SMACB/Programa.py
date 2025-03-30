@@ -771,13 +771,15 @@ def listaEquipos(tempData, beQuiet=False):
 def paginasJugadores(tempData:TemporadaACB, abrEqs, juLocal, juVisit,tablas:List[str]):
     result = []
 
+    if not tablas:
+        return result
+
     if len(juLocal):
         datosLocal = datosJugadores(tempData, abrEqs[0], juLocal)
         tablasJugadLocal = tablasJugadoresEquipo(datosLocal, abrev=abrEqs[0],tablasIncluidas=tablas)
 
-        if tablas:
-            result.append(NextPageTemplate('apaisada'))
-            result.append(PageBreak())
+        result.append(NextPageTemplate('apaisada'))
+        result.append(PageBreak())
 
         for (_, t) in tablasJugadLocal:
             result.append(Spacer(100 * mm, 2 * mm))
@@ -788,9 +790,8 @@ def paginasJugadores(tempData:TemporadaACB, abrEqs, juLocal, juVisit,tablas:List
         datosVisit = datosJugadores(tempData, abrEqs[1], juVisit)
         tablasJugadVisit = tablasJugadoresEquipo(datosVisit, abrev=abrEqs[1],tablasIncluidas=tablas)
 
-        if tablas:
-            result.append(NextPageTemplate('apaisada'))
-            result.append(PageBreak())
+        result.append(NextPageTemplate('apaisada'))
+        result.append(PageBreak())
 
         for (_, t) in tablasJugadVisit:
             result.append(Spacer(100 * mm, 2 * mm))
