@@ -1,30 +1,30 @@
 import sys
 from locale import LC_ALL, setlocale
 
-from configargparse import ArgumentParser
+from configargparse import ArgumentParser, Namespace
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
 from reportlab.platypus import (Frame, NextPageTemplate, PageBreak, PageTemplate, SimpleDocTemplate, Spacer)
 
-from SMACB.Constants import CATESTADSEQASCENDING
+from SMACB.Constants import CATESTADSEQASCENDING, infoSigPartido
 from SMACB.Programa import (auxGeneraLeyendaLiga, bloqueRestoJYBasics, cabeceraPortada, cargaTemporada, listaEquipos,
                             metadataPrograma, paginasJugadores, reportTrayectoriaEquipos, tablaAnalisisEstadisticos,
-                            tablaClasifLiga, tablaLiga, )
+                            tablaClasifLiga, tablaLiga, preparaListaTablas, )
+from SMACB.TemporadaACB import TemporadaACB
+
+MARGENFRAME = 2 * mm
+frameNormal = Frame(x1=MARGENFRAME, y1=MARGENFRAME, width=A4[0] - 2 * MARGENFRAME, height=A4[1] - 2 * MARGENFRAME,
+                    leftPadding=MARGENFRAME, bottomPadding=MARGENFRAME, rightPadding=MARGENFRAME,
+                    topPadding=MARGENFRAME)
+frameApaisado = Frame(x1=MARGENFRAME, y1=MARGENFRAME, width=A4[1] - 2 * MARGENFRAME, height=A4[0] - 2 * MARGENFRAME,
+                      leftPadding=MARGENFRAME, bottomPadding=MARGENFRAME, rightPadding=MARGENFRAME,
+                      topPadding=MARGENFRAME)
+pagNormal = PageTemplate('normal', pagesize=A4, frames=[frameNormal], autoNextPageTemplate='normal')
+pagApaisada = PageTemplate('apaisada', pagesize=landscape(A4), frames=[frameApaisado], autoNextPageTemplate='apaisada')
 
 
-def preparaLibro(outfile, tempData, datosSig):
-    MARGENFRAME = 2 * mm
-    frameNormal = Frame(x1=MARGENFRAME, y1=MARGENFRAME, width=A4[0] - 2 * MARGENFRAME, height=A4[1] - 2 * MARGENFRAME,
-                        leftPadding=MARGENFRAME, bottomPadding=MARGENFRAME, rightPadding=MARGENFRAME,
-                        topPadding=MARGENFRAME)
-    frameApaisado = Frame(x1=MARGENFRAME, y1=MARGENFRAME, width=A4[1] - 2 * MARGENFRAME, height=A4[0] - 2 * MARGENFRAME,
-                          leftPadding=MARGENFRAME, bottomPadding=MARGENFRAME, rightPadding=MARGENFRAME,
-                          topPadding=MARGENFRAME)
-    pagNormal = PageTemplate('normal', pagesize=A4, frames=[frameNormal], autoNextPageTemplate='normal')
-    pagApaisada = PageTemplate('apaisada', pagesize=landscape(A4), frames=[frameApaisado],
-                               autoNextPageTemplate='apaisada')
-
-    doc = SimpleDocTemplate(filename=outfile, pagesize=A4, bottomup=0, verbosity=4, initialFontName='Helvetica',
+def preparaLibro(args: Namespace, tempData: TemporadaACB, datosSig: infoSigPartido):
+    doc = SimpleDocTemplate(filename=args.outfile, pagesize=A4, bottomup=0, verbosity=4, initialFontName='Helvetica',
                             initialLeading=2 * mm, leftMargin=3 * mm, rightMargin=3 * mm, topMargin=5 * mm,
                             bottomMargin=5 * mm, )
     doc.addPageTemplates([pagNormal, pagApaisada])
@@ -50,17 +50,20 @@ def preparaLibro(outfile, tempData, datosSig):
         story.append(trayectoria)
         story.append(Spacer(width=120 * mm, height=1 * mm))
 
+    # Pagina 2
     story.append(NextPageTemplate('apaisada'))
     story.append(PageBreak())
 
-    # Pagina 2
     story.append(tablaLiga(tempData, equiposAmarcar=datosSig.abrevLV, currJornada=int(datosSig.sigPartido['jornada'])))
     story.append(auxGeneraLeyendaLiga())
 
     # Paginas 3 y 4
-    if len(datosSig.jugLocal) + len(datosSig.jugVis):
-        infoJugadores = paginasJugadores(tempData, datosSig.abrevLV, datosSig.jugLocal, datosSig.jugVis)
-        story.extend(infoJugadores)
+    tablasAmostrar = preparaListaTablas(args.tablasJugs)
+    if tablasAmostrar:
+        if len(datosSig.jugLocal) + len(datosSig.jugVis):
+            infoJugadores = paginasJugadores(tempData, datosSig.abrevLV, datosSig.jugLocal, datosSig.jugVis,
+                                             tablasAmostrar)
+            story.extend(infoJugadores)
 
     story.append(NextPageTemplate('normal'))
     story.append(PageBreak())
@@ -87,6 +90,7 @@ def parse_arguments():
     parser = ArgumentParser(description=descriptionTXT)
     parser.add_argument("-t", "--acbfile", dest="acbfile", action="store", required=True, env_var="ACB_FILE",
                         help="Nombre del ficheros de temporada", )
+
     parser.add_argument("-l", "--listaequipos", dest='listaEquipos', action="store_true", required=False,
                         help="Lista siglas para equipos", )
     parser.add_argument("-q", "--quiet", dest='quiet', action="store_true", required=False,
@@ -94,6 +98,9 @@ def parse_arguments():
 
     parser.add_argument("-e", "--equipo", dest="equipo", action="store", required=False,
                         help="Abreviatura del equipo deseado (usar -l para obtener lista)", )
+
+    parser.add_argument("-f", "--tablajugs", dest='tablasJugs', action="store", required=False, env_var="PROG_TABLA",
+                        default='TOT,PROM', help="Lista de tablas a incluir en información de jugadores", )
     parser.add_argument("-o", "--outfile", dest="outfile", action="store", help="Fichero PDF generado",
                         required=False, )
 
@@ -102,6 +109,9 @@ def parse_arguments():
     parser.add_argument("--locale", dest="locale", action="store", required=False, default='es_ES', help="Locale", )
 
     result = parser.parse_args()
+
+    if preparaListaTablas(result.tablasJugs) is None:
+        parser.exit("Parametro incorrecto en lista de tablas.")
 
     return result
 
@@ -120,12 +130,12 @@ def main(args):
         print(f"Faltan argumentos (ver -h): {missingReqsStr}")
         sys.exit(1)
     try:
-        datosSig = tempData.sigPartido(args.equipo)
+        datosSig: infoSigPartido = tempData.sigPartido(args.equipo)
     except KeyError as exc:
         print(f"Equipo desconocido '{args.equipo}': {exc}")
         sys.exit(1)
 
-    preparaLibro(args.outfile, tempData, datosSig)
+    preparaLibro(args, tempData, datosSig)
 
 
 if __name__ == '__main__':

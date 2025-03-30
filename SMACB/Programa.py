@@ -1,3 +1,4 @@
+import re
 import sys
 from collections import defaultdict, namedtuple
 from copy import copy
@@ -5,7 +6,7 @@ from itertools import product
 from math import isnan
 from operator import itemgetter
 from time import gmtime, strftime
-from typing import Iterable, Optional, Set
+from typing import Iterable, Optional, Set, List
 
 import pandas as pd
 from CAPcore.Misc import listize
@@ -462,8 +463,7 @@ def auxJugsBajaTablaJugs(datos: pd.DataFrame, colActivo=('Jugador', 'Activo')) -
 
 
 def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSpecs: dict, estiloTablaBaseOps,
-                       formatos=None, charWidth=10.0, **kwargs
-                       ):
+                       formatos=None, charWidth=10.0, **kwargs):
     dfColList = []
     filaCab = []
     anchoCols = []
@@ -767,12 +767,15 @@ def listaEquipos(tempData, beQuiet=False):
     sys.exit(0)
 
 
-def paginasJugadores(tempData, abrEqs, juLocal, juVisit):
+def paginasJugadores(tempData: TemporadaACB, abrEqs, juLocal, juVisit, tablas: List[str]):
     result = []
+
+    if not tablas:
+        return result
 
     if len(juLocal):
         datosLocal = datosJugadores(tempData, abrEqs[0], juLocal)
-        tablasJugadLocal = tablasJugadoresEquipo(datosLocal, abrev=abrEqs[0])
+        tablasJugadLocal = tablasJugadoresEquipo(datosLocal, abrev=abrEqs[0], tablasIncluidas=tablas)
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
@@ -784,7 +787,7 @@ def paginasJugadores(tempData, abrEqs, juLocal, juVisit):
 
     if len(juVisit):
         datosVisit = datosJugadores(tempData, abrEqs[1], juVisit)
-        tablasJugadVisit = tablasJugadoresEquipo(datosVisit, abrev=abrEqs[1])
+        tablasJugadVisit = tablasJugadoresEquipo(datosVisit, abrev=abrEqs[1], tablasIncluidas=tablas)
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
@@ -928,7 +931,10 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
     return t
 
 
-def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None):
+def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None, tablasIncluidas: List[str] = sentinel):
+    if tablasIncluidas is sentinel:
+        tablasIncluidas = []
+
     result = []
 
     CELLPAD = 0.5
@@ -966,17 +972,18 @@ def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None):
                ('LEFTPADDING', (1, 0), (-1, -1), CELLPAD), ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD),
                ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD), ]
 
-    tablas = {'promedios': {'seq': 1, 'nombre': 'Promedios', 'columnas': (COLSIDENT_PROM + COLS_PROMED),
+    tablas = {'PROMEDIOS': {'seq': 1, 'nombre': 'Promedios', 'columnas': (COLSIDENT_PROM + COLS_PROMED),
                             'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
                             'ordena': [(COLDORSAL_IDX, True)]},
-              'totales': {'seq': 2, 'nombre': 'Totales', 'columnas': (COLSIDENT_TOT + COLS_TOTALES),
+              'TOTALES': {'seq': 2, 'nombre': 'Totales', 'columnas': (COLSIDENT_TOT + COLS_TOTALES),
                           'extraCols': [('Jugador', 'Kdorsal')], 'ordena': [(COLACTIVO, False), (COLDORSAL_IDX, True)]},
-              'ultimo': {'seq': 3, 'nombre': 'Último partido', 'columnas': (COLSIDENT_UP + COLS_ULTP),
-                         'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
-                         'ordena': [(COLDORSAL_IDX, True)]}}
+              'ULTIMOPARTIDO': {'seq': 3, 'nombre': 'Último partido', 'columnas': (COLSIDENT_UP + COLS_ULTP),
+                                'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
+                                'ordena': [(COLDORSAL_IDX, True)]}}
     auxDF = jugDF.copy()
 
-    for claveTabla in ['totales', 'promedios', 'ultimo']:
+    # for claveTabla in ['totales', 'promedios', 'ultimo']:
+    for claveTabla in tablasIncluidas:
         infoTabla = tablas[claveTabla]  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
         t = auxGeneraTablaJugs(auxDF, claveTabla, infoTabla, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA,
                                repeatRows=1, abrev=abrev)
@@ -1074,7 +1081,7 @@ def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
     return t
 
 
-def cargaTemporada(fname):
+def cargaTemporada(fname: str) -> TemporadaACB:
     result = TemporadaACB()
     result.cargaTemporada(fname)
 
@@ -1545,5 +1552,39 @@ def metadataPrograma(tempData: TemporadaACB):
     metadataStyle = ParagraphStyle('tabEstadsRowHeader', fontSize=FONTSIZE, alignment=TA_LEFT, leading=1)
 
     result = Paragraph(mensaje, style=metadataStyle)
+
+    return result
+
+
+def preparaListaTablas(paramTablas: str) -> Optional[List[str]]:
+    tablaKey = namedtuple('tablaKey', ['clave', 'ayuda'])
+    paramTabla2key = {'tot': tablaKey('TOTALES', 'Totales de los jugadores'),
+                      'prom': tablaKey('PROMEDIOS', 'Promedios de los jugadores'),
+                      'ultpar': tablaKey('ULTIMOPARTIDO', 'Ultimo partido de los jugadores con el equipo')}
+
+    result = []
+
+    if paramTablas.lower().strip() == "no":
+        return []
+
+    PATsepList = r'[ ,]+'
+
+    auxList = list(map(lambda s: s.strip().lower(), re.split(PATsepList, paramTablas)))
+
+    extraTablas = set(auxList).difference(paramTabla2key.keys())
+    if extraTablas:
+        if 'no' in extraTablas:
+            print(f" 'no' debe ir sólo. Parámetros: '{paramTablas}'")
+        else:
+            print(f"Tablas desconocidas en parámetro 'tablasjugs': {','.join(extraTablas)}. Suministrado: '"
+                  f"{paramTablas}'. Validas: {sorted(paramTabla2key.keys())} ")
+        return None
+
+    usedKeys = set()
+    for par in auxList:
+        if par in usedKeys:
+            continue
+        usedKeys.add(par)
+        result.append(paramTabla2key[par].clave)
 
     return result
