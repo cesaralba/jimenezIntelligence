@@ -3,7 +3,7 @@ Created on Jan 4, 2018
 
 @author: calba
 """
-
+import functools
 import logging
 import sys
 import traceback
@@ -831,6 +831,7 @@ class TemporadaACB:
     def tradEquipos(self):
         return self.Calendario.tradEquipos
 
+    @functools.cache
     def jornadasCompletas(self):
         return self.Calendario.jornadasCompletas()
 
@@ -1177,3 +1178,10 @@ def extraeCampoYorden(estads: pd.DataFrame, estadsOrden: pd.DataFrame, eq: str =
     orden = estadsOrden.loc[targetCol]
 
     return valor, orden
+
+
+def cargaTemporada(fname: str) -> TemporadaACB:
+    result = TemporadaACB()
+    result.cargaTemporada(fname)
+
+    return result
