@@ -14,13 +14,14 @@ from reportlab.platypus import Paragraph, TableStyle, Table
 import SMACB.Programa
 import SMACB.Programa.Globals
 from SMACB.Constants import infoSigPartido, LocalVisitante, MARCADORESCLASIF, RANKFORMAT
-from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden, equipo2clasif
+from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden
 from Utils.FechaHora import NEVER
 from Utils.ReportLab.RLverticalText import VerticalParagraph
 from .Constantes import ESTADISTICOEQ, estiloNegBal, estiloPosMarker, colEq, DEFTABVALUE, FORMATOCAMPOS
 from .Datos import datosRestoJornada
 from .FuncionesAux import auxCalculaBalanceStr, auxCalculaFirstBalNeg, auxJugsBajaTablaJugs, FMTECHACORTA, \
-    GENERADORCLAVEDORSAL, GENERADORFECHA, GENMAPDICT, GENERADORTIEMPO, GENERADORETTIRO, GENERADORETREBOTE, auxBold
+    GENERADORCLAVEDORSAL, GENERADORFECHA, GENMAPDICT, GENERADORTIEMPO, GENERADORETTIRO, GENERADORETREBOTE, auxBold, \
+    equipo2clasif
 from .Globals import recuperaClasifLiga, recuperaEstadsGlobales
 
 ESTILOS = getSampleStyleSheet()
@@ -112,7 +113,7 @@ def datosTablaLiga(tempData: TemporadaACB, currJornada: int = None):
     for pos, idLocal in seqIDs:
         filaBalFuera.append(
             Paragraph(auxCalculaBalanceStr(SMACB.Programa.Globals.clasifLiga[pos].CasaFuera['Visitante']),
-                style=estCelda))
+                      style=estCelda))
     filaBalFuera.append([])
     datosTabla.append(filaBalFuera)
 

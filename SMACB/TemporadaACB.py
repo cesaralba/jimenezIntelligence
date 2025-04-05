@@ -9,7 +9,6 @@ import sys
 import traceback
 from collections import defaultdict
 from copy import copy
-from decimal import Decimal
 from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
@@ -22,16 +21,14 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from CAPcore.LoggedDict import LoggedDictDiff, LoggedDict
-from CAPcore.Misc import onlySetElement
 from CAPcore.Web import mergeURL
 
 from Utils.FechaHora import fechaParametro2pddatetime, fecha2fechaCalDif
 from Utils.Pandas import combinaPDindexes
 from Utils.Web import prepareDownloading
 from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
-from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoClasifBase, infoClasifEquipo,
-                        infoEqCalendario, infoPartLV, infoSigPartido, LOCALNAMES, LocalVisitante, OtherLoc, OtherTeam,
-                        infoClasifComplMasD2, infoClasifComplPareja, )
+from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEqCalendario, infoPartLV, infoSigPartido,
+                        LOCALNAMES, LocalVisitante, OtherLoc, OtherTeam, )
 from .FichaJugador import FichaJugador, CAMBIOSJUGADORES
 from .PartidoACB import PartidoACB
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB, CAMBIOSCLUB, CambiosPlantillaTipo
@@ -393,112 +390,114 @@ class TemporadaACB:
                                 pendLocal=peIzda, jugVis=juDcha, pendVis=peDcha, )
         return result
 
-    def clasifEquipo(self, abrEq: str, fecha: Optional[Any] = None, gameList: Optional[set[str]] = None
-                     ) -> infoClasifEquipo:
-        """
-        Extrae los datos necesarios para calcular la clasificación (solo liga regular) de un equipo hasta determinada
-        fecha
-        :param abrEq: Abreviatura del equipo en cuestión, puede ser cualquiera de las que haya tenido
-        :param fecha: usar solo los partidos ANTERIORES a la fecha
-        :return: diccionario con los datos calculados
-        """
-        abrevsEq = self.Calendario.abrevsEquipo(abrEq)
-        auxResult = defaultdict(int)
-        auxResult['Jjug'] = set()
-        auxResult['auxCasaFuera'] = {'Local': defaultdict(int), 'Visitante': defaultdict(int)}
-        auxResult['CasaFuera'] = dict()
-        auxResult['sumaCoc'] = Decimal(0)
-
-        urlGamesFull = self.extractGameList(fecha=fecha, abrevEquipos={abrEq}, playOffStatus=False)
-        urlGames = urlGamesFull if gameList is None else urlGamesFull.intersection(gameList)
-        partidosAcontar = [self.Partidos[pURL].DatosSuministrados for pURL in urlGames]
-
-        for datosCal in partidosAcontar:
-            auxResult['Jjug'].add(int(datosCal['jornada']))
-
-            abrevUsada = abrevsEq.intersection(datosCal['participantes']).pop()
-            locEq = datosCal['abrev2loc'][abrevUsada]
-            locRival = OtherLoc(locEq)
-
-            datosEq = datosCal['equipos'][locEq]
-            datosRival = datosCal['equipos'][locRival]
-            claveRes = 'V' if datosEq['haGanado'] else 'D'
-
-            auxResult['Jug'] += 1
-            auxResult[claveRes] += 1
-            auxResult['auxCasaFuera'][locEq][claveRes] += 1
-
-            auxResult['Pfav'] += datosEq['puntos']
-            auxResult['Pcon'] += datosRival['puntos']
-            auxResult['sumaCoc'] += (Decimal(datosEq['puntos']) / Decimal(datosRival['puntos'])).quantize(
-                Decimal('.001'))
-
-        auxResult['idEq'] = self.Calendario.tradEquipos['c2i'][abrEq]
-        auxResult['nombresEq'] = self.Calendario.tradEquipos['c2n'][abrEq]
-        auxResult['abrevsEq'] = abrevsEq
-        auxResult['nombreCorto'] = sorted(auxResult['nombresEq'], key=len)[0]
-        auxResult['abrevAusar'] = abrEq
-
-        for k in ['Jug', 'V', 'D', 'Pfav', 'Pcon']:
-            if k not in auxResult:
-                auxResult[k] = 0
-        for loc in LocalVisitante:
-            auxResult['CasaFuera'][loc] = infoClasifBase(**auxResult['auxCasaFuera'][loc])
-        auxResult.pop('auxCasaFuera')
-        auxResult['ratioVict'] = auxResult['V'] / auxResult['Jug'] if auxResult['Jug'] else 0.0
-        result = infoClasifEquipo(**auxResult)
-        return result
-
-    def clasifLiga(self, fecha=None, abrevList: Optional[set[str]] = None, parcial: bool = False, datosLR=None) -> list[
-        infoClasifEquipo]:
-        teamList = abrevList
-        if abrevList is None:
-            teamList = {onlySetElement(codSet) for codSet in self.Calendario.tradEquipos['i2c'].values()}
-
-        funcKey = entradaClas2kBasic
-
-        gameList = self.extractGameList(fecha=fecha, abrevEquipos=teamList, playOffStatus=False)
-
-        datosClasifEquipos: list[infoClasifEquipo] = [self.clasifEquipo(abrEq=eq, fecha=fecha, gameList=gameList) for eq
-                                                      in teamList]
-
-        if datosLR is None:
-            datosLR = {x.abrevAusar: x for x in datosClasifEquipos}
-
-        if parcial:  # Grupo de empatados
-            numEqs = len(teamList)
-            if len(gameList) != numEqs * (numEqs - 1):  # No han jugado todos contra todos I-V
-                # Estadistica básica con los partidos de LR
-                funcKey = entradaClas2kBasic
-                datosClasifEquipos = [datosLR[abrev] for abrev in abrevList]
-
-            else:  # Han jugado todos contra todos I-V
-                funcKey = entradaClas2kEmpatePareja if len(teamList) == 2 else entradaClas2kEmpateMasD2
-        else:  # Todos los equipos
-            partsJug = {i.Jug for i in datosClasifEquipos}
-            funcKey = entradaClas2kVict if len(partsJug) == 1 else entradaClas2kRatioVict
-
-        resultInicial = sorted(datosClasifEquipos, key=lambda x: funcKey(x, datosLR), reverse=True)
-
-        resultFinal = []
-        agrupClasif = defaultdict(set)
-        for datosEq in resultInicial:
-            abrev = datosEq.abrevAusar
-            kClasif = funcKey(datosEq, datosLR)
-            agrupClasif[kClasif].add(abrev)
-
-        for k in sorted(agrupClasif, reverse=True):
-            abrevK = agrupClasif[k]
-            if len(abrevK) == 1:
-                for abrev in abrevK:
-                    resultFinal.append(datosLR[abrev])
-            else:
-                desempate = self.clasifLiga(fecha=fecha, abrevList=abrevK, parcial=True, datosLR=datosLR)
-                for sc in desempate:
-                    resultFinal.append(datosLR[sc.abrevAusar])
-
-        result = resultFinal
-        return result
+    # def clasifEquipo(self, abrEq: str, fecha: Optional[Any] = None, gameList: Optional[set[str]] = None
+    #                  ) -> infoClasifEquipo:
+    #     """
+    #     Extrae los datos necesarios para calcular la clasificación (solo liga regular) de un equipo hasta determinada
+    #     fecha
+    #     :param abrEq: Abreviatura del equipo en cuestión, puede ser cualquiera de las que haya tenido
+    #     :param fecha: usar solo los partidos ANTERIORES a la fecha
+    #     :return: diccionario con los datos calculados
+    #     """
+    #     abrevsEq = self.Calendario.abrevsEquipo(abrEq)
+    #     auxResult = defaultdict(int)
+    #     auxResult['Jjug'] = set()
+    #     auxResult['auxCasaFuera'] = {'Local': defaultdict(int), 'Visitante': defaultdict(int)}
+    #     auxResult['CasaFuera'] = dict()
+    #     auxResult['sumaCoc'] = Decimal(0)
+    #
+    #     urlGamesFull = self.extractGameList(fecha=fecha, abrevEquipos={abrEq}, playOffStatus=False)
+    #     urlGames = urlGamesFull if gameList is None else urlGamesFull.intersection(gameList)
+    #     partidosAcontar = [self.Partidos[pURL].DatosSuministrados for pURL in urlGames]
+    #
+    #     for datosCal in partidosAcontar:
+    #         auxResult['Jjug'].add(int(datosCal['jornada']))
+    #
+    #         abrevUsada = abrevsEq.intersection(datosCal['participantes']).pop()
+    #         locEq = datosCal['abrev2loc'][abrevUsada]
+    #         locRival = OtherLoc(locEq)
+    #
+    #         datosEq = datosCal['equipos'][locEq]
+    #         datosRival = datosCal['equipos'][locRival]
+    #         claveRes = 'V' if datosEq['haGanado'] else 'D'
+    #
+    #         auxResult['Jug'] += 1
+    #         auxResult[claveRes] += 1
+    #         auxResult['auxCasaFuera'][locEq][claveRes] += 1
+    #
+    #         auxResult['Pfav'] += datosEq['puntos']
+    #         auxResult['Pcon'] += datosRival['puntos']
+    #         auxResult['sumaCoc'] += (Decimal(datosEq['puntos']) / Decimal(datosRival['puntos'])).quantize(
+    #             Decimal('.001'))
+    #
+    #     auxResult['idEq'] = self.Calendario.tradEquipos['c2i'][abrEq]
+    #     auxResult['nombresEq'] = self.Calendario.tradEquipos['c2n'][abrEq]
+    #     auxResult['abrevsEq'] = abrevsEq
+    #     auxResult['nombreCorto'] = sorted(auxResult['nombresEq'], key=len)[0]
+    #     auxResult['abrevAusar'] = abrEq
+    #
+    #     for k in ['Jug', 'V', 'D', 'Pfav', 'Pcon']:
+    #         if k not in auxResult:
+    #             auxResult[k] = 0
+    #     for loc in LocalVisitante:
+    #         auxResult['CasaFuera'][loc] = infoClasifBase(**auxResult['auxCasaFuera'][loc])
+    #     auxResult.pop('auxCasaFuera')
+    #     auxResult['ratioVict'] = auxResult['V'] / auxResult['Jug'] if auxResult['Jug'] else 0.0
+    #     result = infoClasifEquipo(**auxResult)
+    #     return result
+    #
+    # def clasifLiga(self, fecha=None, abrevList: Optional[Set[str]] = None, parcial: bool = False, datosLR=None) ->
+    # List[
+    #     infoClasifEquipo]:
+    #     teamList = abrevList
+    #     if abrevList is None:
+    #         teamList = {onlySetElement(codSet) for codSet in self.Calendario.tradEquipos['i2c'].values()}
+    #
+    #     funcKey = entradaClas2kBasic
+    #
+    #     gameList = self.extractGameList(fecha=fecha, abrevEquipos=teamList, playOffStatus=False)
+    #
+    #     datosClasifEquipos: List[infoClasifEquipo] = [self.clasifEquipo(abrEq=eq, fecha=fecha, gameList=gameList)
+    #     for eq
+    #                                                   in teamList]
+    #
+    #     if datosLR is None:
+    #         datosLR = {x.abrevAusar: x for x in datosClasifEquipos}
+    #
+    #     if parcial:  # Grupo de empatados
+    #         numEqs = len(teamList)
+    #         if len(gameList) != numEqs * (numEqs - 1):  # No han jugado todos contra todos I-V
+    #             # Estadistica básica con los partidos de LR
+    #             funcKey = entradaClas2kBasic
+    #             datosClasifEquipos = [datosLR[abrev] for abrev in abrevList]
+    #
+    #         else:  # Han jugado todos contra todos I-V
+    #             funcKey = entradaClas2kEmpatePareja if len(teamList) == 2 else entradaClas2kEmpateMasD2
+    #     else:  # Todos los equipos
+    #         partsJug = {i.Jug for i in datosClasifEquipos}
+    #         funcKey = entradaClas2kVict if len(partsJug) == 1 else entradaClas2kRatioVict
+    #
+    #     resultInicial = sorted(datosClasifEquipos, key=lambda x: funcKey(x, datosLR), reverse=True)
+    #
+    #     resultFinal = []
+    #     agrupClasif = defaultdict(set)
+    #     for datosEq in resultInicial:
+    #         abrev = datosEq.abrevAusar
+    #         kClasif = funcKey(datosEq, datosLR)
+    #         agrupClasif[kClasif].add(abrev)
+    #
+    #     for k in sorted(agrupClasif, reverse=True):
+    #         abrevK = agrupClasif[k]
+    #         if len(abrevK) == 1:
+    #             for abrev in abrevK:
+    #                 resultFinal.append(datosLR[abrev])
+    #         else:
+    #             desempate = self.clasifLiga(fecha=fecha, abrevList=abrevK, parcial=True, datosLR=datosLR)
+    #             for sc in desempate:
+    #                 resultFinal.append(datosLR[sc.abrevAusar])
+    #
+    #     result = resultFinal
+    #     return result
 
     def dataFrameFichasJugadores(self, abrEq: Optional[str] = None):
         jugsIter = self.fichaJugadores.keys()
@@ -988,72 +987,6 @@ def calculaVars(temporada, clave, useStd=True, filtroFechas=None):
     return result
 
 
-def entradaClas2kVict(ent: infoClasifEquipo, *kargs) -> tuple:
-    """
-    Dado un resultado de Temporada.getClasifEquipo)
-
-    :param ent: lista de equipos (resultado de Temporada.getClasifEquipo)
-    :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
-    """
-
-    result = ent.V
-    return result
-
-
-def entradaClas2kRatioVict(ent: infoClasifEquipo, *kargs) -> tuple:
-    """
-    Dado un resultado de Temporada.getClasifEquipo)
-
-    :param ent: lista de equipos (resultado de Temporada.getClasifEquipo)
-    :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
-    """
-
-    result = ent.ratioVict
-    return result
-
-
-def entradaClas2kBasic(ent: infoClasifEquipo, *kargs) -> tuple:
-    """
-    Dado un resultado de Temporada.getClasifEquipo)
-
-    :param ent: lista de equipos (resultado de Temporada.getClasifEquipo)
-    :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
-    """
-
-    result = (ent.V, ent.ratioVict, ent.Pfav - ent.Pcon, ent.Pfav, ent.sumaCoc)
-    return result
-
-
-def entradaClas2kEmpatePareja(ent: infoClasifEquipo, datosLR: dict) -> tuple:
-    """
-    Dado un resultado de Temporada.getClasifEquipo)
-
-    :param ent: lista de equipos (resultado de Temporada.getClasifEquipo)
-    :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
-    """
-    auxLR = datosLR[ent.abrevAusar]
-    aux = {'EmpV': ent.V, 'EmpRatV': ent.ratioVict, 'EmpDifP': ent.Pfav - ent.Pcon, 'LRDifP': auxLR.Pfav - auxLR.Pcon,
-           'LRPfav': auxLR.Pfav, 'LRSumCoc': auxLR.sumaCoc}
-    result = infoClasifComplPareja(**aux)
-
-    return result
-
-
-def entradaClas2kEmpateMasD2(ent: infoClasifEquipo, datosLR: dict) -> tuple:
-    """
-    Dado un resultado de Temporada.getClasifEquipo)
-
-    :param ent: lista de equipos (resultado de Temporada.getClasifEquipo)
-    :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
-    """
-    auxLR = datosLR[ent.abrevAusar]
-    aux = {'EmpV': ent.V, 'EmpRatV': ent.ratioVict, 'EmpDifP': ent.Pfav - ent.Pcon, 'EmpPfav': ent.Pfav,
-           'LRDifP': auxLR.Pfav - auxLR.Pcon, 'LRPfav': auxLR.Pfav, 'LRSumCoc': auxLR.sumaCoc}
-    result = infoClasifComplMasD2(**aux)
-
-    return result
-
-
 def esEstCreciente(estName: str, catsCrecientes: set | dict | list | None = None, meother: str = "Eq"):
     """
     Devuelve si una columna de estadísticas es ascendente (mejor cuanto menos) o no
@@ -1150,16 +1083,6 @@ def auxEtiqPartido(tempData: TemporadaACB, rivalAbr, esLocal=None, locEq=None, u
     nombre = rivalAbr if usaAbr else sorted(tempData.Calendario.tradEquipos['c2n'][rivalAbr], key=len)[ordenNombre]
 
     result = f"{prefLoc}{nombre}"
-
-    return result
-
-
-def equipo2clasif(clasifLiga, abrEq):
-    result = None
-
-    for eqData in clasifLiga:
-        if abrEq in eqData.abrevsEq:
-            return eqData
 
     return result
 

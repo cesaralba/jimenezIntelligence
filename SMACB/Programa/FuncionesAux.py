@@ -4,13 +4,15 @@ from typing import Set
 import pandas as pd
 
 from SMACB import TemporadaACB as TempACB
-from SMACB.Constants import infoClasifEquipo, local2espLargo, LocalVisitante, haGanado2esp
+from SMACB.Constants import local2espLargo, LocalVisitante, haGanado2esp
+from SMACB.Programa.Clasif import infoClasifEquipo, calculaClasifEquipo
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.FechaHora import NEVER, secs2TimeStr
 
 
 def auxCalculaBalanceStrSuf(record: infoClasifEquipo, addPendientes: bool = False, currJornada: int = None,
-                            addPendJornada: bool = False, jornadasCompletas: Set[int] = None       ) -> str:
+                            addPendJornada: bool = False, jornadasCompletas: Set[int] = None
+                            ) -> str:
     if jornadasCompletas is None:
         jornadasCompletas = set()
 
@@ -49,17 +51,15 @@ def auxCalculaFirstBalNeg(clasif: list[infoClasifEquipo]):
 
 
 def partidoTrayectoria(partido: TempACB.filaTrayectoriaEq, datosTemp: TemporadaACB):
-    datoFecha = partido.fechaPartido
-    strFecha = partido.fechaPartido.strftime(FMTECHACORTA) if datoFecha != NEVER else "TBD"
+    strFecha = partido.fechaPartido.strftime(FMTECHACORTA) if partido.fechaPartido != NEVER else "TBD"
     etiqLoc = "vs " if partido.esLocal else "@"
-    nombrRival = partido.equipoRival.nombcorto
-    abrevRival = partido.equipoRival.abrev
-    textRival = f"{etiqLoc}{nombrRival}"
+
+    textRival = f"{etiqLoc}{partido.equipoRival.nombcorto}"
     strRival = f"{strFecha}: {textRival}"
 
     strResultado = None
     if not partido.pendiente:
-        clasifAux = datosTemp.clasifEquipo(abrevRival, datoFecha)
+        clasifAux = calculaClasifEquipo(datosTemp, partido.equipoRival.abrev, partido.fechaPartido)
         clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=int(partido.jornada),
                                          addPendJornada=False)
         strRival = f"{strFecha}: {textRival} ({clasifStr})"
@@ -205,3 +205,13 @@ def auxJugsBajaTablaJugs(datos: pd.DataFrame, colActivo=('Jugador', 'Activo')) -
 
 def auxBold(data):
     return f"<b>{data}</b>"
+
+
+def equipo2clasif(clasifLiga, abrEq):
+    result = None
+
+    for eqData in clasifLiga:
+        if abrEq in eqData.abrevsEq:
+            return eqData
+
+    return result
