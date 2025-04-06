@@ -677,7 +677,7 @@ def presTablaCruces(data, FONTSIZE=10, CELLPAD=3 * mm):
 
     clavesAmostrar = [crit for crit in infoClasifComplPareja._fields if
                       crit in data['datosTotales']['criterios']['res']]
-    result[-1][-1] = Paragraph(auxCruceTotales(data['datosTotales'], clavesAmostrar), style=estCelda)
+    result[-1][-1] = Paragraph(auxCruceTotales(data['datosTotales']), style=estCelda) # , clavesAmostrar
 
     datosDiag = data['datosDiagonal']
     datosCont = data['datosContadores']

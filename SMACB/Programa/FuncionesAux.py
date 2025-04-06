@@ -271,7 +271,7 @@ def auxCrucePendiente(data):
 def auxCruceTotales(data): #, clavesAmostrar: List[str]
     # strCritsRes = "/".join(map(str, [data['criterios']['res'][crit] for crit in clavesAmostrar]))
     # strCritsPend = "/".join(map(str, [data['criterios']['res'][crit] for crit in ['L', 'V']]))
-    strRes = f"<b>Res:</b>{data['Resueltos']}"  # ({strCritsRes})
-    strPend = f"<b>Pend:</b>{data['Pdtes']}"  # ({strCritsPend})
+    strRes = f"<b>Rs:</b>{data['Resueltos']}"  # ({strCritsRes})
+    strPend = f"<b>Pd:</b>{data['Pdtes']}"  # ({strCritsPend})
 
     return f"{strRes}<br/>{strPend}"
