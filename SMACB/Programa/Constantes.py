@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
@@ -93,3 +95,17 @@ REPORTLEYENDAS = {'+/-': {'etiq': '+/-', 'leyenda': 'Cambio en la anotación con
                   'TC-I': {'etiq': 'TC-I', 'leyenda': 'Tiros de campo lanzados'},
                   'utilizados': {'etiq': 'Usados', 'leyenda': 'Jugadores utilizados'},
                   'V': {'etiq': 'V', 'leyenda': 'Valoración ACB'}}
+
+# Colores para informe (tabla ligas)
+CANTGREYBAL = .70
+ANCHOMARCAPOS = 2
+colorTablaDiagonal = colors.rgb2cmyk(CANTGREYBAL, CANTGREYBAL, CANTGREYBAL)
+
+nombresClasif = namedtuple('nombresClasif', field_names=('pos', 'abrev', 'nombre'))
+
+criterioDesempateCruces = {'EmpV': {'Leyenda': 'Victorias', 'Clave': ''},
+                           'EmpRatV': {'Leyenda': 'Ratio de victorias', 'Clave': 'R'},
+                           'EmpDifP': {'Leyenda': 'Average', 'Clave': 'A'},
+                           'LRDifP': {'Leyenda': 'Diferencia de puntos (LR)', 'Clave': 'D'},
+                           'LRPfav': {'Leyenda': 'Puntos a favor (LR)', 'Clave': 'P'},
+                           'LRSumCoc': {'Leyenda': 'Suma de cocientes (LR)', 'Clave': 'C'}, }

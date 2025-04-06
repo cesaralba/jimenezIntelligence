@@ -1,11 +1,12 @@
 from math import isnan
-from typing import Set
+from typing import Set, List
 
 import pandas as pd
 
 from SMACB import TemporadaACB as TempACB
 from SMACB.Constants import local2espLargo, LocalVisitante, haGanado2esp
 from SMACB.Programa.Clasif import infoClasifEquipo, calculaClasifEquipo
+from SMACB.Programa.Constantes import nombresClasif, criterioDesempateCruces
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.FechaHora import NEVER, secs2TimeStr
 
@@ -215,3 +216,62 @@ def equipo2clasif(clasifLiga, abrEq):
             return eqData
 
     return result
+
+
+def etiquetasClasificacion(clasif: List[infoClasifEquipo]) -> List[nombresClasif]:
+    """
+    Prepara una lista con información para usar en las tablas con todos los equipos
+    :param clasif: Clasif de la liga en SMACB.Programa.Globals
+    :return: Lista de tuplas con
+    """
+    result = []
+
+    for i, eq in enumerate(clasif, start=1):
+        aux = {'pos': i, 'abrev': eq.abrevAusar, 'nombre': eq.nombreCorto}
+        result.append(nombresClasif(**aux))
+
+    return result
+
+
+def auxLabelEqTabla(nombre: str, abrev: str) -> str:
+    return f"{nombre} (<b>{abrev}</b>)"
+
+
+def auxCruceDiag(diag, ponBal=False, ponDif=False) -> str:
+    strSep = "<br/>" if ponBal or ponDif else ""
+    strBal = f"<b>{diag['V']}-{diag['D']}</b>" if ponBal else ""
+    strDif = f"<b>({diag['diffP']})</b>" if ponDif else ""
+    return f"{strBal}{strSep}{strDif}"
+
+
+def auxCruceTotalPend(conts):
+    return f"{conts['Pdte']}:{conts['PendV']}/{conts['PendD']}"
+
+
+def auxCruceTotalResuelto(conts, clavesAmostrar: List[str]):
+    strCrits = "/".join(map(str, [conts['crit'][crit] for crit in clavesAmostrar]))
+
+    return f"{conts['G']}-{conts['P']} {strCrits}"
+
+
+def auxCruceResuelto(data):
+    auxStr = ""
+    if data[1] != 'EmpV':  # EmpV es que ha ganado los 2 partidos
+        auxStr = f" {criterioDesempateCruces[data[1]]['Clave']}+{data[2]}"
+
+    return f"<b>{data[0]}</b><br/>{auxStr}"
+
+
+def auxCrucePendiente(data):
+    auxStr = f" {data[1]}+{data[2]}"
+
+    return f"<b>{data[0]}</b><br/>{auxStr}"
+
+
+def auxCruceTotales(data): #, clavesAmostrar: List[str]
+    # strCritsRes = "/".join(map(str, [data['criterios']['res'][crit] for crit in clavesAmostrar]))
+    # strCritsPend = "/".join(map(str, [data['criterios']['res'][crit] for crit in ['L', 'V']]))
+    strRes = f"<b>Res:</b>{data['Resueltos']}"  # ({strCritsRes})
+    strPend = f"<b>Pend:</b>{data['Pdtes']}"  # ({strCritsPend})
+
+    return f"{strRes}<br/>{strPend}"

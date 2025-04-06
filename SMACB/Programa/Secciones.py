@@ -11,11 +11,13 @@ from reportlab.platypus import Paragraph, TableStyle, Table, NextPageTemplate, P
 import SMACB.Programa.Globals
 from SMACB.Constants import infoSigPartido, MARCADORESCLASIF, filaTrayectoriaEq
 from SMACB.Programa.Constantes import estiloNegBal, estiloPosMarker, colEq
-from SMACB.Programa.Datos import datosTablaClasif, datosJugadores, auxFindTargetAbrevs, datosAnalisisEstadisticos
+from SMACB.Programa.Datos import datosTablaClasif, datosJugadores, auxFindTargetAbrevs, datosAnalisisEstadisticos, \
+    preparaInfoCruces
 from SMACB.Programa.FuncionesAux import auxCalculaFirstBalNeg, partidoTrayectoria, auxBold
 from SMACB.Programa.Globals import recuperaClasifLiga, recuperaEstadsGlobales
-from SMACB.Programa.Presentacion import tablaEstadsBasicas, tablaRestoJornada, bloqueCabEquipo, datosTablaLiga, \
-    auxTablaLigaListaEstilos, tablasJugadoresEquipo, auxGeneraLeyendaEstadsCelda, auxFilasTablaEstadisticos
+from SMACB.Programa.Presentacion import tablaEstadsBasicas, tablaRestoJornada, bloqueCabEquipo, presTablaPartidosLiga, \
+    presTablaPartidosLigaEstilos, tablasJugadoresEquipo, auxGeneraLeyendaEstadsCelda, auxFilasTablaEstadisticos, \
+    presTablaCruces, presTablaCrucesEstilos
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.FechaHora import time2Str
 
@@ -132,7 +134,8 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
 
     # Balance negativo
     if (posFirstNegBal is not None) and ((posFirstNegBal - 1) not in MARCADORESCLASIF):
-        t, e = (posFirstNegBal - 1) // SMACB.Programa.Globals.mitadEqs, (posFirstNegBal - 1) % SMACB.Programa.Globals.mitadEqs
+        t, e = (posFirstNegBal - 1) // SMACB.Programa.Globals.mitadEqs, (
+                posFirstNegBal - 1) % SMACB.Programa.Globals.mitadEqs
         listasStyles[t].add("LINEBELOW", (0, e), (-1, e), ANCHOMARCAPOS, *estiloNegBal)
 
     # Marca equipos del programa
@@ -260,12 +263,12 @@ def tablaLiga(tempData: TemporadaACB, equiposAmarcar=None, currJornada: int = No
     CELLPAD = 0.3 * mm
     FONTSIZE = 9
 
-    datosAux, coordsJuPe, firstNegBal = datosTablaLiga(tempData, currJornada)
+    datosAux, coordsJuPe, firstNegBal = presTablaPartidosLiga(tempData, currJornada)
 
     alturas = [22] + [28.7] * (len(datosAux) - 2) + [21]
     anchos = [76] + [39] * (len(datosAux) - 2) + [38]
 
-    listaEstilos = auxTablaLigaListaEstilos(CELLPAD, FONTSIZE, coordsJuPe, datosAux, equiposAmarcar, firstNegBal)
+    listaEstilos = presTablaPartidosLigaEstilos(CELLPAD, FONTSIZE, coordsJuPe, datosAux, equiposAmarcar, firstNegBal)
     tStyle = TableStyle(listaEstilos)
 
     t = Table(datosAux, style=tStyle, rowHeights=alturas, colWidths=anchos)
@@ -317,9 +320,6 @@ def paginasJugadores(tempData: TemporadaACB, abrEqs, juLocal, juVisit, tablas: L
             result.append(t)
 
     return result
-
-############## tablaAnalisisEstadisticos
-
 
 
 def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, magns2incl: list | set | None = None,
@@ -393,3 +393,22 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     tabla1 = Table(data=listaFilas, style=tStyle, colWidths=LISTAANCHOS, rowHeights=11.2)
 
     return tabla1
+
+
+def tablaCruces(tempData: TemporadaACB) -> Table:
+    CELLPAD = 0.3 * mm
+    FONTSIZE = 9
+
+    infoCruces = preparaInfoCruces(tempData)
+
+    datosTabla = presTablaCruces(infoCruces, FONTSIZE, CELLPAD)
+
+    alturas = [22] + [28.7] * len(infoCruces['equipos']) + [21]
+    anchos = [76] + [39] * len(infoCruces['equipos']) + [38]
+
+    listaEstilos = presTablaCrucesEstilos(infoCruces, CELLPAD, FONTSIZE)
+    tStyle = TableStyle(listaEstilos)
+
+    t = Table(datosTabla, style=tStyle, rowHeights=alturas, colWidths=anchos)
+
+    return t

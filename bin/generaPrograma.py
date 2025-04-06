@@ -9,7 +9,7 @@ from reportlab.platypus import (SimpleDocTemplate)
 from SMACB.Constants import infoSigPartido
 from SMACB.Programa.Constantes import pagNormal, pagApaisada
 from SMACB.Programa.Funciones import listaEquipos, preparaListaTablas
-from SMACB.Programa.Paginas import paginaEstadsEquipos, paginaJugadores, paginaPartidosLiga, paginaPortada
+from SMACB.Programa.Paginas import paginaEstadsEquipos, paginaJugadores, paginaPartidosLiga, paginaPortada, paginaCruces
 from SMACB.TemporadaACB import TemporadaACB, cargaTemporada
 
 
@@ -24,15 +24,16 @@ def preparaLibro(args: Namespace, tempData: TemporadaACB, datosSig: infoSigParti
     # Pagina 1
     story.extend(paginaPortada(tempData, datosSig))
 
+    story.extend(paginaCruces(tempData))
     # Pagina 2
     story.extend(paginaPartidosLiga(tempData, datosSig))
-
-    # Paginas 3 y 4
-    story.extend(paginaJugadores(tempData, datosSig, args.tablasJugs))
-
-    # Pagina 5
-    story.extend(paginaEstadsEquipos(tempData, datosSig))
-    # Fin del doc
+    #
+    # # Paginas 3 y 4
+    # story.extend(paginaJugadores(tempData, datosSig, args.tablasJugs))
+    #
+    # # Pagina 5
+    # story.extend(paginaEstadsEquipos(tempData, datosSig))
+    # # Fin del doc
 
     doc.build(story)
 

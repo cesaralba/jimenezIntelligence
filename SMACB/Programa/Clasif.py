@@ -1,6 +1,6 @@
 from collections import namedtuple, defaultdict
 from decimal import Decimal
-from typing import Optional, Any, Set, List
+from typing import Optional, Any, Set, List, Tuple
 
 from CAPcore.Misc import onlySetElement
 
@@ -195,3 +195,45 @@ def calculaClasifLiga(dataTemp: TemporadaACB, fecha=None, abrevList: Optional[Se
 
     result = resultFinal
     return result
+
+
+def cmp(a, b):
+    """
+    Compares two values that can be compared (< and > must work)
+    :param a:
+    :param b:
+    :return: 1 if a is bigger thanb, 0 if they are equal, -1 if b is bigger than a
+
+    From https://docs.python.org/3.0/whatsnew/3.0.html#ordering-comparisons
+    """
+
+    return bool(a > b) - bool(a < b)
+
+
+def infoGanadorEmparej(data: List[Tuple[str, infoClasifComplPareja]]):
+    v1 = data[0][1]
+    v2 = data[1][1]
+
+    if hasattr(v1, '_fields'):  # namedtuple
+        idx = v1._fields
+        for t in idx:
+            aux1 = getattr(v1, t)
+            aux2 = getattr(v2, t)
+            auxcmp = cmp(aux1, aux2)
+            if auxcmp == 0:
+                continue
+            if auxcmp > 0:
+                return (data[0][0], t, aux1 - aux2)
+            return (data[1][0], t, aux2 - aux1)
+
+    else:  # iterable Asume que son del mismo tipo pero no se preocupa en comprobarlo
+        idx = range(len(v1))
+        for t in idx:
+            aux1 = v1[t]
+            aux2 = v2[t]
+            auxcmp = cmp(aux1, aux2)
+            if auxcmp == 0:
+                continue
+            if auxcmp > 0:
+                return (data[0][0], t, aux1 - aux2)
+            return (data[1][0], t, aux2 - aux1)

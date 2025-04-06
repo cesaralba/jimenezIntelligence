@@ -1,19 +1,19 @@
 from _operator import itemgetter
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from copy import copy
 
 import pandas as pd
 
-import SMACB.Programa.Globals
-from SMACB.Constants import infoSigPartido, LocalVisitante, DEFAULTNUMFORMAT, TRADPOSICION
+import SMACB.Programa.Globals as GlobACB
+from SMACB.Constants import infoSigPartido, LocalVisitante, DEFAULTNUMFORMAT, TRADPOSICION, OtherLoc
 from SMACB.TemporadaACB import TemporadaACB, esEstCreciente, auxEtiqPartido
+from .Clasif import calculaClasifLiga, entradaClas2kEmpatePareja, infoGanadorEmparej
 from .Constantes import ESTADISTICOEQ, REPORTLEYENDAS, ESTADISTICOJUG, COLS_IDENTIFIC_JUG
-from .FuncionesAux import auxCalculaBalanceStrSuf, GENERADORETTIRO, GENERADORETREBOTE
-from .Globals import recuperaEstadsGlobales, recuperaClasifLiga
+from .FuncionesAux import auxCalculaBalanceStrSuf, GENERADORETTIRO, GENERADORETREBOTE, etiquetasClasificacion, \
+    auxCalculaFirstBalNeg
+from .Globals import recuperaEstadsGlobales, recuperaClasifLiga, clasifLiga2dict
 
 sentinel = object()
-
-estadGlobalesOrdenX = SMACB.Programa.Globals.estadGlobalesOrden
 
 filaComparEstadistica = namedtuple('filaComparEstadistica',
                                    ['magn', 'isAscending', 'locAbr', 'locMagn', 'locRank', 'locHigh', 'maxMagn',
@@ -22,11 +22,16 @@ filaComparEstadistica = namedtuple('filaComparEstadistica',
 tuplaMaxMinMagn = namedtuple('tuplaMaxMinMagn',
                              ['minVal', 'minEtq', 'minAbrevs', 'maxVal', 'maxEtq', 'maxAbrevs', 'abrevs2add'])
 
+filaTablaClasif = namedtuple('filaTablaClasif',
+                             ['posic', 'nombre', 'jugs', 'victs', 'derrs', 'ratio', 'puntF', 'puntC', 'diffP',
+                              'resalta'])
+
 
 def auxFindTargetAbrevs(tempData: TemporadaACB, datosSig: infoSigPartido, ):
     sigPartido = datosSig.sigPartido
-    result = {k: list(tempData.Calendario.abrevsEquipo(sigPartido['loc2abrev'][k]).intersection(
-        SMACB.Programa.Globals.estadGlobales.index))[0] for k in LocalVisitante}
+    result = {
+        k: list(tempData.Calendario.abrevsEquipo(sigPartido['loc2abrev'][k]).intersection(GlobACB.estadGlobales.index))[
+            0] for k in LocalVisitante}
 
     return result
 
@@ -65,7 +70,7 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
 
     estadsInexistentes = set()
     abrevs2leyenda = set()
-    clavesEnEstads = set(sorted(SMACB.Programa.Globals.estadGlobales.columns))
+    clavesEnEstads = set(sorted(GlobACB.estadGlobales.columns))
 
     for claveEst in magn2include:
 
@@ -88,8 +93,8 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
         esCreciente = esEstCreciente(kMagn, catsAscending, kEq)
         labCreciente = "C" if esCreciente else "D"
 
-        serMagn: pd.Series = SMACB.Programa.Globals.estadGlobales[clave2use]
-        serMagnOrden: pd.Series = SMACB.Programa.Globals.estadGlobalesOrden[clave2use]
+        serMagn: pd.Series = GlobACB.estadGlobales[clave2use]
+        serMagnOrden: pd.Series = GlobACB.estadGlobalesOrden[clave2use]
         magnMed = serMagn.mean()
         magnStd = serMagn.std()
 
@@ -198,11 +203,6 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     return result
 
 
-filaTablaClasif = namedtuple('filaTablaClasif',
-                             ['posic', 'nombre', 'jugs', 'victs', 'derrs', 'ratio', 'puntF', 'puntC', 'diffP',
-                              'resalta'])
-
-
 def datosTablaClasif(tempData: TemporadaACB, datosSig: infoSigPartido) -> list[filaTablaClasif]:
     # Data preparation
     sigPartido = datosSig.sigPartido
@@ -213,23 +213,17 @@ def datosTablaClasif(tempData: TemporadaACB, datosSig: infoSigPartido) -> list[f
     recuperaClasifLiga(tempData)
 
     result = []
-    for posic, eq in enumerate(SMACB.Programa.Globals.clasifLiga):
-        nombEqAux = eq.nombreCorto
+    for posic, eq in enumerate(GlobACB.clasifLiga):
         notaClas = auxCalculaBalanceStrSuf(record=eq, addPendientes=True, currJornada=jornada,
                                            addPendJornada=muestraJornada,
                                            jornadasCompletas=tempData.jornadasCompletas())
-        nombEq = f"{nombEqAux}{notaClas}"
-        victs = eq.V
-        derrs = eq.D
-        jugs = victs + derrs
-        ratio = (100.0 * victs / jugs) if (jugs != 0) else 0.0
-        puntF = eq.Pfav
-        puntC = eq.Pcon
-        diffP = puntF - puntC
+        nombEq = f"{eq.nombreCorto}{notaClas}"
+        jugs = eq.V + eq.D
+        ratio = (100.0 * eq.V / jugs) if (jugs != 0) else 0.0
         resaltaFila = bool(abrsEqs.intersection(eq.abrevsEq))
 
-        fila = filaTablaClasif(posic=posic + 1, nombre=nombEq, jugs=jugs, victs=victs, derrs=derrs, ratio=ratio,
-                               puntF=puntF, puntC=puntC, diffP=diffP, resalta=resaltaFila)
+        fila = filaTablaClasif(posic=posic + 1, nombre=nombEq, jugs=jugs, victs=eq.V, derrs=eq.D, ratio=ratio,
+                               puntF=eq.Pfav, puntC=eq.Pcon, diffP=(eq.Pfav - eq.Pcon), resalta=resaltaFila)
 
         result.append(fila)
 
@@ -267,3 +261,81 @@ INFOESTADSEQ = {('Eq', 'P'): {'etiq': 'PF', 'formato': 'float'}, ('Rival', 'P'):
                 ('Rival', 'A'): {'formato': 'float'}, ('Rival', 'BP'): {'formato': 'float'},
                 ('Rival', 'BR'): {'formato': 'float'}, ('Rival', 'A/BP'): {'formato': 'float'},
                 ('Rival', 'A/TC-C'): {'etiq': 'A/Can', 'formato': 'float'}, ('Rival', 'PNR'): {'formato': 'float'}, }
+
+
+def extraeDatosCruces(tempData: TemporadaACB):
+    recuperaClasifLiga(tempData=tempData)
+    datosLR = clasifLiga2dict(tempData=tempData)
+
+    acumulador = defaultdict(lambda: {'pendientes': 2})
+
+    for p in tempData.Partidos.values():
+        if tempData.Calendario.Jornadas[p.jornada]['esPlayoff']:
+            continue
+        clave = tuple(sorted(p.CodigosCalendario.values()))
+        acumulador[clave]['pendientes'] -= 1
+
+        datosPart = p.DatosSuministrados['equipos']
+        for loc in LocalVisitante:
+            datos = datosPart[loc]
+            datosOtro = datosPart[OtherLoc(loc)]
+            abrev = datos['abrev']
+            diffP = datos['puntos'] - datosOtro['puntos']
+            if datos['haGanado']:
+                sufLoc = "L" if loc == "Local" else "V"
+                acumulador[clave]['prec'] = (abrev, sufLoc, diffP)
+
+        if acumulador[clave]['pendientes'] == 0:
+            acumulador[clave].pop('prec')
+
+            l1 = calculaClasifLiga(tempData, abrevList=set(clave))
+            sortkeys = sorted([(infoClas.abrevAusar, entradaClas2kEmpatePareja(infoClas, datosLR)) for infoClas in l1],
+                              key=itemgetter(1), reverse=True)
+            acumulador[clave]['ganador'] = infoGanadorEmparej(sortkeys)
+
+    return acumulador
+
+
+def preparaInfoCruces(tempData: TemporadaACB):
+    GlobACB.recuperaClasifLiga(tempData)
+
+    result = {}
+
+    result['equipos'] = etiquetasClasificacion(GlobACB.clasifLiga)
+    result['firstNegBal'] = auxCalculaFirstBalNeg(GlobACB.clasifLiga)
+    result['datosDiagonal'] = {eq.abrevAusar: {'pos': pos, 'V': eq.V, 'D': eq.D, 'diffP': (eq.Pfav - eq.Pcon)} for
+                               pos, eq in enumerate(GlobACB.clasifLiga, start=1)}
+    result['datosContadores'] = defaultdict(
+        lambda: {'G': 0, 'P': 0, 'Pdte': 0, 'PendV': 0, 'PendD': 0, 'crit': defaultdict(int)})
+    result['datosTotales'] = {'Resueltos': 0, 'Pdtes': 0,
+                              'criterios': {'res': defaultdict(int), 'pend': defaultdict(int)}}
+
+    infoCruce = namedtuple('infoCruce', field_names=['eq1', 'eq2', 'info'])
+
+    result['resueltos'] = []
+    result['pendientes'] = []
+
+    datosCruces = extraeDatosCruces(tempData)
+
+    for clave, estado in datosCruces.items():
+        if 'prec' in estado:
+            result['datosTotales']['Pdtes'] += 1
+            abrGan, locGan, _ = estado['prec']
+            result['datosTotales']['criterios']['pend'][locGan] += 1
+            result['pendientes'].append(infoCruce(eq1=clave[0], eq2=clave[1], info=estado['prec']))
+            for abr in clave:
+                result['datosContadores'][abr]['Pdte'] += 1
+                result['datosContadores'][abr]['PendV' if (abr == abrGan) else 'PendD'] += 1
+        elif 'ganador' in estado:
+            result['datosTotales']['Resueltos'] += 1
+            abrGan, critGan, _ = estado['ganador']
+            result['datosTotales']['criterios']['res'][critGan] += 1
+            result['resueltos'].append(infoCruce(eq1=clave[0], eq2=clave[1], info=estado['ganador']))
+            for abr in clave:
+                result['datosContadores'][abr]['G' if (abr == abrGan) else 'P'] += 1
+                if abr == abrGan:
+                    result['datosContadores'][abr]['crit'][critGan] += 1
+        else:
+            raise ValueError(f"No se tratar Cruce: {clave}:{estado}")
+
+    return result
