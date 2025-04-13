@@ -4,8 +4,9 @@ from reportlab.platypus import NextPageTemplate, PageBreak, Spacer
 from SMACB.Constants import infoSigPartido
 from SMACB.Programa.Funciones import preparaListaTablas
 from SMACB.Programa.Globals import CATESTADSEQASCENDING
-from SMACB.Programa.Secciones import tablaAnalisisEstadisticos, paginasJugadores, tablaLiga, auxGeneraLeyendaLiga, \
-    cabeceraPortada, metadataPrograma, bloqueRestoJYBasics, tablaClasifLiga, reportTrayectoriaEquipos, tablaCruces
+from SMACB.Programa.Secciones import tablaAnalisisEstadisticos, paginasJugadores, tablaLigaOld, auxGeneraLeyendaLiga, \
+    cabeceraPortada, metadataPrograma, bloqueRestoJYBasics, tablaClasifLiga, reportTrayectoriaEquipos, tablaCruces, \
+    tablaLiga2
 from SMACB.TemporadaACB import TemporadaACB
 
 
@@ -41,11 +42,11 @@ def paginaJugadores(tempData: TemporadaACB, datosSig: infoSigPartido, argListaTa
     return result
 
 
-def paginaPartidosLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
+def paginaPartidosLigaOld(tempData: TemporadaACB, datosSig: infoSigPartido):
     result = []
     result.append(NextPageTemplate('apaisada'))
     result.append(PageBreak())
-    result.append(tablaLiga(tempData, equiposAmarcar=datosSig.abrevLV, currJornada=int(datosSig.sigPartido['jornada'])))
+    result.append(tablaLigaOld(tempData, equiposAmarcar=datosSig.abrevLV, currJornada=int(datosSig.sigPartido['jornada'])))
     result.append(auxGeneraLeyendaLiga())
 
     return result
@@ -78,5 +79,16 @@ def paginaCruces(tempData: TemporadaACB):
     result.append(PageBreak())
     result.append(tablaCruces(tempData))
     # result.append(presTablaCrucesEstilos())
+
+    return result
+
+
+def paginaPartidosLiga2(tempData: TemporadaACB, datosSig: infoSigPartido):
+    result = []
+    result.append(NextPageTemplate('apaisada'))
+    result.append(PageBreak())
+    result.append(tablaLiga2(tempData, equiposAmarcar=datosSig.abrevLV, currJornada=int(datosSig.sigPartido['jornada']),
+                             FONTSIZE=9))
+    result.append(auxGeneraLeyendaLiga())
 
     return result

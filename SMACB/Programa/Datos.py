@@ -1,6 +1,7 @@
 from _operator import itemgetter
 from collections import namedtuple, defaultdict
 from copy import copy
+from typing import Optional
 
 import pandas as pd
 
@@ -10,7 +11,7 @@ from SMACB.TemporadaACB import TemporadaACB, esEstCreciente, auxEtiqPartido
 from .Clasif import calculaClasifLiga, entradaClas2kEmpatePareja, infoGanadorEmparej
 from .Constantes import ESTADISTICOEQ, REPORTLEYENDAS, ESTADISTICOJUG, COLS_IDENTIFIC_JUG
 from .FuncionesAux import auxCalculaBalanceStrSuf, GENERADORETTIRO, GENERADORETREBOTE, etiquetasClasificacion, \
-    auxCalculaFirstBalNeg
+    auxCalculaFirstBalNeg, FMTECHACORTA
 from .Globals import recuperaEstadsGlobales, recuperaClasifLiga, clasifLiga2dict
 
 sentinel = object()
@@ -303,8 +304,7 @@ def preparaInfoCruces(tempData: TemporadaACB):
 
     result['equipos'] = etiquetasClasificacion(GlobACB.clasifLiga)
     result['firstNegBal'] = auxCalculaFirstBalNeg(GlobACB.clasifLiga)
-    result['datosDiagonal'] = {eq.abrevAusar: {'pos': pos, 'V': eq.V, 'D': eq.D, 'diffP': (eq.Pfav - eq.Pcon)} for
-                               pos, eq in enumerate(GlobACB.clasifLiga, start=1)}
+    result['datosDiagonal'] = preparaDatosDiagonalYMargenes(tempData=tempData)
     result['datosContadores'] = defaultdict(
         lambda: {'G': 0, 'P': 0, 'Pdte': 0, 'PendV': 0, 'PendD': 0, 'crit': defaultdict(int)})
     result['datosTotales'] = {'Resueltos': 0, 'Pdtes': 0,
@@ -337,5 +337,85 @@ def preparaInfoCruces(tempData: TemporadaACB):
                     result['datosContadores'][abr]['crit'][critGan] += 1
         else:
             raise ValueError(f"No se tratar Cruce: {clave}:{estado}")
+
+    return result
+
+
+def preparaDatosDiagonalYMargenes(tempData: TemporadaACB, currJornada: Optional[int] = None, jornadasCompletas=None):
+    muestraJornada = (
+            len(tempData.Calendario.Jornadas[currJornada]['partidos']) > 0) if currJornada is not None else False
+
+    result = {}
+
+    for pos, eq in enumerate(GlobACB.clasifLiga, start=1):
+        auxResult = {'pos': pos, 'diffP': (eq.Pfav - eq.Pcon)}
+        auxResult['balanceTotal'] = f"{eq.V}-{eq.D}"
+        auxResult['balanceLocal'] = f"{eq.CasaFuera['Local'].V}-{eq.CasaFuera['Local'].D}"
+        auxResult['balanceVisitante'] = f"{eq.CasaFuera['Visitante'].V}-{eq.CasaFuera['Visitante'].D}"
+        if (currJornada is not None) and (jornadasCompletas is not None):
+            auxResult['sufParts'] = auxCalculaBalanceStrSuf(eq, addPendientes=True, currJornada=currJornada,
+                                                            addPendJornada=muestraJornada,
+                                                            jornadasCompletas=jornadasCompletas)
+
+        result[eq.abrevAusar] = auxResult
+
+    return result
+
+
+infoEquipoPartido = namedtuple('infoEquipoPartido', field_names=['loc', 'abrev', 'puntos', 'haGanado'],
+                               defaults=[None, None])
+infoPartido = namedtuple('infoPartido', field_names=['jornada', 'fechaPartido', 'pendiente', 'Local', 'Visitante'])
+
+
+def auxEquipoCalendario2InfoEqPartido(data, loc) -> infoEquipoPartido:
+    auxResult = {'loc': loc}
+    for k in ['abrev', 'puntos', 'haGanado']:
+        auxResult[k] = data.get(k, None)
+    return infoEquipoPartido(**auxResult)
+
+
+def auxEquipoCalendario2InfoPartido(data) -> infoPartido:
+    auxResult = {}
+    for k in ['jornada', 'fechaPartido', 'pendiente']:
+        auxResult[k] = data[k]
+    for k in LocalVisitante:
+        auxResult[k] = auxEquipoCalendario2InfoEqPartido(data['equipos'][k], k)
+    return infoPartido(**auxResult)
+
+
+def extraeInfoTablaLiga(tempData: TemporadaACB):
+    resultado = {'jugados': [], 'pendientes': []}
+
+    for data in tempData.Calendario.Jornadas.values():
+        if data['esPlayoff']:
+            continue
+
+        for part in data['partidos']:
+            resultado['jugados'].append(auxEquipoCalendario2InfoPartido(part))
+        for part in data['pendientes']:
+            resultado['pendientes'].append(auxEquipoCalendario2InfoPartido(part))
+    return resultado
+
+
+def preparaInfoLiga(tempData: TemporadaACB, currJornada: int = None):
+    GlobACB.recuperaClasifLiga(tempData)
+    jornadasCompletas = tempData.jornadasCompletas()
+
+    result = {'jugados': [], 'pendientes': []}
+
+    result['equipos'] = etiquetasClasificacion(GlobACB.clasifLiga)
+    result['firstNegBal'] = auxCalculaFirstBalNeg(GlobACB.clasifLiga)
+    result['datosDiagonal'] = preparaDatosDiagonalYMargenes(tempData=tempData, currJornada=currJornada,
+                                                            jornadasCompletas=jornadasCompletas)
+
+    datosLiga = extraeInfoTablaLiga(tempData=tempData)
+    for pJug in datosLiga['jugados']:
+        resultadoStr = f"{pJug.Local.puntos}-{pJug.Visitante.puntos}"
+        auxResult = (pJug.Local.abrev, pJug.Visitante.abrev, pJug.jornada, resultadoStr)
+        result['jugados'].append(auxResult)
+    for pPend in datosLiga['pendientes']:
+        fechaStr = 'TBD' if (pPend.fechaPartido is None) else pPend.fechaPartido.strftime(FMTECHACORTA)
+        auxResult = (pPend.Local.abrev, pPend.Visitante.abrev, pPend.jornada, fechaStr)
+        result['pendientes'].append(auxResult)
 
     return result

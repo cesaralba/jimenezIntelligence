@@ -17,19 +17,19 @@ from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden
 from Utils.FechaHora import NEVER
 from Utils.ReportLab.RLverticalText import VerticalParagraph
 from .Clasif import infoClasifComplPareja
-from .Constantes import ESTADISTICOEQ, estiloNegBal, estiloPosMarker, colEq, DEFTABVALUE, FORMATOCAMPOS, nombresClasif, \
-    colorTablaDiagonal, ANCHOMARCAPOS
+from .Constantes import (ESTADISTICOEQ, estiloNegBal, estiloPosMarker, colEq, DEFTABVALUE, FORMATOCAMPOS,
+                         colorTablaDiagonal, ANCHOMARCAPOS)
 from .Datos import datosRestoJornada
 from .FuncionesAux import auxCalculaBalanceStr, auxCalculaFirstBalNeg, auxJugsBajaTablaJugs, FMTECHACORTA, \
     GENERADORCLAVEDORSAL, GENERADORFECHA, GENMAPDICT, GENERADORTIEMPO, GENERADORETTIRO, GENERADORETREBOTE, auxBold, \
     equipo2clasif, auxLabelEqTabla, auxCruceDiag, auxCruceTotalPend, auxCruceTotalResuelto, auxCruceResuelto, \
-    auxCrucePendiente, auxCruceTotales
+    auxCrucePendiente, auxCruceTotales, auxLigaDiag, auxTablaLigaPartJugado, auxTablaLigaPartPendiente
 from .Globals import recuperaClasifLiga, recuperaEstadsGlobales
 
 ESTILOS = getSampleStyleSheet()
 
 
-def presTablaPartidosLiga(tempData: TemporadaACB, currJornada: int = None, FONTSIZE=10, CELLPAD=3 * mm):
+def presTablaPartidosLigaOld(tempData: TemporadaACB, currJornada: Optional[int] = None, FONTSIZE=10, CELLPAD=3 * mm):
     """
     Calcula los datos que rellenarán la tabla de liga así como las posiciones de los partidos jugados y pendientes para
     darles formato
@@ -295,8 +295,7 @@ def bloqueCabEquipo(datosEq, tempData, fecha, currJornada: int = None):
     return result
 
 
-def presTablaPartidosLigaEstilos(CELLPAD, FONTSIZE, coordsJuPe, datosAux, equiposAmarcar, firstNegBal):
-
+def presTablaPartidosLigaEstilosOld(CELLPAD, FONTSIZE, coordsJuPe, datosAux, equiposAmarcar, firstNegBal):
     listaEstilos = [('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
                     ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE), ('LEADING', (0, 0), (-1, -1), FONTSIZE),
@@ -659,7 +658,7 @@ def auxFilasTablaEstadisticos(datosAmostrar: dict, clavesEquipo: list | None = N
     return result, leyendas
 
 
-def presTablaCruces(data, FONTSIZE=10, CELLPAD=3 * mm):
+def presTablaCruces(data, FONTSIZE=9, CELLPAD=3 * mm):
     ancho = 2 + len(data['equipos'])
     alto = 2 + len(data['equipos'])
 
@@ -677,7 +676,7 @@ def presTablaCruces(data, FONTSIZE=10, CELLPAD=3 * mm):
 
     clavesAmostrar = [crit for crit in infoClasifComplPareja._fields if
                       crit in data['datosTotales']['criterios']['res']]
-    result[-1][-1] = Paragraph(auxCruceTotales(data['datosTotales']), style=estCelda) # , clavesAmostrar
+    result[-1][-1] = Paragraph(auxCruceTotales(data['datosTotales']), style=estCelda)  # , clavesAmostrar
 
     datosDiag = data['datosDiagonal']
     datosCont = data['datosContadores']
@@ -701,7 +700,7 @@ def presTablaCruces(data, FONTSIZE=10, CELLPAD=3 * mm):
     return result
 
 
-def presTablaCrucesEstilos(data, CELLPAD, FONTSIZE):
+def presTablaCrucesEstilos(data, FONTSIZE=9, CELLPAD=3 * mm):
     firstNegBal = data['firstNegBal']
 
     listaEstilos = [('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
@@ -744,4 +743,82 @@ def presTablaCrucesEstilos(data, CELLPAD, FONTSIZE):
     #     for pos, _ in seqIDs:
     #         listaEstilos.append(("BACKGROUND", (pos + 1, 0), (pos + 1, 0), colEq))
     #         listaEstilos.append(("BACKGROUND", (0, pos + 1), (0, pos + 1), colEq))
+    return listaEstilos
+
+
+def presTablaLiga2(data, FONTSIZE=9, CELLPAD=3 * mm):
+    ancho = 2 + len(data['equipos'])
+    alto = 2 + len(data['equipos'])
+
+    if 'celTabLiga' not in ESTILOS:
+        estCelda = ParagraphStyle('celTabLiga', ESTILOS.get('Normal'), fontSize=FONTSIZE, leading=FONTSIZE,
+                                  alignment=TA_CENTER, borderPadding=CELLPAD, spaceAfter=CELLPAD, spaceBefore=CELLPAD)
+        ESTILOS.add(estCelda)
+    else:
+        estCelda = ESTILOS.get('celTabLiga')
+
+    result = [[Paragraph('', style=estCelda)] * alto for _ in range(ancho)]
+    result[0][0] = Paragraph('Casa/Fuera', style=estCelda)
+    result[0][-1] = Paragraph('Como local', style=estCelda)
+    result[-1][0] = Paragraph('Como visitante', style=estCelda)
+
+    result[-1][-1] = Paragraph(
+        f'J:{(100 * len(data['jugados']) / (len(data['pendientes']) + len(data['jugados']))):.2g}%',
+        style=estCelda)  # , clavesAmostrar
+
+    datosDiag = data['datosDiagonal']
+
+    for eq in data['equipos']:
+        pos = eq.pos
+        abrev = eq.abrev
+
+        result[pos][0] = Paragraph(auxLabelEqTabla(eq.nombre, abrev), style=estCelda)
+        result[0][pos] = Paragraph(auxBold(abrev), style=estCelda)
+        result[pos][pos] = Paragraph(auxBold(auxLigaDiag(datosDiag[abrev], ponBal=True, ponSuf=True)), style=estCelda)
+        result[-1][pos] = Paragraph((datosDiag[abrev]['balanceVisitante']), style=estCelda)
+        result[pos][-1] = Paragraph((datosDiag[abrev]['balanceLocal']), style=estCelda)
+
+    for part in data['jugados']:
+        coords = [datosDiag[abr]['pos'] for abr in [part[0], part[1]]]
+        result[coords[0]][coords[1]] = Paragraph(auxTablaLigaPartJugado(part), style=estCelda)
+
+    for part in data['pendientes']:
+        coords = [datosDiag[abr]['pos'] for abr in [part[0], part[1]]]
+        result[coords[0]][coords[1]] = Paragraph(auxTablaLigaPartPendiente(part), style=estCelda)
+
+    return result
+
+
+def presTablaLiga2Estilos(data, equiposAmarcar: Optional[Iterable[str]] = None, FONTSIZE=9, CELLPAD=3 * mm):
+
+    listaEstilos = [('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
+                    ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE), ('LEADING', (0, 0), (-1, -1), FONTSIZE),
+                    ('LEFTPADDING', (0, 0), (-1, -1), CELLPAD), ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD),
+                    ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD),
+                    ("BACKGROUND", (-1, 1), (-1, -2), colors.lightgrey),
+                    ("BACKGROUND", (1, -1), (-2, -1), colors.lightgrey)]
+
+    # Diagonal
+    for i in range(1, len(data['equipos']) + 1):
+        listaEstilos.append(("BACKGROUND", (i, i), (i, i), colorTablaDiagonal))
+
+    auxListaPosMarkers = []
+    for pos in MARCADORESCLASIF:
+        auxEstilo = estiloNegBal if (data['firstNegBal'] and pos == (data['firstNegBal'] - 1)) else estiloPosMarker
+        auxListaPosMarkers.append((pos, auxEstilo))
+    if (data['firstNegBal'] and (data['firstNegBal'] - 1) not in MARCADORESCLASIF):
+        auxListaPosMarkers.append((data['firstNegBal'] - 1, estiloNegBal))
+    for pos, resto in auxListaPosMarkers:
+        commH, commV, incr = ("LINEBELOW", "LINEAFTER", 0) if pos >= 0 else ("LINEABOVE", "LINEBEFORE", -1)
+        posIni, posFin = (0, pos + incr) if pos >= 0 else (pos + incr, -1)
+
+        listaEstilos.append([commH, (posIni, pos + incr), (posFin, pos + incr), ANCHOMARCAPOS] + resto)
+        listaEstilos.append([commV, (pos + incr, posIni), (pos + incr, posFin), ANCHOMARCAPOS] + resto)
+    print(equiposAmarcar)
+    if equiposAmarcar is not None:
+        for pos in [data['datosDiagonal'][abrev]['pos'] for abrev in equiposAmarcar]:
+            listaEstilos.append(("BACKGROUND", (pos, 0), (pos, 0), colEq))
+            listaEstilos.append(("BACKGROUND", (0, pos), (0, pos), colEq))
+
     return listaEstilos

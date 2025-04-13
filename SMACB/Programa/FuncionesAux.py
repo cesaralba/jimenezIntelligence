@@ -238,10 +238,17 @@ def auxLabelEqTabla(nombre: str, abrev: str) -> str:
 
 
 def auxCruceDiag(diag, ponBal=False, ponDif=False) -> str:
-    strSep = "<br/>" if ponBal or ponDif else ""
-    strBal = f"<b>{diag['V']}-{diag['D']}</b>" if ponBal else ""
-    strDif = f"<b>({diag['diffP']})</b>" if ponDif else ""
+    strSep = "<br/>" if (ponBal and ponDif) else ""
+    strBal = diag['balanceTotal'] if ponBal else ""
+    strDif = f"({diag['diffP']})" if ponDif else ""
     return f"{strBal}{strSep}{strDif}"
+
+
+def auxLigaDiag(diag, ponBal=False, ponSuf=False) -> str:
+    strSep = " " if (ponBal or ponSuf) else ""
+    strBal = diag['balanceTotal'] if ponBal else ""
+    strSuf = f"{diag.get('sufParts', '')}" if ponSuf and ('sufParts' in diag) and (diag['sufParts'] != "") else ""
+    return f"{strBal}{strSep}{strSuf}"
 
 
 def auxCruceTotalPend(conts):
@@ -268,10 +275,18 @@ def auxCrucePendiente(data):
     return f"<b>{data[0]}</b><br/>{auxStr}"
 
 
-def auxCruceTotales(data): #, clavesAmostrar: List[str]
+def auxCruceTotales(data):  # , clavesAmostrar: List[str]
     # strCritsRes = "/".join(map(str, [data['criterios']['res'][crit] for crit in clavesAmostrar]))
     # strCritsPend = "/".join(map(str, [data['criterios']['res'][crit] for crit in ['L', 'V']]))
     strRes = f"<b>Rs:</b>{data['Resueltos']}"  # ({strCritsRes})
     strPend = f"<b>Pd:</b>{data['Pdtes']}"  # ({strCritsPend})
 
     return f"{strRes}<br/>{strPend}"
+
+
+def auxTablaLigaPartJugado(part):
+    return f"J:{part[2]}<br/><b>{part[3]}</b>"
+
+
+def auxTablaLigaPartPendiente(part):
+    return f"J:{part[2]}<br/>@{part[3]}"
