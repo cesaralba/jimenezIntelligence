@@ -29,9 +29,8 @@ from Utils.FechaHora import fechaParametro2pddatetime, fecha2fechaCalDif
 from Utils.Pandas import combinaPDindexes
 from Utils.Web import prepareDownloading
 from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
-from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoClasifBase, infoClasifEquipo,
-                        infoEqCalendario, infoPartLV, infoSigPartido, LOCALNAMES, LocalVisitante, OtherLoc, OtherTeam,
-                        infoClasifComplMasD2, infoClasifComplPareja, )
+from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEqCalendario, infoPartLV, infoSigPartido,
+                        LOCALNAMES, LocalVisitante, OtherLoc, OtherTeam, )
 from .FichaEntrenador import FichaEntrenador
 from .FichaJugador import FichaJugador, CAMBIOSJUGADORES
 from .PartidoACB import PartidoACB
@@ -283,10 +282,7 @@ class TemporadaACB:
 
         # TODO: Procesar ficha de entrenadores
         for codE in nuevoPartido.Entrenadores:
-            if codE not in self.fichaEntrenadores:
-                newEnt = FichaEntrenador(id=codE)
-                newEnt.actualizaDatosWeb(browser=browser,config=config)
-                self.fichaEntrenadores[codE]=newEnt
+            pass
 
     def actualizaPlantillas(self, browser=None, config=None):
         result = False
