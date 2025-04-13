@@ -1,10 +1,8 @@
-from _operator import itemgetter
-from collections import defaultdict
 from itertools import product
+from operator import itemgetter
 from typing import Set, Optional, List, Iterable
 
 import pandas as pd
-from CAPcore.Misc import listize
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -13,116 +11,19 @@ from reportlab.platypus import Paragraph, TableStyle, Table
 
 import SMACB.Programa.Globals as GlobACB
 from SMACB.Constants import infoSigPartido, LocalVisitante, MARCADORESCLASIF, RANKFORMAT
+from SMACB.Programa.Clasif import infoClasifComplPareja
+from SMACB.Programa.Constantes import (ESTADISTICOEQ, estiloNegBal, estiloPosMarker, colEq, DEFTABVALUE, FORMATOCAMPOS,
+                                       colorTablaDiagonal, ANCHOMARCAPOS)
+from SMACB.Programa.Datos import datosRestoJornada
+from SMACB.Programa.FuncionesAux import auxCalculaBalanceStr, auxJugsBajaTablaJugs, GENERADORCLAVEDORSAL, \
+    GENERADORFECHA, GENMAPDICT, GENERADORTIEMPO, GENERADORETTIRO, GENERADORETREBOTE, auxBold, equipo2clasif, \
+    auxLabelEqTabla, auxCruceDiag, auxCruceTotalPend, auxCruceTotalResuelto, auxCruceResuelto, auxCrucePendiente, \
+    auxCruceTotales, auxLigaDiag, auxTablaLigaPartJugado, auxTablaLigaPartPendiente
+from SMACB.Programa.Globals import recuperaClasifLiga, recuperaEstadsGlobales
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden
-from Utils.FechaHora import NEVER
 from Utils.ReportLab.RLverticalText import VerticalParagraph
-from .Clasif import infoClasifComplPareja
-from .Constantes import (ESTADISTICOEQ, estiloNegBal, estiloPosMarker, colEq, DEFTABVALUE, FORMATOCAMPOS,
-                         colorTablaDiagonal, ANCHOMARCAPOS)
-from .Datos import datosRestoJornada
-from .FuncionesAux import auxCalculaBalanceStr, auxCalculaFirstBalNeg, auxJugsBajaTablaJugs, FMTECHACORTA, \
-    GENERADORCLAVEDORSAL, GENERADORFECHA, GENMAPDICT, GENERADORTIEMPO, GENERADORETTIRO, GENERADORETREBOTE, auxBold, \
-    equipo2clasif, auxLabelEqTabla, auxCruceDiag, auxCruceTotalPend, auxCruceTotalResuelto, auxCruceResuelto, \
-    auxCrucePendiente, auxCruceTotales, auxLigaDiag, auxTablaLigaPartJugado, auxTablaLigaPartPendiente
-from .Globals import recuperaClasifLiga, recuperaEstadsGlobales
 
 ESTILOS = getSampleStyleSheet()
-
-
-def presTablaPartidosLigaOld(tempData: TemporadaACB, currJornada: Optional[int] = None, FONTSIZE=10, CELLPAD=3 * mm):
-    """
-    Calcula los datos que rellenarán la tabla de liga así como las posiciones de los partidos jugados y pendientes para
-    darles formato
-    :param tempData: Info completa de la temporada
-    :param currJornada: Jornada a la que se refiere el programa
-    :return: listaListasCeldas,tupla de listas de coords de jugados y pendientes, primer eq con balance negativo
-    List
-    """
-
-    muestraJornada = len(tempData.Calendario.Jornadas[currJornada]['partidos']) > 0
-    recuperaClasifLiga(tempData)
-    firstNegBal = auxCalculaFirstBalNeg(GlobACB.clasifLiga)
-
-    if 'celTabLiga' not in ESTILOS:
-        estCelda = ParagraphStyle('celTabLiga', ESTILOS.get('Normal'), fontSize=FONTSIZE, leading=FONTSIZE,
-                                  alignment=TA_CENTER, borderPadding=CELLPAD, spaceAfter=CELLPAD, spaceBefore=CELLPAD)
-        ESTILOS.add(estCelda)
-    else:
-        estCelda = ESTILOS.get('celTabLiga')
-
-    # Precalcula el contenido de la tabla
-    auxTabla = defaultdict(dict)
-    auxTablaJuPe = {'pe': [], 'ju': []}
-
-    for _, jDatos in tempData.Calendario.Jornadas.items():
-        for part in jDatos['partidos']:
-            idLocal = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Local']['abrev']])[0]
-            idVisitante = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Visitante']['abrev']])[0]
-            auxTabla[idLocal][idVisitante] = part
-            auxTablaJuPe['ju'].append((idLocal, idVisitante))
-
-        for part in jDatos['pendientes']:
-            idLocal = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Local']['abrev']])[0]
-            idVisitante = list(tempData.Calendario.tradEquipos['c2i'][part['equipos']['Visitante']['abrev']])[0]
-            auxTabla[idLocal][idVisitante] = part
-            auxTablaJuPe['pe'].append((idLocal, idVisitante))
-
-    # En la clasificación está el contenido de los márgenes, de las diagonales y el orden de presentación
-    # de los equipos
-    seqIDs = [(pos, list(equipo.idEq)[0]) for pos, equipo in enumerate(GlobACB.clasifLiga)]
-
-    datosTabla = []
-    id2pos = {}
-
-    cabFila = [Paragraph('<b>Casa/Fuera</b>', style=estCelda)] + [
-        Paragraph('<b>' + list(GlobACB.clasifLiga[pos].abrevsEq)[0] + '</b>', style=estCelda) for pos, _ in seqIDs] + [
-                  Paragraph('<b>Como local</b>', style=estCelda)]
-    datosTabla.append(cabFila)
-
-    for pos, idLocal in seqIDs:
-        datosEq = GlobACB.clasifLiga[pos]
-
-        id2pos[idLocal] = pos
-        fila = []
-        nombreCorto = datosEq.nombreCorto
-        abrev = datosEq.abrevAusar
-        fila.append(Paragraph(f"{nombreCorto} (<b>{abrev}</b>)", style=estCelda))
-        for _, idVisit in seqIDs:
-            if idLocal != idVisit:  # Partido, la otra se usa para poner el balance
-                part = auxTabla[idLocal][idVisit]
-
-                fechaAux = part.get('fechaPartido', NEVER)
-
-                fecha = 'TBD' if (fechaAux == NEVER) else fechaAux.strftime(FMTECHACORTA)
-                jornada = part['jornada']
-
-                texto = f"J:{jornada}<br/>@{fecha}"
-                if not part['pendiente']:
-                    pLocal = part['equipos']['Local']['puntos']
-                    pVisit = part['equipos']['Visitante']['puntos']
-                    texto = f"J:{jornada}<br/><b>{pLocal}-{pVisit}</b>"
-            else:
-                auxTexto = auxCalculaBalanceStr(datosEq, addPendientes=True, currJornada=currJornada,
-                                                addPendJornada=muestraJornada,
-                                                jornadasCompletas=tempData.jornadasCompletas())
-                texto = f"<b>{auxTexto}</b>"
-            fila.append(Paragraph(texto, style=estCelda))
-
-        fila.append(Paragraph(auxCalculaBalanceStr(datosEq.CasaFuera['Local']), style=estCelda))
-        datosTabla.append(fila)
-
-    filaBalFuera = [Paragraph('<b>Como visitante</b>', style=estCelda)]
-    for pos, idLocal in seqIDs:
-        filaBalFuera.append(
-            Paragraph(auxCalculaBalanceStr(GlobACB.clasifLiga[pos].CasaFuera['Visitante']), style=estCelda))
-    filaBalFuera.append([])
-    datosTabla.append(filaBalFuera)
-
-    coordsPeJu = {tipoPart: [(id2pos[idLocal], id2pos[idVisitante]) for idLocal, idVisitante in listaTipo] for
-                  tipoPart, listaTipo in auxTablaJuPe.items()}
-
-    return datosTabla, coordsPeJu, firstNegBal
-
 
 sentinel = object()
 
@@ -293,48 +194,6 @@ def bloqueCabEquipo(datosEq, tempData, fecha, currJornada: int = None):
               Paragraph(f"<para align='center' fontSize='14'>{clasifStr}</para>")]
 
     return result
-
-
-def presTablaPartidosLigaEstilosOld(CELLPAD, FONTSIZE, coordsJuPe, datosAux, equiposAmarcar, firstNegBal):
-    listaEstilos = [('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
-                    ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE), ('LEADING', (0, 0), (-1, -1), FONTSIZE),
-                    ('LEFTPADDING', (0, 0), (-1, -1), CELLPAD), ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD),
-                    ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD),
-                    ("BACKGROUND", (-1, 1), (-1, -2), colors.lightgrey),
-                    ("BACKGROUND", (1, -1), (-2, -1), colors.lightgrey)]
-    for i in range(1, len(datosAux) - 1):
-        listaEstilos.append(("BACKGROUND", (i, i), (i, i), colorTablaDiagonal))
-
-    auxListaPosMarkers = []
-    for pos in MARCADORESCLASIF:
-        auxEstilo = estiloNegBal if (firstNegBal and pos == (firstNegBal - 1)) else estiloPosMarker
-        auxListaPosMarkers.append((pos, auxEstilo))
-    if (firstNegBal and (firstNegBal - 1) not in MARCADORESCLASIF):
-        auxListaPosMarkers.append((firstNegBal - 1, estiloNegBal))
-    for pos, resto in auxListaPosMarkers:
-        commH, commV, incr = ("LINEBELOW", "LINEAFTER", 0) if pos >= 0 else ("LINEABOVE", "LINEBEFORE", -1)
-        posIni, posFin = (0, pos + incr) if pos >= 0 else (pos + incr, -1)
-
-        listaEstilos.append([commH, (posIni, pos + incr), (posFin, pos + incr), ANCHOMARCAPOS] + resto)
-        listaEstilos.append([commV, (pos + incr, posIni), (pos + incr, posFin), ANCHOMARCAPOS] + resto)
-
-    # Marca los partidos del tipo (jugados o pendientes) que tenga menos
-    claveJuPe = 'ju' if len(coordsJuPe['ju']) <= len(coordsJuPe['pe']) else 'pe'
-    CANTGREYJUPE = .90
-    colP = colors.rgb2cmyk(CANTGREYJUPE, CANTGREYJUPE, CANTGREYJUPE)
-    for x, y in coordsJuPe[claveJuPe]:
-        coord = (y + 1, x + 1)
-        listaEstilos.append(("BACKGROUND", coord, coord, colP))
-
-    if equiposAmarcar is not None:
-        parEqs = set(listize(equiposAmarcar))
-        seqIDs = [(pos, equipo.abrevsEq) for pos, equipo in enumerate(GlobACB.clasifLiga) if
-                  equipo.abrevsEq.intersection(parEqs)]
-        for pos, _ in seqIDs:
-            listaEstilos.append(("BACKGROUND", (pos + 1, 0), (pos + 1, 0), colEq))
-            listaEstilos.append(("BACKGROUND", (0, pos + 1), (0, pos + 1), colEq))
-    return listaEstilos
 
 
 def auxGeneraLeyendaEstadsJugsCelda(leyendaTxt: str):
@@ -746,7 +605,7 @@ def presTablaCrucesEstilos(data, FONTSIZE=9, CELLPAD=3 * mm):
     return listaEstilos
 
 
-def presTablaLiga2(data, FONTSIZE=9, CELLPAD=3 * mm):
+def presTablaPartidosLigaReg(data, FONTSIZE=9, CELLPAD=3 * mm):
     ancho = 2 + len(data['equipos'])
     alto = 2 + len(data['equipos'])
 
@@ -789,8 +648,7 @@ def presTablaLiga2(data, FONTSIZE=9, CELLPAD=3 * mm):
     return result
 
 
-def presTablaLiga2Estilos(data, equiposAmarcar: Optional[Iterable[str]] = None, FONTSIZE=9, CELLPAD=3 * mm):
-
+def presTablaPartidosLigaRegEstilos(data, equiposAmarcar: Optional[Iterable[str]] = None, FONTSIZE=9, CELLPAD=3 * mm):
     listaEstilos = [('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'), ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
                     ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE), ('LEADING', (0, 0), (-1, -1), FONTSIZE),
@@ -815,10 +673,22 @@ def presTablaLiga2Estilos(data, equiposAmarcar: Optional[Iterable[str]] = None, 
 
         listaEstilos.append([commH, (posIni, pos + incr), (posFin, pos + incr), ANCHOMARCAPOS] + resto)
         listaEstilos.append([commV, (pos + incr, posIni), (pos + incr, posFin), ANCHOMARCAPOS] + resto)
-    print(equiposAmarcar)
+
     if equiposAmarcar is not None:
         for pos in [data['datosDiagonal'][abrev]['pos'] for abrev in equiposAmarcar]:
             listaEstilos.append(("BACKGROUND", (pos, 0), (pos, 0), colEq))
             listaEstilos.append(("BACKGROUND", (0, pos), (0, pos), colEq))
 
     return listaEstilos
+
+
+def presGeneraLeyendaLigaRegular(FONTSIZE=8):
+    texto = ("<b>Leyenda en balance total</b>: <b>A</b>:&nbsp;Partido(s) adelantado(s)<b> J</b>:&nbsp;Jornada actual "
+             "pendiente de jugar<b> "
+             "P</b>:&nbsp;Partido(s) pendiente(s)")
+
+    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
+                                 leading=FONTSIZE + 0.5, )
+    result = Paragraph(texto, style=legendStyle)
+
+    return result

@@ -4,9 +4,9 @@ from reportlab.platypus import NextPageTemplate, PageBreak, Spacer
 from SMACB.Constants import infoSigPartido
 from SMACB.Programa.Funciones import preparaListaTablas
 from SMACB.Programa.Globals import CATESTADSEQASCENDING
-from SMACB.Programa.Secciones import tablaAnalisisEstadisticos, paginasJugadores, tablaLigaOld, auxGeneraLeyendaLiga, \
-    cabeceraPortada, metadataPrograma, bloqueRestoJYBasics, tablaClasifLiga, reportTrayectoriaEquipos, tablaCruces, \
-    tablaLiga2
+from SMACB.Programa.Secciones import (tablaAnalisisEstadisticos, paginasJugadores, cabeceraPortada, metadataPrograma, bloqueRestoJYBasics, tablaClasifLiga,
+                                      reportTrayectoriaEquipos, tablaCruces, tablaPartidosLigaReg)
+from SMACB.Programa.Presentacion import presGeneraLeyendaLigaRegular
 from SMACB.TemporadaACB import TemporadaACB
 
 
@@ -42,16 +42,6 @@ def paginaJugadores(tempData: TemporadaACB, datosSig: infoSigPartido, argListaTa
     return result
 
 
-def paginaPartidosLigaOld(tempData: TemporadaACB, datosSig: infoSigPartido):
-    result = []
-    result.append(NextPageTemplate('apaisada'))
-    result.append(PageBreak())
-    result.append(tablaLigaOld(tempData, equiposAmarcar=datosSig.abrevLV, currJornada=int(datosSig.sigPartido['jornada'])))
-    result.append(auxGeneraLeyendaLiga())
-
-    return result
-
-
 def paginaPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
     result = []
 
@@ -83,12 +73,13 @@ def paginaCruces(tempData: TemporadaACB):
     return result
 
 
-def paginaPartidosLiga2(tempData: TemporadaACB, datosSig: infoSigPartido):
+def paginaPartidosLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
     result = []
     result.append(NextPageTemplate('apaisada'))
     result.append(PageBreak())
-    result.append(tablaLiga2(tempData, equiposAmarcar=datosSig.abrevLV, currJornada=int(datosSig.sigPartido['jornada']),
+    result.append(
+        tablaPartidosLigaReg(tempData, equiposAmarcar=datosSig.abrevLV, currJornada=int(datosSig.sigPartido['jornada']),
                              FONTSIZE=9))
-    result.append(auxGeneraLeyendaLiga())
+    result.append(presGeneraLeyendaLigaRegular())
 
     return result

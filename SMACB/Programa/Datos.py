@@ -1,18 +1,18 @@
-from _operator import itemgetter
 from collections import namedtuple, defaultdict
 from copy import copy
+from operator import itemgetter
 from typing import Optional
 
 import pandas as pd
 
 import SMACB.Programa.Globals as GlobACB
 from SMACB.Constants import infoSigPartido, LocalVisitante, DEFAULTNUMFORMAT, TRADPOSICION, OtherLoc
+from SMACB.Programa.Clasif import calculaClasifLiga, entradaClas2kEmpatePareja, infoGanadorEmparej
+from SMACB.Programa.Constantes import ESTADISTICOEQ, REPORTLEYENDAS, ESTADISTICOJUG, COLS_IDENTIFIC_JUG
+from SMACB.Programa.FuncionesAux import auxCalculaBalanceStrSuf, GENERADORETTIRO, GENERADORETREBOTE, \
+    etiquetasClasificacion, auxCalculaFirstBalNeg, FMTECHACORTA
+from SMACB.Programa.Globals import recuperaEstadsGlobales, recuperaClasifLiga, clasifLiga2dict
 from SMACB.TemporadaACB import TemporadaACB, esEstCreciente, auxEtiqPartido
-from .Clasif import calculaClasifLiga, entradaClas2kEmpatePareja, infoGanadorEmparej
-from .Constantes import ESTADISTICOEQ, REPORTLEYENDAS, ESTADISTICOJUG, COLS_IDENTIFIC_JUG
-from .FuncionesAux import auxCalculaBalanceStrSuf, GENERADORETTIRO, GENERADORETREBOTE, etiquetasClasificacion, \
-    auxCalculaFirstBalNeg, FMTECHACORTA
-from .Globals import recuperaEstadsGlobales, recuperaClasifLiga, clasifLiga2dict
 
 sentinel = object()
 
@@ -397,7 +397,7 @@ def extraeInfoTablaLiga(tempData: TemporadaACB):
     return resultado
 
 
-def preparaInfoLiga(tempData: TemporadaACB, currJornada: int = None):
+def preparaInfoLigaReg(tempData: TemporadaACB, currJornada: int = None):
     GlobACB.recuperaClasifLiga(tempData)
     jornadasCompletas = tempData.jornadasCompletas()
 

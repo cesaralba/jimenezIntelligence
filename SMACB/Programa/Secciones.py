@@ -3,7 +3,7 @@ from time import strftime, gmtime
 from typing import List, Optional, Iterable
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY, TA_RIGHT
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, TableStyle, Table, NextPageTemplate, PageBreak, Spacer
@@ -12,12 +12,12 @@ import SMACB.Programa.Globals
 from SMACB.Constants import infoSigPartido, MARCADORESCLASIF, filaTrayectoriaEq
 from SMACB.Programa.Constantes import estiloNegBal, estiloPosMarker, colEq
 from SMACB.Programa.Datos import datosTablaClasif, datosJugadores, auxFindTargetAbrevs, datosAnalisisEstadisticos, \
-    preparaInfoCruces, preparaInfoLiga
+    preparaInfoCruces, preparaInfoLigaReg
 from SMACB.Programa.FuncionesAux import auxCalculaFirstBalNeg, partidoTrayectoria, auxBold
 from SMACB.Programa.Globals import recuperaClasifLiga, recuperaEstadsGlobales
-from SMACB.Programa.Presentacion import tablaEstadsBasicas, tablaRestoJornada, bloqueCabEquipo, presTablaPartidosLigaOld, \
-    presTablaPartidosLigaEstilosOld, tablasJugadoresEquipo, auxGeneraLeyendaEstadsCelda, auxFilasTablaEstadisticos, \
-    presTablaCruces, presTablaCrucesEstilos, presTablaLiga2, presTablaLiga2Estilos
+from SMACB.Programa.Presentacion import tablaEstadsBasicas, tablaRestoJornada, bloqueCabEquipo, tablasJugadoresEquipo, \
+    auxGeneraLeyendaEstadsCelda, auxFilasTablaEstadisticos, presTablaCruces, presTablaCrucesEstilos, \
+    presTablaPartidosLigaReg, presTablaPartidosLigaRegEstilos
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.FechaHora import time2Str
 
@@ -259,36 +259,6 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
     return t
 
 
-def tablaLigaOld(tempData: TemporadaACB, equiposAmarcar=None, currJornada: int = None):
-    CELLPAD = 0.3 * mm
-    FONTSIZE = 9
-
-    datosAux, coordsJuPe, firstNegBal = presTablaPartidosLigaOld(tempData, currJornada)
-
-    alturas = [22] + [28.7] * (len(datosAux) - 2) + [21]
-    anchos = [76] + [39] * (len(datosAux) - 2) + [38]
-
-    listaEstilos = presTablaPartidosLigaEstilosOld(CELLPAD, FONTSIZE, coordsJuPe, datosAux, equiposAmarcar, firstNegBal)
-    tStyle = TableStyle(listaEstilos)
-
-    t = Table(datosAux, style=tStyle, rowHeights=alturas, colWidths=anchos)
-
-    return t
-
-
-def auxGeneraLeyendaLiga():
-    texto = ("<b>Leyenda en balance total</b>: <b>A</b>:&nbsp;Partido(s) adelantado(s)<b> J</b>:&nbsp;Jornada actual "
-             "pendiente de jugar<b> "
-             "P</b>:&nbsp;Partido(s) pendiente(s)")
-
-    FONTSIZE = 8
-    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
-                                 leading=FONTSIZE + 0.5, )
-    result = Paragraph(texto, style=legendStyle)
-
-    return result
-
-
 def paginasJugadores(tempData: TemporadaACB, abrEqs, juLocal, juVisit, tablas: List[str]):
     result = []
 
@@ -411,18 +381,18 @@ def tablaCruces(tempData: TemporadaACB, CELLPAD=0.3 * mm, FONTSIZE=9) -> Table:
     return t
 
 
-def tablaLiga2(tempData: TemporadaACB, equiposAmarcar: Optional[Iterable[str]] = None,
-               currJornada: Optional[int] = None, FONTSIZE=9, CELLPAD=0.3 * mm
-               ):
-    print("tablaLiga2 -> equiposAmarcar", equiposAmarcar)
-    infoLiga = preparaInfoLiga(tempData, currJornada)
+def tablaPartidosLigaReg(tempData: TemporadaACB, equiposAmarcar: Optional[Iterable[str]] = None,
+                         currJornada: Optional[int] = None, FONTSIZE=9, CELLPAD=0.3 * mm
+                         ):
+    infoLiga = preparaInfoLigaReg(tempData, currJornada)
 
-    datosTabla = presTablaLiga2(infoLiga, FONTSIZE=FONTSIZE, CELLPAD=CELLPAD)
+    datosTabla = presTablaPartidosLigaReg(infoLiga, FONTSIZE=FONTSIZE, CELLPAD=CELLPAD)
 
     alturas = [22] + [28.7] * len(infoLiga['equipos']) + [21]
     anchos = [76] + [39] * len(infoLiga['equipos']) + [38]
 
-    listaEstilos = presTablaLiga2Estilos(infoLiga, equiposAmarcar=equiposAmarcar, FONTSIZE=FONTSIZE, CELLPAD=CELLPAD)
+    listaEstilos = presTablaPartidosLigaRegEstilos(infoLiga, equiposAmarcar=equiposAmarcar, FONTSIZE=FONTSIZE,
+                                                   CELLPAD=CELLPAD)
     tStyle = TableStyle(listaEstilos)
 
     t = Table(datosTabla, style=tStyle, rowHeights=alturas, colWidths=anchos)  #
