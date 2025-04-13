@@ -11,7 +11,6 @@ from reportlab.platypus import Paragraph, TableStyle, Table
 
 import SMACB.Programa.Globals as GlobACB
 from SMACB.Constants import infoSigPartido, LocalVisitante, MARCADORESCLASIF, RANKFORMAT
-from SMACB.Programa.Clasif import infoClasifComplPareja
 from SMACB.Programa.Constantes import (ESTADISTICOEQ, estiloNegBal, estiloPosMarker, colEq, DEFTABVALUE, FORMATOCAMPOS,
                                        colorTablaDiagonal, ANCHOMARCAPOS)
 from SMACB.Programa.Datos import datosRestoJornada
@@ -533,8 +532,6 @@ def presTablaCruces(data, FONTSIZE=9, CELLPAD=3 * mm):
     result[0][-1] = Paragraph('<b>Total Res</b>', style=estCelda)
     result[-1][0] = Paragraph('<b>Total Pend</b>', style=estCelda)
 
-    clavesAmostrar = [crit for crit in infoClasifComplPareja._fields if
-                      crit in data['datosTotales']['criterios']['res']]
     result[-1][-1] = Paragraph(auxCruceTotales(data['datosTotales']), style=estCelda)  # , clavesAmostrar
 
     datosDiag = data['datosDiagonal']
@@ -547,7 +544,7 @@ def presTablaCruces(data, FONTSIZE=9, CELLPAD=3 * mm):
         result[0][pos] = Paragraph(auxBold(abrev), style=estCelda)
         result[pos][pos] = Paragraph(auxCruceDiag(datosDiag[abrev], ponBal=True, ponDif=True), style=estCelda)
         result[-1][pos] = Paragraph(auxCruceTotalPend(datosCont[abrev]), style=estCelda)
-        result[pos][-1] = Paragraph(auxCruceTotalResuelto(datosCont[abrev], clavesAmostrar), style=estCelda)
+        result[pos][-1] = Paragraph(auxCruceTotalResuelto(datosCont[abrev], data['clavesAmostrar']), style=estCelda)
 
     for crucePend in data['resueltos']:
         coords = sorted([datosDiag[abr]['pos'] for abr in [crucePend[0], crucePend[1]]], reverse=False)
@@ -680,15 +677,3 @@ def presTablaPartidosLigaRegEstilos(data, equiposAmarcar: Optional[Iterable[str]
             listaEstilos.append(("BACKGROUND", (0, pos), (0, pos), colEq))
 
     return listaEstilos
-
-
-def presGeneraLeyendaLigaRegular(FONTSIZE=8):
-    texto = ("<b>Leyenda en balance total</b>: <b>A</b>:&nbsp;Partido(s) adelantado(s)<b> J</b>:&nbsp;Jornada actual "
-             "pendiente de jugar<b> "
-             "P</b>:&nbsp;Partido(s) pendiente(s)")
-
-    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
-                                 leading=FONTSIZE + 0.5, )
-    result = Paragraph(texto, style=legendStyle)
-
-    return result

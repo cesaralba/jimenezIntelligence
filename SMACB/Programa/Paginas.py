@@ -4,9 +4,9 @@ from reportlab.platypus import NextPageTemplate, PageBreak, Spacer
 from SMACB.Constants import infoSigPartido
 from SMACB.Programa.Funciones import preparaListaTablas
 from SMACB.Programa.Globals import CATESTADSEQASCENDING
-from SMACB.Programa.Secciones import (tablaAnalisisEstadisticos, paginasJugadores, cabeceraPortada, metadataPrograma, bloqueRestoJYBasics, tablaClasifLiga,
-                                      reportTrayectoriaEquipos, tablaCruces, tablaPartidosLigaReg)
-from SMACB.Programa.Presentacion import presGeneraLeyendaLigaRegular
+from SMACB.Programa.Secciones import (tablaAnalisisEstadisticos, paginasJugadores, cabeceraPortada, metadataPrograma,
+                                      bloqueRestoJYBasics, tablaClasifLiga, reportTrayectoriaEquipos, tablaCruces,
+                                      tablaPartidosLigaReg)
 from SMACB.TemporadaACB import TemporadaACB
 
 
@@ -67,8 +67,7 @@ def paginaCruces(tempData: TemporadaACB):
     result = []
     result.append(NextPageTemplate('apaisada'))
     result.append(PageBreak())
-    result.append(tablaCruces(tempData))
-    # result.append(presTablaCrucesEstilos())
+    result.extend(tablaCruces(tempData, FONTSIZE=8.5))
 
     return result
 
@@ -77,9 +76,8 @@ def paginaPartidosLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
     result = []
     result.append(NextPageTemplate('apaisada'))
     result.append(PageBreak())
-    result.append(
+    result.extend(
         tablaPartidosLigaReg(tempData, equiposAmarcar=datosSig.abrevLV, currJornada=int(datosSig.sigPartido['jornada']),
-                             FONTSIZE=9))
-    result.append(presGeneraLeyendaLigaRegular())
+                             FONTSIZE=8.5))
 
     return result

@@ -7,7 +7,8 @@ import pandas as pd
 
 import SMACB.Programa.Globals as GlobACB
 from SMACB.Constants import infoSigPartido, LocalVisitante, DEFAULTNUMFORMAT, TRADPOSICION, OtherLoc
-from SMACB.Programa.Clasif import calculaClasifLiga, entradaClas2kEmpatePareja, infoGanadorEmparej
+from SMACB.Programa.Clasif import calculaClasifLiga, entradaClas2kEmpatePareja, infoGanadorEmparej, \
+    infoClasifComplPareja
 from SMACB.Programa.Constantes import ESTADISTICOEQ, REPORTLEYENDAS, ESTADISTICOJUG, COLS_IDENTIFIC_JUG
 from SMACB.Programa.FuncionesAux import auxCalculaBalanceStrSuf, GENERADORETTIRO, GENERADORETREBOTE, \
     etiquetasClasificacion, auxCalculaFirstBalNeg, FMTECHACORTA
@@ -338,6 +339,9 @@ def preparaInfoCruces(tempData: TemporadaACB):
         else:
             raise ValueError(f"No se tratar Cruce: {clave}:{estado}")
 
+    result['clavesAmostrar'] = [crit for crit in infoClasifComplPareja._fields if
+                                crit in result['datosTotales']['criterios']['res']]
+
     return result
 
 
@@ -384,14 +388,17 @@ def auxEquipoCalendario2InfoPartido(data) -> infoPartido:
 
 
 def extraeInfoTablaLiga(tempData: TemporadaACB):
-    resultado = {'jugados': [], 'pendientes': []}
+    resultado = {'jugados': [], 'pendientes': [], 'totales': {'Victoria': {loc: 0 for loc in LocalVisitante}}}
 
     for data in tempData.Calendario.Jornadas.values():
         if data['esPlayoff']:
             continue
 
         for part in data['partidos']:
-            resultado['jugados'].append(auxEquipoCalendario2InfoPartido(part))
+            infoPart = auxEquipoCalendario2InfoPartido(part)
+            resultado['jugados'].append(infoPart)
+            resultado['totales']['Victoria']['Local' if infoPart.Local.haGanado else 'Visitante'] += 1
+
         for part in data['pendientes']:
             resultado['pendientes'].append(auxEquipoCalendario2InfoPartido(part))
     return resultado
@@ -409,6 +416,8 @@ def preparaInfoLigaReg(tempData: TemporadaACB, currJornada: int = None):
                                                             jornadasCompletas=jornadasCompletas)
 
     datosLiga = extraeInfoTablaLiga(tempData=tempData)
+    result['totales'] = datosLiga['totales']
+
     for pJug in datosLiga['jugados']:
         resultadoStr = f"{pJug.Local.puntos}-{pJug.Visitante.puntos}"
         auxResult = (pJug.Local.abrev, pJug.Visitante.abrev, pJug.jornada, resultadoStr)

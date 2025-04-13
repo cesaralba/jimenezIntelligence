@@ -1,27 +1,27 @@
 from itertools import product
 from time import strftime, gmtime
-from typing import List, Optional, Iterable
+from typing import List, Optional, Iterable, Any
 
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT, TA_JUSTIFY
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, TableStyle, Table, NextPageTemplate, PageBreak, Spacer
 
-import SMACB.Programa.Globals
+import SMACB.Programa.Globals as GlobACB
 from SMACB.Constants import infoSigPartido, MARCADORESCLASIF, filaTrayectoriaEq
 from SMACB.Programa.Constantes import estiloNegBal, estiloPosMarker, colEq
 from SMACB.Programa.Datos import datosTablaClasif, datosJugadores, auxFindTargetAbrevs, datosAnalisisEstadisticos, \
     preparaInfoCruces, preparaInfoLigaReg
-from SMACB.Programa.FuncionesAux import auxCalculaFirstBalNeg, partidoTrayectoria, auxBold
+from SMACB.Programa.FuncionesAux import auxCalculaFirstBalNeg, partidoTrayectoria, auxBold, auxLeyendaCrucesResueltos, \
+    auxLeyendaCrucesTotalResueltosEq, auxLeyendaCrucesTotalResueltos, auxLeyendaCrucesTotalPendientes, \
+    auxLeyendaRepartoVictPorLoc
 from SMACB.Programa.Globals import recuperaClasifLiga, recuperaEstadsGlobales
 from SMACB.Programa.Presentacion import tablaEstadsBasicas, tablaRestoJornada, bloqueCabEquipo, tablasJugadoresEquipo, \
     auxGeneraLeyendaEstadsCelda, auxFilasTablaEstadisticos, presTablaCruces, presTablaCrucesEstilos, \
     presTablaPartidosLigaReg, presTablaPartidosLigaRegEstilos
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.FechaHora import time2Str
-
-allMagnsInEstads = SMACB.Programa.Globals.allMagnsInEstads
 
 
 def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
@@ -99,7 +99,7 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
 
     recuperaClasifLiga(tempData)
     filasClasLiga = datosTablaClasif(tempData, datosSig)
-    posFirstNegBal = auxCalculaFirstBalNeg(SMACB.Programa.Globals.clasifLiga)
+    posFirstNegBal = auxCalculaFirstBalNeg(GlobACB.clasifLiga)
     filasAresaltar = []
     filaCab = [Paragraph("<para align='center'><b>#</b></para>"),
                Paragraph("<para align='center'><b>Equipo</b></para>"),
@@ -118,7 +118,7 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
 
     # Crea las listas para las subtablas
     for posic, datosFila in enumerate(filasClasLiga):
-        t, e = posic // SMACB.Programa.Globals.mitadEqs, posic % SMACB.Programa.Globals.mitadEqs
+        t, e = posic // GlobACB.mitadEqs, posic % GlobACB.mitadEqs
 
         listasClas[t].append(preparaFila(datosFila))
         if datosFila.resalta:
@@ -134,8 +134,7 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
 
     # Balance negativo
     if (posFirstNegBal is not None) and ((posFirstNegBal - 1) not in MARCADORESCLASIF):
-        t, e = (posFirstNegBal - 1) // SMACB.Programa.Globals.mitadEqs, (
-                posFirstNegBal - 1) % SMACB.Programa.Globals.mitadEqs
+        t, e = (posFirstNegBal - 1) // GlobACB.mitadEqs, (posFirstNegBal - 1) % GlobACB.mitadEqs
         listasStyles[t].add("LINEBELOW", (0, e), (-1, e), ANCHOMARCAPOS, *estiloNegBal)
 
     # Marca equipos del programa
@@ -300,7 +299,7 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     recuperaEstadsGlobales(tempData)
     targetAbrevs = auxFindTargetAbrevs(tempData, datosSig)
 
-    clavesEq, clavesRiv = allMagnsInEstads, allMagnsInEstads
+    clavesEq, clavesRiv = GlobACB.allMagnsInEstads, GlobACB.allMagnsInEstads
     if isinstance(magns2incl, list):
         clavesEq = list(magns2incl)
         clavesRiv = clavesEq
@@ -365,36 +364,84 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     return tabla1
 
 
-def tablaCruces(tempData: TemporadaACB, CELLPAD=0.3 * mm, FONTSIZE=9) -> Table:
+def tablaCruces(tempData: TemporadaACB, CELLPAD=0.3 * mm, FONTSIZE=9) -> List[Any]:
+    result = []
     infoCruces = preparaInfoCruces(tempData)
 
     datosTabla = presTablaCruces(infoCruces, FONTSIZE, CELLPAD)
 
-    alturas = [22] + [28.7] * len(infoCruces['equipos']) + [23]
+    alturas = [FONTSIZE * 2.3] + [FONTSIZE * 3.2] * len(infoCruces['equipos']) + [FONTSIZE * 3]
     anchos = [76] + [39] * len(infoCruces['equipos']) + [38]
 
     listaEstilos = presTablaCrucesEstilos(infoCruces, FONTSIZE, CELLPAD)
     tStyle = TableStyle(listaEstilos)
 
-    t = Table(datosTabla, style=tStyle, rowHeights=alturas, colWidths=anchos)
+    result.append(Table(datosTabla, style=tStyle, rowHeights=alturas, colWidths=anchos))
+    result.append(seccGeneraLeyendaCruces(dataCruces=infoCruces, FONTSIZE=FONTSIZE))
 
-    return t
+    return result
 
 
 def tablaPartidosLigaReg(tempData: TemporadaACB, equiposAmarcar: Optional[Iterable[str]] = None,
                          currJornada: Optional[int] = None, FONTSIZE=9, CELLPAD=0.3 * mm
                          ):
+    result = []
+
     infoLiga = preparaInfoLigaReg(tempData, currJornada)
 
     datosTabla = presTablaPartidosLigaReg(infoLiga, FONTSIZE=FONTSIZE, CELLPAD=CELLPAD)
 
-    alturas = [22] + [28.7] * len(infoLiga['equipos']) + [21]
+    alturas = [FONTSIZE * 2.3] + [FONTSIZE * 3.2] * len(infoLiga['equipos']) + [FONTSIZE * 3]
     anchos = [76] + [39] * len(infoLiga['equipos']) + [38]
 
     listaEstilos = presTablaPartidosLigaRegEstilos(infoLiga, equiposAmarcar=equiposAmarcar, FONTSIZE=FONTSIZE,
                                                    CELLPAD=CELLPAD)
     tStyle = TableStyle(listaEstilos)
 
-    t = Table(datosTabla, style=tStyle, rowHeights=alturas, colWidths=anchos)  #
+    result.append(Table(datosTabla, style=tStyle, rowHeights=alturas, colWidths=anchos))
+    result.append(seccGeneraLeyendaLigaRegular(infoLiga, FONTSIZE=FONTSIZE))
 
-    return t
+    return result
+
+
+def seccGeneraLeyendaLigaRegular(dataLiga, FONTSIZE=8):
+    print(dataLiga['totales'])
+
+    textoRepartoVictPorLoc = auxLeyendaRepartoVictPorLoc(dataLiga['totales'])
+
+    texto = ("<b>Leyenda en balance total</b>: <b>A</b>:&nbsp;Partido(s) adelantado(s)<b> J</b>:&nbsp;Jornada actual "
+             "pendiente de jugar "
+             "<b>P</b>:&nbsp;Partido(s) pendiente(s) "
+             f"<b>Totalesz</b>: <b>Jugados</b>: {len(dataLiga['jugados'])}, <b>Pendientes</b>: "
+             f"{len(dataLiga['pendientes'])}."
+             f"{textoRepartoVictPorLoc}")
+
+    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
+                                 leading=FONTSIZE + 0.5, )
+    result = Paragraph(texto, style=legendStyle)
+
+    return result
+
+
+def seccGeneraLeyendaCruces(dataCruces, FONTSIZE=8):
+    textoLeyendaResueltos = auxLeyendaCrucesResueltos(clavesAMostrar=dataCruces['clavesAmostrar'])
+    textoLeyendaTotalResueltos = auxLeyendaCrucesTotalResueltosEq(clavesAMostrar=dataCruces['clavesAmostrar'])
+    textoTotalCrucesResueltos = auxLeyendaCrucesTotalResueltos(data=dataCruces)
+    textoTotalCrucesPendientes = auxLeyendaCrucesTotalPendientes(data=dataCruces)
+
+    texto = ("<b>Leyenda en tabla de cruces</b>: <b>Mitad superior: Cruces resueltos</b>. Ganador y [Criterio de "
+             "desempate+Ventaja]. "
+             f"{textoLeyendaResueltos} {textoLeyendaTotalResueltos}"
+             "<b>Mitad inferior: Cruces pendientes</b>. Ganador primer partido y Localía+Ventaja. <b>Localía</b>: "
+             "<b>L</b> "
+             "partido en casa, <b>V</b> partido fuera."
+             "<b>Total pendiente de equipo</b>: número de pendientes y precedente ganado/perdido"
+             "<b>Diagonal</b>: balance + diferencia de puntos."
+             "<b>Esquina inf dcha</b>: cruces resueltos y cruces pendientes."
+             f"{textoTotalCrucesResueltos} {textoTotalCrucesPendientes}")
+
+    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
+                                 leading=FONTSIZE + 0.5, )
+    result = Paragraph(texto, style=legendStyle)
+
+    return result

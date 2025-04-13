@@ -105,7 +105,7 @@ nombresClasif = namedtuple('nombresClasif', field_names=('pos', 'abrev', 'nombre
 
 criterioDesempateCruces = {'EmpV': {'Leyenda': 'Victorias', 'Clave': ''},
                            'EmpRatV': {'Leyenda': 'Ratio de victorias', 'Clave': 'R'},
-                           'EmpDifP': {'Leyenda': 'Average', 'Clave': 'A'},
+                           'EmpDifP': {'Leyenda': 'Diferencia de puntos', 'Clave': 'A'},
                            'LRDifP': {'Leyenda': 'Diferencia de puntos (LR)', 'Clave': 'D'},
                            'LRPfav': {'Leyenda': 'Puntos a favor (LR)', 'Clave': 'P'},
                            'LRSumCoc': {'Leyenda': 'Suma de cocientes (LR)', 'Clave': 'C'}, }

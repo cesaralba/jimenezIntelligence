@@ -290,3 +290,47 @@ def auxTablaLigaPartJugado(part):
 
 def auxTablaLigaPartPendiente(part):
     return f"J:{part[2]}<br/>@{part[3]}"
+
+
+def auxLeyendaCrucesResueltos(clavesAMostrar: List[str]) -> str:
+    listaLeyendas = [(criterioDesempateCruces[k]['Clave'], criterioDesempateCruces[k]['Leyenda']) for k in
+                     clavesAMostrar]
+    leyendaList = [f"<b>{clave}</b>: {leyenda}" for clave, leyenda in listaLeyendas if clave != ""]
+    if len(leyendaList) == 0:
+        return ""
+
+    result = "<b>Criterio de desempates</b>:" + (",".join(leyendaList)) + "."
+    return result
+
+
+def auxLeyendaCrucesTotalResueltosEq(clavesAMostrar: List[str]) -> str:
+    listaLeyendas = [(criterioDesempateCruces[k]['Clave'], criterioDesempateCruces[k]['Leyenda']) for k in
+                     clavesAMostrar]
+    leyendaList = [f"{leyenda if clave != '' else 'No empate'}" for clave, leyenda in listaLeyendas]
+
+    result = "<b>Total resuelto de equipo</b>: Balance resueltos y forma de ganar (" + ("/".join(leyendaList)) + ")."
+    return result
+
+
+def auxLeyendaCrucesTotalResueltos(data):
+    listaLeyendas = [(k, criterioDesempateCruces[k]['Clave'], criterioDesempateCruces[k]['Leyenda']) for k in
+                     data['clavesAmostrar']]
+    leyendaList = [f"<b>{leyenda if clave != '' else 'No empate'}</b>: {data['datosTotales']['criterios']['res'][k]}"
+                   for k, clave, leyenda in listaLeyendas]
+
+    result = "<b>Total resueltos: motivo</b>: " + (" ,".join(leyendaList)) + "."
+    return result
+
+
+def auxLeyendaCrucesTotalPendientes(data):
+    result = (f"<b>Total pendientes: ganador precedente</b>: <b>Local</b>: "
+              f"{data['datosTotales']['criterios']['pend'].get('L', 0)}, <b>Visit"
+              f"ante</b>: {data['datosTotales']['criterios']['pend'].get('V', 0)}.")
+    return result
+
+
+def auxLeyendaRepartoVictPorLoc(data):
+    auxList = [f"<b>{loc}</b>: {data['Victoria'][loc]}" for loc in LocalVisitante]
+    result = "<b>Reparto de victorias</b>: " + ", ".join(auxList)
+
+    return result
