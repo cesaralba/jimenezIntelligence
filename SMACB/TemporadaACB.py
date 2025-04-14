@@ -3,13 +3,12 @@ Created on Jan 4, 2018
 
 @author: calba
 """
-
+import functools
 import logging
 import sys
 import traceback
 from collections import defaultdict
 from copy import copy
-from decimal import Decimal
 from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
@@ -30,7 +29,6 @@ from Utils.Web import prepareDownloading
 from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
 from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEqCalendario, infoPartLV, infoSigPartido,
                         LOCALNAMES, LocalVisitante, OtherLoc, OtherTeam, )
-from .FichaEntrenador import FichaEntrenador
 from .FichaJugador import FichaJugador, CAMBIOSJUGADORES
 from .PartidoACB import PartidoACB
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB, CAMBIOSCLUB, CambiosPlantillaTipo
@@ -392,7 +390,6 @@ class TemporadaACB:
                                 pendLocal=peIzda, jugVis=juDcha, pendVis=peDcha, )
         return result
 
-
     def dataFrameFichasJugadores(self, abrEq: Optional[str] = None):
         jugsIter = self.fichaJugadores.keys()
         activos = dorsales = {}
@@ -724,6 +721,7 @@ class TemporadaACB:
     def tradEquipos(self):
         return self.Calendario.tradEquipos
 
+    @functools.cache
     def jornadasCompletas(self):
         return self.Calendario.jornadasCompletas()
 
@@ -980,16 +978,6 @@ def auxEtiqPartido(tempData: TemporadaACB, rivalAbr, esLocal=None, locEq=None, u
     return result
 
 
-def equipo2clasif(clasifLiga, abrEq):
-    result = None
-
-    for eqData in clasifLiga:
-        if abrEq in eqData.abrevsEq:
-            return eqData
-
-    return result
-
-
 def extraeCampoYorden(estads: pd.DataFrame, estadsOrden: pd.DataFrame, eq: str = 'eq', clave: str = 'P',
                       estadistico='mean'
                       ):
@@ -1004,3 +992,10 @@ def extraeCampoYorden(estads: pd.DataFrame, estadsOrden: pd.DataFrame, eq: str =
     orden = estadsOrden.loc[targetCol]
 
     return valor, orden
+
+
+def cargaTemporada(fname: str) -> TemporadaACB:
+    result = TemporadaACB()
+    result.cargaTemporada(fname)
+
+    return result
