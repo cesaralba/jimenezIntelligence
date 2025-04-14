@@ -27,7 +27,7 @@ ETIQubiq = ['local', 'visitante']
 
 UMBRALbusquedaDistancia = 1  # La comparación debe ser >
 
-CALENDARIOEQUIPOS = dict()
+CALENDARIOEQUIPOS = {}
 
 
 class CalendarioACB:
@@ -182,7 +182,7 @@ class CalendarioACB:
 
     def procesaBloqueJornada(self, divDatos, dictCab, **kwargs):
         # TODO: incluir datos de competicion
-        result = dict()
+        result = {}
         result['nombre'] = dictCab['comp']
         result['jornada'] = int(dictCab['jornada'])
         result['partidos'] = []
@@ -212,7 +212,7 @@ class CalendarioACB:
 
     def procesaBloquePartido(self, datosJornada, divPartido):
         # TODO: incluir datos de competicion
-        resultado = dict()
+        resultado = {}
         resultado['pendiente'] = True
         resultado['fechaPartido'] = NEVER
         resultado['jornada'] = datosJornada['jornada']
@@ -220,7 +220,7 @@ class CalendarioACB:
         resultado['cod_competicion'] = self.competicion
         resultado['cod_edicion'] = self.edicion
 
-        datosPartEqs = dict()
+        datosPartEqs = {}
 
         for eqUbic, div in zip(ETIQubiq, divPartido.find_all("div", {"class": "logo_equipo"})):
             auxDatos = datosPartEqs.get(eqUbic.capitalize(), {})
@@ -342,7 +342,7 @@ class CalendarioACB:
 
 def BuscaCalendario(url=URL_BASE, home=None, browser=None, config=None):
     if config is None:
-        config = dict()
+        config = {}
     indexPage = downloadPage(url, home, browser, config)
 
     index = indexPage.data
@@ -375,7 +375,7 @@ def compo2clave(listaCompos):
     PATsupercopa = r'^supercopa\W'
     PATcopa = r'^copa\W.*rey'
 
-    result = dict()
+    result = {}
 
     for idComp, label in listaCompos.items():
         if re.match(PATliga, label, re.IGNORECASE):
@@ -394,7 +394,7 @@ def procesaCab(cab):
     :param cab: div que contiene la cabecera COMPLETA
     :return:  {'comp': 'Liga Endesa', 'yini': '2018', 'yfin': '2019', 'jor': '46'}
     """
-    resultado = dict()
+    resultado = {}
     cadL = cab.find('div', {"class": "float-left"}).text
     cadR = cab.find('div', {"class": "fechas"}).text
     resultado['nombreJornada'] = cadL
@@ -418,14 +418,14 @@ def procesaCab(cab):
 
 
 def procesaFechasJornada(cadFechas):
-    resultado = dict()
+    resultado = {}
 
     mes2n = {'ene': 1, 'feb': 2, 'mar': 3, 'abr': 4, 'may': 5, 'jun': 6, 'jul': 7, 'ago': 8, 'sep': 9, 'oct': 10,
              'nov': 11, 'dic': 12}
 
     patronBloqueFechas = r'^(?P<dias>\d{1,2}(-\d{1,2})*)\s+(?P<mes>\w+)\s+(?P<year>\d{4})$'
 
-    bloques = list()
+    bloques = []
     cadWrk = cadFechas.lower().strip()
 
     for bY in cadWrk.split(' y '):
@@ -450,7 +450,7 @@ def procesaFechasJornada(cadFechas):
 
 
 def procesaDivsEquipo(divList):
-    resultado = dict()
+    resultado = {}
     resultado['haGanado'] = None
 
     for d in divList:
@@ -518,8 +518,8 @@ def recuperaPartidosEquipo(idEquipo, home=None, browser=None, config=None):
 
 
 def procesaPaginaPartidosEquipo(content: DownloadedPage):
-    result = dict()
-    result['jornadas'] = dict()
+    result = {}
+    result['jornadas'] = {}
 
     if 'timestamp' in content:
         result['timestamp'] = content.timestamp

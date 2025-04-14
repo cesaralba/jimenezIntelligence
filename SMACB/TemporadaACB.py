@@ -587,7 +587,7 @@ class TemporadaACB:
 
     def dfEstadsLiga(self, fecha=None):
 
-        resultDict = dict()
+        resultDict = {}
         # Todos los partidos de la liga hasta fecha
         dfTodosPartidos = self.dataFramePartidosLV(fecha)
 
@@ -607,7 +607,7 @@ class TemporadaACB:
         :param abrev: abreviatura del equipo
         :return: lista de partidos.
         """
-        auxResultado = list()
+        auxResultado = []
         targetAbrevs = self.Calendario.abrevsEquipo(abrev)
         juCal, peCal = self.Calendario.partidosEquipo(abrev)
 
@@ -619,7 +619,7 @@ class TemporadaACB:
         for p in juCal + peCal:
             abrevAUsar = (p['participantes'].intersection(targetAbrevs)).pop()
             loc = p['abrev2loc'][abrevAUsar]
-            auxEntry = dict()
+            auxEntry = {}
             auxEntry['fechaPartido'] = p['fechaPartido'] if p['pendiente'] else self.Partidos[p['url']].fechaPartido
             auxEntry['jornada'] = p['jornada']
             auxEntry['cod_edicion'] = p['cod_edicion']
@@ -661,14 +661,14 @@ class TemporadaACB:
         partsIzdaAux = [p for p in partsIzda if cond2incl(p)]
         partsDchaAux = [p for p in partsDcha if cond2incl(p)]
 
-        lineas = list()
+        lineas = []
 
         abrevsIzda = self.Calendario.abrevsEquipo(abrevIzda)
         abrevsDcha = self.Calendario.abrevsEquipo(abrevDcha)
         abrevsPartido = set().union(abrevsIzda).union(abrevsDcha)
 
         while (len(partsIzdaAux) + len(partsDchaAux)) > 0:
-            bloque = dict()
+            bloque = {}
             bloque['precedente'] = False
 
             try:
@@ -905,7 +905,7 @@ def calculaEstadsYOrdenLiga(dataTemp: TemporadaACB, fecha: Any | None = None, es
     paramMethod = 'min'
     paramNAoption = {True: 'top', False: 'bottom'}
 
-    colList = list()
+    colList = []
     targetCols = defaultdict(list)
 
     auxCats2Ignore = {} if cats2ignore is None else cats2ignore
@@ -923,7 +923,7 @@ def calculaEstadsYOrdenLiga(dataTemp: TemporadaACB, fecha: Any | None = None, es
 
         targetCols[isAscending].append(col)
 
-    rankDF = dict()
+    rankDF = {}
     for asctype in targetCols:
         interestingCols = targetCols[asctype]
         auxDF = dfEstads[interestingCols]

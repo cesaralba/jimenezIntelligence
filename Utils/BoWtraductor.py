@@ -16,7 +16,7 @@ class BoWTraductor():
         self.NORMA = NORMA  # Valores para NORMA ['NFC', 'NFKC', 'NFD', 'NFKD']
         self.TradConocidas = defaultdict(set)
         self.TradNormalizadas = defaultdict(set)
-        self.vn2bow = dict()
+        self.vn2bow = {}
 
     def AddTraduccion(self, clave, valor):
         """

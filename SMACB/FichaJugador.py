@@ -102,7 +102,7 @@ class FichaJugador:
     def actualizaFromWeb(self, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
 
         result = False
-        changeInfo = dict()
+        changeInfo = {}
 
         result |= self.addAtributosQueFaltan()
 
@@ -129,7 +129,7 @@ class FichaJugador:
         datosFichaPlantilla = adaptaDatosFichaPlantilla(datosFichaPlantilla, idClub)
 
         result = False
-        changeInfo = dict()
+        changeInfo = {}
 
         result |= self.addAtributosQueFaltan()
 
