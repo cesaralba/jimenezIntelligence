@@ -35,6 +35,8 @@ from .FichaEntrenador import FichaEntrenador
 from .FichaJugador import FichaJugador, CAMBIOSJUGADORES
 from .PartidoACB import PartidoACB
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB, CAMBIOSCLUB, CambiosPlantillaTipo
+from .Programa.Clasif import infoClasifEquipo, infoClasifBase, infoClasifComplPareja, infoClasifComplMasD2, \
+    entradaClas2kEmpateMasD2, entradaClas2kBasic, entradaClas2kEmpatePareja, entradaClas2kVict, entradaClas2kRatioVict
 
 logger = logging.getLogger()
 
@@ -406,7 +408,7 @@ class TemporadaACB:
         auxResult = defaultdict(int)
         auxResult['Jjug'] = set()
         auxResult['auxCasaFuera'] = {'Local': defaultdict(int), 'Visitante': defaultdict(int)}
-        auxResult['CasaFuera'] = dict()
+        auxResult['CasaFuera'] = {}
         auxResult['sumaCoc'] = Decimal(0)
 
         urlGamesFull = self.extractGameList(fecha=fecha, abrevEquipos={abrEq}, playOffStatus=False)
@@ -697,7 +699,7 @@ class TemporadaACB:
 
     def dfEstadsLiga(self, fecha=None):
 
-        resultDict = dict()
+        resultDict = {}
         # Todos los partidos de la liga hasta fecha
         dfTodosPartidos = self.dataFramePartidosLV(fecha)
 
@@ -717,7 +719,7 @@ class TemporadaACB:
         :param abrev: abreviatura del equipo
         :return: lista de partidos.
         """
-        auxResultado = list()
+        auxResultado = []
         targetAbrevs = self.Calendario.abrevsEquipo(abrev)
         juCal, peCal = self.Calendario.partidosEquipo(abrev)
 
@@ -729,7 +731,7 @@ class TemporadaACB:
         for p in juCal + peCal:
             abrevAUsar = (p['participantes'].intersection(targetAbrevs)).pop()
             loc = p['abrev2loc'][abrevAUsar]
-            auxEntry = dict()
+            auxEntry = {}
             auxEntry['fechaPartido'] = p['fechaPartido'] if p['pendiente'] else self.Partidos[p['url']].fechaPartido
             auxEntry['jornada'] = p['jornada']
             auxEntry['cod_edicion'] = p['cod_edicion']
@@ -771,14 +773,14 @@ class TemporadaACB:
         partsIzdaAux = [p for p in partsIzda if cond2incl(p)]
         partsDchaAux = [p for p in partsDcha if cond2incl(p)]
 
-        lineas = list()
+        lineas = []
 
         abrevsIzda = self.Calendario.abrevsEquipo(abrevIzda)
         abrevsDcha = self.Calendario.abrevsEquipo(abrevDcha)
         abrevsPartido = set().union(abrevsIzda).union(abrevsDcha)
 
         while (len(partsIzdaAux) + len(partsDchaAux)) > 0:
-            bloque = dict()
+            bloque = {}
             bloque['precedente'] = False
 
             try:
@@ -987,72 +989,6 @@ def calculaVars(temporada, clave, useStd=True, filtroFechas=None):
     return result
 
 
-def entradaClas2kVict(ent: infoClasifEquipo, *kargs) -> tuple:
-    """
-    Dado un resultado de Temporada.getClasifEquipo)
-
-    :param ent: lista de equipos (resultado de Temporada.getClasifEquipo)
-    :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
-    """
-
-    result = ent.V
-    return result
-
-
-def entradaClas2kRatioVict(ent: infoClasifEquipo, *kargs) -> tuple:
-    """
-    Dado un resultado de Temporada.getClasifEquipo)
-
-    :param ent: lista de equipos (resultado de Temporada.getClasifEquipo)
-    :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
-    """
-
-    result = ent.ratioVict
-    return result
-
-
-def entradaClas2kBasic(ent: infoClasifEquipo, *kargs) -> tuple:
-    """
-    Dado un resultado de Temporada.getClasifEquipo)
-
-    :param ent: lista de equipos (resultado de Temporada.getClasifEquipo)
-    :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
-    """
-
-    result = (ent.V, ent.ratioVict, ent.Pfav - ent.Pcon, ent.Pfav, ent.sumaCoc)
-    return result
-
-
-def entradaClas2kEmpatePareja(ent: infoClasifEquipo, datosLR: dict) -> tuple:
-    """
-    Dado un resultado de Temporada.getClasifEquipo)
-
-    :param ent: lista de equipos (resultado de Temporada.getClasifEquipo)
-    :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
-    """
-    auxLR = datosLR[ent.abrevAusar]
-    aux = {'EmpV': ent.V, 'EmpRatV': ent.ratioVict, 'EmpDifP': ent.Pfav - ent.Pcon, 'LRDifP': auxLR.Pfav - auxLR.Pcon,
-           'LRPfav': auxLR.Pfav, 'LRSumCoc': auxLR.sumaCoc}
-    result = infoClasifComplPareja(**aux)
-
-    return result
-
-
-def entradaClas2kEmpateMasD2(ent: infoClasifEquipo, datosLR: dict) -> tuple:
-    """
-    Dado un resultado de Temporada.getClasifEquipo)
-
-    :param ent: lista de equipos (resultado de Temporada.getClasifEquipo)
-    :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
-    """
-    auxLR = datosLR[ent.abrevAusar]
-    aux = {'EmpV': ent.V, 'EmpRatV': ent.ratioVict, 'EmpDifP': ent.Pfav - ent.Pcon, 'EmpPfav': ent.Pfav,
-           'LRDifP': auxLR.Pfav - auxLR.Pcon, 'LRPfav': auxLR.Pfav, 'LRSumCoc': auxLR.sumaCoc}
-    result = infoClasifComplMasD2(**aux)
-
-    return result
-
-
 def esEstCreciente(estName: str, catsCrecientes: set | dict | list | None = None, meother: str = "Eq"):
     """
     Devuelve si una columna de estadísticas es ascendente (mejor cuanto menos) o no
@@ -1080,7 +1016,7 @@ def calculaEstadsYOrdenLiga(dataTemp: TemporadaACB, fecha: Any | None = None, es
     paramMethod = 'min'
     paramNAoption = {True: 'top', False: 'bottom'}
 
-    colList = list()
+    colList = []
     targetCols = defaultdict(list)
 
     auxCats2Ignore = {} if cats2ignore is None else cats2ignore
@@ -1098,7 +1034,7 @@ def calculaEstadsYOrdenLiga(dataTemp: TemporadaACB, fecha: Any | None = None, es
 
         targetCols[isAscending].append(col)
 
-    rankDF = dict()
+    rankDF = {}
     for asctype in targetCols:
         interestingCols = targetCols[asctype]
         auxDF = dfEstads[interestingCols]
