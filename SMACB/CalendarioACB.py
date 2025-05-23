@@ -402,7 +402,7 @@ def procesaCab(cab):
 
     patronL = r'(?P<comp>.*) (?P<yini>\d{4})-(?P<yfin>\d{4})\s+(:?-\s+(?P<extraComp>.*)\s+)?- JORNADA (?P<jornada>\d+)'
 
-    patL = re.match(patronL, cadL)
+    patL = re.match(patronL, cadL,re.IGNORECASE)
     if patL:
         dictFound = patL.groupdict()
         resultado.update(dictFound)
