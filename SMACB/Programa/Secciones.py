@@ -405,8 +405,6 @@ def tablaPartidosLigaReg(tempData: TemporadaACB, equiposAmarcar: Optional[Iterab
 
 
 def seccGeneraLeyendaLigaRegular(dataLiga, FONTSIZE=8):
-    print(dataLiga['totales'])
-
     textoRepartoVictPorLoc = auxLeyendaRepartoVictPorLoc(dataLiga['totales'])
 
     texto = ("<b>Leyenda en balance total</b>: <b>A</b>:&nbsp;Partido(s) adelantado(s)<b> J</b>:&nbsp;Jornada actual "
