@@ -11,6 +11,7 @@ from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif
 from Utils.Web import getObjID, prepareDownloading
 from .Constants import URL_BASE, PLAYOFFFASE
+import functools
 
 logger = logging.getLogger()
 
@@ -314,6 +315,7 @@ class CalendarioACB:
         result = ",".join(map(str, sorted([onlySetElement(self.tradEquipos['c2i'][e]) for e in conjAbrevs])))
         return result
 
+    @functools.cache
     def jornadasCompletas(self):
         """
         Devuelve las IDs de jornadas para las que se han jugado todos los partidos
@@ -400,7 +402,7 @@ def procesaCab(cab):
 
     patronL = r'(?P<comp>.*) (?P<yini>\d{4})-(?P<yfin>\d{4})\s+(:?-\s+(?P<extraComp>.*)\s+)?- JORNADA (?P<jornada>\d+)'
 
-    patL = re.match(patronL, cadL)
+    patL = re.match(patronL, cadL,re.IGNORECASE)
     if patL:
         dictFound = patL.groupdict()
         resultado.update(dictFound)
