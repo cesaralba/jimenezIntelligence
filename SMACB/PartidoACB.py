@@ -169,10 +169,13 @@ class PartidoACB():
     def procesaDivFechas(self, divFecha):
         espTiempo = list(map(lambda x: x.strip(), divFecha.next.split("|")))
 
-        reJornada = r"^JORNADA\s*(\d+)$"
+        patJornada = r"^JORNADA\s*(?P<jornada>\d+)\s*$"
+        reJornada=re.match(patJornada,espTiempo[0],re.IGNORECASE)
+        if reJornada is None:
+            raise ValueError(f"Problemas sacando fecha de cabecera. RE:|{patJornada}| Cadena:[{espTiempo[0]}|")
+        self.jornada = int(reJornada.group('jornada'))
 
-        self.jornada = int(extractREGroups(cadena=espTiempo.pop(0), regex=reJornada)[0])
-        cadTiempo = espTiempo[0] + " " + espTiempo[1]
+        cadTiempo = f"{espTiempo[1]} {espTiempo[2]}"
         PATRONdmyhm = r'^\s*(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})?$'
         REhora = re.match(PATRONdmyhm, cadTiempo)
         patronH = PATRONFECHAHORA if REhora.group(2) else PATRONFECHA
