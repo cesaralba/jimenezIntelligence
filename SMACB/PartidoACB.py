@@ -170,7 +170,7 @@ class PartidoACB():
         espTiempo = list(map(lambda x: x.strip(), divFecha.next.split("|")))
 
         patJornada = r"^JORNADA\s*(?P<jornada>\d+)\s*$"
-        reJornada=re.match(patJornada,espTiempo[0],re.IGNORECASE)
+        reJornada = re.match(patJornada, espTiempo[0], re.IGNORECASE)
         if reJornada is None:
             raise ValueError(f"Problemas sacando fecha de cabecera. RE:|{patJornada}| Cadena:[{espTiempo[0]}|")
         self.jornada = int(reJornada.group('jornada'))
