@@ -1,3 +1,4 @@
+import functools
 import logging
 import re
 from collections import defaultdict
@@ -10,8 +11,7 @@ from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif
 from Utils.Web import getObjID, prepareDownloading
-from .Constants import URL_BASE, PLAYOFFFASE
-import functools
+from .Constants import URL_BASE, POLABEL2FASE
 
 logger = logging.getLogger()
 
@@ -89,24 +89,6 @@ class CalendarioACB:
                         game['claveEmparejamiento'] = self.idGrupoEquiposNorm(game['participantes'])
                         jData['equipos'].update(game['participantes'])
                         jData['idEmparej'].add(game['claveEmparejamiento'])
-
-        for jNum, jData in self.Jornadas.items():
-            if not jData['esPlayoff']:
-                continue
-
-            idsCur: set = jData['idEmparej']
-            curBlockStarts = jNum
-            for jAux in range(jNum - 1, 0, -1):
-                if not self.Jornadas[jAux]['esPlayoff']:
-                    break
-                id2compare: set = self.Jornadas[jAux]['idEmparej']
-                if not idsCur.intersection(id2compare):
-                    break
-                curBlockStarts = jAux
-            primJBloque = self.Jornadas[curBlockStarts]
-            numGBloque = primJBloque['numPartidos']
-            jData['fasePlayoff'] = PLAYOFFFASE[numGBloque]
-            jData['partFasePlayoff'] = jNum - curBlockStarts + 1
 
     def nuevaTraduccionEquipo2Codigo(self, nombres, abrev, idEq=None):
         result = False
@@ -189,6 +171,7 @@ class CalendarioACB:
         result['pendientes'] = []
         result['equipos'] = set()
         result['idEmparej'] = set()
+        result['esPlayoff'] = dictCab['esPlayoff']
 
         # print(divPartidos)
         for artP in divDatos.find_all("article", {"class": "partido"}):
@@ -206,8 +189,11 @@ class CalendarioACB:
             else:
                 self.Partidos[datosPart['url']] = datosPart
                 result['partidos'].append(datosPart)
-        result['esPlayoff'] = None
+
         result['numPartidos'] = len(result['partidos']) + len(result['pendientes'])
+        if result['esPlayoff']:
+            result['fasePlayoff'] = POLABEL2FASE[dictCab['etiqFasePOff'].lower()]
+            result['partFasePlayoff'] = dictCab['numPartPoff']
         return result
 
     def procesaBloquePartido(self, datosJornada, divPartido):
@@ -400,12 +386,27 @@ def procesaCab(cab):
     resultado['nombreJornada'] = cadL
     resultado['fechasJornada'] = cadR
 
-    patronL = r'(?P<comp>.*) (?P<yini>\d{4})-(?P<yfin>\d{4})\s+(:?-\s+(?P<extraComp>.*)\s+)?- JORNADA (?P<jornada>\d+)'
+    patronL = (r'(?P<comp>.*) (?P<yini>\d{4})-(?P<yfin>\d{4})\s+(:?-\s+(?P<extraComp>.*)\s+)?'
+               r'-\s*(?P<nombreJornada>.*)\s*$')
 
-    patL = re.match(patronL, cadL,re.IGNORECASE)
-    if patL:
-        dictFound = patL.groupdict()
+    reL = re.match(patronL, cadL, re.IGNORECASE)
+    if reL:
+        dictFound = reL.groupdict()
         resultado.update(dictFound)
+
+        nombreJornada = dictFound['nombreJornada']
+        patronJLR = r'Jornada\s*(?P<jornada>\d+)'
+        reJLR = re.match(patronJLR, nombreJornada)
+        if reJLR:
+            resultado['esPlayoff'] = False
+            resultado.update(reJLR.groupdict())
+        else:
+            resultado['esPlayoff'] = True
+            patronPoff = r'(?P<etiqFasePOff>.+)\s+\((?P<numPartPoff>\d+).\)\s*'
+            rePoff = re.match(patronPoff, nombreJornada)
+            resultado.update(rePoff.groupdict())
+            resultado['jornada'] = f"{numPartidoPO2jornada(resultado['etiqFasePOff'], resultado['numPartPoff'])}"
+
         if cadR != '':
             try:
                 resultado['auxFechas'] = procesaFechasJornada(cadR)
@@ -414,6 +415,7 @@ def procesaCab(cab):
     else:
         raise ValueError(f"procesaCab: valor '{cadL}' no casa RE '{patronL}'")
 
+    print(resultado)
     return resultado
 
 
@@ -583,3 +585,9 @@ def dictK2partStr(cal: CalendarioACB, partK: str) -> str:
 
     result = f"J{int(jor):02}: {abrLoc}-{abrVis}"
     return result
+
+
+def numPartidoPO2jornada(fasePO: str, numPart: str):
+    fasePO2jorBase = {'1/8 de final': 50, '1/4 de final': 60, 'semifinales': 70, 'final': 80}
+
+    return fasePO2jorBase[fasePO.lower()] + int(numPart)
