@@ -11,7 +11,7 @@ from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif
 from Utils.Web import getObjID, prepareDownloading
-from .Constants import URL_BASE, POLABEL2FASE
+from .Constants import URL_BASE, POLABEL2FASE, REGEX_JLR, REGEX_PLAYOFF
 
 logger = logging.getLogger()
 
@@ -395,15 +395,13 @@ def procesaCab(cab):
         resultado.update(dictFound)
 
         nombreJornada = dictFound['nombreJornada']
-        patronJLR = r'Jornada\s*(?P<jornada>\d+)'
-        reJLR = re.match(patronJLR, nombreJornada)
+        reJLR = re.match(REGEX_JLR, nombreJornada, re.IGNORECASE)
         if reJLR:
             resultado['esPlayoff'] = False
             resultado.update(reJLR.groupdict())
         else:
             resultado['esPlayoff'] = True
-            patronPoff = r'(?P<etiqFasePOff>.+)\s+\((?P<numPartPoff>\d+).\)\s*'
-            rePoff = re.match(patronPoff, nombreJornada)
+            rePoff = re.match(REGEX_PLAYOFF, nombreJornada, re.IGNORECASE)
             resultado.update(rePoff.groupdict())
             resultado['jornada'] = f"{numPartidoPO2jornada(resultado['etiqFasePOff'], resultado['numPartPoff'])}"
 

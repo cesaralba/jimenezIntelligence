@@ -34,6 +34,9 @@ DEFAULTNUMFORMAT = '{:3.2f}'
 RANKFORMAT = '{:2d}'
 DEFAULTPERCFORMAT = DEFAULTNUMFORMAT + '%'
 
+REGEX_JLR = r'Jornada\s*(?P<jornada>\d+)'
+REGEX_PLAYOFF = r'(?P<etiqFasePOff>.+)\s+\((?P<numPartPoff>\d+).\)\s*'
+
 
 def OtherLoc(team):
     if team == 'Local':
