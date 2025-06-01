@@ -415,7 +415,6 @@ def procesaCab(cab):
     else:
         raise ValueError(f"procesaCab: valor '{cadL}' no casa RE '{patronL}'")
 
-    print(resultado)
     return resultado
 
 
