@@ -15,7 +15,9 @@ from bs4 import Tag
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
 from Utils.Web import getObjID, prepareDownloading
-from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp)
+from .CalendarioACB import numPartidoPO2jornada
+from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp, REGEX_JLR,
+                        REGEX_PLAYOFF)
 from .PlantillaACB import PlantillaACB
 
 templateURLficha = "https://www.acb.com/fichas/%s%i%03i.php"
@@ -32,6 +34,7 @@ class PartidoACB():
         self.ResultadosParciales = []
         self.prorrogas = 0
         self.timestamp = None
+        self.esPlayoff: bool = False
 
         self.Equipos = {x: {'Jugadores': []} for x in LocalVisitante}
 
@@ -169,11 +172,19 @@ class PartidoACB():
     def procesaDivFechas(self, divFecha):
         espTiempo = list(map(lambda x: x.strip(), divFecha.next.split("|")))
 
-        patJornada = r"^JORNADA\s*(?P<jornada>\d+)\s*$"
-        reJornada = re.match(patJornada, espTiempo[0], re.IGNORECASE)
-        if reJornada is None:
-            raise ValueError(f"Problemas sacando fecha de cabecera. RE:|{patJornada}| Cadena:[{espTiempo[0]}|")
-        self.jornada = int(reJornada.group('jornada'))
+        reJornada = re.match(REGEX_JLR, espTiempo[0], re.IGNORECASE)
+        if reJornada:
+            self.esPlayoff = False
+            self.jornada = int(reJornada.group('jornada'))
+        else:
+            rePlayOff = re.match(REGEX_PLAYOFF, espTiempo[0], re.IGNORECASE)
+            if rePlayOff:
+                self.esPlayoff = True
+                self.jornada = f"{numPartidoPO2jornada(rePlayOff.group('etiqFasePOff'),
+                                                       rePlayOff.group('numPartPoff'))}"
+            else:
+                raise ValueError(
+                    f"Problemas sacando jornada de cabecera. RE:|{REGEX_JLR}|{REGEX_PLAYOFF}| Cadena:[{espTiempo[0]}|")
 
         cadTiempo = f"{espTiempo[1]} {espTiempo[2]}"
         PATRONdmyhm = r'^\s*(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})?$'
@@ -214,20 +225,13 @@ class PartidoACB():
             self.Equipos[loc]['abrev'] = abrev
 
     def procesaLineaTablaEstadistica(self, fila, headers, estado):
-        result = dict()
-        result['competicion'] = self.competicion
-        result['temporada'] = self.temporada
-        result['jornada'] = self.jornada
-        result['equipo'] = self.Equipos[estado]['Nombre']
-        result['CODequipo'] = self.Equipos[estado]['abrev']
-        result['IDequipo'] = self.Equipos[estado]['id']
-        result['rival'] = self.Equipos[OtherLoc(estado)]['Nombre']
-        result['CODrival'] = self.Equipos[OtherLoc(estado)]['abrev']
-        result['IDrival'] = self.Equipos[OtherLoc(estado)]['id']
-        result['url'] = self.url
-        result['estado'] = estado
-        result['esLocal'] = estado == "Local"
-        result['haGanado'] = self.ResultadoCalendario[estado] > self.ResultadoCalendario[OtherLoc(estado)]
+        result = {
+            'competicion': self.competicion, 'temporada': self.temporada, 'jornada': self.jornada,
+            'equipo': self.Equipos[estado]['Nombre'], 'CODequipo': self.Equipos[estado]['abrev'],
+            'IDequipo': self.Equipos[estado]['id'], 'rival': self.Equipos[OtherLoc(estado)]['Nombre'],
+            'CODrival': self.Equipos[OtherLoc(estado)]['abrev'], 'IDrival': self.Equipos[OtherLoc(estado)]['id'],
+            'url': self.url, 'estado': estado, 'esLocal': (estado == "Local"),
+            'haGanado': (self.ResultadoCalendario[estado] > self.ResultadoCalendario[OtherLoc(estado)])}
 
         filaClass = fila.attrs.get('class', '')
 
@@ -236,8 +240,7 @@ class PartidoACB():
 
         if len(textos) == len(headers):
             mergedTextos = dict(zip(headers[2:], textos[2:]))
-            estads = self.procesaEstadisticas(mergedTextos)
-            result['estads'] = estads
+            result['estads'] = self.procesaEstadisticas(mergedTextos)
 
             if 'equipo' in filaClass or 'totales' in filaClass:
                 result['esJugador'] = False
@@ -246,11 +249,12 @@ class PartidoACB():
                 result['totalEquipo'] = 'totales' in filaClass
 
                 if result['totalEquipo']:
-                    result['prorrogas'] = int(((estads['Segs'] / (5 * 60)) - 40) // 5)
+                    result['prorrogas'] = int(((result['estads']['Segs'] / (5 * 60)) - 40) // 5)
 
-                    if estads['P'] != self.Equipos[estado]['Puntos']:
-                        print(estads, self.Equipos[estado])
-                        raise ValueError(f"ProcesaLineaTablaEstadistica: TOTAL '{estado}' puntos '{estads['P']}' "
+                    if result['estads']['P'] != self.Equipos[estado]['Puntos']:
+                        print(result['estads'], self.Equipos[estado])
+                        raise ValueError(f"ProcesaLineaTablaEstadistica: TOTAL '{estado}' "
+                                         f"puntos '{result['estads']['P']}' "
                                          f"no casan con encabezado '{self.Equipos[estado]['Puntos']}'")
             else:  # Jugadores
                 result['esJugador'] = True
@@ -271,9 +275,8 @@ class PartidoACB():
 
                 celNombre = mergedCells['Nombre']
                 result['nombre'] = celNombre.get_text()
-                linkdata = (celdas[1].find("a"))['href']
-                result['linkPersona'] = linkdata
-                result['codigo'] = getObjID(linkdata, 'ver', None)
+                result['linkPersona'] = (celdas[1].find("a"))['href']
+                result['codigo'] = getObjID(result['linkPersona'], 'ver', None)
         else:
             textoC0 = celdas[0].get_text()
             if textoC0 == 'E':
@@ -283,9 +286,8 @@ class PartidoACB():
 
                 celNombre = celdas[1]
                 result['nombre'] = celNombre.get_text()
-                linkdata = (celdas[1].find("a"))['href']
-                result['linkPersona'] = linkdata
-                result['codigo'] = getObjID(linkdata, 'ver', None)
+                result['linkPersona'] = (celdas[1].find("a"))['href']
+                result['codigo'] = getObjID(result['linkPersona'], 'ver', None)
             else:  # 5f lista de 5 faltas
                 return None
 
@@ -410,10 +412,9 @@ class PartidoACB():
 
             estadsDict[loc]['local'] = loc == 'Local'
             estadsDict[loc]['haGanado'] = self.DatosSuministrados['equipos'][loc]['haGanado']
-            locres = ("v" if estadsDict[loc]['local'] else "@")
             abrev = estadsDict[loc]['RIVabrev']
-            victoderr = ("+" if estadsDict[loc]['haGanado'] else "-")
-            estadsDict[loc]['etiqPartido'] = f"{locres}{abrev}{victoderr}"
+            estadsDict[loc]['etiqPartido'] = (f"{('v' if estadsDict[loc]['local'] else '@')}{abrev}"
+                                              f"{('+' if estadsDict[loc]['haGanado'] else '-')}")
             estadsDict[loc]['convocados'] = len(self.Equipos[loc]['Jugadores'])
             estadsDict[loc]['utilizados'] = len(
                 [j for j in self.Equipos[loc]['Jugadores'] if self.Jugadores[j]['haJugado']])
