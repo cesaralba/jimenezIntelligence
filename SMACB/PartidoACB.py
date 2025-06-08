@@ -15,9 +15,8 @@ from bs4 import Tag
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
 from Utils.Web import getObjID, prepareDownloading
-from .CalendarioACB import numPartidoPO2jornada
 from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp, REGEX_JLR,
-                        REGEX_PLAYOFF)
+                        REGEX_PLAYOFF, infoJornada, numPartidoPO2jornada, POLABEL2FASE)
 from .PlantillaACB import PlantillaACB
 
 templateURLficha = "https://www.acb.com/fichas/%s%i%03i.php"
@@ -27,6 +26,7 @@ class PartidoACB():
 
     def __init__(self, **kwargs):
         self.jornada = None
+        self.infoJornada: Optional[infoJornada] = None
         self.fechaPartido = None
         self.Pabellon = None
         self.Asistencia = None
@@ -176,12 +176,15 @@ class PartidoACB():
         if reJornada:
             self.esPlayoff = False
             self.jornada = int(reJornada.group('jornada'))
+            self.infoJornada = infoJornada(jornada=self.jornada, esPlayOff=False)
         else:
             rePlayOff = re.match(REGEX_PLAYOFF, espTiempo[0], re.IGNORECASE)
             if rePlayOff:
                 self.esPlayoff = True
-                self.jornada = f"{numPartidoPO2jornada(rePlayOff.group('etiqFasePOff'),
-                                                       rePlayOff.group('numPartPoff'))}"
+                self.jornada = numPartidoPO2jornada(rePlayOff.group('etiqFasePOff'), rePlayOff.group('numPartPoff'))
+                self.infoJornada = infoJornada(jornada=self.jornada, esPlayOff=self.esPlayoff,
+                                               fasePlayOff=rePlayOff.group('etiqFasePOff'),
+                                               partRonda=int(rePlayOff.group('numPartPoff')))
             else:
                 raise ValueError(
                     f"Problemas sacando jornada de cabecera. RE:|{REGEX_JLR}|{REGEX_PLAYOFF}| Cadena:[{espTiempo[0]}|")
@@ -443,7 +446,13 @@ class PartidoACB():
         return result
 
     def resumenPartido(self):
-        return (f"J {self.jornada:02d}: [{self.fechaPartido}] "
+        jorStr = f"J: {self.jornada:2}"
+        if hasattr(self, 'infoJornada'):
+            dataJor = self.infoJornada
+            if dataJor.esPlayOff:
+                jorStr = f"{POLABEL2FASE[dataJor.fasePlayOff.lower()]}({dataJor.partRonda:1})"
+
+        return (f"{jorStr}: [{self.fechaPartido}] "
                 f"{self.EquiposCalendario['Local']['nomblargo']} ({self.CodigosCalendario['Local']}) "
                 f"{self.ResultadoCalendario['Local']:d} - {self.ResultadoCalendario['Visitante']:d} "
                 f"{self.EquiposCalendario['Visitante']['nomblargo']} ({self.CodigosCalendario['Visitante']})")

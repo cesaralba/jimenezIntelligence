@@ -11,7 +11,7 @@ from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif
 from Utils.Web import getObjID, prepareDownloading
-from .Constants import URL_BASE, POLABEL2FASE, REGEX_JLR, REGEX_PLAYOFF
+from .Constants import URL_BASE, POLABEL2FASE, REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada
 
 logger = logging.getLogger()
 
@@ -582,9 +582,3 @@ def dictK2partStr(cal: CalendarioACB, partK: str) -> str:
 
     result = f"J{int(jor):02}: {abrLoc}-{abrVis}"
     return result
-
-
-def numPartidoPO2jornada(fasePO: str, numPart: str):
-    fasePO2jorBase = {'1/8 de final': 50, '1/4 de final': 60, 'semifinales': 70, 'final': 80}
-
-    return fasePO2jorBase[fasePO.lower()] + int(numPart)

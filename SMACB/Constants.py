@@ -17,6 +17,8 @@ LOCALNAMES = {'Local', 'L', 'local'}
 VISITNAMES = {'Visitante', 'V', 'visitante'}
 
 POLABEL2FASE = {'final': 'Final', 'semifinales': 'Semis', '1/4 de final': 'Cuartos', '1/8 de final': 'Octavos'}
+POLABEL2ABREV = {'final': 'F', 'semifinales': 'S', '1/4 de final': 'C', '1/8 de final': 'O'}
+
 PLAYOFFFASE = {1: 'Final', 2: 'Semis', 4: 'Cuartos', 8: 'Octavos'}
 PLAYOFFABREV = {'Final': 'F', 'Semis': 'S', 'Cuartos': 'C', 'Octavos': 'O'}
 
@@ -56,6 +58,9 @@ def OtherTeam(team):
     raise BadParameters(f"OtherTeam: '{team}' provided. It only accept 'Eq' or 'Rival'")
 
 
+infoJornada = namedtuple('infoJornada', field_names=['jornada', 'esPlayOff', 'fasePlayOff', 'partRonda'],
+                         defaults=[False, None, None])
+
 infoSigPartido = namedtuple(typename='infoSigPartido',
                             field_names=['sigPartido', 'abrevLV', 'jugLocal', 'pendLocal', 'jugVis', 'pendVis',
                                          'eqIsLocal'], defaults=[None, None, None, None, None, None, None, ])
@@ -80,3 +85,9 @@ CLAVESDICT = ['id', 'URL', 'alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion'
               'primPartidoT', 'ultPartidoT', 'ultPartidoP']
 TRADPOSICION = {'Alero': 'A', 'Escolta': 'E', 'Base': 'B', 'Pívot': 'P', 'Ala-pívot': 'AP', '': '?'}
 POSABREV2NOMBRE = {'A': 'Alero', 'E': 'Escolta', 'B': 'Base', 'P': 'Pívot', 'AP': 'Ala-pívot'}
+
+
+def numPartidoPO2jornada(fasePO: str, numPart: str) -> int:
+    fasePO2jorBase = {'1/8 de final': 50, '1/4 de final': 60, 'semifinales': 70, 'final': 80}
+
+    return fasePO2jorBase[fasePO.lower()] + int(numPart)
