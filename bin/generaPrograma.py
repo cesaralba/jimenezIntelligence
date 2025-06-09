@@ -88,6 +88,9 @@ def main(args):
     except KeyError as exc:
         print(f"Equipo desconocido '{args.equipo}': {exc}")
         sys.exit(1)
+    except IndexError:
+        print(f"Equipo '{args.equipo}': no tiene más partidos conocidos")
+        sys.exit(1)
 
     preparaLibro(args, tempData, datosSig)
 
