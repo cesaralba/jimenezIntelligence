@@ -337,7 +337,7 @@ class TemporadaACB:
             estadsJugadoresEq = dfDatosPartidos
 
         auxEstadisticosDF = estadsJugadoresEq.drop(columns=COLDROPPER).groupby('codigo').apply(
-            auxCalculaEstadsSubDataframe)
+            auxCalculaEstadsSubDataframe, include_groups=False)
 
         # Ajusta la suma de los porcentajes a la media de las sumas
         for k in '123C':
