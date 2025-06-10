@@ -4,7 +4,7 @@ from typing import Set, List
 import pandas as pd
 
 from SMACB import TemporadaACB as TempACB
-from SMACB.Constants import local2espLargo, LocalVisitante, haGanado2esp
+from SMACB.Constants import local2espLargo, LocalVisitante, haGanado2esp, infoJornada
 from SMACB.Programa.Clasif import infoClasifEquipo, calculaClasifEquipo
 from SMACB.Programa.Constantes import nombresClasif, criterioDesempateCruces
 from SMACB.TemporadaACB import TemporadaACB
@@ -334,3 +334,12 @@ def auxLeyendaRepartoVictPorLoc(data):
     result = "<b>Reparto de victorias</b>: " + ", ".join(auxList)
 
     return result
+
+
+def jor2StrCab(data: infoJornada):
+    if data.esPlayOff:
+        rondaStr = {'final': 'Fin', 'semifinales': 'Sem', '1/4 de final': 'Cua', '1/8 de final': 'Oct'}[
+            data.fasePlayOff.lower()]
+        return f"{rondaStr} <b>{data.partRonda:1}</b>"
+
+    return f"J: <b>{data.jornada:2}</b>"
