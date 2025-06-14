@@ -46,19 +46,19 @@ def paginaPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
     result = []
 
     result.append(cabeceraPortada(tempData, datosSig))
-    result.append(Spacer(width=120 * mm, height=1 * mm))
-    result.append(metadataPrograma(tempData))
-    result.append(Spacer(width=120 * mm, height=2 * mm))
-    tabEstadsBasicas = bloqueRestoJYBasics(tempData, datosSig)
-    result.append(tabEstadsBasicas)
-    result.append(Spacer(width=120 * mm, height=2 * mm))
-    tabClasif = tablaClasifLiga(tempData, datosSig)
-    result.append(tabClasif)
-    result.append(Spacer(width=120 * mm, height=2 * mm))
-    trayectoria = reportTrayectoriaEquipos(tempData, datosSig)
-    if trayectoria:
-        result.append(trayectoria)
-        result.append(Spacer(width=120 * mm, height=1 * mm))
+    # result.append(Spacer(width=120 * mm, height=1 * mm))
+    # result.append(metadataPrograma(tempData))
+    # result.append(Spacer(width=120 * mm, height=2 * mm))
+    # tabEstadsBasicas = bloqueRestoJYBasics(tempData, datosSig)
+    # result.append(tabEstadsBasicas)
+    # result.append(Spacer(width=120 * mm, height=2 * mm))
+    # tabClasif = tablaClasifLiga(tempData, datosSig)
+    # result.append(tabClasif)
+    # result.append(Spacer(width=120 * mm, height=2 * mm))
+    # trayectoria = reportTrayectoriaEquipos(tempData, datosSig)
+    # if trayectoria:
+    #     result.append(trayectoria)
+    #     result.append(Spacer(width=120 * mm, height=1 * mm))
 
     return result
 

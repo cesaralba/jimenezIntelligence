@@ -10,7 +10,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, TableStyle, Table
 
 import SMACB.Programa.Globals as GlobACB
-from SMACB.Constants import infoSigPartido, LocalVisitante, MARCADORESCLASIF, RANKFORMAT
+from SMACB.Constants import infoSigPartido, LocalVisitante, MARCADORESCLASIF, RANKFORMAT, infoJornada
 from SMACB.Programa.Constantes import (ESTADISTICOEQ, estiloNegBal, estiloPosMarker, colEq, DEFTABVALUE, FORMATOCAMPOS,
                                        colorTablaDiagonal, ANCHOMARCAPOS)
 from SMACB.Programa.Datos import datosRestoJornada
@@ -18,7 +18,7 @@ from SMACB.Programa.FuncionesAux import auxCalculaBalanceStr, auxJugsBajaTablaJu
     GENERADORFECHA, GENMAPDICT, GENERADORTIEMPO, GENERADORETTIRO, GENERADORETREBOTE, auxBold, equipo2clasif, \
     auxLabelEqTabla, auxCruceDiag, auxCruceTotalPend, auxCruceTotalResuelto, auxCruceResuelto, auxCrucePendiente, \
     auxCruceTotales, auxLigaDiag, auxTablaLigaPartJugado, auxTablaLigaPartPendiente
-from SMACB.Programa.Globals import recuperaClasifLiga, recuperaEstadsGlobales
+from SMACB.Programa.Globals import recuperaClasifLigaLR, recuperaEstadsGlobales
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden
 from Utils.ReportLab.RLverticalText import VerticalParagraph
 
@@ -106,7 +106,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     def infoEq(eqData: dict, jornada: int, jornadasCompletas: Set[int] = sentinel):
         abrev = eqData['abrev']
 
-        clasifAux = equipo2clasif(GlobACB.clasifLiga, abrev)
+        clasifAux = equipo2clasif(GlobACB.clasifLigaLR, abrev)
         clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=jornada, addPendJornada=False,
                                          jornadasCompletas=jornadasCompletas)
         formatoIn, formatoOut = ('<b>', '</b>') if eqData['haGanado'] else ('', '')
@@ -145,7 +145,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     # Data preparation
     sigPartido = datosSig.sigPartido
     jornada = int(sigPartido['jornada'])
-    recuperaClasifLiga(tempData)
+    recuperaClasifLigaLR(tempData)
     drj = datosRestoJornada(tempData, datosSig)
     datosParts = preparaDatos(drj, sigPartido['fechaPartido'], jornadasCompletas=tempData.jornadasCompletas())
 
@@ -180,14 +180,19 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     return t
 
 
-def bloqueCabEquipo(datosEq, tempData, fecha, currJornada: int = None):
-    recuperaClasifLiga(tempData, fecha)
+def bloqueCabEquipo(datosEq, tempData, fecha, datosJornada: infoJornada):
+    recuperaClasifLigaLR(tempData, fecha)
     # TODO: Imagen (descargar imagen de escudo y plantarla)
     nombre = datosEq['nombcorto']
 
-    clasifAux = equipo2clasif(GlobACB.clasifLiga, datosEq['abrev'])
-    clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=currJornada,
-                                     jornadasCompletas=tempData.jornadasCompletas())
+    clasifAux = equipo2clasif(GlobACB.clasifLigaLR, datosEq['abrev'])
+    if datosJornada.esPlayOff:
+        print(clasifAux)
+        GlobACB.recuperaEstadoLigaPO(tempData, fecha)
+        clasifStr = "TBD"
+    else:
+        clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=datosJornada.jornada,
+                                         jornadasCompletas=tempData.jornadasCompletas())
 
     result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b></para>"),
               Paragraph(f"<para align='center' fontSize='14'>{clasifStr}</para>")]

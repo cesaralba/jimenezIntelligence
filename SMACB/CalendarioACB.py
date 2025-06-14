@@ -11,7 +11,7 @@ from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif
 from Utils.Web import getObjID, prepareDownloading
-from .Constants import URL_BASE, POLABEL2FASE, REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada
+from .Constants import URL_BASE, REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada, infoJornada
 
 logger = logging.getLogger()
 
@@ -166,16 +166,18 @@ class CalendarioACB:
         # TODO: incluir datos de competicion
         result = dict()
         result['nombre'] = dictCab['comp']
-        result['jornada'] = int(dictCab['jornada'])
+        result['jornada'] = dictCab['jornada']
         result['partidos'] = []
         result['pendientes'] = []
         result['equipos'] = set()
         result['idEmparej'] = set()
-        result['esPlayoff'] = dictCab['esPlayoff']
+        result['esPlayoff']: bool = dictCab['esPlayoff']
+        result['infoJornada']: infoJornada = dictCab['infoJornada']
 
         # print(divPartidos)
         for artP in divDatos.find_all("article", {"class": "partido"}):
             datosPart = self.procesaBloquePartido(dictCab, artP)
+            datosPart['infoJornada']: infoJornada = result['infoJornada']
 
             result['equipos'].update(datosPart['participantes'])
             result['idEmparej'].add(datosPart['claveEmparejamiento'])
@@ -191,9 +193,6 @@ class CalendarioACB:
                 result['partidos'].append(datosPart)
 
         result['numPartidos'] = len(result['partidos']) + len(result['pendientes'])
-        if result['esPlayoff']:
-            result['fasePlayoff'] = POLABEL2FASE[dictCab['etiqFasePOff'].lower()]
-            result['partFasePlayoff'] = dictCab['numPartPoff']
         return result
 
     def procesaBloquePartido(self, datosJornada, divPartido):
@@ -380,7 +379,7 @@ def procesaCab(cab):
     :param cab: div que contiene la cabecera COMPLETA
     :return:  {'comp': 'Liga Endesa', 'yini': '2018', 'yfin': '2019', 'jor': '46'}
     """
-    resultado = dict()
+    resultado = {}
     cadL = cab.find('div', {"class": "float-left"}).text
     cadR = cab.find('div', {"class": "fechas"}).text
     resultado['nombreJornada'] = cadL
@@ -397,13 +396,17 @@ def procesaCab(cab):
         nombreJornada = dictFound['nombreJornada']
         reJLR = re.match(REGEX_JLR, nombreJornada, re.IGNORECASE)
         if reJLR:
+            resultado['jornada'] = int(reJLR.group('jornada'))
             resultado['esPlayoff'] = False
+            resultado['infoJornada'] = infoJornada(jornada=resultado['jornada'], esPlayOff=False)
             resultado.update(reJLR.groupdict())
         else:
             resultado['esPlayoff'] = True
             rePoff = re.match(REGEX_PLAYOFF, nombreJornada, re.IGNORECASE)
-            resultado.update(rePoff.groupdict())
-            resultado['jornada'] = f"{numPartidoPO2jornada(resultado['etiqFasePOff'], resultado['numPartPoff'])}"
+            resultado['jornada'] = numPartidoPO2jornada(rePoff.group('etiqFasePOff'), rePoff.group('numPartPoff'))
+            resultado['infoJornada'] = infoJornada(jornada=resultado['jornada'], esPlayOff=resultado['esPlayoff'],
+                                                   fasePlayOff=rePoff.group('etiqFasePOff'),
+                                                   partRonda=int(rePoff.group('numPartPoff')))
 
         if cadR != '':
             try:
@@ -568,7 +571,7 @@ def procesaPaginaPartidosEquipo(content: DownloadedPage):
 
 
 def p2DictK(cal: CalendarioACB, datosPart: dict) -> str:
-    jor = datosPart['jornada']
+    jor = f"{datosPart['jornada']}"
     idLoc = onlySetElement(cal.tradEquipos['c2i'][datosPart['loc2abrev']['Local']])
     idVis = onlySetElement(cal.tradEquipos['c2i'][datosPart['loc2abrev']['Visitante']])
     result = "#".join((jor, idLoc, idVis)) if (isinstance(idLoc, str) and isinstance(idVis, str)) else None
