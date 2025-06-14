@@ -5,13 +5,13 @@ import pandas as pd
 
 from SMACB import TemporadaACB as TempACB
 from SMACB.Constants import local2espLargo, LocalVisitante, haGanado2esp, infoJornada
-from SMACB.Programa.Clasif import infoClasifEquipo, calculaClasifEquipo
+from SMACB.Programa.Clasif import infoClasifEquipoLR, calculaClasifEquipoLR
 from SMACB.Programa.Constantes import nombresClasif, criterioDesempateCruces
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.FechaHora import NEVER, secs2TimeStr
 
 
-def auxCalculaBalanceStrSuf(record: infoClasifEquipo, addPendientes: bool = False, currJornada: int = None,
+def auxCalculaBalanceStrSuf(record: infoClasifEquipoLR, addPendientes: bool = False, currJornada: int = None,
                             addPendJornada: bool = False, jornadasCompletas: Set[int] = None
                             ) -> str:
     if jornadasCompletas is None:
@@ -30,7 +30,7 @@ def auxCalculaBalanceStrSuf(record: infoClasifEquipo, addPendientes: bool = Fals
     return strPendiente
 
 
-def auxCalculaBalanceStr(record: infoClasifEquipo, addPendientes: bool = False, currJornada: int = None,
+def auxCalculaBalanceStr(record: infoClasifEquipoLR, addPendientes: bool = False, currJornada: int = None,
                          addPendJornada: bool = False, jornadasCompletas: Set[int] = None
                          ) -> str:
     strPendiente = auxCalculaBalanceStrSuf(record, addPendientes, currJornada, addPendJornada, jornadasCompletas)
@@ -41,7 +41,7 @@ def auxCalculaBalanceStr(record: infoClasifEquipo, addPendientes: bool = False, 
     return texto
 
 
-def auxCalculaFirstBalNeg(clasif: list[infoClasifEquipo]):
+def auxCalculaFirstBalNeg(clasif: list[infoClasifEquipoLR]):
     for posic, eq in enumerate(clasif):
         victs = eq.V
         derrs = eq.D
@@ -60,7 +60,7 @@ def partidoTrayectoria(partido: TempACB.filaTrayectoriaEq, datosTemp: TemporadaA
 
     strResultado = None
     if not partido.pendiente:
-        clasifAux = calculaClasifEquipo(datosTemp, partido.equipoRival.abrev, partido.fechaPartido)
+        clasifAux = calculaClasifEquipoLR(datosTemp, partido.equipoRival.abrev, partido.fechaPartido)
         clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=int(partido.jornada),
                                          addPendJornada=False)
         strRival = f"{strFecha}: {textRival} ({clasifStr})"
@@ -218,7 +218,7 @@ def equipo2clasif(clasifLiga, abrEq):
     return result
 
 
-def etiquetasClasificacion(clasif: List[infoClasifEquipo]) -> List[nombresClasif]:
+def etiquetasClasificacion(clasif: List[infoClasifEquipoLR]) -> List[nombresClasif]:
     """
     Prepara una lista con información para usar en las tablas con todos los equipos
     :param clasif: Clasif de la liga en SMACB.Programa.Globals

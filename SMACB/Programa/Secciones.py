@@ -16,7 +16,7 @@ from SMACB.Programa.Datos import datosTablaClasif, datosJugadores, auxFindTarget
 from SMACB.Programa.FuncionesAux import auxCalculaFirstBalNeg, partidoTrayectoria, auxBold, auxLeyendaCrucesResueltos, \
     auxLeyendaCrucesTotalResueltosEq, auxLeyendaCrucesTotalResueltos, auxLeyendaCrucesTotalPendientes, \
     auxLeyendaRepartoVictPorLoc, jor2StrCab
-from SMACB.Programa.Globals import recuperaClasifLiga, recuperaEstadsGlobales
+from SMACB.Programa.Globals import recuperaClasifLigaLR, recuperaEstadsGlobales
 from SMACB.Programa.Presentacion import tablaEstadsBasicas, tablaRestoJornada, bloqueCabEquipo, tablasJugadoresEquipo, \
     auxGeneraLeyendaEstadsCelda, auxFilasTablaEstadisticos, presTablaCruces, presTablaCrucesEstilos, \
     presTablaPartidosLigaReg, presTablaPartidosLigaRegEstilos
@@ -100,9 +100,9 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
                   Paragraph(f"<para align='right' fontsize={FONTPARA}>{dato.diffP}</para>")]
         return result
 
-    recuperaClasifLiga(tempData)
+    recuperaClasifLigaLR(tempData)
     filasClasLiga = datosTablaClasif(tempData, datosSig)
-    posFirstNegBal = auxCalculaFirstBalNeg(GlobACB.clasifLiga)
+    posFirstNegBal = auxCalculaFirstBalNeg(GlobACB.clasifLigaLR)
     filasAresaltar = []
     filaCab = [Paragraph("<para align='center'><b>#</b></para>"),
                Paragraph("<para align='center'><b>Equipo</b></para>"),
