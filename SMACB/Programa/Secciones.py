@@ -32,7 +32,6 @@ def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
     datosVisit = partido['equipos']['Visitante']
     compo = partido['cod_competicion']
     edicion = partido['cod_edicion']
-    j = partido['jornada']
     fh = time2Str(partido['fechaPartido'])
 
     style = ParagraphStyle('cabStyle', align='center', fontName='Helvetica', fontSize=20, leading=22, )

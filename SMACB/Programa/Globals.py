@@ -4,7 +4,7 @@ from typing import Optional, List, Dict
 import pandas as pd
 
 from SMACB.TemporadaACB import calculaEstadsYOrdenLiga, TemporadaACB
-from .Clasif import infoClasifEquipoLR, calculaClasifLigaLR, calculaEstadoLigaPO
+from .Clasif import infoClasifEquipoLR, calculaClasifLigaLR, calculaEstadoLigaPO, infoEquipoPO
 from .Constantes import ESTADISTICOEQ
 
 CATESTADSEQ2IGNORE = {'+/-', 'C', 'convocados', 'haGanado', 'local', 'M', 'Segs', 'utilizados', 'V'}
@@ -14,7 +14,7 @@ estadGlobales: Optional[pd.DataFrame] = None
 estadGlobalesOrden: Optional[pd.DataFrame] = None
 allMagnsInEstads: Optional[set] = None
 clasifLigaLR: Optional[List[infoClasifEquipoLR]] = None
-estadoLigaPO: Optional[List[infoClasifEquipoLR]] = None
+estadoLigaPO: Optional[Dict[str, infoEquipoPO]] = None
 
 numEqs: Optional[int] = None
 mitadEqs: Optional[int] = None

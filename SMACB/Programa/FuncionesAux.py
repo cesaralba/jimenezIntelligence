@@ -1,11 +1,12 @@
 from math import isnan
-from typing import Set, List
+from typing import Set, List, Optional
 
 import pandas as pd
+from CAPcore.Misc import onlySetElement
 
 from SMACB import TemporadaACB as TempACB
-from SMACB.Constants import local2espLargo, LocalVisitante, haGanado2esp, infoJornada
-from SMACB.Programa.Clasif import infoClasifEquipoLR, calculaClasifEquipoLR
+from SMACB.Constants import local2espLargo, LocalVisitante, haGanado2esp, infoJornada, POLABELLIST, POLABEL2ABREV
+from SMACB.Programa.Clasif import infoClasifEquipoLR, calculaClasifEquipoLR, infoEquipoPO, infoSerieEquipoPO
 from SMACB.Programa.Constantes import nombresClasif, criterioDesempateCruces
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.FechaHora import NEVER, secs2TimeStr
@@ -39,6 +40,29 @@ def auxCalculaBalanceStr(record: infoClasifEquipoLR, addPendientes: bool = False
     texto = f"{victorias}-{derrotas}{strPendiente}"
 
     return texto
+
+def auxCalculaInfoPO(datosJornada:infoJornada, recordLR:infoClasifEquipoLR, posicLR, recordPO:infoEquipoPO, tempData:Optional[TemporadaACB]=None, incluyeAct:bool=False):
+    result=[]
+    result.append(("LR",f"{recordLR.V}-{recordLR.D},{posicLR}º"))
+    for fase in POLABELLIST:
+        if fase not in recordPO.fases:
+            continue
+        if fase == datosJornada.fasePlayOff:
+            continue
+        recFase:infoSerieEquipoPO = recordPO.fases[fase]
+        rival=f"{onlySetElement(tempData.tradEquipos['i2c'][recFase.idRival])}" if tempData else ""
+
+        result.append((fase,f"{recFase.V}-{recFase.D} {rival}"))
+
+    if incluyeAct:
+        if datosJornada.fasePlayOff in recordPO.fases:
+            recFase: infoSerieEquipoPO = recordPO.fases[datosJornada.fasePlayOff]
+            result.append((datosJornada.fasePlayOff, f"{recFase.V}-{recFase.D}"))
+        else:
+            result.append((datosJornada.fasePlayOff, f"0-0"))
+
+    return result
+
 
 
 def auxCalculaFirstBalNeg(clasif: list[infoClasifEquipoLR]):
@@ -211,9 +235,9 @@ def auxBold(data):
 def equipo2clasif(clasifLiga, abrEq):
     result = None
 
-    for eqData in clasifLiga:
+    for pos,eqData in enumerate(clasifLiga,start=1):
         if abrEq in eqData.abrevsEq:
-            return eqData
+            return pos,eqData
 
     return result
 
@@ -343,3 +367,12 @@ def jor2StrCab(data: infoJornada):
         return f"{rondaStr} <b>{data.partRonda:1}</b>"
 
     return f"J: <b>{data.jornada:2}</b>"
+
+def presTrayectoriaPlayOff(data)-> str:
+    auxResult = []
+    for fase,res  in data:
+        if fase == "LR":
+            auxResult.append(f"<b>{fase}</b>:{res}")
+        else:
+            auxResult.append(f"<b>{POLABEL2ABREV[fase]}</b>:{res}")
+    return " ".join(auxResult)

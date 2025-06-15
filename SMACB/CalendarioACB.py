@@ -197,7 +197,7 @@ class CalendarioACB:
 
     def procesaBloquePartido(self, datosJornada, divPartido):
         # TODO: incluir datos de competicion
-        resultado = dict()
+        resultado = {}
         resultado['pendiente'] = True
         resultado['fechaPartido'] = NEVER
         resultado['jornada'] = datosJornada['jornada']
@@ -205,7 +205,7 @@ class CalendarioACB:
         resultado['cod_competicion'] = self.competicion
         resultado['cod_edicion'] = self.edicion
 
-        datosPartEqs = dict()
+        datosPartEqs = {}
 
         for eqUbic, div in zip(ETIQubiq, divPartido.find_all("div", {"class": "logo_equipo"})):
             auxDatos = datosPartEqs.get(eqUbic.capitalize(), {})
@@ -222,6 +222,8 @@ class CalendarioACB:
             auxDatos.update(infoEq)
             self.nuevaTraduccionEquipo2Codigo(nombres=[infoEq['nomblargo'], infoEq['nombcorto']], abrev=infoEq['abrev'],
                                               idEq=None)
+            if infoEq['abrev'] in self.tradEquipos['c2i']:
+                auxDatos['id']=onlySetElement(self.tradEquipos['c2i'][infoEq['abrev']])
             datosPartEqs[eqUbic.capitalize()] = auxDatos
 
         resultado['equipos'] = datosPartEqs
@@ -279,6 +281,14 @@ class CalendarioACB:
             auxPendientes = [p for p in dataJor['pendientes'] if
                              targAbrevs.intersection(p['participantes']) and p['pendiente']]
             pendientes.extend(auxPendientes)
+        for p in jugados:
+            for l,e in p['equipos'].items():
+                if 'idEq' not in e:
+                    e['idEq']=onlySetElement(self.tradEquipos['c2i'][e['abrev']])
+        for p in pendientes:
+            for l,e in p['equipos'].items():
+                if 'idEq' not in e:
+                    e['idEq']=onlySetElement(self.tradEquipos['c2i'][e['abrev']])
 
         return jugados, pendientes
 

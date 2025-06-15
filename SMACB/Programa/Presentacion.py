@@ -11,14 +11,16 @@ from reportlab.platypus import Paragraph, TableStyle, Table
 
 import SMACB.Programa.Globals as GlobACB
 from SMACB.Constants import infoSigPartido, LocalVisitante, MARCADORESCLASIF, RANKFORMAT, infoJornada
+from SMACB.Programa.Clasif import infoEquipoPO
 from SMACB.Programa.Constantes import (ESTADISTICOEQ, estiloNegBal, estiloPosMarker, colEq, DEFTABVALUE, FORMATOCAMPOS,
                                        colorTablaDiagonal, ANCHOMARCAPOS)
 from SMACB.Programa.Datos import datosRestoJornada
 from SMACB.Programa.FuncionesAux import auxCalculaBalanceStr, auxJugsBajaTablaJugs, GENERADORCLAVEDORSAL, \
     GENERADORFECHA, GENMAPDICT, GENERADORTIEMPO, GENERADORETTIRO, GENERADORETREBOTE, auxBold, equipo2clasif, \
     auxLabelEqTabla, auxCruceDiag, auxCruceTotalPend, auxCruceTotalResuelto, auxCruceResuelto, auxCrucePendiente, \
-    auxCruceTotales, auxLigaDiag, auxTablaLigaPartJugado, auxTablaLigaPartPendiente
-from SMACB.Programa.Globals import recuperaClasifLigaLR, recuperaEstadsGlobales
+    auxCruceTotales, auxLigaDiag, auxTablaLigaPartJugado, auxTablaLigaPartPendiente, auxCalculaInfoPO, \
+    presTrayectoriaPlayOff
+from SMACB.Programa.Globals import recuperaClasifLigaLR, recuperaEstadsGlobales, recuperaEstadoLigaPO
 from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden
 from Utils.ReportLab.RLverticalText import VerticalParagraph
 
@@ -106,7 +108,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     def infoEq(eqData: dict, jornada: int, jornadasCompletas: Set[int] = sentinel):
         abrev = eqData['abrev']
 
-        clasifAux = equipo2clasif(GlobACB.clasifLigaLR, abrev)
+        _, clasifAux = equipo2clasif(GlobACB.clasifLigaLR, abrev)
         clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=jornada, addPendJornada=False,
                                          jornadasCompletas=jornadasCompletas)
         formatoIn, formatoOut = ('<b>', '</b>') if eqData['haGanado'] else ('', '')
@@ -185,17 +187,27 @@ def bloqueCabEquipo(datosEq, tempData, fecha, datosJornada: infoJornada):
     # TODO: Imagen (descargar imagen de escudo y plantarla)
     nombre = datosEq['nombcorto']
 
-    clasifAux = equipo2clasif(GlobACB.clasifLigaLR, datosEq['abrev'])
+    posLR, clasifAux = equipo2clasif(GlobACB.clasifLigaLR, datosEq['abrev'])
     if datosJornada.esPlayOff:
-        print(clasifAux)
-        GlobACB.recuperaEstadoLigaPO(tempData, fecha)
-        clasifStr = "TBD"
-    else:
-        clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=datosJornada.jornada,
-                                         jornadasCompletas=tempData.jornadasCompletas())
 
-    result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b></para>"),
-              Paragraph(f"<para align='center' fontSize='14'>{clasifStr}</para>")]
+        recuperaEstadoLigaPO(tempData, fecha)
+        infoStr = presTrayectoriaPlayOff(auxCalculaInfoPO(datosJornada=datosJornada, recordLR=clasifAux, posicLR=posLR,
+                                recordPO=GlobACB.estadoLigaPO[datosEq['idEq']], tempData=tempData, incluyeAct=False))
+
+        currEstado: infoEquipoPO = GlobACB.estadoLigaPO[datosEq['idEq']]
+        currResult = (GlobACB.estadoLigaPO[datosEq['idEq']].fases[datosJornada.fasePlayOff].V if datosJornada.fasePlayOff in
+                                                                                       GlobACB.estadoLigaPO[datosEq[
+                                                                                           'idEq']].fases else 0)
+
+        result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b> {currResult}</para>"),
+                  Paragraph(f"<para align='center' fontSize='14'>{infoStr}</para>")]
+
+    else:
+        infoStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=datosJornada.jornada,
+                                       jornadasCompletas=tempData.jornadasCompletas())
+
+        result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b></para>"),
+                  Paragraph(f"<para align='center' fontSize='10'>{infoStr}</para>")]
 
     return result
 
