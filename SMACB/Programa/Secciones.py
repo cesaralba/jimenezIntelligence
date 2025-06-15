@@ -9,14 +9,14 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, TableStyle, Table, NextPageTemplate, PageBreak, Spacer
 
 import SMACB.Programa.Globals as GlobACB
-from SMACB.Constants import infoSigPartido, MARCADORESCLASIF, filaTrayectoriaEq
+from SMACB.Constants import infoSigPartido, MARCADORESCLASIF, filaTrayectoriaEq, infoJornada
 from SMACB.Programa.Constantes import estiloNegBal, estiloPosMarker, colEq
 from SMACB.Programa.Datos import datosTablaClasif, datosJugadores, auxFindTargetAbrevs, datosAnalisisEstadisticos, \
     preparaInfoCruces, preparaInfoLigaReg
 from SMACB.Programa.FuncionesAux import auxCalculaFirstBalNeg, partidoTrayectoria, auxBold, auxLeyendaCrucesResueltos, \
     auxLeyendaCrucesTotalResueltosEq, auxLeyendaCrucesTotalResueltos, auxLeyendaCrucesTotalPendientes, \
-    auxLeyendaRepartoVictPorLoc
-from SMACB.Programa.Globals import recuperaClasifLiga, recuperaEstadsGlobales
+    auxLeyendaRepartoVictPorLoc, jor2StrCab
+from SMACB.Programa.Globals import recuperaClasifLigaLR, recuperaEstadsGlobales
 from SMACB.Programa.Presentacion import tablaEstadsBasicas, tablaRestoJornada, bloqueCabEquipo, tablasJugadoresEquipo, \
     auxGeneraLeyendaEstadsCelda, auxFilasTablaEstadisticos, presTablaCruces, presTablaCrucesEstilos, \
     presTablaPartidosLigaReg, presTablaPartidosLigaRegEstilos
@@ -26,21 +26,23 @@ from Utils.FechaHora import time2Str
 
 def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
     partido = datosSig.sigPartido
+    datosJornada: infoJornada = partido['infoJornada']
+
     datosLocal = partido['equipos']['Local']
     datosVisit = partido['equipos']['Visitante']
     compo = partido['cod_competicion']
     edicion = partido['cod_edicion']
-    j = partido['jornada']
     fh = time2Str(partido['fechaPartido'])
 
     style = ParagraphStyle('cabStyle', align='center', fontName='Helvetica', fontSize=20, leading=22, )
 
+    jorStr = jor2StrCab(datosJornada)
     cadenaCentral = Paragraph(
         f"<para align='center' fontName='Helvetica' fontSize=20 leading=22><b>{compo}</b> {edicion} - "
-        f"J: " f"<b>{j}</b><br/>{fh}</para>", style)
+        f"{jorStr}<br/>{fh}</para>", style)
 
-    cabLocal = bloqueCabEquipo(datosLocal, tempData, partido['fechaPartido'], currJornada=int(j))
-    cabVisit = bloqueCabEquipo(datosVisit, tempData, partido['fechaPartido'], currJornada=int(j))
+    cabLocal = bloqueCabEquipo(datosLocal, tempData, partido['fechaPartido'], datosJornada=datosJornada)
+    cabVisit = bloqueCabEquipo(datosVisit, tempData, partido['fechaPartido'], datosJornada=datosJornada)
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black)])
@@ -97,9 +99,9 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
                   Paragraph(f"<para align='right' fontsize={FONTPARA}>{dato.diffP}</para>")]
         return result
 
-    recuperaClasifLiga(tempData)
+    recuperaClasifLigaLR(tempData)
     filasClasLiga = datosTablaClasif(tempData, datosSig)
-    posFirstNegBal = auxCalculaFirstBalNeg(GlobACB.clasifLiga)
+    posFirstNegBal = auxCalculaFirstBalNeg(GlobACB.clasifLigaLR)
     filasAresaltar = []
     filaCab = [Paragraph("<para align='center'><b>#</b></para>"),
                Paragraph("<para align='center'><b>Equipo</b></para>"),
