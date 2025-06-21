@@ -57,14 +57,18 @@ class CalendarioACB:
             self.url = content.source
         calendarioData = content.data
 
+        jornadasCurrCal = set()
         for divJ in calendarioData.find_all("div", {"class": "cabecera_jornada"}):
             datosCab = procesaCab(divJ)
-
-            currJornada: int = int(datosCab['jornada'])
-
             divPartidos = divJ.find_next_sibling("div", {"class": "listado_partidos"})
 
-            self.Jornadas[currJornada] = self.procesaBloqueJornada(divPartidos, datosCab, **kwargs)
+            self.Jornadas[datosCab['jornada']] = self.procesaBloqueJornada(divPartidos, datosCab, **kwargs)
+            jornadasCurrCal.add(datosCab['jornada'])
+
+        jor2del: set = set(self.Jornadas.keys()).difference(jornadasCurrCal)
+        for j in jor2del:
+            print(f"Eliminando jornada desaparecida '{j}'")
+            self.Jornadas.pop(j)
 
         self.actualizaDatosPlayoffJornada()
 
@@ -223,7 +227,7 @@ class CalendarioACB:
             self.nuevaTraduccionEquipo2Codigo(nombres=[infoEq['nomblargo'], infoEq['nombcorto']], abrev=infoEq['abrev'],
                                               idEq=None)
             if infoEq['abrev'] in self.tradEquipos['c2i']:
-                auxDatos['id']=onlySetElement(self.tradEquipos['c2i'][infoEq['abrev']])
+                auxDatos['id'] = onlySetElement(self.tradEquipos['c2i'][infoEq['abrev']])
             datosPartEqs[eqUbic.capitalize()] = auxDatos
 
         resultado['equipos'] = datosPartEqs
@@ -282,13 +286,13 @@ class CalendarioACB:
                              targAbrevs.intersection(p['participantes']) and p['pendiente']]
             pendientes.extend(auxPendientes)
         for p in jugados:
-            for l,e in p['equipos'].items():
+            for _, e in p['equipos'].items():
                 if 'idEq' not in e:
-                    e['idEq']=onlySetElement(self.tradEquipos['c2i'][e['abrev']])
+                    e['idEq'] = onlySetElement(self.tradEquipos['c2i'][e['abrev']])
         for p in pendientes:
-            for l,e in p['equipos'].items():
+            for _, e in p['equipos'].items():
                 if 'idEq' not in e:
-                    e['idEq']=onlySetElement(self.tradEquipos['c2i'][e['abrev']])
+                    e['idEq'] = onlySetElement(self.tradEquipos['c2i'][e['abrev']])
 
         return jugados, pendientes
 
@@ -409,13 +413,12 @@ def procesaCab(cab):
             resultado['jornada'] = int(reJLR.group('jornada'))
             resultado['esPlayoff'] = False
             resultado['infoJornada'] = infoJornada(jornada=resultado['jornada'], esPlayOff=False)
-            resultado.update(reJLR.groupdict())
         else:
             resultado['esPlayoff'] = True
             rePoff = re.match(REGEX_PLAYOFF, nombreJornada, re.IGNORECASE)
             resultado['jornada'] = numPartidoPO2jornada(rePoff.group('etiqFasePOff'), rePoff.group('numPartPoff'))
             resultado['infoJornada'] = infoJornada(jornada=resultado['jornada'], esPlayOff=resultado['esPlayoff'],
-                                                   fasePlayOff=rePoff.group('etiqFasePOff'),
+                                                   fasePlayOff=rePoff.group('etiqFasePOff').lower(),
                                                    partRonda=int(rePoff.group('numPartPoff')))
 
         if cadR != '':
