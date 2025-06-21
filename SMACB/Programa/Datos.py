@@ -6,13 +6,13 @@ from typing import Optional
 import pandas as pd
 
 import SMACB.Programa.Globals as GlobACB
-from SMACB.Constants import infoSigPartido, LocalVisitante, DEFAULTNUMFORMAT, TRADPOSICION, OtherLoc
-from SMACB.Programa.Clasif import calculaClasifLiga, entradaClas2kEmpatePareja, infoGanadorEmparej, \
+from SMACB.Constants import infoSigPartido, LocalVisitante, DEFAULTNUMFORMAT, TRADPOSICION, OtherLoc, infoJornada
+from SMACB.Programa.Clasif import calculaClasifLigaLR, entradaClas2kEmpatePareja, infoGanadorEmparej, \
     infoClasifComplPareja
 from SMACB.Programa.Constantes import ESTADISTICOEQ, REPORTLEYENDAS, ESTADISTICOJUG, COLS_IDENTIFIC_JUG
 from SMACB.Programa.FuncionesAux import auxCalculaBalanceStrSuf, GENERADORETTIRO, GENERADORETREBOTE, \
     etiquetasClasificacion, auxCalculaFirstBalNeg, FMTECHACORTA
-from SMACB.Programa.Globals import recuperaEstadsGlobales, recuperaClasifLiga, clasifLiga2dict
+from SMACB.Programa.Globals import recuperaEstadsGlobales, recuperaClasifLigaLR, clasifLiga2dict
 from SMACB.TemporadaACB import TemporadaACB, esEstCreciente, auxEtiqPartido
 
 sentinel = object()
@@ -139,7 +139,7 @@ def datosRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     """
     result = []
     sigPartido = datosSig.sigPartido
-    jornada = int(sigPartido['jornada'])
+    jornada = sigPartido['jornada']
     calJornada = tempData.Calendario.Jornadas[jornada]
 
     for p in calJornada['partidos']:
@@ -207,18 +207,21 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
 
 def datosTablaClasif(tempData: TemporadaACB, datosSig: infoSigPartido) -> list[filaTablaClasif]:
     # Data preparation
-    sigPartido = datosSig.sigPartido
-    abrsEqs = sigPartido['participantes']
-    jornada = int(sigPartido['jornada'])
+    datosJornada: infoJornada = datosSig.sigPartido['infoJornada']
+    abrsEqs = datosSig.sigPartido['participantes']
+
+    jornada = datosJornada.jornada
     muestraJornada = len(tempData.Calendario.Jornadas[jornada]['partidos']) > 0
 
-    recuperaClasifLiga(tempData)
+    recuperaClasifLigaLR(tempData)
 
     result = []
-    for posic, eq in enumerate(GlobACB.clasifLiga):
-        notaClas = auxCalculaBalanceStrSuf(record=eq, addPendientes=True, currJornada=jornada,
-                                           addPendJornada=muestraJornada,
-                                           jornadasCompletas=tempData.jornadasCompletas())
+    for posic, eq in enumerate(GlobACB.clasifLigaLR):
+        notaClas = ""
+        if not datosJornada.esPlayOff:
+            notaClas = auxCalculaBalanceStrSuf(record=eq, addPendientes=True, currJornada=jornada,
+                                               addPendJornada=muestraJornada,
+                                               jornadasCompletas=tempData.jornadasCompletas())
         nombEq = f"{eq.nombreCorto}{notaClas}"
         jugs = eq.V + eq.D
         ratio = (100.0 * eq.V / jugs) if (jugs != 0) else 0.0
@@ -266,7 +269,7 @@ INFOESTADSEQ = {('Eq', 'P'): {'etiq': 'PF', 'formato': 'float'}, ('Rival', 'P'):
 
 
 def extraeDatosCruces(tempData: TemporadaACB):
-    recuperaClasifLiga(tempData=tempData)
+    recuperaClasifLigaLR(tempData=tempData)
     datosLR = clasifLiga2dict(tempData=tempData)
 
     acumulador = defaultdict(lambda: {'pendientes': 2})
@@ -290,7 +293,7 @@ def extraeDatosCruces(tempData: TemporadaACB):
         if acumulador[clave]['pendientes'] == 0:
             acumulador[clave].pop('prec')
 
-            l1 = calculaClasifLiga(tempData, abrevList=set(clave))
+            l1 = calculaClasifLigaLR(tempData, abrevList=set(clave))
             sortkeys = sorted([(infoClas.abrevAusar, entradaClas2kEmpatePareja(infoClas, datosLR)) for infoClas in l1],
                               key=itemgetter(1), reverse=True)
             acumulador[clave]['ganador'] = infoGanadorEmparej(sortkeys)
@@ -299,12 +302,12 @@ def extraeDatosCruces(tempData: TemporadaACB):
 
 
 def preparaInfoCruces(tempData: TemporadaACB):
-    GlobACB.recuperaClasifLiga(tempData)
+    GlobACB.recuperaClasifLigaLR(tempData)
 
     result = {}
 
-    result['equipos'] = etiquetasClasificacion(GlobACB.clasifLiga)
-    result['firstNegBal'] = auxCalculaFirstBalNeg(GlobACB.clasifLiga)
+    result['equipos'] = etiquetasClasificacion(GlobACB.clasifLigaLR)
+    result['firstNegBal'] = auxCalculaFirstBalNeg(GlobACB.clasifLigaLR)
     result['datosDiagonal'] = preparaDatosDiagonalYMargenes(tempData=tempData)
     result['datosContadores'] = defaultdict(
         lambda: {'G': 0, 'P': 0, 'Pdte': 0, 'PendV': 0, 'PendD': 0, 'crit': defaultdict(int)})
@@ -351,7 +354,7 @@ def preparaDatosDiagonalYMargenes(tempData: TemporadaACB, currJornada: Optional[
 
     result = {}
 
-    for pos, eq in enumerate(GlobACB.clasifLiga, start=1):
+    for pos, eq in enumerate(GlobACB.clasifLigaLR, start=1):
         auxResult = {'pos': pos, 'diffP': (eq.Pfav - eq.Pcon)}
         auxResult['balanceTotal'] = f"{eq.V}-{eq.D}"
         auxResult['balanceLocal'] = f"{eq.CasaFuera['Local'].V}-{eq.CasaFuera['Local'].D}"
@@ -405,13 +408,13 @@ def extraeInfoTablaLiga(tempData: TemporadaACB):
 
 
 def preparaInfoLigaReg(tempData: TemporadaACB, currJornada: int = None):
-    GlobACB.recuperaClasifLiga(tempData)
+    GlobACB.recuperaClasifLigaLR(tempData)
     jornadasCompletas = tempData.jornadasCompletas()
 
     result = {'jugados': [], 'pendientes': []}
 
-    result['equipos'] = etiquetasClasificacion(GlobACB.clasifLiga)
-    result['firstNegBal'] = auxCalculaFirstBalNeg(GlobACB.clasifLiga)
+    result['equipos'] = etiquetasClasificacion(GlobACB.clasifLigaLR)
+    result['firstNegBal'] = auxCalculaFirstBalNeg(GlobACB.clasifLigaLR)
     result['datosDiagonal'] = preparaDatosDiagonalYMargenes(tempData=tempData, currJornada=currJornada,
                                                             jornadasCompletas=jornadasCompletas)
 
