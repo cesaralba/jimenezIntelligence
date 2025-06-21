@@ -6,7 +6,7 @@ from typing import Optional
 import pandas as pd
 
 import SMACB.Programa.Globals as GlobACB
-from SMACB.Constants import infoSigPartido, LocalVisitante, DEFAULTNUMFORMAT, TRADPOSICION, OtherLoc
+from SMACB.Constants import infoSigPartido, LocalVisitante, DEFAULTNUMFORMAT, TRADPOSICION, OtherLoc, infoJornada
 from SMACB.Programa.Clasif import calculaClasifLigaLR, entradaClas2kEmpatePareja, infoGanadorEmparej, \
     infoClasifComplPareja
 from SMACB.Programa.Constantes import ESTADISTICOEQ, REPORTLEYENDAS, ESTADISTICOJUG, COLS_IDENTIFIC_JUG
@@ -207,18 +207,21 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
 
 def datosTablaClasif(tempData: TemporadaACB, datosSig: infoSigPartido) -> list[filaTablaClasif]:
     # Data preparation
-    sigPartido = datosSig.sigPartido
-    abrsEqs = sigPartido['participantes']
-    jornada = int(sigPartido['jornada'])
+    datosJornada: infoJornada = datosSig.sigPartido['infoJornada']
+    abrsEqs = datosSig.sigPartido['participantes']
+
+    jornada = datosJornada.jornada
     muestraJornada = len(tempData.Calendario.Jornadas[jornada]['partidos']) > 0
 
     recuperaClasifLigaLR(tempData)
 
     result = []
     for posic, eq in enumerate(GlobACB.clasifLigaLR):
-        notaClas = auxCalculaBalanceStrSuf(record=eq, addPendientes=True, currJornada=jornada,
-                                           addPendJornada=muestraJornada,
-                                           jornadasCompletas=tempData.jornadasCompletas())
+        notaClas = ""
+        if not datosJornada.esPlayOff:
+            notaClas = auxCalculaBalanceStrSuf(record=eq, addPendientes=True, currJornada=jornada,
+                                               addPendJornada=muestraJornada,
+                                               jornadasCompletas=tempData.jornadasCompletas())
         nombEq = f"{eq.nombreCorto}{notaClas}"
         jugs = eq.V + eq.D
         ratio = (100.0 * eq.V / jugs) if (jugs != 0) else 0.0
