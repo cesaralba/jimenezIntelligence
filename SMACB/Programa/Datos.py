@@ -139,7 +139,7 @@ def datosRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     """
     result = []
     sigPartido = datosSig.sigPartido
-    jornada = int(sigPartido['jornada'])
+    jornada = sigPartido['jornada']
     calJornada = tempData.Calendario.Jornadas[jornada]
 
     for p in calJornada['partidos']:

@@ -214,7 +214,7 @@ def calculaEstadoLigaPO(dataTemp: TemporadaACB, fecha=None) -> Dict[str, infoEqu
     for p in sorted(gameList, key=lambda p: dataTemp.Partidos[p].fechaPartido):
         partido = dataTemp.Partidos[p]
         fase = (partido.infoJornada if hasattr(partido, 'infoJornada') else dataTemp.Calendario[partido.jornada][
-            'infoJornada']).fasePlayOff
+            'infoJornada']).fasePlayOff.lower()
 
         for eq, data in partido.Equipos.items():
             dataOther = partido.Equipos[OtherLoc(eq)]

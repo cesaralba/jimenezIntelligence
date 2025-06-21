@@ -3,6 +3,7 @@ from operator import itemgetter
 from typing import Set, Optional, List, Iterable
 
 import pandas as pd
+from CAPcore.Misc import onlySetElement
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -10,7 +11,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, TableStyle, Table
 
 import SMACB.Programa.Globals as GlobACB
-from SMACB.Constants import infoSigPartido, LocalVisitante, MARCADORESCLASIF, RANKFORMAT, infoJornada
+from SMACB.Constants import infoSigPartido, LocalVisitante, MARCADORESCLASIF, RANKFORMAT, infoJornada, POLABEL2FASE
 from SMACB.Programa.Clasif import infoEquipoPO
 from SMACB.Programa.Constantes import (ESTADISTICOEQ, estiloNegBal, estiloPosMarker, colEq, DEFTABVALUE, FORMATOCAMPOS,
                                        colorTablaDiagonal, ANCHOMARCAPOS)
@@ -105,13 +106,23 @@ def tablaEstadsBasicas(tempData: TemporadaACB, datosSig: infoSigPartido):
 
 
 def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
-    def infoEq(eqData: dict, jornada: int, jornadasCompletas: Set[int] = sentinel):
-        abrev = eqData['abrev']
-
-        _, clasifAux = equipo2clasif(GlobACB.clasifLigaLR, abrev)
-        clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=jornada, addPendJornada=False,
-                                         jornadasCompletas=jornadasCompletas)
+    def infoEq(eqData: dict, datosJornada: infoJornada, jornadasCompletas: Set[int] = sentinel):
         formatoIn, formatoOut = ('<b>', '</b>') if eqData['haGanado'] else ('', '')
+        if datosSig.sigPartido['infoJornada'].esPlayOff:
+            curFase = datosSig.sigPartido['infoJornada'].fasePlayOff.lower()
+            eqPO = GlobACB.estadoLigaPO[onlySetElement(tempData.tradEquipos['c2i'][eqData['abrev']])]
+            print(eqPO)
+            if curFase in eqPO.fases:
+                clasifStr = f"{eqPO.fases[curFase].V}-{eqPO.fases[curFase].D}"
+            else:
+                clasifStr = '0-0'
+        else:
+            abrev = eqData['abrev']
+
+            _, clasifAux = equipo2clasif(GlobACB.clasifLigaLR, abrev)
+            clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=datosJornada.jornada,
+                                             addPendJornada=False,
+                                             jornadasCompletas=jornadasCompletas)
         formato = "{fIn}{nombre}{fOut} [{balance}]"
         result = formato.format(nombre=eqData['nombcorto'], balance=clasifStr, fIn=formatoIn, fOut=formatoOut)
         return result
@@ -137,7 +148,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
         for p in sorted(datos, key=itemgetter('fechaPartido')):
             info = {'pendiente': p['pendiente'], 'fecha': etFecha(p['fechaPartido'], tstampRef)}
             for loc in LocalVisitante:
-                info[loc] = infoEq(p['equipos'][loc], jornada=jornada, jornadasCompletas=jornadasCompletas)
+                info[loc] = infoEq(p['equipos'][loc], datosJornada=datosJor, jornadasCompletas=jornadasCompletas)
             if not p['pendiente']:
                 info['resultado'] = infoRes(p)
 
@@ -146,15 +157,22 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
 
     # Data preparation
     sigPartido = datosSig.sigPartido
-    jornada = int(sigPartido['jornada'])
-    recuperaClasifLigaLR(tempData)
+    datosJor: infoJornada = sigPartido['infoJornada']
     drj = datosRestoJornada(tempData, datosSig)
-    datosParts = preparaDatos(drj, sigPartido['fechaPartido'], jornadasCompletas=tempData.jornadasCompletas())
+
+    if datosJor.esPlayOff:
+        textoJor = f"{POLABEL2FASE[datosJor.fasePlayOff.lower()]} {datosJor.partRonda}"
+        recuperaEstadoLigaPO(tempData=tempData)
+        datosParts = preparaDatos(drj, sigPartido['fechaPartido'])
+    else:
+        textoJor = datosJor.jornada
+        recuperaClasifLigaLR(tempData)
+        datosParts = preparaDatos(drj, sigPartido['fechaPartido'], jornadasCompletas=tempData.jornadasCompletas())
 
     if len(datosParts) == 0:
         return None
     # Table building
-    textoCab = f"<b>Resto jornada {jornada}</b>"
+    textoCab = f"<b>Resto jornada {textoJor}</b>"
     filaCab = [Paragraph(f"<para align='center'>{textoCab}</para>"), None, None]
     filas = [filaCab]
 
@@ -192,22 +210,22 @@ def bloqueCabEquipo(datosEq, tempData, fecha, datosJornada: infoJornada):
 
         recuperaEstadoLigaPO(tempData, fecha)
         infoStr = presTrayectoriaPlayOff(auxCalculaInfoPO(datosJornada=datosJornada, recordLR=clasifAux, posicLR=posLR,
-                                recordPO=GlobACB.estadoLigaPO[datosEq['idEq']], tempData=tempData, incluyeAct=False))
+                                                          recordPO=GlobACB.estadoLigaPO[datosEq['idEq']],
+                                                          tempData=tempData, incluyeAct=False))
 
         currEstado: infoEquipoPO = GlobACB.estadoLigaPO[datosEq['idEq']]
-        currResult = (GlobACB.estadoLigaPO[datosEq['idEq']].fases[datosJornada.fasePlayOff].V if datosJornada.fasePlayOff in
-                                                                                       GlobACB.estadoLigaPO[datosEq[
-                                                                                           'idEq']].fases else 0)
+        currResult = (currEstado.fases[datosJornada.fasePlayOff.lower()].V if datosJornada.fasePlayOff.lower() in
+                                                                              currEstado.fases else 0)
 
         result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b> {currResult}</para>"),
-                  Paragraph(f"<para align='center' fontSize='14'>{infoStr}</para>")]
+                  Paragraph(f"<para align='center' fontSize='10'>{infoStr}</para>")]
 
     else:
         infoStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=datosJornada.jornada,
                                        jornadasCompletas=tempData.jornadasCompletas())
 
         result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b></para>"),
-                  Paragraph(f"<para align='center' fontSize='10'>{infoStr}</para>")]
+                  Paragraph(f"<para align='center' fontSize='12'>{infoStr}</para>")]
 
     return result
 

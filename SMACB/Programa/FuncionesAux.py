@@ -41,18 +41,21 @@ def auxCalculaBalanceStr(record: infoClasifEquipoLR, addPendientes: bool = False
 
     return texto
 
-def auxCalculaInfoPO(datosJornada:infoJornada, recordLR:infoClasifEquipoLR, posicLR, recordPO:infoEquipoPO, tempData:Optional[TemporadaACB]=None, incluyeAct:bool=False):
-    result=[]
-    result.append(("LR",f"{recordLR.V}-{recordLR.D},{posicLR}º"))
-    for fase in POLABELLIST:
-        if fase not in recordPO.fases:
-            continue
-        if fase == datosJornada.fasePlayOff:
-            continue
-        recFase:infoSerieEquipoPO = recordPO.fases[fase]
-        rival=f"{onlySetElement(tempData.tradEquipos['i2c'][recFase.idRival])}" if tempData else ""
 
-        result.append((fase,f"{recFase.V}-{recFase.D} {rival}"))
+def auxCalculaInfoPO(datosJornada: infoJornada, recordLR: infoClasifEquipoLR, posicLR, recordPO: infoEquipoPO,
+                     tempData: Optional[TemporadaACB] = None, incluyeAct: bool = False):
+    result = []
+    result.append(("LR", f"{recordLR.V}-{recordLR.D},{posicLR}º"))
+    for fase in POLABELLIST:
+        print(fase, recordPO.fases.keys())
+        if fase.lower() not in recordPO.fases:
+            continue
+        if fase.lower() == datosJornada.fasePlayOff.lower():
+            continue
+        recFase: infoSerieEquipoPO = recordPO.fases[fase]
+        rival = f"{onlySetElement(tempData.tradEquipos['i2c'][recFase.idRival])}" if tempData else ""
+
+        result.append((fase, f"{recFase.V}-{recFase.D} {rival}"))
 
     if incluyeAct:
         if datosJornada.fasePlayOff in recordPO.fases:
@@ -62,7 +65,6 @@ def auxCalculaInfoPO(datosJornada:infoJornada, recordLR:infoClasifEquipoLR, posi
             result.append((datosJornada.fasePlayOff, f"0-0"))
 
     return result
-
 
 
 def auxCalculaFirstBalNeg(clasif: list[infoClasifEquipoLR]):
@@ -235,9 +237,9 @@ def auxBold(data):
 def equipo2clasif(clasifLiga, abrEq):
     result = None
 
-    for pos,eqData in enumerate(clasifLiga,start=1):
+    for pos, eqData in enumerate(clasifLiga, start=1):
         if abrEq in eqData.abrevsEq:
-            return pos,eqData
+            return pos, eqData
 
     return result
 
@@ -368,9 +370,10 @@ def jor2StrCab(data: infoJornada):
 
     return f"J: <b>{data.jornada:2}</b>"
 
-def presTrayectoriaPlayOff(data)-> str:
+
+def presTrayectoriaPlayOff(data) -> str:
     auxResult = []
-    for fase,res  in data:
+    for fase, res in data:
         if fase == "LR":
             auxResult.append(f"<b>{fase}</b>:{res}")
         else:
