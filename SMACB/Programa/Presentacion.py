@@ -5,7 +5,7 @@ from typing import Set, Optional, List, Iterable
 import pandas as pd
 from CAPcore.Misc import onlySetElement
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
+from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, TableStyle, Table
@@ -218,7 +218,7 @@ def bloqueCabEquipo(datosEq, tempData, fecha, datosJornada: infoJornada):
                                                                               currEstado.fases else 0)
 
         result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b> {currResult}</para>"),
-                  Paragraph(f"<para align='center' fontSize='10'>{infoStr}</para>")]
+                  Paragraph(f"<para align='center' fontSize='12'>{infoStr}</para>")]
 
     else:
         infoStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=datosJornada.jornada,
@@ -712,3 +712,9 @@ def presTablaPartidosLigaRegEstilos(data, equiposAmarcar: Optional[Iterable[str]
             listaEstilos.append(("BACKGROUND", (0, pos), (0, pos), colEq))
 
     return listaEstilos
+
+
+def vuelcaCadena(mensaje, fontsize=10):
+    metadataStyle = ParagraphStyle('tabEstadsRowHeader', fontSize=fontsize, alignment=TA_LEFT, leading=1)
+    result = Paragraph(mensaje, style=metadataStyle)
+    return result

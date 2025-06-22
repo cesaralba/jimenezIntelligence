@@ -55,7 +55,7 @@ def auxCalculaInfoPO(datosJornada: infoJornada, recordLR: infoClasifEquipoLR, po
         recFase: infoSerieEquipoPO = recordPO.fases[fase]
         rival = f"{onlySetElement(tempData.tradEquipos['i2c'][recFase.idRival])}" if tempData else ""
 
-        result.append((fase, f"{recFase.V}-{recFase.D} {rival}"))
+        result.append((fase, f"{recFase.V}-{recFase.D}&nbsp;{rival}"))
 
     if incluyeAct:
         if datosJornada.fasePlayOff in recordPO.fases:

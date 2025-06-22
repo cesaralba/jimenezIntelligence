@@ -19,7 +19,7 @@ from SMACB.Programa.FuncionesAux import auxCalculaFirstBalNeg, partidoTrayectori
 from SMACB.Programa.Globals import recuperaClasifLigaLR, recuperaEstadsGlobales
 from SMACB.Programa.Presentacion import tablaEstadsBasicas, tablaRestoJornada, bloqueCabEquipo, tablasJugadoresEquipo, \
     auxGeneraLeyendaEstadsCelda, auxFilasTablaEstadisticos, presTablaCruces, presTablaCrucesEstilos, \
-    presTablaPartidosLigaReg, presTablaPartidosLigaRegEstilos
+    presTablaPartidosLigaReg, presTablaPartidosLigaRegEstilos, vuelcaCadena
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.FechaHora import time2Str
 
@@ -52,17 +52,15 @@ def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
 
 
 def metadataPrograma(tempData: TemporadaACB):
-    FONTSIZE = 6
-
     FORMATOfecha = "%Y-%m-%d %H:%M (%z)"
     fechaGen = strftime(FORMATOfecha, gmtime())
     tempDesc = strftime(FORMATOfecha, tempData.timestamp)
     mensaje = (f"Datos procedentes de https://www.acb.com y elaboración propia. Generado en {fechaGen}. Datos "
                f"descargados en {tempDesc}")
 
-    metadataStyle = ParagraphStyle('tabEstadsRowHeader', fontSize=FONTSIZE, alignment=TA_LEFT, leading=1)
+    FONTSIZE = 6
 
-    result = Paragraph(mensaje, style=metadataStyle)
+    result = vuelcaCadena(mensaje, fontsize=FONTSIZE)
 
     return result
 
@@ -159,7 +157,7 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
     return result
 
 
-def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido,limitRows:Optional[int]=None):
+def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido, limitRows: Optional[int] = None):
     sigPartido = infoPartido.sigPartido
 
     FONTSIZE = 8
@@ -173,7 +171,9 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
     j17izda = None
     j17dcha = None
 
-    trayectoriasCombinadas = tempData.mergeTrayectoriaEquipos(*(tuple(infoPartido.abrevLV)), True, True)
+    trayectoriasCombinadas, mensajeAviso = tempData.mergeTrayectoriaEquipos(*(tuple(infoPartido.abrevLV)),
+                                                                            incluyeJugados=True, incluyePendientes=True,
+                                                                            limitRows=limitRows)
 
     filasTabla = []
 
@@ -262,7 +262,7 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
 
     t = Table(data=filasTabla, style=tStyle, colWidths=ANCHOCOLS, rowHeights=FONTSIZE + 4.5)
 
-    return t
+    return t, mensajeAviso
 
 
 def paginasJugadores(tempData: TemporadaACB, abrEqs, juLocal, juVisit, tablas: List[str]):
