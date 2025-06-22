@@ -28,7 +28,7 @@ from Utils.Pandas import combinaPDindexes
 from Utils.Web import prepareDownloading
 from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
 from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEqCalendario, infoPartLV, infoSigPartido,
-                        LOCALNAMES, LocalVisitante, OtherLoc, OtherTeam, )
+                        LOCALNAMES, LocalVisitante, OtherLoc, OtherTeam, infoJornada, )
 from .FichaJugador import FichaJugador, CAMBIOSJUGADORES
 from .PartidoACB import PartidoACB
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB, CAMBIOSCLUB, CambiosPlantillaTipo
@@ -621,6 +621,8 @@ class TemporadaACB:
             loc = p['abrev2loc'][abrevAUsar]
             auxEntry = dict()
             auxEntry['fechaPartido'] = p['fechaPartido'] if p['pendiente'] else self.Partidos[p['url']].fechaPartido
+            auxEntry['infoJornada'] = p['infoJornada'] if p['pendiente'] else Partido2InfoJornada(
+                self.Partidos[p['url']], self)
             auxEntry['jornada'] = p['jornada']
             auxEntry['cod_edicion'] = p['cod_edicion']
             auxEntry['cod_competicion'] = p['cod_competicion']
@@ -676,6 +678,7 @@ class TemporadaACB:
             except IndexError:
                 dato = partsDchaAux.pop(0)
                 bloque['jornada'] = dato.jornada
+                bloque['infoJornada'] = dato.infoJornada
                 bloque['dcha'] = dato
                 lineas.append(filaMergeTrayectoria(**bloque))
                 continue
@@ -685,12 +688,14 @@ class TemporadaACB:
             except IndexError:
                 dato = partsIzdaAux.pop(0)
                 bloque['jornada'] = dato.jornada
+                bloque['infoJornada'] = dato.infoJornada
                 bloque['dcha'] = dato
                 lineas.append(filaMergeTrayectoria(**bloque))
                 continue
 
             if priPartIzda.jornada == priPartDcha.jornada:
                 bloque['jornada'] = priPartIzda.jornada
+                bloque['infoJornada'] = priPartIzda.infoJornada
 
                 datoI = partsIzdaAux.pop(0)
                 datoD = partsDchaAux.pop(0)
@@ -705,10 +710,12 @@ class TemporadaACB:
             else:
                 if (priPartIzda.fechaPartido, priPartIzda.jornada) < (priPartDcha.fechaPartido, priPartDcha.jornada):
                     bloque['jornada'] = priPartIzda.jornada
+                    bloque['infoJornada'] = priPartIzda.infoJornada
                     dato = partsIzdaAux.pop(0)
                     bloque['izda'] = dato
                 else:
                     bloque['jornada'] = priPartDcha.jornada
+                    bloque['infoJornada'] = priPartDcha.infoJornada
                     dato = partsDchaAux.pop(0)
                     bloque['precedente'] = False
                     bloque['dcha'] = dato
@@ -999,3 +1006,9 @@ def cargaTemporada(fname: str) -> TemporadaACB:
     result.cargaTemporada(fname)
 
     return result
+
+
+def Partido2InfoJornada(part: PartidoACB, temp: TemporadaACB) -> infoJornada:
+    if hasattr(part, 'infoJornada') and part.infoJornada is not None:
+        return part.infoJornada
+    return temp.Calendario.Jornadas[part.jornada]['infoJornada']
