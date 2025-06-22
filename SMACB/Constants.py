@@ -77,8 +77,8 @@ filaTrayectoriaEq = namedtuple(typename='filaTrayectoriaEq',
                                             'resultado', 'infoJornada'],
                                defaults=[None, None, None, None, None, None, None, None, None, None, None, None, None])
 filaMergeTrayectoria = namedtuple(typename='filaMergeTrayectoria',
-                                  field_names=['jornada', 'izda', 'dcha', 'precedente', 'infoJornada'],
-                                  defaults=[None, None, None, None, None])
+                                  field_names=['jornada', 'izda', 'dcha', 'precedente', 'infoJornada', 'pendiente'],
+                                  defaults=[None, None, None, None, None, False])
 URLIMG2IGNORE = {'/Images/Web/silueta1.gif', '/Images/Web/silueta2.gif', ''}
 CLAVESFICHAJUGADOR = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia',
                       'junior', 'audioURL']

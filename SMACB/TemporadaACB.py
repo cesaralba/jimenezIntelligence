@@ -643,8 +643,8 @@ class TemporadaACB:
         return result
 
     def mergeTrayectoriaEquipos(self, abrevIzda: str, abrevDcha: str, incluyeJugados: bool = True,
-                                incluyePendientes: bool = True
-                                ) -> list[filaMergeTrayectoria]:
+                                incluyePendientes: bool = True, limitRows: Optional[int] = None
+                                ) -> Tuple[list[filaMergeTrayectoria], str]:
         """
         Devuelve la trayectoria comparada entre 2 equipos para poder hacer una tabla entre ellos
         :param abrevIzda: abreviatura del equipo que aparecerá a la izda (cualquiera)
@@ -663,15 +663,16 @@ class TemporadaACB:
         partsIzdaAux = [p for p in partsIzda if cond2incl(p)]
         partsDchaAux = [p for p in partsDcha if cond2incl(p)]
 
-        lineas = list()
+        lineas = []
 
         abrevsIzda = self.Calendario.abrevsEquipo(abrevIzda)
         abrevsDcha = self.Calendario.abrevsEquipo(abrevDcha)
         abrevsPartido = set().union(abrevsIzda).union(abrevsDcha)
 
         while (len(partsIzdaAux) + len(partsDchaAux)) > 0:
-            bloque = dict()
+            bloque = {}
             bloque['precedente'] = False
+            bloque['pendiente'] = False
 
             try:
                 priPartIzda = partsIzdaAux[0]  # List izda is not empty
@@ -680,6 +681,7 @@ class TemporadaACB:
                 bloque['jornada'] = dato.jornada
                 bloque['infoJornada'] = dato.infoJornada
                 bloque['dcha'] = dato
+                bloque['pendiente'] |= dato.pendiente
                 lineas.append(filaMergeTrayectoria(**bloque))
                 continue
 
@@ -690,12 +692,15 @@ class TemporadaACB:
                 bloque['jornada'] = dato.jornada
                 bloque['infoJornada'] = dato.infoJornada
                 bloque['dcha'] = dato
+                bloque['pendiente'] |= dato.pendiente
                 lineas.append(filaMergeTrayectoria(**bloque))
                 continue
 
             if priPartIzda.jornada == priPartDcha.jornada:
                 bloque['jornada'] = priPartIzda.jornada
                 bloque['infoJornada'] = priPartIzda.infoJornada
+                bloque['pendiente'] |= priPartIzda.pendiente
+                bloque['pendiente'] |= priPartDcha.pendiente
 
                 datoI = partsIzdaAux.pop(0)
                 datoD = partsDchaAux.pop(0)
@@ -711,18 +716,65 @@ class TemporadaACB:
                 if (priPartIzda.fechaPartido, priPartIzda.jornada) < (priPartDcha.fechaPartido, priPartDcha.jornada):
                     bloque['jornada'] = priPartIzda.jornada
                     bloque['infoJornada'] = priPartIzda.infoJornada
+                    bloque['pendiente'] |= priPartIzda.pendiente
                     dato = partsIzdaAux.pop(0)
                     bloque['izda'] = dato
                 else:
                     bloque['jornada'] = priPartDcha.jornada
                     bloque['infoJornada'] = priPartDcha.infoJornada
+                    bloque['pendiente'] |= priPartDcha.pendiente
                     dato = partsDchaAux.pop(0)
                     bloque['precedente'] = False
                     bloque['dcha'] = dato
 
             lineas.append(filaMergeTrayectoria(**bloque))
 
-        return lineas
+        mensajeAviso = ""
+        if limitRows is None or limitRows >= len(lineas):
+            return lineas, mensajeAviso
+
+        result = []
+        quedan = limitRows
+
+        for revGame in reversed(lineas):
+            data: filaMergeTrayectoria = revGame
+            if data.pendiente or data.precedente:
+                if quedan > 0:
+                    result.append(data)
+                    quedan -= 1
+                    continue
+                elif quedan == 0:
+                    for insrow in reversed(result):
+                        if not (insrow.pendiente or insrow.precedente):
+                            result.remove(insrow)
+                            result.append(data)
+                            break
+                    else:
+                        print("Aqui")
+                        result.append(data)
+                        quedan -= 1
+                        mensajeAviso = "La pagina no puede contener el número mínimo de resultados. El formato puede descuadrarse"
+                        print(mensajeAviso)
+                        continue
+                else:
+                    result.append(data)
+                    quedan -= 1
+
+                print(f"Pendiente: {quedan}")
+                continue
+            if quedan > 0:
+                result.append(data)
+                quedan -= 1
+            else:
+                if mensajeAviso == "":
+                    mensajeAviso = "Filas de trayectoria eliminadas por tamaño de página"
+
+            # print(r,lineas[r-1])
+            # result.append(lineas[r-1])
+
+        result.reverse()
+
+        return result, mensajeAviso
 
     @property
     def tradEquipos(self):
