@@ -9,7 +9,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, TableStyle, Table, NextPageTemplate, PageBreak, Spacer
 
 import SMACB.Programa.Globals as GlobACB
-from SMACB.Constants import infoSigPartido, MARCADORESCLASIF, filaTrayectoriaEq, infoJornada
+from SMACB.Constants import infoSigPartido, MARCADORESCLASIF, filaTrayectoriaEq, infoJornada, POLABEL2ABREV
 from SMACB.Programa.Constantes import estiloNegBal, estiloPosMarker, colEq
 from SMACB.Programa.Datos import datosTablaClasif, datosJugadores, auxFindTargetAbrevs, datosAnalisisEstadisticos, \
     preparaInfoCruces, preparaInfoLigaReg
@@ -159,7 +159,7 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
     return result
 
 
-def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido):
+def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido,limitRows:Optional[int]=None):
     sigPartido = infoPartido.sigPartido
 
     FONTSIZE = 8
@@ -181,6 +181,11 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
     cellStyle = ParagraphStyle('trayStyle', fontName='Helvetica', fontSize=FONTSIZE, alignment=TA_LEFT)
     jornStyle = ParagraphStyle('trayStyle', fontName='Helvetica-Bold', fontSize=FONTSIZE + 1, alignment=TA_CENTER)
 
+    def infoJornada2MFstr(datosJor: infoJornada) -> str:
+        if datosJor.esPlayOff:
+            return f"{POLABEL2ABREV[datosJor.fasePlayOff.lower()]}{datosJor.partRonda}"
+        return f"{datosJor.jornada}"
+
     def preparaCeldasTrayectoria(data: filaTrayectoriaEq | None, ladoIzdo: bool = False) -> (list, bool):
         merge = False
         if data is None:
@@ -201,7 +206,7 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
     for numFila, fila in enumerate(trayectoriasCombinadas):
         datosIzda = fila.izda
         datosDcha = fila.dcha
-        jornada = fila.jornada
+        jornadaStr = infoJornada2MFstr(fila.infoJornada)
 
         if fila.precedente:
             if fila.jornada == sigPartido['jornada']:
@@ -224,7 +229,7 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
         if mergeDcha:
             mergeDchaList.append(numFila + incrFila)
 
-        celdaJornada = [Paragraph(f"{str(jornada)}", style=jornStyle)]
+        celdaJornada = [Paragraph(f"{jornadaStr}", style=jornStyle)]
         aux = celdasIzda + celdaJornada + celdasDcha
         filasTabla.append(aux)
 

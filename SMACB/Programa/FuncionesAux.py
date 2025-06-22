@@ -62,7 +62,7 @@ def auxCalculaInfoPO(datosJornada: infoJornada, recordLR: infoClasifEquipoLR, po
             recFase: infoSerieEquipoPO = recordPO.fases[datosJornada.fasePlayOff]
             result.append((datosJornada.fasePlayOff, f"{recFase.V}-{recFase.D}"))
         else:
-            result.append((datosJornada.fasePlayOff, f"0-0"))
+            result.append((datosJornada.fasePlayOff, "0-0"))
 
     return result
 
@@ -80,16 +80,21 @@ def auxCalculaFirstBalNeg(clasif: list[infoClasifEquipoLR]):
 def partidoTrayectoria(partido: TempACB.filaTrayectoriaEq, datosTemp: TemporadaACB):
     strFecha = partido.fechaPartido.strftime(FMTECHACORTA) if partido.fechaPartido != NEVER else "TBD"
     etiqLoc = "vs " if partido.esLocal else "@"
+    datosJor: infoJornada = partido.infoJornada
 
     textRival = f"{etiqLoc}{partido.equipoRival.nombcorto}"
     strRival = f"{strFecha}: {textRival}"
 
     strResultado = None
     if not partido.pendiente:
-        clasifAux = calculaClasifEquipoLR(datosTemp, partido.equipoRival.abrev, partido.fechaPartido)
-        clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=int(partido.jornada),
-                                         addPendJornada=False)
-        strRival = f"{strFecha}: {textRival} ({clasifStr})"
+        if datosJor.esPlayOff:
+            # TODO: estado de la serie
+            strRival = f"{strFecha}: {textRival}"
+        else:
+            clasifAux = calculaClasifEquipoLR(datosTemp, partido.equipoRival.abrev, partido.fechaPartido)
+            clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=int(partido.jornada),
+                                             addPendJornada=False)
+            strRival = f"{strFecha}: {textRival} ({clasifStr})"
         marcador = partido.resultado._asdict()
         locEq = local2espLargo[partido.esLocal]
         locGanador = local2espLargo[partido.esLocal and partido.haGanado]
