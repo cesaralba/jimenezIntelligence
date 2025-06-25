@@ -750,7 +750,6 @@ class TemporadaACB:
                             result.append(data)
                             break
                     else:
-                        print("Aqui")
                         result.append(data)
                         quedan -= 1
                         mensajeAviso = "La pagina no puede contener el número mínimo de resultados. El formato puede descuadrarse"

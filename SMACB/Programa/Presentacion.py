@@ -111,7 +111,6 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
         if datosSig.sigPartido['infoJornada'].esPlayOff:
             curFase = datosSig.sigPartido['infoJornada'].fasePlayOff.lower()
             eqPO = GlobACB.estadoLigaPO[onlySetElement(tempData.tradEquipos['c2i'][eqData['abrev']])]
-            print(eqPO)
             if curFase in eqPO.fases:
                 clasifStr = f"{eqPO.fases[curFase].V}-{eqPO.fases[curFase].D}"
             else:

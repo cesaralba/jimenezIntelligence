@@ -178,7 +178,6 @@ class CalendarioACB:
         result['esPlayoff']: bool = dictCab['esPlayoff']
         result['infoJornada']: infoJornada = dictCab['infoJornada']
 
-        # print(divPartidos)
         for artP in divDatos.find_all("article", {"class": "partido"}):
             datosPart = self.procesaBloquePartido(dictCab, artP)
             datosPart['infoJornada']: infoJornada = result['infoJornada']
