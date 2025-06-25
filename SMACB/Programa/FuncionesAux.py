@@ -47,7 +47,6 @@ def auxCalculaInfoPO(datosJornada: infoJornada, recordLR: infoClasifEquipoLR, po
     result = []
     result.append(("LR", f"{recordLR.V}-{recordLR.D},{posicLR}º"))
     for fase in POLABELLIST:
-        print(fase, recordPO.fases.keys())
         if fase.lower() not in recordPO.fases:
             continue
         if fase.lower() == datosJornada.fasePlayOff.lower():

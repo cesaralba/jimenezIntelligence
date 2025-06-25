@@ -21,19 +21,19 @@ def preparaLibro(args: Namespace, tempData: TemporadaACB, datosSig: infoSigParti
 
     story = []
 
-    # # Pagina 1
+    # Pagina 1
     story.extend(paginaPortada(tempData, datosSig))
-    #
-    # # # Pagina 2
-    # story.extend(paginaPartidosLiga(tempData, datosSig))
+
+    # Pagina 2
+    story.extend(paginaPartidosLiga(tempData, datosSig))
 
     # Paginas 3 y 4
-    # story.extend(paginaJugadores(tempData, datosSig, args.tablasJugs))
+    story.extend(paginaJugadores(tempData, datosSig, args.tablasJugs))
 
     # Pagina 5
-    # story.extend(paginaEstadsEquipos(tempData, datosSig))
+    story.extend(paginaEstadsEquipos(tempData, datosSig))
     #
-    # story.extend(paginaCruces(tempData))
+    story.extend(paginaCruces(tempData))
     # Fin del doc
     doc.build(story)
 

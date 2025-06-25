@@ -390,10 +390,11 @@ def tablaCruces(tempData: TemporadaACB, CELLPAD=0.3 * mm, FONTSIZE=9) -> List[An
 
 
 def tablaPartidosLigaReg(tempData: TemporadaACB, equiposAmarcar: Optional[Iterable[str]] = None,
-                         currJornada: Optional[int] = None, FONTSIZE=9, CELLPAD=0.3 * mm
+                         datosJornada: Optional[infoJornada] = None, FONTSIZE=9, CELLPAD=0.3 * mm
                          ):
     result = []
 
+    currJornada = None if (datosJornada is None or datosJornada.esPlayOff) else datosJornada.jornada
     infoLiga = preparaInfoLigaReg(tempData, currJornada)
 
     datosTabla = presTablaPartidosLigaReg(infoLiga, FONTSIZE=FONTSIZE, CELLPAD=CELLPAD)
@@ -417,11 +418,11 @@ def seccGeneraLeyendaLigaRegular(dataLiga, FONTSIZE=8):
     texto = ("<b>Leyenda en balance total</b>: <b>A</b>:&nbsp;Partido(s) adelantado(s)<b> J</b>:&nbsp;Jornada actual "
              "pendiente de jugar "
              "<b>P</b>:&nbsp;Partido(s) pendiente(s) "
-             f"<b>Totalesz</b>: <b>Jugados</b>: {len(dataLiga['jugados'])}, <b>Pendientes</b>: "
+             f"<b>Totales</b>: <b>Jugados</b>:&nbsp;{len(dataLiga['jugados'])}, <b>Pendientes</b>:&nbsp;"
              f"{len(dataLiga['pendientes'])}."
              f"{textoRepartoVictPorLoc}")
 
-    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
+    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap='LTR',
                                  leading=FONTSIZE + 0.5, )
     result = Paragraph(texto, style=legendStyle)
 
@@ -445,7 +446,7 @@ def seccGeneraLeyendaCruces(dataCruces, FONTSIZE=8):
              "<b>Esquina inf dcha</b>: cruces resueltos y cruces pendientes."
              f"{textoTotalCrucesResueltos} {textoTotalCrucesPendientes}")
 
-    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
+    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap='LTR',
                                  leading=FONTSIZE + 0.5, )
     result = Paragraph(texto, style=legendStyle)
 

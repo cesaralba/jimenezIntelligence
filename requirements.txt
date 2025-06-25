@@ -28,7 +28,7 @@ MarkupSafe==3.0.2 # Quien necesita esto
 
 XlsxWriter>=3.2.3
 
-reportlab>=4.4.1
+reportlab>=4.4.2
 pillow>=11.2.1
 
 #Dependencias (añadidas por vulnerabilidades detectadas)

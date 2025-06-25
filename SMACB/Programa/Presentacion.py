@@ -214,8 +214,8 @@ def bloqueCabEquipo(datosEq, tempData, fecha, datosJornada: infoJornada):
                                                           tempData=tempData, incluyeAct=False))
 
         currEstado: infoEquipoPO = GlobACB.estadoLigaPO[datosEq['idEq']]
-        currResult = (currEstado.fases[datosJornada.fasePlayOff.lower()].V if datosJornada.fasePlayOff.lower() in
-                                                                              currEstado.fases else 0)
+        currResult = (currEstado.fases[datosJornada.fasePlayOff.lower()].V
+                      if datosJornada.fasePlayOff.lower() in currEstado.fases else 0)
 
         result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b> {currResult}</para>"),
                   Paragraph(f"<para align='center' fontSize='12'>{infoStr}</para>")]
@@ -388,7 +388,7 @@ def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None, tablasIncluidas: L
 
 
 def auxGeneraLeyendaEstadsCelda(leyenda: dict, FONTSIZE: int, listaEqs: Iterable):
-    legendStyle = ParagraphStyle('tabEstadsLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
+    legendStyle = ParagraphStyle('tabEstadsLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap='LTR',
                                  leading=10, )
 
     separador = "<center>---</center><br/>"
@@ -653,9 +653,11 @@ def presTablaPartidosLigaReg(data, FONTSIZE=9, CELLPAD=3 * mm):
     result[0][-1] = Paragraph('Como local', style=estCelda)
     result[-1][0] = Paragraph('Como visitante', style=estCelda)
 
-    result[-1][-1] = Paragraph(
-        f'J:{(100 * len(data['jugados']) / (len(data['pendientes']) + len(data['jugados']))):.2g}%',
-        style=estCelda)  # , clavesAmostrar
+    parrafoPorcJugados = "J:100%"
+    if len(data['pendientes']) > 0:
+        parrafoPorcJugados = f'J:{(100 * len(data['jugados']) / (len(data['pendientes']) + len(data['jugados']))):.2g}%'
+
+    result[-1][-1] = Paragraph(parrafoPorcJugados, style=estCelda)
 
     datosDiag = data['datosDiagonal']
 
