@@ -16,6 +16,7 @@ EqRival = ('Eq', 'Rival')
 LOCALNAMES = {'Local', 'L', 'local'}
 VISITNAMES = {'Visitante', 'V', 'visitante'}
 
+POLABELLIST = ['1/8 de final', '1/4 de final', 'semifinales', 'final']
 POLABEL2FASE = {'final': 'Final', 'semifinales': 'Semis', '1/4 de final': 'Cuartos', '1/8 de final': 'Octavos'}
 POLABEL2ABREV = {'final': 'F', 'semifinales': 'S', '1/4 de final': 'C', '1/8 de final': 'O'}
 
@@ -73,11 +74,11 @@ infoEqCalendario = namedtuple(typename='infoEqCalendario',
 filaTrayectoriaEq = namedtuple(typename='filaTrayectoriaEq',
                                field_names=['fechaPartido', 'jornada', 'cod_edicion', 'cod_competicion', 'equipoMe',
                                             'equipoRival', 'esLocal', 'haGanado', 'pendiente', 'url', 'abrevEqs',
-                                            'resultado'],
-                               defaults=[None, None, None, None, None, None, None, None, None, None, None, None])
+                                            'resultado', 'infoJornada'],
+                               defaults=[None, None, None, None, None, None, None, None, None, None, None, None, None])
 filaMergeTrayectoria = namedtuple(typename='filaMergeTrayectoria',
-                                  field_names=['jornada', 'izda', 'dcha', 'precedente'],
-                                  defaults=[None, None, None, None])
+                                  field_names=['jornada', 'izda', 'dcha', 'precedente', 'infoJornada', 'pendiente'],
+                                  defaults=[None, None, None, None, None, False])
 URLIMG2IGNORE = {'/Images/Web/silueta1.gif', '/Images/Web/silueta2.gif', ''}
 CLAVESFICHAJUGADOR = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia',
                       'junior', 'audioURL']

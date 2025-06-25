@@ -9,38 +9,40 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, TableStyle, Table, NextPageTemplate, PageBreak, Spacer
 
 import SMACB.Programa.Globals as GlobACB
-from SMACB.Constants import infoSigPartido, MARCADORESCLASIF, filaTrayectoriaEq
+from SMACB.Constants import infoSigPartido, MARCADORESCLASIF, filaTrayectoriaEq, infoJornada, POLABEL2ABREV
 from SMACB.Programa.Constantes import estiloNegBal, estiloPosMarker, colEq
 from SMACB.Programa.Datos import datosTablaClasif, datosJugadores, auxFindTargetAbrevs, datosAnalisisEstadisticos, \
     preparaInfoCruces, preparaInfoLigaReg
 from SMACB.Programa.FuncionesAux import auxCalculaFirstBalNeg, partidoTrayectoria, auxBold, auxLeyendaCrucesResueltos, \
     auxLeyendaCrucesTotalResueltosEq, auxLeyendaCrucesTotalResueltos, auxLeyendaCrucesTotalPendientes, \
-    auxLeyendaRepartoVictPorLoc
-from SMACB.Programa.Globals import recuperaClasifLiga, recuperaEstadsGlobales
+    auxLeyendaRepartoVictPorLoc, jor2StrCab
+from SMACB.Programa.Globals import recuperaClasifLigaLR, recuperaEstadsGlobales
 from SMACB.Programa.Presentacion import tablaEstadsBasicas, tablaRestoJornada, bloqueCabEquipo, tablasJugadoresEquipo, \
     auxGeneraLeyendaEstadsCelda, auxFilasTablaEstadisticos, presTablaCruces, presTablaCrucesEstilos, \
-    presTablaPartidosLigaReg, presTablaPartidosLigaRegEstilos
+    presTablaPartidosLigaReg, presTablaPartidosLigaRegEstilos, vuelcaCadena
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.FechaHora import time2Str
 
 
 def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
     partido = datosSig.sigPartido
+    datosJornada: infoJornada = partido['infoJornada']
+
     datosLocal = partido['equipos']['Local']
     datosVisit = partido['equipos']['Visitante']
     compo = partido['cod_competicion']
     edicion = partido['cod_edicion']
-    j = partido['jornada']
     fh = time2Str(partido['fechaPartido'])
 
     style = ParagraphStyle('cabStyle', align='center', fontName='Helvetica', fontSize=20, leading=22, )
 
+    jorStr = jor2StrCab(datosJornada)
     cadenaCentral = Paragraph(
         f"<para align='center' fontName='Helvetica' fontSize=20 leading=22><b>{compo}</b> {edicion} - "
-        f"J: " f"<b>{j}</b><br/>{fh}</para>", style)
+        f"{jorStr}<br/>{fh}</para>", style)
 
-    cabLocal = bloqueCabEquipo(datosLocal, tempData, partido['fechaPartido'], currJornada=int(j))
-    cabVisit = bloqueCabEquipo(datosVisit, tempData, partido['fechaPartido'], currJornada=int(j))
+    cabLocal = bloqueCabEquipo(datosLocal, tempData, partido['fechaPartido'], datosJornada=datosJornada)
+    cabVisit = bloqueCabEquipo(datosVisit, tempData, partido['fechaPartido'], datosJornada=datosJornada)
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black)])
@@ -50,17 +52,15 @@ def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
 
 
 def metadataPrograma(tempData: TemporadaACB):
-    FONTSIZE = 6
-
     FORMATOfecha = "%Y-%m-%d %H:%M (%z)"
     fechaGen = strftime(FORMATOfecha, gmtime())
     tempDesc = strftime(FORMATOfecha, tempData.timestamp)
     mensaje = (f"Datos procedentes de https://www.acb.com y elaboración propia. Generado en {fechaGen}. Datos "
                f"descargados en {tempDesc}")
 
-    metadataStyle = ParagraphStyle('tabEstadsRowHeader', fontSize=FONTSIZE, alignment=TA_LEFT, leading=1)
+    FONTSIZE = 6
 
-    result = Paragraph(mensaje, style=metadataStyle)
+    result = vuelcaCadena(mensaje, fontsize=FONTSIZE)
 
     return result
 
@@ -97,9 +97,9 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
                   Paragraph(f"<para align='right' fontsize={FONTPARA}>{dato.diffP}</para>")]
         return result
 
-    recuperaClasifLiga(tempData)
+    recuperaClasifLigaLR(tempData)
     filasClasLiga = datosTablaClasif(tempData, datosSig)
-    posFirstNegBal = auxCalculaFirstBalNeg(GlobACB.clasifLiga)
+    posFirstNegBal = auxCalculaFirstBalNeg(GlobACB.clasifLigaLR)
     filasAresaltar = []
     filaCab = [Paragraph("<para align='center'><b>#</b></para>"),
                Paragraph("<para align='center'><b>Equipo</b></para>"),
@@ -157,7 +157,7 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
     return result
 
 
-def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido):
+def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido, limitRows: Optional[int] = None):
     sigPartido = infoPartido.sigPartido
 
     FONTSIZE = 8
@@ -171,13 +171,20 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
     j17izda = None
     j17dcha = None
 
-    trayectoriasCombinadas = tempData.mergeTrayectoriaEquipos(*(tuple(infoPartido.abrevLV)), True, True)
+    trayectoriasCombinadas, mensajeAviso = tempData.mergeTrayectoriaEquipos(*(tuple(infoPartido.abrevLV)),
+                                                                            incluyeJugados=True, incluyePendientes=True,
+                                                                            limitRows=limitRows)
 
     filasTabla = []
 
     resultStyle = ParagraphStyle('trayStyle', fontName='Helvetica', fontSize=FONTSIZE, alignment=TA_CENTER)
     cellStyle = ParagraphStyle('trayStyle', fontName='Helvetica', fontSize=FONTSIZE, alignment=TA_LEFT)
     jornStyle = ParagraphStyle('trayStyle', fontName='Helvetica-Bold', fontSize=FONTSIZE + 1, alignment=TA_CENTER)
+
+    def infoJornada2MFstr(datosJor: infoJornada) -> str:
+        if datosJor.esPlayOff:
+            return f"{POLABEL2ABREV[datosJor.fasePlayOff.lower()]}{datosJor.partRonda}"
+        return f"{datosJor.jornada}"
 
     def preparaCeldasTrayectoria(data: filaTrayectoriaEq | None, ladoIzdo: bool = False) -> (list, bool):
         merge = False
@@ -199,7 +206,7 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
     for numFila, fila in enumerate(trayectoriasCombinadas):
         datosIzda = fila.izda
         datosDcha = fila.dcha
-        jornada = fila.jornada
+        jornadaStr = infoJornada2MFstr(fila.infoJornada)
 
         if fila.precedente:
             if fila.jornada == sigPartido['jornada']:
@@ -222,7 +229,7 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
         if mergeDcha:
             mergeDchaList.append(numFila + incrFila)
 
-        celdaJornada = [Paragraph(f"{str(jornada)}", style=jornStyle)]
+        celdaJornada = [Paragraph(f"{jornadaStr}", style=jornStyle)]
         aux = celdasIzda + celdaJornada + celdasDcha
         filasTabla.append(aux)
 
@@ -255,7 +262,7 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
 
     t = Table(data=filasTabla, style=tStyle, colWidths=ANCHOCOLS, rowHeights=FONTSIZE + 4.5)
 
-    return t
+    return t, mensajeAviso
 
 
 def paginasJugadores(tempData: TemporadaACB, abrEqs, juLocal, juVisit, tablas: List[str]):
@@ -383,10 +390,11 @@ def tablaCruces(tempData: TemporadaACB, CELLPAD=0.3 * mm, FONTSIZE=9) -> List[An
 
 
 def tablaPartidosLigaReg(tempData: TemporadaACB, equiposAmarcar: Optional[Iterable[str]] = None,
-                         currJornada: Optional[int] = None, FONTSIZE=9, CELLPAD=0.3 * mm
+                         datosJornada: Optional[infoJornada] = None, FONTSIZE=9, CELLPAD=0.3 * mm
                          ):
     result = []
 
+    currJornada = None if (datosJornada is None or datosJornada.esPlayOff) else datosJornada.jornada
     infoLiga = preparaInfoLigaReg(tempData, currJornada)
 
     datosTabla = presTablaPartidosLigaReg(infoLiga, FONTSIZE=FONTSIZE, CELLPAD=CELLPAD)
@@ -410,11 +418,11 @@ def seccGeneraLeyendaLigaRegular(dataLiga, FONTSIZE=8):
     texto = ("<b>Leyenda en balance total</b>: <b>A</b>:&nbsp;Partido(s) adelantado(s)<b> J</b>:&nbsp;Jornada actual "
              "pendiente de jugar "
              "<b>P</b>:&nbsp;Partido(s) pendiente(s) "
-             f"<b>Totalesz</b>: <b>Jugados</b>: {len(dataLiga['jugados'])}, <b>Pendientes</b>: "
+             f"<b>Totales</b>: <b>Jugados</b>:&nbsp;{len(dataLiga['jugados'])}, <b>Pendientes</b>:&nbsp;"
              f"{len(dataLiga['pendientes'])}."
              f"{textoRepartoVictPorLoc}")
 
-    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
+    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap='LTR',
                                  leading=FONTSIZE + 0.5, )
     result = Paragraph(texto, style=legendStyle)
 
@@ -438,7 +446,7 @@ def seccGeneraLeyendaCruces(dataCruces, FONTSIZE=8):
              "<b>Esquina inf dcha</b>: cruces resueltos y cruces pendientes."
              f"{textoTotalCrucesResueltos} {textoTotalCrucesPendientes}")
 
-    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap=True,
+    legendStyle = ParagraphStyle('tabLigaLegend', fontSize=FONTSIZE, alignment=TA_JUSTIFY, wordWrap='LTR',
                                  leading=FONTSIZE + 0.5, )
     result = Paragraph(texto, style=legendStyle)
 

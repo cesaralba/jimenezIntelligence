@@ -1,15 +1,21 @@
 from collections import namedtuple, defaultdict
 from decimal import Decimal
-from typing import Optional, Any, Set, List, Tuple
+from typing import Optional, Any, Set, List, Tuple, Dict
 
-from CAPcore.Misc import onlySetElement
+from CAPcore.Misc import onlySetElement, cmp
 
 from SMACB.Constants import LocalVisitante, OtherLoc
 from SMACB.TemporadaACB import TemporadaACB
 
-infoClasifEquipo = namedtuple('infoClasifEquipo',
-                              ['Jug', 'V', 'D', 'Pfav', 'Pcon', 'Jjug', 'CasaFuera', 'idEq', 'nombresEq', 'abrevsEq',
-                               'nombreCorto', 'abrevAusar', 'ratioVict', 'sumaCoc'])
+infoClasifEquipoLR = namedtuple('infoClasifEquipoLR',
+                                ['Jug', 'V', 'D', 'Pfav', 'Pcon', 'Jjug', 'CasaFuera', 'idEq', 'nombresEq', 'abrevsEq',
+                                 'nombreCorto', 'abrevAusar', 'ratioVict', 'sumaCoc'])
+
+infoSerieEquipoPO = namedtuple('infoSerieEquipoPO',
+                               ['Fase', 'idRival', 'Jug', 'V', 'D', 'Pfav', 'Pcon', 'victoria', 'localia'])
+
+infoEquipoPO = namedtuple('infoEquipoPO', ['idEq', 'fases'])
+
 infoClasifBase = namedtuple(typename='infoClasifEquipo', field_names=['Jug', 'V', 'D', 'Pfav', 'Pcon'],
                             defaults=(0, 0, 0, 0, 0))
 infoClasifComplPareja = namedtuple(typename='infoClasifComplPareja',
@@ -20,7 +26,7 @@ infoClasifComplMasD2 = namedtuple(typename='infoClasifComplMasD2',
                                   defaults=(0, 0, 0, 0, 0, 0, Decimal(0.000)))
 
 
-def entradaClas2kVict(ent: infoClasifEquipo, *kargs) -> tuple:
+def entradaClas2kVict(ent: infoClasifEquipoLR, *kargs) -> tuple:
     """
     Dado un resultado de Temporada.getClasifEquipo)
 
@@ -32,7 +38,7 @@ def entradaClas2kVict(ent: infoClasifEquipo, *kargs) -> tuple:
     return result
 
 
-def entradaClas2kRatioVict(ent: infoClasifEquipo, *kargs) -> tuple:
+def entradaClas2kRatioVict(ent: infoClasifEquipoLR, *kargs) -> tuple:
     """
     Dado un resultado de Temporada.getClasifEquipo)
 
@@ -44,7 +50,7 @@ def entradaClas2kRatioVict(ent: infoClasifEquipo, *kargs) -> tuple:
     return result
 
 
-def entradaClas2kBasic(ent: infoClasifEquipo, *kargs) -> tuple:
+def entradaClas2kBasic(ent: infoClasifEquipoLR, *kargs) -> tuple:
     """
     Dado un resultado de Temporada.getClasifEquipo)
 
@@ -56,7 +62,7 @@ def entradaClas2kBasic(ent: infoClasifEquipo, *kargs) -> tuple:
     return result
 
 
-def entradaClas2kEmpatePareja(ent: infoClasifEquipo, datosLR: dict) -> infoClasifComplPareja:
+def entradaClas2kEmpatePareja(ent: infoClasifEquipoLR, datosLR: dict) -> infoClasifComplPareja:
     """
     Dado un resultado de Temporada.getClasifEquipo)
 
@@ -71,7 +77,7 @@ def entradaClas2kEmpatePareja(ent: infoClasifEquipo, datosLR: dict) -> infoClasi
     return result
 
 
-def entradaClas2kEmpateMasD2(ent: infoClasifEquipo, datosLR: dict) -> infoClasifComplMasD2:
+def entradaClas2kEmpateMasD2(ent: infoClasifEquipoLR, datosLR: dict) -> infoClasifComplMasD2:
     """
     Dado un resultado de Temporada.getClasifEquipo)
 
@@ -86,9 +92,9 @@ def entradaClas2kEmpateMasD2(ent: infoClasifEquipo, datosLR: dict) -> infoClasif
     return result
 
 
-def calculaClasifEquipo(dataTemp: TemporadaACB, abrEq: str, fecha: Optional[Any] = None,
-                        gameList: Optional[set[str]] = None
-                        ) -> infoClasifEquipo:
+def calculaClasifEquipoLR(dataTemp: TemporadaACB, abrEq: str, fecha: Optional[Any] = None,
+                          gameList: Optional[set[str]] = None
+                          ) -> infoClasifEquipoLR:
     """
     Extrae los datos necesarios para calcular la clasificación (solo liga regular) de un equipo hasta determinada
     fecha
@@ -139,13 +145,13 @@ def calculaClasifEquipo(dataTemp: TemporadaACB, abrEq: str, fecha: Optional[Any]
         auxResult['CasaFuera'][loc] = infoClasifBase(**auxResult['auxCasaFuera'][loc])
     auxResult.pop('auxCasaFuera')
     auxResult['ratioVict'] = auxResult['V'] / auxResult['Jug'] if auxResult['Jug'] else 0.0
-    result = infoClasifEquipo(**auxResult)
+    result = infoClasifEquipoLR(**auxResult)
     return result
 
 
-def calculaClasifLiga(dataTemp: TemporadaACB, fecha=None, abrevList: Optional[Set[str]] = None, parcial: bool = False,
-                      datosLR=None
-                      ) -> List[infoClasifEquipo]:
+def calculaClasifLigaLR(dataTemp: TemporadaACB, fecha=None, abrevList: Optional[Set[str]] = None, parcial: bool = False,
+                        datosLR=None
+                        ) -> List[infoClasifEquipoLR]:
     teamList = abrevList
     if abrevList is None:
         teamList = {onlySetElement(codSet) for codSet in dataTemp.Calendario.tradEquipos['i2c'].values()}
@@ -154,8 +160,8 @@ def calculaClasifLiga(dataTemp: TemporadaACB, fecha=None, abrevList: Optional[Se
 
     gameList = dataTemp.extractGameList(fecha=fecha, abrevEquipos=teamList, playOffStatus=False)
 
-    datosClasifEquipos: List[infoClasifEquipo] = [
-        calculaClasifEquipo(dataTemp, abrEq=eq, fecha=fecha, gameList=gameList) for eq in teamList]
+    datosClasifEquipos: List[infoClasifEquipoLR] = [
+        calculaClasifEquipoLR(dataTemp, abrEq=eq, fecha=fecha, gameList=gameList) for eq in teamList]
 
     if datosLR is None:
         datosLR = {x.abrevAusar: x for x in datosClasifEquipos}
@@ -188,8 +194,8 @@ def calculaClasifLiga(dataTemp: TemporadaACB, fecha=None, abrevList: Optional[Se
             for abrev in abrevK:
                 resultFinal.append(datosLR[abrev])
         else:
-            desempate = calculaClasifLiga(dataTemp=dataTemp, fecha=fecha, abrevList=abrevK, parcial=True,
-                                          datosLR=datosLR)
+            desempate = calculaClasifLigaLR(dataTemp=dataTemp, fecha=fecha, abrevList=abrevK, parcial=True,
+                                            datosLR=datosLR)
             for sc in desempate:
                 resultFinal.append(datosLR[sc.abrevAusar])
 
@@ -197,17 +203,39 @@ def calculaClasifLiga(dataTemp: TemporadaACB, fecha=None, abrevList: Optional[Se
     return result
 
 
-def cmp(a, b):
-    """
-    Compares two values that can be compared (< and > must work)
-    :param a:
-    :param b:
-    :return: 1 if a is bigger thanb, 0 if they are equal, -1 if b is bigger than a
+def calculaEstadoLigaPO(dataTemp: TemporadaACB, fecha=None) -> Dict[str, infoEquipoPO]:
+    auxResult = defaultdict(lambda: {
+        'fases': defaultdict(lambda: {'Jug': 0, 'V': 0, 'D': 0, 'Pfav': 0, 'Pcon': 0, 'victoria': [], 'localia': []})})
 
-    From https://docs.python.org/3.0/whatsnew/3.0.html#ordering-comparisons
-    """
+    teamList = {onlySetElement(codSet) for codSet in dataTemp.Calendario.tradEquipos['i2c'].values()}
 
-    return bool(a > b) - bool(a < b)
+    gameList = dataTemp.extractGameList(fecha=fecha, abrevEquipos=teamList, playOffStatus=True)
+
+    for p in sorted(gameList, key=lambda p: dataTemp.Partidos[p].fechaPartido):
+        partido = dataTemp.Partidos[p]
+        fase = (partido.infoJornada if hasattr(partido, 'infoJornada') else dataTemp.Calendario[partido.jornada][
+            'infoJornada']).fasePlayOff.lower()
+
+        for eq, data in partido.Equipos.items():
+            dataOther = partido.Equipos[OtherLoc(eq)]
+            idEq = data['id']
+            auxResult[idEq]['idEq'] = idEq
+            auxResult[idEq]['fases'][fase]['Fase'] = fase
+            auxResult[idEq]['fases'][fase]['idRival'] = dataOther['id']
+            auxResult[idEq]['fases'][fase]['Jug'] += 1
+            auxResult[idEq]['fases'][fase]['V'] += (1 if data['haGanado'] else 0)
+            auxResult[idEq]['fases'][fase]['D'] += (1 if dataOther['haGanado'] else 0)
+            auxResult[idEq]['fases'][fase]['Pfav'] += data['Puntos']
+            auxResult[idEq]['fases'][fase]['Pcon'] += dataOther['Puntos']
+            auxResult[idEq]['fases'][fase]['victoria'].append(data['haGanado'])
+            auxResult[idEq]['fases'][fase]['localia'].append(eq == "Local")
+
+    result = {}
+    for idEq, estadoEq in auxResult.items():
+        series = {k: infoSerieEquipoPO(**v) for k, v in estadoEq['fases'].items()}
+        result[idEq] = infoEquipoPO(idEq=idEq, fases=series)
+
+    return result
 
 
 def infoGanadorEmparej(data: List[Tuple[str, infoClasifComplPareja]]):
