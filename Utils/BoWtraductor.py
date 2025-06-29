@@ -1,5 +1,5 @@
 import re
-from _collections import defaultdict
+from collections import defaultdict
 from unicodedata import normalize
 
 from CAPcore.Misc import cosaCorta, cosaLarga, listize, onlySetElement
