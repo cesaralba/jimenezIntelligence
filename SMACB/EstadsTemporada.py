@@ -105,14 +105,13 @@ def calculaVars(temporada, clave, useStd=True, filtroFechas=None):
         combbool = combV + [('half-' + clave), ('aboveAvg-' + clave)]
         resbool = datos[combbool].groupby(combV).agg(['mean'])
         result[combN] = pd.concat([resbool, resfloat], axis=1, sort=True).reset_index()
-        newColNames = [((combN + "-" + colAdpt.get(x, x)) if clave in x else x) for x in
-                       combinaPDindexes(result[combN].columns)]
-        result[combN].columns = newColNames
+        result[combN].columns = [((combN + "-" + colAdpt.get(x, x)) if clave in x else x) for x in
+                                 combinaPDindexes(result[combN].columns)]
         result[combN]["-".join([combN, clave, (clZ.lower() + "Min")])] = (
-                result[combN]["-".join([combN, clZ, clave, 'mean'])] - result[combN][
-            "-".join([combN, clZ, clave, 'std'])])
+                    result[combN]["-".join([combN, clZ, clave, 'mean'])] -
+                    result[combN]["-".join([combN, clZ, clave, 'std'])])
         result[combN]["-".join([combN, clave, (clZ.lower() + "Max")])] = (
-                result[combN]["-".join([combN, clZ, clave, 'mean'])] + result[combN][
-            "-".join([combN, clZ, clave, 'std'])])
+                    result[combN]["-".join([combN, clZ, clave, 'mean'])] +
+                    result[combN]["-".join([combN, clZ, clave, 'std'])])
 
     return result
