@@ -14,7 +14,8 @@ from SMACB.Constants import MINPRECIO, POSICIONES, PRECIOpunto
 from SMACB.ManageSMDataframes import (calculaDFcategACB, calculaDFconVars, calculaDFprecedentes, CATMERCADOFINAL,
                                       COLSPREC)
 from SMACB.PartidoACB import PartidoACB
-from SMACB.TemporadaACB import calculaVars, calculaZ, TemporadaACB
+from SMACB.TemporadaACB import TemporadaACB
+from SMACB.EstadsTemporada import calculaZ, calculaVars
 
 
 def jugadoresMezclaStatus(datos):
