@@ -1,4 +1,5 @@
 import re
+from collections import namedtuple
 from typing import Optional
 
 from CAPcore.Web import createBrowser, mergeURL
@@ -6,6 +7,9 @@ from configargparse import Namespace
 
 # https://effbot.org/zone/default-values.htm#what-to-do-instead
 sentinel = object()
+
+browserConfigData = namedtuple('browserConfigData', field_names=['config', 'browser', 'timestamp'],
+                               defaults=[None, None])
 
 
 def getObjID(objURL, clave='id', defaultresult=sentinel):
