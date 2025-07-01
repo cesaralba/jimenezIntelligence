@@ -362,11 +362,9 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
                     ('LEFTPADDING', (0, 0), (-1, -1), 3), ('RIGHTPADDING', (0, 0), (-1, -1), 3),
                     ('BOX', (1, -len(clavesRiv)), (-1 + EXTRALEYENDA, -1), 2, colors.black), ] + ESTILOLEYENDA
 
-    listaFilas = [filaCab] + filasTabla
-
     tStyle = TableStyle(listaEstilos)
 
-    tabla1 = Table(data=listaFilas, style=tStyle, colWidths=LISTAANCHOS, rowHeights=11.2)
+    tabla1 = Table(data=([filaCab] + filasTabla), style=tStyle, colWidths=LISTAANCHOS, rowHeights=11.2)
 
     return tabla1
 

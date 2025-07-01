@@ -182,13 +182,11 @@ def procesaPlantillaDescargada(plantDesc: DownloadedPage):
     class2clave = {'nombre_largo': 'nombre', 'nombre_corto': 'alias'}
     result = {'jugadores': dict(), 'tecnicos': dict(), 'club': extraeDatosClub(plantDesc)}
 
-    fichaData = plantDesc.data
-
-    cosasUtiles = fichaData.find(name='section', attrs={'class': 'contenido_central_equipo'})
+    cosasUtiles = plantDesc.data.find(name='section', attrs={'class': 'contenido_central_equipo'})
 
     for bloqueDiv in cosasUtiles.find_all('div', {"class": "grid_plantilla"}):
         for jugArt in bloqueDiv.find_all("article"):
-            data = dict()
+            data = {}
 
             link = jugArt.find("a").attrs['href']
             data['id'] = getObjID(link, 'ver')
