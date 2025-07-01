@@ -1,9 +1,9 @@
-import functools
 import logging
 import re
 from collections import defaultdict
 from copy import copy, deepcopy
 from time import gmtime
+from typing import Set, Optional
 
 import pandas as pd
 from CAPcore.Misc import FORMATOtimestamp, listize, onlySetElement
@@ -27,7 +27,8 @@ ETIQubiq = ['local', 'visitante']
 
 UMBRALbusquedaDistancia = 1  # La comparación debe ser >
 
-CALENDARIOEQUIPOS = dict()
+CALENDARIOEQUIPOS = {}
+JORNADASCOMPLETAS: Optional[Set] = None
 
 
 class CalendarioACB:
@@ -122,8 +123,7 @@ class CalendarioACB:
             logger.info("DescargaCalendario. Creando URL %s. Edicion: %s. Compo: %s", self.url, self.edicion,
                         self.competicion)
             pagCalendario = downloadPage(self.urlbase, home=home, browser=browser, config=config)
-            pagCalendarioData = pagCalendario.data
-            divTemporadas = pagCalendarioData.find("div", {"class": "desplegable_temporada"})
+            divTemporadas = pagCalendario.data.find("div", {"class": "desplegable_temporada"})
 
             currYear = divTemporadas.find('div', {"class": "elemento"})['data-t2v-id']
 
@@ -213,9 +213,7 @@ class CalendarioACB:
         for eqUbic, div in zip(ETIQubiq, divPartido.find_all("div", {"class": "logo_equipo"})):
             auxDatos = datosPartEqs.get(eqUbic.capitalize(), {})
             image = div.find("img")
-            imageURL = mergeURL(self.urlbase, image['src'])
-            imageALT = image['alt']
-            auxDatos.update({'icono': imageURL, 'imageTit': imageALT})
+            auxDatos.update({'icono': mergeURL(self.urlbase, image['src']), 'imageTit': image['alt']})
             datosPartEqs[eqUbic.capitalize()] = auxDatos
 
         for eqUbic in ETIQubiq:
@@ -313,13 +311,20 @@ class CalendarioACB:
         result = ",".join(map(str, sorted([onlySetElement(self.tradEquipos['c2i'][e]) for e in conjAbrevs])))
         return result
 
-    @functools.cache
     def jornadasCompletas(self):
         """
         Devuelve las IDs de jornadas para las que se han jugado todos los partidos
         :return: set con las jornadas para las que no quedan partidos (el id, entero)
         """
+        # pylint: disable=global-statement
+        global JORNADASCOMPLETAS
+        # pylint: enable=global-statement
+
+        if JORNADASCOMPLETAS is not None:
+            return JORNADASCOMPLETAS
+
         result = {j for j, data in self.Jornadas.items() if len(data['pendientes']) == 0}
+        JORNADASCOMPLETAS = result
         return result
 
     def cal2dict(self):
