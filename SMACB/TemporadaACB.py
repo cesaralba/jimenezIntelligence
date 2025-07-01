@@ -580,7 +580,7 @@ class TemporadaACB:
 
     def dfEstadsLiga(self, fecha=None):
 
-        resultDict = dict()
+        resultDict = {}
         # Todos los partidos de la liga hasta fecha
         dfTodosPartidos = self.dataFramePartidosLV(fecha)
 
@@ -600,7 +600,7 @@ class TemporadaACB:
         :param abrev: abreviatura del equipo
         :return: lista de partidos.
         """
-        auxResultado = list()
+        auxResultado = []
         targetAbrevs = self.Calendario.abrevsEquipo(abrev)
         juCal, peCal = self.Calendario.partidosEquipo(abrev)
 
@@ -612,7 +612,7 @@ class TemporadaACB:
         for p in juCal + peCal:
             abrevAUsar = (p['participantes'].intersection(targetAbrevs)).pop()
             loc = p['abrev2loc'][abrevAUsar]
-            auxEntry = dict()
+            auxEntry = {}
             auxEntry['fechaPartido'] = p['fechaPartido'] if p['pendiente'] else self.Partidos[p['url']].fechaPartido
             auxEntry['infoJornada'] = p['infoJornada'] if p['pendiente'] else Partido2InfoJornada(
                 self.Partidos[p['url']], self)

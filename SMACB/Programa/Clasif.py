@@ -107,7 +107,7 @@ def calculaClasifEquipoLR(dataTemp: TemporadaACB, abrEq: str, fecha: Optional[An
     auxResult = defaultdict(int)
     auxResult['Jjug'] = set()
     auxResult['auxCasaFuera'] = {'Local': defaultdict(int), 'Visitante': defaultdict(int)}
-    auxResult['CasaFuera'] = dict()
+    auxResult['CasaFuera'] = {}
     auxResult['sumaCoc'] = Decimal(0)
 
     urlGamesFull = dataTemp.extractGameList(fecha=fecha, abrevEquipos={abrEq}, playOffStatus=False)

@@ -38,10 +38,10 @@ class PartidoACB():
 
         self.Equipos = {x: {'Jugadores': []} for x in LocalVisitante}
 
-        self.Jugadores = dict()
-        self.Entrenadores = dict()
-        self.pendientes = {x: list() for x in LocalVisitante}
-        self.aprendidos = {x: list() for x in LocalVisitante}
+        self.Jugadores = {}
+        self.Entrenadores = {}
+        self.pendientes = {x: [] for x in LocalVisitante}
+        self.aprendidos = {x: [] for x in LocalVisitante}
 
         self.EquiposCalendario = kwargs['equipos']
         self.ResultadoCalendario = kwargs['resultado']
@@ -109,7 +109,7 @@ class PartidoACB():
             self.extraeEstadsJugadores(tRes, loc, colHeaders)
 
             cachedTeam: Optional[PlantillaACB] = None
-            newPendientes = list()
+            newPendientes = []
             if self.pendientes[loc]:
                 for datosJug in self.pendientes[loc]:
                     if datosJug['nombre'] == '':
@@ -405,7 +405,7 @@ class PartidoACB():
         infoDict['fechaHoraPartido'] = getattr(self, 'fechaPartido')
         infoDict['fechaPartido'] = (infoDict['fechaHoraPartido']).date()
 
-        estadsDict = {loc: dict() for loc in self.Equipos}
+        estadsDict = {loc: {} for loc in self.Equipos}
 
         for loc in LocalVisitante:
             for col in equipoCols:
@@ -466,7 +466,7 @@ class PartidoACB():
     __repr__ = __str__
 
     def estadsPartido(self):
-        result = {loc: dict() for loc in LocalVisitante}
+        result = {loc: {} for loc in LocalVisitante}
 
         for loc in LocalVisitante:
             result[loc].update(self.Equipos[loc]['estads'])
@@ -474,7 +474,7 @@ class PartidoACB():
         for loc in LocalVisitante:
             estads = result[loc]
             other = result[OtherLoc(loc)]
-            avanzadas = dict()
+            avanzadas = {}
 
             avanzadas['Abrev'] = self.Equipos[loc]['abrev']
             avanzadas['Rival'] = self.Equipos[OtherLoc(loc)]['abrev']
@@ -531,7 +531,7 @@ class PartidoACB():
 
 
 def auxJugador2dataframe(typesDF, jugador, fechaPartido):
-    dictJugador = dict()
+    dictJugador = {}
     dictJugador['enActa'] = True
     dictJugador['acta'] = 'S'
 
