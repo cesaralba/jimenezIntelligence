@@ -114,7 +114,7 @@ class PlantillaACB():
 
             auxNombre = v.get('nombre', None)
             auxAlias = v.get('alias', None) or auxNombre
-            changes = dict()
+            changes = {}
             if auxNombre is not None and isinstance(auxNombre, set):
                 changes.update({'nombre': getFromSet(auxNombre, -1)})
             if auxAlias is not None and isinstance(auxAlias, set):
@@ -127,7 +127,7 @@ class PlantillaACB():
                 v.purge({'urlFoto'})
 
             auxAlias = v.get('alias', None)
-            changes = dict()
+            changes = {}
             if auxAlias is not None and isinstance(auxAlias, set):
                 changes.update({'alias': getFromSet(auxAlias, 0)})
             v.update(changes)
@@ -180,15 +180,13 @@ def procesaPlantillaDescargada(plantDesc: DownloadedPage):
     :return:
     """
     class2clave = {'nombre_largo': 'nombre', 'nombre_corto': 'alias'}
-    result = {'jugadores': dict(), 'tecnicos': dict(), 'club': extraeDatosClub(plantDesc)}
+    result = {'jugadores': {}, 'tecnicos': {}, 'club': extraeDatosClub(plantDesc)}
 
-    fichaData = plantDesc.data
-
-    cosasUtiles = fichaData.find(name='section', attrs={'class': 'contenido_central_equipo'})
+    cosasUtiles = plantDesc.data.find(name='section', attrs={'class': 'contenido_central_equipo'})
 
     for bloqueDiv in cosasUtiles.find_all('div', {"class": "grid_plantilla"}):
         for jugArt in bloqueDiv.find_all("article"):
-            data = dict()
+            data = {}
 
             link = jugArt.find("a").attrs['href']
             data['id'] = getObjID(link, 'ver')
@@ -242,7 +240,7 @@ def procesaTablaBajas(tablaBajas: bs4.element) -> dict:
     for row in tablaBajas.find("tbody").find_all("tr"):
         tds = list(row.find_all("td"))
 
-        data = dict()
+        data = {}
 
         link = tds[1].find("a").attrs['href']
         data['URL'] = mergeURL(URL_BASE, link)
@@ -267,7 +265,7 @@ def procesaTablaBajas(tablaBajas: bs4.element) -> dict:
 
 
 def extraeDatosClub(plantDesc: DownloadedPage):
-    result = dict()
+    result = {}
 
     fichaData = plantDesc.data
 

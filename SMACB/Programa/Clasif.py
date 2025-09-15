@@ -33,7 +33,7 @@ def entradaClas2kVict(ent: infoClasifEquipoLR, *kargs) -> tuple:
     :param ent: lista de equipos (resultado de Temporada.getClasifEquipo)
     :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
     """
-
+    del kargs
     result = ent.V
     return result
 
@@ -45,7 +45,7 @@ def entradaClas2kRatioVict(ent: infoClasifEquipoLR, *kargs) -> tuple:
     :param ent: lista de equipos (resultado de Temporada.getClasifEquipo)
     :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
     """
-
+    del kargs
     result = ent.ratioVict
     return result
 
@@ -57,6 +57,7 @@ def entradaClas2kBasic(ent: infoClasifEquipoLR, *kargs) -> tuple:
     :param ent: lista de equipos (resultado de Temporada.getClasifEquipo)
     :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
     """
+    del kargs
 
     result = (ent.V, ent.ratioVict, ent.Pfav - ent.Pcon, ent.Pfav, ent.sumaCoc)
     return result
@@ -106,7 +107,7 @@ def calculaClasifEquipoLR(dataTemp: TemporadaACB, abrEq: str, fecha: Optional[An
     auxResult = defaultdict(int)
     auxResult['Jjug'] = set()
     auxResult['auxCasaFuera'] = {'Local': defaultdict(int), 'Visitante': defaultdict(int)}
-    auxResult['CasaFuera'] = dict()
+    auxResult['CasaFuera'] = {}
     auxResult['sumaCoc'] = Decimal(0)
 
     urlGamesFull = dataTemp.extractGameList(fecha=fecha, abrevEquipos={abrEq}, playOffStatus=False)

@@ -5,7 +5,7 @@ from collections import defaultdict
 from statistics import mean, median, stdev
 from time import gmtime, mktime, strftime, time
 
-from CAPcore.Misc import FORMATOtimestamp, SubSet
+from CAPcore.Misc import FORMATOtimestamp, SubSet,
 from SMACB.SuperManager import SuperManagerACB
 from configargparse import ArgumentParser
 from pandas import DataFrame, ExcelWriter
@@ -14,7 +14,8 @@ from SMACB.Constants import MINPRECIO, POSICIONES, PRECIOpunto
 from SMACB.ManageSMDataframes import (calculaDFcategACB, calculaDFconVars, calculaDFprecedentes, CATMERCADOFINAL,
                                       COLSPREC)
 from SMACB.PartidoACB import PartidoACB
-from SMACB.TemporadaACB import calculaVars, calculaZ, TemporadaACB
+from SMACB.TemporadaACB import TemporadaACB
+from SMACB.TemporadaEstads import calculaZ, calculaVars
 
 
 def jugadoresMezclaStatus(datos):
@@ -66,8 +67,8 @@ def mezclaJugadores(jugTemporada, jugSuperManager):
 
 
 def preparaDatosComunes(datosMezclados):
-    resultado = dict()
-    datosCabecera = dict()
+    resultado = {}
+    datosCabecera = {}
 
     titularCabecera = ['Pos', 'Cupo', 'Lesion', 'Nombre', 'Equipo', 'Promedio Val', 'Precio', 'Proximo Rival',
                        'Precio punto']
@@ -77,7 +78,7 @@ def preparaDatosComunes(datosMezclados):
     jugDataActivos = {x: datosMezclados[x] for x in jugadoresActivos}
 
     for jug in jugDataActivos:
-        cabecJug = list()
+        cabecJug = []
         datosJug = jugDataActivos[jug]
 
         for campo in ['I-pos', 'I-cupo', 'I-lesion', 'I-nombre', 'I-equipo', 'I-promVal', 'I-precio']:
@@ -136,7 +137,7 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx"):
     #                   True: ['J 0'] + temporada.Calendario.nombresJornada()[:numJornadas]}
 
     def preparaFormatos(workbook):
-        resultado = dict()
+        resultado = {}
 
         for r in 'VD':
             for v in 'LF':
@@ -305,8 +306,8 @@ def preparaExcel(supermanager, temporada, nomFichero="/tmp/SM.xlsx"):
 
 
 def infoJugador(datosJugador, numdias=0):
-    resultados = dict()
-    Parts = dict()
+    resultados = {}
+    Parts = {}
 
     def auxDict():
         return defaultdict(int)

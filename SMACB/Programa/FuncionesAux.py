@@ -1,11 +1,13 @@
+from collections import defaultdict
 from math import isnan
-from typing import Set, List, Optional
+from typing import Set, List, Optional, Iterable, Any
 
 import pandas as pd
 from CAPcore.Misc import onlySetElement
 
 from SMACB import TemporadaACB as TempACB
-from SMACB.Constants import local2espLargo, LocalVisitante, haGanado2esp, infoJornada, POLABELLIST, POLABEL2ABREV
+from SMACB.Constants import local2espLargo, LocalVisitante, haGanado2esp, infoJornada, POLABELLIST, POLABEL2ABREV, \
+    LOCALNAMES
 from SMACB.Programa.Clasif import infoClasifEquipoLR, calculaClasifEquipoLR, infoEquipoPO, infoSerieEquipoPO
 from SMACB.Programa.Constantes import nombresClasif, criterioDesempateCruces
 from SMACB.TemporadaACB import TemporadaACB
@@ -43,7 +45,10 @@ def auxCalculaBalanceStr(record: infoClasifEquipoLR, addPendientes: bool = False
 
 
 def auxCalculaInfoPO(datosJornada: infoJornada, recordLR: infoClasifEquipoLR, posicLR, recordPO: infoEquipoPO,
-                     tempData: Optional[TemporadaACB] = None, incluyeAct: bool = False):
+                     **kwargs):
+    tempData: Optional[TemporadaACB] = kwargs.get('tempData', None)
+    incluyeAct: bool = kwargs.get('incluyeAct', False)
+
     result = []
     result.append(("LR", f"{recordLR.V}-{recordLR.D},{posicLR}º"))
     for fase in POLABELLIST:
@@ -383,3 +388,88 @@ def presTrayectoriaPlayOff(data) -> str:
         else:
             auxResult.append(f"<b>{POLABEL2ABREV[fase]}</b>:{res}")
     return " ".join(auxResult)
+
+
+def auxEtiqPartido(tempData: TemporadaACB, rivalAbr, **kwargs):
+    esLocal = kwargs.get('esLocal', None)
+    locEq = kwargs.get('locEq', None)
+    usaAbr = kwargs.get('usaAbr', False)
+    usaLargo = kwargs.get('usaLargo', False)
+
+    if (esLocal is None) and (locEq is None):
+        raise ValueError("auxEtiqPartido: debe aportar o esLocal o locEq")
+
+    auxEsLocal = esLocal if (esLocal is not None) else (locEq in LOCALNAMES)
+
+    prefLoc = "vs " if auxEsLocal else "@"
+
+    ordenNombre = -1 if usaLargo else 0
+
+    nombre = rivalAbr if usaAbr else sorted(tempData.Calendario.tradEquipos['c2n'][rivalAbr], key=len)[ordenNombre]
+
+    result = f"{prefLoc}{nombre}"
+
+    return result
+
+
+def esEstCreciente(estName: str, catsCrecientes: set | dict | list | None = None, meother: str = "Eq"):
+    """
+    Devuelve si una columna de estadísticas es ascendente (mejor cuanto menos) o no
+    :param estName: Nombre del estadístico a comprobar (de una lista)
+    :param catsCrecientes: lista de estadísticos que son ascendentes (mejor cuanto menos: puntos encajados o balones
+    perdidos)
+    :param meother: si se trata de mi equipo o del rival (invierte el orden)
+    :return: bool
+    """
+    auxCreciente = {} if catsCrecientes is None else catsCrecientes
+    return (meother == "Eq") == (estName in auxCreciente)
+
+
+def esEstIgnorable(col: tuple, estadObj: str = 'mean', cats2ignore: Iterable | None = None):
+    auxCats2Ignore = {} if cats2ignore is None else cats2ignore
+
+    kEq, kMagn, kEst = col
+
+    return (kEst != estadObj) or (kEq == 'Info') or (kMagn in auxCats2Ignore)
+
+
+def calculaEstadsYOrdenLiga(dataTemp: TemporadaACB, fecha: Any | None = None, estadObj: str = 'mean',
+                            catsAscending: Iterable | None = None, cats2ignore: Iterable | None = None
+                            ):
+    paramMethod = 'min'
+    paramNAoption = {True: 'top', False: 'bottom'}
+
+    def calculaTargetCols(cats2ignore, catsAscending, colList, dfEstads, estadObj):
+        result = defaultdict(list)
+        for col in dfEstads.columns:
+            kEq, kMagn, _ = col
+
+            if esEstIgnorable(col, estadObj=estadObj, cats2ignore=(cats2ignore or {})):
+                continue
+
+            colList.append(col)
+            isAscending = esEstCreciente(kMagn, catsAscending, kEq)
+
+            result[isAscending].append(col)
+
+        return result
+
+    def ordenaTargetCols(colList, dfEstads, paramMethod, paramNAoption, targetCols):
+        rankDF = {}
+        for asctype in targetCols:
+            rankDF[asctype] = dfEstads[targetCols[asctype]].rank(axis=0, method=paramMethod,
+                                                                 na_option=paramNAoption[asctype], ascending=asctype)
+        resultRank = pd.concat(rankDF.values(), axis=1)[colList]
+        return resultRank
+
+    colList = []
+
+    dfEstads: pd.DataFrame = dataTemp.dfEstadsLiga(fecha=fecha)
+
+    targetCols = calculaTargetCols(cats2ignore, catsAscending, colList, dfEstads, estadObj)
+
+    resultRank = ordenaTargetCols(colList, dfEstads, paramMethod, paramNAoption, targetCols)
+
+    result = dfEstads[colList]
+
+    return result, resultRank

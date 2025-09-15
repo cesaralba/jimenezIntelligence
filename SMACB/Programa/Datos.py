@@ -11,9 +11,9 @@ from SMACB.Programa.Clasif import calculaClasifLigaLR, entradaClas2kEmpatePareja
     infoClasifComplPareja
 from SMACB.Programa.Constantes import ESTADISTICOEQ, REPORTLEYENDAS, ESTADISTICOJUG, COLS_IDENTIFIC_JUG
 from SMACB.Programa.FuncionesAux import auxCalculaBalanceStrSuf, GENERADORETTIRO, GENERADORETREBOTE, \
-    etiquetasClasificacion, auxCalculaFirstBalNeg, FMTECHACORTA
+    etiquetasClasificacion, auxCalculaFirstBalNeg, FMTECHACORTA, auxEtiqPartido, esEstCreciente
 from SMACB.Programa.Globals import recuperaEstadsGlobales, recuperaClasifLigaLR, clasifLiga2dict
-from SMACB.TemporadaACB import TemporadaACB, esEstCreciente, auxEtiqPartido
+from SMACB.TemporadaACB import TemporadaACB
 
 sentinel = object()
 
@@ -156,8 +156,7 @@ def datosRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
 
 
 def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
-    COLS_TRAYECT_TEMP_orig_names = ['enActa', 'haJugado', 'esTitular', 'haGanado', ]
-    COLS_TRAYECT_TEMP_orig = [(col, 'sum') for col in COLS_TRAYECT_TEMP_orig_names]
+    COLS_TRAYECT_TEMP_orig = [(col, 'sum') for col in ['enActa', 'haJugado', 'esTitular', 'haGanado', ]]
     COLS_TRAYECT_TEMP = ['Acta', 'Jugados', 'Titular', 'Vict']
     COLS_FICHA = ['id', 'alias', 'pos', 'altura', 'licencia', 'fechaNac', 'Activo']
     VALS_ESTAD_JUGADOR = ['A', 'A-BP', 'A-TCI', 'BP', 'BR', 'FP-C', 'FP-F', 'P', 'ppTC', 'R-D', 'R-O', 'REB-T', 'Segs',

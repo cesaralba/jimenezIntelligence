@@ -1,11 +1,12 @@
 from collections import defaultdict
-from typing import Optional, List, Dict
+from typing import Dict, List, Optional
 
 import pandas as pd
 
-from SMACB.TemporadaACB import calculaEstadsYOrdenLiga, TemporadaACB
-from .Clasif import infoClasifEquipoLR, calculaClasifLigaLR, calculaEstadoLigaPO, infoEquipoPO
-from .Constantes import ESTADISTICOEQ
+from SMACB.Programa.Clasif import calculaClasifLigaLR, calculaEstadoLigaPO, infoClasifEquipoLR, infoEquipoPO
+from SMACB.Programa.Constantes import ESTADISTICOEQ
+from SMACB.Programa.FuncionesAux import calculaEstadsYOrdenLiga
+from SMACB.TemporadaACB import TemporadaACB
 
 CATESTADSEQ2IGNORE = {'+/-', 'C', 'convocados', 'haGanado', 'local', 'M', 'Segs', 'utilizados', 'V'}
 CATESTADSEQASCENDING = {'DER', 'DERpot', 'Prec', 'BP', 'FP-F', 'TAP-C', 'PNR'}
@@ -22,9 +23,12 @@ tradEquipos: Optional[dict] = {'a2n': defaultdict(str), 'n2a': defaultdict(str),
 
 
 def recuperaEstadsGlobales(tempData: TemporadaACB):
+    # pylint: disable=global-statement
     global estadGlobales
     global estadGlobalesOrden
     global allMagnsInEstads
+    # pylint: enable=global-statement
+
     if estadGlobales is None:
         estadGlobales, estadGlobalesOrden = calculaEstadsYOrdenLiga(tempData, estadObj=ESTADISTICOEQ,
                                                                     catsAscending=CATESTADSEQASCENDING,
@@ -33,9 +37,11 @@ def recuperaEstadsGlobales(tempData: TemporadaACB):
 
 
 def recuperaClasifLigaLR(tempData: TemporadaACB, fecha=None):
+    # pylint: disable=global-statement
     global clasifLigaLR
     global numEqs
     global mitadEqs
+    # pylint: enable=global-statement
 
     if clasifLigaLR is None:
         clasifLigaLR = calculaClasifLigaLR(tempData, fecha)
@@ -49,7 +55,9 @@ def recuperaClasifLigaLR(tempData: TemporadaACB, fecha=None):
 
 
 def recuperaEstadoLigaPO(tempData: TemporadaACB, fecha=None):
+    # pylint: disable=global-statement
     global estadoLigaPO
+    # pylint: enable=global-statement
 
     if estadoLigaPO is None:
         estadoLigaPO = calculaEstadoLigaPO(tempData, fecha)

@@ -1,9 +1,9 @@
-import functools
 import logging
 import re
 from collections import defaultdict
 from copy import copy, deepcopy
 from time import gmtime
+from typing import Set, Optional
 
 import pandas as pd
 from CAPcore.Misc import FORMATOtimestamp, listize, onlySetElement
@@ -27,7 +27,8 @@ ETIQubiq = ['local', 'visitante']
 
 UMBRALbusquedaDistancia = 1  # La comparación debe ser >
 
-CALENDARIOEQUIPOS = dict()
+CALENDARIOEQUIPOS = {}
+JORNADASCOMPLETAS: Optional[Set] = None
 
 
 class CalendarioACB:
@@ -122,8 +123,7 @@ class CalendarioACB:
             logger.info("DescargaCalendario. Creando URL %s. Edicion: %s. Compo: %s", self.url, self.edicion,
                         self.competicion)
             pagCalendario = downloadPage(self.urlbase, home=home, browser=browser, config=config)
-            pagCalendarioData = pagCalendario.data
-            divTemporadas = pagCalendarioData.find("div", {"class": "desplegable_temporada"})
+            divTemporadas = pagCalendario.data.find("div", {"class": "desplegable_temporada"})
 
             currYear = divTemporadas.find('div', {"class": "elemento"})['data-t2v-id']
 
@@ -168,7 +168,7 @@ class CalendarioACB:
 
     def procesaBloqueJornada(self, divDatos, dictCab, **kwargs):
         # TODO: incluir datos de competicion
-        result = dict()
+        result = {}
         result['nombre'] = dictCab['comp']
         result['jornada'] = dictCab['jornada']
         result['partidos'] = []
@@ -213,9 +213,7 @@ class CalendarioACB:
         for eqUbic, div in zip(ETIQubiq, divPartido.find_all("div", {"class": "logo_equipo"})):
             auxDatos = datosPartEqs.get(eqUbic.capitalize(), {})
             image = div.find("img")
-            imageURL = mergeURL(self.urlbase, image['src'])
-            imageALT = image['alt']
-            auxDatos.update({'icono': imageURL, 'imageTit': imageALT})
+            auxDatos.update({'icono': mergeURL(self.urlbase, image['src']), 'imageTit': image['alt']})
             datosPartEqs[eqUbic.capitalize()] = auxDatos
 
         for eqUbic in ETIQubiq:
@@ -313,13 +311,20 @@ class CalendarioACB:
         result = ",".join(map(str, sorted([onlySetElement(self.tradEquipos['c2i'][e]) for e in conjAbrevs])))
         return result
 
-    @functools.cache
     def jornadasCompletas(self):
         """
         Devuelve las IDs de jornadas para las que se han jugado todos los partidos
         :return: set con las jornadas para las que no quedan partidos (el id, entero)
         """
+        # pylint: disable=global-statement
+        global JORNADASCOMPLETAS
+        # pylint: enable=global-statement
+
+        if JORNADASCOMPLETAS is not None:
+            return JORNADASCOMPLETAS
+
         result = {j for j, data in self.Jornadas.items() if len(data['pendientes']) == 0}
+        JORNADASCOMPLETAS = result
         return result
 
     def cal2dict(self):
@@ -340,7 +345,7 @@ class CalendarioACB:
 
 def BuscaCalendario(url=URL_BASE, home=None, browser=None, config=None):
     if config is None:
-        config = dict()
+        config = {}
     indexPage = downloadPage(url, home, browser, config)
 
     index = indexPage.data
@@ -373,7 +378,7 @@ def compo2clave(listaCompos):
     PATsupercopa = r'^supercopa\W'
     PATcopa = r'^copa\W.*rey'
 
-    result = dict()
+    result = {}
 
     for idComp, label in listaCompos.items():
         if re.match(PATliga, label, re.IGNORECASE):
@@ -432,14 +437,14 @@ def procesaCab(cab):
 
 
 def procesaFechasJornada(cadFechas):
-    resultado = dict()
+    resultado = {}
 
     mes2n = {'ene': 1, 'feb': 2, 'mar': 3, 'abr': 4, 'may': 5, 'jun': 6, 'jul': 7, 'ago': 8, 'sep': 9, 'oct': 10,
              'nov': 11, 'dic': 12}
 
     patronBloqueFechas = r'^(?P<dias>\d{1,2}(-\d{1,2})*)\s+(?P<mes>\w+)\s+(?P<year>\d{4})$'
 
-    bloques = list()
+    bloques = []
     cadWrk = cadFechas.lower().strip()
 
     for bY in cadWrk.split(' y '):
@@ -464,7 +469,7 @@ def procesaFechasJornada(cadFechas):
 
 
 def procesaDivsEquipo(divList):
-    resultado = dict()
+    resultado = {}
     resultado['haGanado'] = None
 
     for d in divList:
@@ -532,8 +537,8 @@ def recuperaPartidosEquipo(idEquipo, home=None, browser=None, config=None):
 
 
 def procesaPaginaPartidosEquipo(content: DownloadedPage):
-    result = dict()
-    result['jornadas'] = dict()
+    result = {}
+    result['jornadas'] = {}
 
     if 'timestamp' in content:
         result['timestamp'] = content.timestamp

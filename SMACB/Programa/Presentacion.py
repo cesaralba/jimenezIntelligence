@@ -22,7 +22,8 @@ from SMACB.Programa.FuncionesAux import auxCalculaBalanceStr, auxJugsBajaTablaJu
     auxCruceTotales, auxLigaDiag, auxTablaLigaPartJugado, auxTablaLigaPartPendiente, auxCalculaInfoPO, \
     presTrayectoriaPlayOff
 from SMACB.Programa.Globals import recuperaClasifLigaLR, recuperaEstadsGlobales, recuperaEstadoLigaPO
-from SMACB.TemporadaACB import TemporadaACB, extraeCampoYorden
+from SMACB.TemporadaACB import TemporadaACB
+from SMACB.TemporadaEstads import extraeCampoYorden
 from Utils.ReportLab.RLverticalText import VerticalParagraph
 
 ESTILOS = getSampleStyleSheet()
