@@ -108,10 +108,10 @@ def calculaVars(temporada, clave, useStd=True, filtroFechas=None):
         result[combN].columns = [((combN + "-" + colAdpt.get(x, x)) if clave in x else x) for x in
                                  combinaPDindexes(result[combN].columns)]
         result[combN]["-".join([combN, clave, (clZ.lower() + "Min")])] = (
-                    result[combN]["-".join([combN, clZ, clave, 'mean'])] -
-                    result[combN]["-".join([combN, clZ, clave, 'std'])])
+                result[combN]["-".join([combN, clZ, clave, 'mean'])] -
+                result[combN]["-".join([combN, clZ, clave, 'std'])])
         result[combN]["-".join([combN, clave, (clZ.lower() + "Max")])] = (
-                    result[combN]["-".join([combN, clZ, clave, 'mean'])] +
-                    result[combN]["-".join([combN, clZ, clave, 'std'])])
+                result[combN]["-".join([combN, clZ, clave, 'mean'])] +
+                result[combN]["-".join([combN, clZ, clave, 'std'])])
 
     return result
