@@ -1,7 +1,9 @@
 import re
 from collections import namedtuple
+from re import Pattern
 from typing import Optional
 
+import bs4.element
 from CAPcore.Web import createBrowser, mergeURL
 from configargparse import Namespace
 
@@ -69,4 +71,46 @@ def generaURLClubes(edicion: Optional[str] = None, urlRef: str = None):
 
     return result
 
+
+def generaURLEstadsPartido(partidoId, urlRef: str = None):
+    # https://www.acb.com/partido/estadisticas/id/104476
+    params = ['/partido', 'estadisticas', 'id', str(partidoId)]
+
+    urlSTR = "/".join(params)
+
+    result = mergeURL(urlRef, urlSTR)
+
+    return result
+
+
 # TODO: Generar URL jugadores y URL entrenadores
+
+def tagAttrHasValue(tagData: bs4.element.Tag, attrName: str, value: str | Pattern, partial: bool = False) -> bool:
+    if tagData is None:
+        return False
+
+    if attrName not in tagData.attrs:
+        return False
+
+    attrValue = tagData[attrName]
+
+    if isinstance(attrValue, str):
+        if isinstance(value, Pattern):
+            if re.match(value, attrValue):
+                return True
+            return False
+        if partial:
+            return value in attrValue
+        return value == attrValue
+    for auxVal in attrValue:
+        if isinstance(value, Pattern):
+            if re.match(value, auxVal):
+                return True
+            continue
+        if partial:
+            if value in attrValue:
+                return True
+            continue
+        if value == attrValue:
+            return True
+    return False
