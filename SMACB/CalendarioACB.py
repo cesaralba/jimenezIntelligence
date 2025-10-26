@@ -17,7 +17,7 @@ from CAPcore.Web import downloadPage, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif, procesaFechaJornada
 from Utils.Web import prepareDownloading, tagAttrHasValue, generaURLEstadsPartido
-from .Constants import REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada, infoJornada, LocalVisitante, OtherLoc
+from .Constants import REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada, infoJornada, LocalVisitante, OtherLoc, DEFTZ
 
 logger = logging.getLogger()
 
@@ -227,7 +227,7 @@ class CalendarioACB:
         divHoraPart = divPartido.find('div', {'class': reHoraPart})
         if divHoraPart and not isSkeleton(divHoraPart):
             try:
-                resultado[('fechaPartido')] = pd.to_datetime(divHoraPart.getText())
+                resultado[('fechaPartido')] = pd.to_datetime(divHoraPart.getText()).tz_localize(DEFTZ)
             except Exception as exc:
                 print(exc)
                 print(f"Problems parsing date '{divHoraPart.getText()}'  ", sys.exc_info())
@@ -443,7 +443,7 @@ def procesaPaginaPartidosEquipo(content: DownloadedPage):
             formato = PATRONFECHAHORA if cadHora else PATRONFECHA
             cadMezclada = f"{cadFechaFin} {cadHora.strip()}" if cadHora else cadFechaFin
             try:
-                fechaPart = pd.to_datetime(cadMezclada, format=formato)
+                fechaPart = pd.to_datetime(cadMezclada, format=formato).tz_localize(DEFTZ)
             except ValueError:
                 print(f"procesaPaginaPartidosEquipo: '{cadMezclada}' no casa RE '{fila}'")
                 return None

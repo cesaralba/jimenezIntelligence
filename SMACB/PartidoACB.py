@@ -16,7 +16,7 @@ from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
 from Utils.Web import getObjID, prepareDownloading
 from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp, REGEX_JLR,
-                        REGEX_PLAYOFF, infoJornada, numPartidoPO2jornada, POLABEL2FASE)
+                        REGEX_PLAYOFF, infoJornada, numPartidoPO2jornada, POLABEL2FASE, DEFTZ)
 from .PlantillaACB import PlantillaACB
 
 templateURLficha = "https://www.acb.com/fichas/%s%i%03i.php"
@@ -194,7 +194,7 @@ class PartidoACB():
         PATRONdmyhm = r'^\s*(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})?$'
         REhora = re.match(PATRONdmyhm, cadTiempo)
         patronH = PATRONFECHAHORA if REhora.group(2) else PATRONFECHA
-        self.fechaPartido = pd.to_datetime(cadTiempo, format=patronH)
+        self.fechaPartido = pd.to_datetime(cadTiempo, format=patronH).tz_localize(DEFTZ)
 
         spanPabellon = divFecha.find("span", {"class": "clase_mostrar1280"})
         self.Pabellon = spanPabellon.get_text().strip()

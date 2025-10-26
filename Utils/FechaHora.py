@@ -7,9 +7,11 @@ import numpy as np
 import pandas as pd
 from CAPcore.Misc import FORMATOtimestamp
 
+from SMACB.Constants import DEFTZ
+
 PATRONFECHAHORA = "%d/%m/%Y %H:%M"
 PATRONFECHA = "%d/%m/%Y"
-NEVER = pd.to_datetime("2030-12-31 00:00")
+NEVER = pd.to_datetime("2040-12-31 00:00")
 
 Age = namedtuple('Age', ['delta', 'years', 'meses', 'dias', 'doys'])
 
@@ -31,7 +33,7 @@ def prevBirthday(datebirth, dateref):
     diffyear = -1 if (dateref.month, dateref.day) < (datebirth.month, datebirth.day) else 0  # It was year before
 
     fechaCump = f'{dateref.year + diffyear: 4}-{datebirth.month: 2}-{datebirth.day: 2}'
-    result = pd.to_datetime(fechaCump)
+    result = pd.to_datetime(fechaCump).tz_localize(DEFTZ)
 
     return result
 
@@ -39,7 +41,7 @@ def prevBirthday(datebirth, dateref):
 def calcAge(datebirth, dateref=None):
     """Calcula la edad. La cuenta de meses días, falla en el caso de bisiestos"""
     if dateref is None:
-        dateref = pd.to_datetime("today")
+        dateref = pd.to_datetime("today").tz_localize(DEFTZ)
 
     datenac = datebirth.date()
     dateref = dateref.date()
@@ -62,7 +64,7 @@ def fechaParametro2pddatetime(fecha) -> pd.Timestamp:
     :param fecha:
     :return:
     """
-    result = fecha if isinstance(fecha, pd.Timestamp) else pd.to_datetime(fecha)
+    result = fecha if isinstance(fecha, pd.Timestamp) else pd.to_datetime(fecha).tz_localize(DEFTZ)
 
     return result
 
@@ -146,7 +148,7 @@ def procesaFechaHoraPartido(cadFecha, cadHora, datosCab):
             cadFechaFin = auxFechasN.pop()
             cadMezclada = f"{cadFechaFin.strip()} {cadHora.strip()}"
             try:
-                fechaPart = pd.to_datetime(cadMezclada)
+                fechaPart = pd.to_datetime(cadMezclada).tz_localize(DEFTZ)
                 resultado = fechaPart
             except ValueError:
                 print(f"procesaFechaHoraPartido: '{cadFechaFin}' no casa RE '{FORMATOtimestamp}'")

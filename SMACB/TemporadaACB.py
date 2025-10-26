@@ -26,7 +26,7 @@ from Utils.FechaHora import fechaParametro2pddatetime, fecha2fechaCalDif
 from Utils.Web import prepareDownloading, browserConfigData
 from .CalendarioACB import calendario_URLBASE, CalendarioACB
 from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEqCalendario, infoPartLV, infoSigPartido,
-                        LocalVisitante, OtherLoc, OtherTeam, infoJornada, )
+                        LocalVisitante, OtherLoc, OtherTeam, infoJornada, DEFTZ, )
 from .FichaJugador import FichaJugador, CAMBIOSJUGADORES
 from .PartidoACB import PartidoACB
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB, CAMBIOSCLUB, CambiosPlantillaTipo
@@ -414,7 +414,7 @@ class TemporadaACB:
 
         auxDF = pd.DataFrame.from_dict(auxdict, orient='index')
         for col in ['fechaNac', 'primPartidoT', 'ultPartidoT']:
-            auxDF[col] = pd.to_datetime(auxDF[col])
+            auxDF[col] = pd.to_datetime(auxDF[col]).tz_localize(DEFTZ)
 
         return auxDF
 

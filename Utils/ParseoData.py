@@ -8,7 +8,7 @@ from CAPcore.Misc import onlySetElement
 from CAPcore.Web import mergeURL
 from bs4 import NavigableString
 
-from SMACB.Constants import URLIMG2IGNORE
+from SMACB.Constants import URLIMG2IGNORE, DEFTZ
 from .FechaHora import PATRONFECHA
 
 
@@ -65,7 +65,7 @@ def parseFecha(data: str) -> Optional[Any]:
 
     reProc = re.match(REfechaNac, data)
     if reProc:
-        result = pd.to_datetime(reProc['fechanac'], format=PATRONFECHA)
+        result = pd.to_datetime(reProc['fechanac'], format=PATRONFECHA).tz_localize(DEFTZ)
     else:
         print("FECHANAC no casa RE", data, REfechaNac)
 
