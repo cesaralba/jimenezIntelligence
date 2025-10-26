@@ -13,11 +13,11 @@ import bs4.element
 import json5
 import pandas as pd
 from CAPcore.Misc import listize, onlySetElement
-from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
+from CAPcore.Web import downloadPage, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif, procesaFechaJornada
 from Utils.Web import prepareDownloading, tagAttrHasValue, generaURLEstadsPartido
-from .Constants import URL_BASE, REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada, infoJornada, LocalVisitante, OtherLoc
+from .Constants import REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada, infoJornada, LocalVisitante, OtherLoc
 
 logger = logging.getLogger()
 
@@ -345,54 +345,6 @@ class CalendarioACB:
         return result
 
 
-def BuscaCalendario(url=URL_BASE, home=None, browser=None, config=None):
-    if config is None:
-        config = {}
-    indexPage = downloadPage(url, home, browser, config)
-
-    index = indexPage.data
-
-    callinks = index.find_all("a", text="Calendario")
-
-    if len(callinks) == 1:
-        link = callinks[0]
-    else:
-        for auxlink in callinks:
-            if 'calendario.php' in auxlink['href']:
-                link = auxlink
-                break
-        else:
-            raise SystemError(f"Too many or none links to Calendario. {callinks}")
-
-    result = mergeURL(url, link['href'])
-
-    return result
-
-
-def compo2clave(listaCompos):
-    """
-    Dado un diccionario con lo que aparece en el desplegable (idComp -> nombre compo), devuelve otro con las claves
-    tradicionales (pre verano 2019)
-    :param listaCompos:
-    :return:
-    """
-    PATliga = r'^liga\W'
-    PATsupercopa = r'^supercopa\W'
-    PATcopa = r'^copa\W.*rey'
-
-    result = {}
-
-    for idComp, label in listaCompos.items():
-        if re.match(PATliga, label, re.IGNORECASE):
-            result['LACB'] = idComp
-        elif re.match(PATsupercopa, label, re.IGNORECASE):
-            result['SCOPA'] = idComp
-        elif re.match(PATcopa, label, re.IGNORECASE):
-            result['COPA'] = idComp
-
-    return result
-
-
 def isSkeleton(tagElem: bs4.element.Tag, tag2search: str = "span") -> bool:
     if tagElem is None:
         return True
@@ -505,6 +457,12 @@ def procesaPaginaPartidosEquipo(content: DownloadedPage):
 
 
 def p2DictK(cal: CalendarioACB, datosPart: dict) -> str:
+    """
+    Extrae de la información del partido una clave que puede usarse para comparar calendarios
+    :param cal: Objeto Calendario correspondiente a la temporada
+    :param datosPart: Información del partido extraída del calendario
+    :return: Cadena con clave {JOR}#{IDLOCAL}#{IDVIS}
+    """
     jor = f"{datosPart['jornada']}"
     idLoc = onlySetElement(cal.tradEquipos['c2i'][datosPart['loc2abrev']['Local']])
     idVis = onlySetElement(cal.tradEquipos['c2i'][datosPart['loc2abrev']['Visitante']])
@@ -685,21 +643,6 @@ def processMDfl2InfoCal(rawData: dict) -> Dict[str, Dict]:
     return result
 
 
-def getCalendario2025format(url=calendario_URLBASE, home=None, browser=None, config=None):
-    result = {}
-
-    if config is None:
-        config = {}
-    calPage = downloadPage(url, home, browser, config)
-
-    auxDataCal: Dict[str, list] = extractPagDataScripts(calPage, 'availableFilters')
-
-    result.update(procesaMDfl2calendarIDs(auxDataCal))
-    result.update(procesaMDteams2InfoEqs(auxDataCal))
-
-    return result
-
-
 def composeURLcalendario(currURL: str = calendario_URLBASE, targComp: str = None, targTemp=None,
                          ) -> str:
     if embeddedDataTemporadas is None:
@@ -722,6 +665,7 @@ def composeURLcalendario(currURL: str = calendario_URLBASE, targComp: str = None
     return result
 
 
+# Expresiones regulares de class (CSS) para parseo de páginas
 reDatosEq = re.compile(r'^RoundMatch_roundMatch__(home|away)Team__')
 reDatosEqLink = re.compile(r'^RoundMatch_roundMatch__teamLink___')
 reDatosEqLinkLogo = re.compile(r'^RoundMatch_roundMatch__teamLogoLink__')
