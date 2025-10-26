@@ -117,13 +117,14 @@ class CalendarioACB:
             (self.tradEquipos['c2n'][abrev]).add(eqName)
 
             if idEq is not None:
-                if (idEq not in self.tradEquipos['i2c']) or (idEq not in self.tradEquipos['i2n']) or (
+                idStr = str(idEq)
+                if (idStr not in self.tradEquipos['i2c']) or (idStr not in self.tradEquipos['i2n']) or (
                         eqName not in self.tradEquipos['n2i']) or (abrev not in self.tradEquipos['c2i']):
                     result = True
-                self.tradEquipos['i2c'][idEq].add(abrev)
-                (self.tradEquipos['c2i'][abrev]).add(idEq)
-                self.tradEquipos['n2i'][eqName].add(idEq)
-                (self.tradEquipos['i2n'][idEq]).add(eqName)
+                self.tradEquipos['i2c'][idStr].add(abrev)
+                (self.tradEquipos['c2i'][abrev]).add(idStr)
+                self.tradEquipos['n2i'][eqName].add(idStr)
+                (self.tradEquipos['i2n'][idStr]).add(eqName)
 
         return result
 
