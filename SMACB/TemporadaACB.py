@@ -24,7 +24,7 @@ from CAPcore.Web import mergeURL
 
 from Utils.FechaHora import fechaParametro2pddatetime, fecha2fechaCalDif
 from Utils.Web import prepareDownloading, browserConfigData
-from .CalendarioACB import calendario_URLBASE, CalendarioACB, URL_BASE
+from .CalendarioACB import calendario_URLBASE, CalendarioACB
 from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEqCalendario, infoPartLV, infoSigPartido,
                         LocalVisitante, OtherLoc, OtherTeam, infoJornada, )
 from .FichaJugador import FichaJugador, CAMBIOSJUGADORES
@@ -125,7 +125,7 @@ class TemporadaACB:
     def actualizaTemporada(self, home=None, browser=None, config=None):
         changeOrig = self.changed
 
-        browser, config = prepareDownloading(browser, config, URL_BASE)
+        browser, config = prepareDownloading(browser, config, calendario_URLBASE)
 
         self.Calendario.actualizaCalendario(browser=browser, config=config)
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
@@ -234,7 +234,7 @@ class TemporadaACB:
         self.changed |= self.actualizaClase()
 
     def actualizaFichasPartido(self, nuevoPartido, browser=None, config=None):
-        browser, config = prepareDownloading(browser, config, URL_BASE)
+        browser, config = prepareDownloading(browser, config, calendario_URLBASE)
 
         refrescaFichas = False
 
@@ -284,7 +284,7 @@ class TemporadaACB:
         result = False
         if self.descargaPlantillas:
 
-            browser, config = prepareDownloading(browser, config, URL_BASE)
+            browser, config = prepareDownloading(browser, config, calendario_URLBASE)
             logger.info("%s Actualizando plantillas", self)
             datosPlantillas = descargaPlantillasCabecera(browser, config)
             for p_id in datosPlantillas:

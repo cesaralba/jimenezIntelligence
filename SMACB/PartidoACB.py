@@ -35,6 +35,7 @@ class PartidoACB():
         self.prorrogas = 0
         self.timestamp = None
         self.esPlayoff: bool = False
+        self.enlaces: dict = {}
 
         self.Equipos = {x: {'Jugadores': []} for x in LocalVisitante}
 

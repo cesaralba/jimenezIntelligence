@@ -215,7 +215,6 @@ class CalendarioACB:
         return result
 
     def procesaBloquePartido(self, datosJornada: dict, divPartido: bs4.element.Tag):
-        # TODO: incluir datos de competicion
         resultado = {}
         resultado['pendiente'] = True
         resultado['fechaPartido'] = datosJornada.get('fechaParts', NEVER)
@@ -226,7 +225,6 @@ class CalendarioACB:
 
         reHoraPart = re.compile('^RoundMatch_roundMatch__time__')
         divHoraPart = divPartido.find('div', {'class': reHoraPart})
-
         if divHoraPart and not isSkeleton(divHoraPart):
             try:
                 resultado[('fechaPartido')] = pd.to_datetime(divHoraPart.getText())
@@ -256,6 +254,7 @@ class CalendarioACB:
             resultado['pendiente'] = False
             resultado['resultado'] = {loc: datosPartEqs[loc]['puntos'] for loc in LocalVisitante}
             resultado['url'] = generaURLEstadsPartido(resultado['partido'], urlRef=self.url)
+            resultado['enlaces'] = procesaEnlacesPartido(divPartido)
 
         return resultado
 
@@ -674,6 +673,8 @@ reDatosEqLinkName = re.compile(r'^RoundMatch_roundMatch__teamName--fullName__')
 reDatosEqLinkAbrev = re.compile(r'^RoundMatch_roundMatch__teamName--shortName__')
 reDatosEqPScore = re.compile(r'^RoundMatch_roundMatch__teamScore__')
 
+rePartidoEnlaces = re.compile(r'^RoundMatch_roundMatch__links__')
+
 CAMPOSDEEQUIPOAMOVER = ['nombcorto', 'id']
 
 
@@ -724,6 +725,28 @@ def procesaDivsUnicoEquipo(divData: bs4.Tag, divEq: bs4.Tag) -> dict[Any, Any]:
                     logging.error("Partido %s", divData.prettify())
                     raise exc
     return datosEq
+
+
+def procesaEnlacesPartido(divPartido: bs4.Tag) -> dict:
+    result = {}
+
+    divEnlaces = divPartido.find('div', {'class': rePartidoEnlaces})
+
+    if not divEnlaces:
+        return result
+
+    for link in divEnlaces.find_all('a'):
+        dest = link['href']
+
+        datosURL = urlparse(dest)
+        pathDest = datosURL.path
+        clase = pathDest.split('/')[-1]
+        result[clase] = dest
+        if 'urlbase' not in result:
+            pathBase = "/".join(pathDest.split('/')[:-1])
+            result['urlbase'] = urlunparse(datosURL._replace(path=pathBase))
+
+    return result
 
 
 rondaId2fasePlayOff: dict = {291: 'final', 293: 'cuartos de final', 292: 'semifinal'}
