@@ -4,6 +4,7 @@ from re import Pattern
 from typing import Optional
 
 import bs4.element
+from CAPcore.Misc import listize
 from CAPcore.Web import createBrowser, mergeURL
 from configargparse import Namespace
 
@@ -91,26 +92,18 @@ def tagAttrHasValue(tagData: bs4.element.Tag, attrName: str, value: str | Patter
 
     if attrName not in tagData.attrs:
         return False
-
     attrValue = tagData[attrName]
+    attrValueList = listize(attrValue)
 
-    if isinstance(attrValue, str):
-        if isinstance(value, Pattern):
-            if re.match(value, attrValue):
-                return True
-            return False
-        if partial:
-            return value in attrValue
-        return value == attrValue
-    for auxVal in attrValue:
+    for auxVal in attrValueList:
         if isinstance(value, Pattern):
             if re.match(value, auxVal):
                 return True
             continue
         if partial:
-            if value in attrValue:
+            if value in attrValueList:
                 return True
             continue
-        if value == attrValue:
+        if value == attrValueList:
             return True
     return False
