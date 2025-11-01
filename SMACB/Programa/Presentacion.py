@@ -108,7 +108,7 @@ def tablaEstadsBasicas(tempData: TemporadaACB, datosSig: infoSigPartido):
 
 def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     def infoEq(eqData: dict, datosJornada: infoJornada, jornadasCompletas: Set[int] = sentinel):
-        formatoIn, formatoOut = ('<b>', '</b>') if eqData['haGanado'] else ('', '')
+        formatoIn, formatoOut = ('<b>', '</b>') if eqData.get('haGanado', False) else ('', '')  # else -> derr o pend
         if datosSig.sigPartido['infoJornada'].esPlayOff:
             curFase = datosSig.sigPartido['infoJornada'].fasePlayOff.lower()
             eqPO = GlobACB.estadoLigaPO[onlySetElement(tempData.tradEquipos['c2i'][eqData['abrev']])]
