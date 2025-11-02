@@ -1,11 +1,16 @@
-from typing import Dict
+import logging
+from typing import Dict, Optional, List, Tuple
 
 import pandas as pd
 
 from SMACB.Constants import LocalVisitante, OtherLoc, numPartidoPO2jornada, infoJornada
+from Utils.ParseoData import ProcesaTiempo
+
+LV2HA = {'Local': 'home', 'Visitante': 'away'}
+HA2LV = {'home': 'Local', 'away': 'Visitante'}
 
 
-def procesaMDfl2calendarIDs(rawData: dict) -> Dict[str, Dict]:
+def procesaMDcalFl2calendarIDs(rawData: dict) -> Dict[str, Dict]:
     result = {'compKey2compId': {}, 'compId2compKey': {}, 'seaId2seaYear': {}, 'seaYear2seaId': {}, 'seaData': {},
               'currFilters': {}}
 
@@ -40,7 +45,7 @@ def procesaMDfl2calendarIDs(rawData: dict) -> Dict[str, Dict]:
     return result
 
 
-def procesaMDteams2InfoEqs(rawData: dict) -> Dict[str, Dict]:
+def procesaMDcalTeams2InfoEqs(rawData: dict) -> Dict[str, Dict]:
     result = {'eqData': {}, 'eqAbrev2eqId': {}, 'seq2eqId': {}, 'seq2eqAbrev': {}, 'eqId2eqAbrev': {}}
 
     eqDataTxlat = {'id': 'calId', 'clubId': 'id', 'fullName': 'nomblargo', 'shortName': 'nombcorto',
@@ -62,20 +67,16 @@ def procesaMDteams2InfoEqs(rawData: dict) -> Dict[str, Dict]:
     return result
 
 
-def processMDfl2InfoCal(rawData: dict,infoMDequipos:dict) -> Dict[str, Dict]:
+def processMDcalFl2Info(rawData: dict, infoMDequipos: dict) -> Dict[str, Dict]:
     """
     Saca la información de calendario del script que lleva embebida la página del calendario
     :param rawData:
     :return:
     """
 
-
     result = {}
 
-    LV2HA = {'Local': 'home', 'Visitante': 'away'}
-
-    auxFilterData: dict = list(rawData.values())[0][3]['data']
-    auxRounds: dict = auxFilterData['rounds']
+    auxRounds: dict = list(rawData.values())[0][3]['data']['rounds']
 
     for r in auxRounds:
         infoRound = {'partidos': {}, 'pendientes': set(), 'jugados': set(), 'equipos': set(), 'idEmparej': set()}
@@ -138,3 +139,91 @@ def MDround2roundData(jornada: dict) -> dict:
                                         partRonda=result['partRonda'])
 
     return result
+
+
+def procesaMDresInfoPeriodos(rawData: dict) -> Optional[List[Tuple[int, int]]]:
+    if len(rawData) > 1:
+        logging.error("procesaMDinfoPeriodos: demasiados datos de entrada")
+        return None
+
+    auxData: dict = list(rawData.values())[0][3]['initialMatchHeader']
+
+    datosPeriodos = auxData.get('quarterScores')
+    if not datosPeriodos:
+        logging.error("procesaMDinfoPeriodos: info no encontrada")
+        return None
+
+    result = [(perData['home'], perData['away']) for perData in sorted(datosPeriodos, key=lambda d: d['quarter'])]
+
+    return result
+
+
+def procesaMDresEstadsCompar(rawData: dict) -> Optional[List[Tuple[int, int]]]:
+    tradClaves = {'freeThrows': "T1", 'twoPointers': "T2", 'threePointers': "T3", 'fieldGoals': "TC",
+                  'defensiveRebounds': "R-D", 'offensiveRebounds': "R-O", 'rebounds': "R-T", 'assists': "A",
+                  'steals': "BR",
+                  'turnovers': "BP", 'personalFouls': "FP-C", 'timeOuts': "TM", 'pointsOffTurnover': "PtrasPer",
+                  'paintPoints': "Ppint", 'secondChancePoints': "PsegOp", 'fastBreakPoints': "Pcontr",
+                  'benchPoints': "Pbanq"}
+
+    resultado = {'periodos': {}}
+
+    if len(rawData) > 1:
+        return None
+
+    auxData: dict = list(rawData.values())[0][3]['initialMatchStatsComparative']
+
+    resultado['totales'] = auxProcessEstadCompar(auxData['global'], tradClaves)
+    for dataQ in auxData['statsByQuarters']:
+        resultado['periodos'][dataQ['quarter']] = auxProcessEstadCompar(dataQ['stats'], tradClaves)
+
+    return resultado
+
+
+def auxProcessEstadCompar(data: dict, tradClaves: Dict[str, str]) -> Dict[str, Dict[str, int]]:
+    result = {loc: {} for loc in LocalVisitante}
+
+    for clave, valores in data.items():
+        for loc in LocalVisitante:
+            infoLoc = valores[LV2HA[loc]]
+            claveTrad = tradClaves.get(clave, clave)
+            if infoLoc['subtitle'] == '$undefined':
+                if ':' in infoLoc['title']:
+                    result[loc][claveTrad] = ProcesaTiempo(infoLoc['title'])
+                else:
+                    result[loc][claveTrad] = int(infoLoc['title'])
+            else:
+                for subc, valor in zip('CI', infoLoc['subtitle'].split('/')):
+                    claveFin = f"{claveTrad}-{subc}"
+                    result[loc][claveFin] = int(valor)
+
+    return result
+
+
+def procesaMDresInfoRachas(rawData: dict):
+    tradClaves = {'bestScoreRun': 'mejorRacha', 'maxDifference': 'maxVentaja', 'timeAhead': 'tiempoDelante',
+                  'leadChanges': 'cambiosLider'}
+    if len(rawData) > 1:
+        return None
+
+    auxData: dict = list(rawData.values())[0][3]['initialLeadTracker']['stats']
+
+    result = auxProcessEstadCompar(auxData, tradClaves)
+
+    return result
+
+
+def procesaMDresCartaTiro(rawData: dict):
+    IsH2LOC = dict(zip([True, False], LocalVisitante))
+    resultado = {loc: [] for loc in LocalVisitante}
+
+    if len(rawData) > 1:
+        return None
+
+    auxData: dict = list(rawData.values())[0][3]['initialShotmap']['shots']
+
+    for shot in auxData:
+        loc = IsH2LOC[shot['isHome']]
+        resultado[loc].append(shot)
+
+    return resultado

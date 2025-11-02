@@ -14,7 +14,10 @@ from bs4 import Tag
 
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
-from Utils.Web import getObjID, prepareDownloading
+from Utils.ParseoData import ProcesaTiempo
+from Utils.ProcessMDparts import procesaMDresInfoPeriodos, procesaMDresEstadsCompar, procesaMDresInfoRachas, \
+    procesaMDresCartaTiro
+from Utils.Web import getObjID, prepareDownloading, extractPagDataScripts
 from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp, REGEX_JLR,
                         REGEX_PLAYOFF, infoJornada, numPartidoPO2jornada, POLABEL2FASE, DEFTZ)
 from .PlantillaACB import PlantillaACB
@@ -25,6 +28,7 @@ templateURLficha = "https://www.acb.com/fichas/%s%i%03i.php"
 class PartidoACB():
 
     def __init__(self, **kwargs):
+
         self.jornada = None
         self.infoJornada: Optional[infoJornada] = None
         self.fechaPartido = None
@@ -35,7 +39,6 @@ class PartidoACB():
         self.prorrogas = 0
         self.timestamp = None
         self.esPlayoff: bool = False
-        self.enlaces: dict = {}
 
         self.Equipos = {x: {'Jugadores': []} for x in LocalVisitante}
 
@@ -43,6 +46,7 @@ class PartidoACB():
         self.Entrenadores = {}
         self.pendientes = {x: [] for x in LocalVisitante}
         self.aprendidos = {x: [] for x in LocalVisitante}
+        self.enlaces: dict = kwargs.get('enlaces', {})
 
         self.EquiposCalendario = kwargs['equipos']
         self.ResultadoCalendario = kwargs['resultado']
@@ -301,17 +305,9 @@ class PartidoACB():
 
         result = {}
 
-        reTiempo = r"^\s*(\d+):(\d+)\s*$"
         reTiros = r"^\s*(\d+)/(\d+)\s*$"
         reRebotes = r"^\s*(\d+)\+(\d+)\s*$"
         rePorcentaje = r"^\s*(\d+)%\s*$"
-
-        def ProcesaTiempo(cadena):
-            auxTemp = extractREGroups(cadena=cadena, regex=reTiempo)
-            if auxTemp:
-                return int(auxTemp[0]) * 60 + int(auxTemp[1])
-
-            raise BadString(f"ProcesaEstadisticas:ProcesaTiempo '{cadena}' no casa RE '{reTiempo}'")
 
         def ProcesaTiros(cadena):
             auxTemp = extractREGroups(cadena=cadena, regex=reTiros)
@@ -638,3 +634,21 @@ def extractPrefijosTablaEstads(tablaEstads):
     assert (len(set(headers)) == len(headers))
 
     return headers
+
+
+def procesaPaginaResumen(resumenPage: DownloadedPage, home=None, browser=None, config=None) -> dict:
+    # # Llegado el momento quitar la linea de arriba y descomentar y desindentar estas 5
+    # def procesaPaginaResumen(urlResumen:str, home=None, browser=None, config=None)-> dict:
+    #     result = {}
+    #     browser, config = prepareDownloading(browser, config)
+    #
+    #     resumenPage = downloadPage(urlResumen, home=home, browser=browser, config=config)
+
+    resultado = {'infoPeriodos': procesaMDresInfoPeriodos(extractPagDataScripts(resumenPage, '$L42')),
+                 'comparativaEstads': procesaMDresEstadsCompar(
+                     extractPagDataScripts(resumenPage, 'initialMatchStatsComparative')),
+                 'infoRachas': procesaMDresInfoRachas(extractPagDataScripts(resumenPage, 'initialLeadTracker')),
+                 'cartaTiro': procesaMDresCartaTiro(extractPagDataScripts(resumenPage, 'initialShotmap'))
+                 }
+
+    return resultado
