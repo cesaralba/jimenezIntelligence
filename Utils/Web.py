@@ -1,11 +1,15 @@
+import ast
+import logging
 import re
 from collections import namedtuple
+from pprint import pp
 from re import Pattern
-from typing import Optional
+from typing import Optional, Dict, Any
 
 import bs4.element
+import json5
 from CAPcore.Misc import listize
-from CAPcore.Web import createBrowser, mergeURL
+from CAPcore.Web import createBrowser, mergeURL, DownloadedPage
 from configargparse import Namespace
 
 # https://effbot.org/zone/default-values.htm#what-to-do-instead
@@ -107,3 +111,61 @@ def tagAttrHasValue(tagData: bs4.element.Tag, attrName: str, value: str | Patter
         if value == attrValueList:
             return True
     return False
+
+
+logger = logging.getLogger()
+
+
+def extractPagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dict[str,Any]]:
+    patWrapper = r'^self\.__next_f\.push\((.*)\)$'
+
+    calData = calPage.data
+
+    auxList = []
+
+    for scr in calData.find_all('script'):
+        scrText = scr.text
+        if keyword and keyword not in scrText:
+            continue
+        reWrapper = re.match(patWrapper, scrText)
+        if reWrapper is None:
+            continue
+
+        wrappedText = reWrapper.group(1)
+
+        try:
+            firstEval = ast.literal_eval(wrappedText)
+        except SyntaxError:
+            logging.exception("No scanea Eval: %s", scr.prettify())
+            continue
+
+        patForcedict = r"^\s*([^:]+)\s*:\s*(.*)\s*$"
+        reForceDict = re.match(patForcedict, firstEval[1])
+
+        if reForceDict is None:
+            logger.error("No casa RE '%s' : %s", reForceDict, scr.prettify())
+            continue
+        dictForced = "{" + f'"{reForceDict.group(1)}":{reForceDict.group(2)}' + "}"
+        try:
+            jsonParsed = json5.loads(dictForced)
+        except Exception:
+            logging.exception("No scanea json: %s", scr.prettify())
+            continue
+
+        auxList.append(jsonParsed)
+
+    result = {}
+
+    for data in auxList:
+        auxHash={}
+        auxHash.update(data)
+
+        if list(auxHash.keys())[0] in result:
+            clave=list(auxHash.keys())[0]
+            print(f"Clave #{clave}# ya existe en resultado:\n")
+            pp(result[clave])
+            print("==================")
+            continue
+        result.update(auxHash)
+
+    return result

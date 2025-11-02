@@ -1,4 +1,3 @@
-import ast
 import logging
 import re
 import sys
@@ -10,16 +9,14 @@ from typing import Set, Optional, Dict, Any
 from urllib.parse import urlparse, urlunparse, parse_qs, ParseResult, urlencode
 
 import bs4.element
-import json5
 import pandas as pd
 from CAPcore.Misc import listize, onlySetElement
 from CAPcore.Web import downloadPage, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif, procesaFechaJornada
-from Utils.Web import prepareDownloading, tagAttrHasValue, generaURLEstadsPartido
+from Utils.ProcessMDparts import procesaMDfl2calendarIDs, procesaMDteams2InfoEqs, processMDfl2InfoCal
+from Utils.Web import prepareDownloading, tagAttrHasValue, generaURLEstadsPartido, logger, extractPagDataScripts
 from .Constants import REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada, infoJornada, LocalVisitante, OtherLoc, DEFTZ
-
-logger = logging.getLogger()
 
 calendario_URLBASE = 'https://www.acb.com/es/calendario'
 
@@ -152,7 +149,7 @@ class CalendarioACB:
             self.url = composeURLcalendario(self.urlbase, targComp=self.competicion, targTemp=self.edicion)
             if (self.edicion == currYear) and (self.competicion == currComp):
                 embeddedDataEquipos = procesaMDteams2InfoEqs(avFilters)
-                embeddedDataCalendario = processMDfl2InfoCal(avFilters)
+                embeddedDataCalendario = processMDfl2InfoCal(avFilters,embeddedDataEquipos)
                 for embData in embeddedDataEquipos['eqData'].values():
                     self.nuevaTraduccionEquipo2Codigo([embData['nomblargo'], embData['nombcorto']], embData['abrev'],
                                                       embData['id'])
@@ -168,7 +165,7 @@ class CalendarioACB:
         avFilters = extractPagDataScripts(result, 'availableFilters')
         embeddedDataTemporadas = procesaMDfl2calendarIDs(avFilters)
         embeddedDataEquipos = procesaMDteams2InfoEqs(avFilters)
-        embeddedDataCalendario = processMDfl2InfoCal(avFilters)
+        embeddedDataCalendario = processMDfl2InfoCal(avFilters,embeddedDataEquipos)
 
         for embData in embeddedDataEquipos['eqData'].values():
             self.nuevaTraduccionEquipo2Codigo([embData['nomblargo'], embData['nombcorto']], embData['abrev'],
@@ -478,170 +475,6 @@ def dictK2partStr(cal: CalendarioACB, partK: str) -> str:
     return result
 
 
-def extractPagDataScripts(calPage: DownloadedPage, keyword=None):
-    patWrapper = r'^self\.__next_f\.push\((.*)\)$'
-
-    calData = calPage.data
-
-    result = []
-
-    for scr in calData.find_all('script'):
-        scrText = scr.text
-        if keyword and keyword not in scrText:
-            continue
-        reWrapper = re.match(patWrapper, scrText)
-        if reWrapper is None:
-            continue
-
-        wrappedText = reWrapper.group(1)
-
-        try:
-            firstEval = ast.literal_eval(wrappedText)
-        except SyntaxError:
-            logging.exception("No scanea Eval: %s", scr.prettify())
-            continue
-
-        patForcedict = r"^\s*([^:]+)\s*:\s*(.*)\s*$"
-        reForceDict = re.match(patForcedict, firstEval[1])
-
-        if reForceDict is None:
-            logger.error("No casa RE '%s' : %s", reForceDict, scr.prettify())
-            continue
-        dictForced = "{" + f'"{reForceDict.group(1)}":{reForceDict.group(2)}' + "}"
-        try:
-            jsonParsed = json5.loads(dictForced)
-        except Exception:
-            logging.exception("No scanea json: %s", scr.prettify())
-            continue
-
-        result.append(jsonParsed)
-
-    return result if len(result) > 1 else result[0]
-
-
-def procesaMDfl2calendarIDs(rawData: dict) -> Dict[str, Dict]:
-    result = {'compKey2compId': {}, 'compId2compKey': {}, 'seaId2seaYear': {}, 'seaYear2seaId': {}, 'seaData': {},
-              'currFilters': {}}
-
-    # pp(rawData)
-    auxFilterData: dict = list(rawData.values())[0][3]['data']
-
-    filterAv = auxFilterData['availableFilters']
-
-    name2comp = {'Liga Nacional': 'LACB', 'Copa de España': 'COPA', 'Supercopa': 'SCOPA'}
-    for v in filterAv['competitions']:
-        cName = v['name']
-        cId = str(v['id'])
-        if cName not in name2comp:
-            continue
-        result['compKey2compId'][name2comp[cName]] = cId
-        result['compId2compKey'][cId] = name2comp[cName]
-
-    s: dict
-    for s in filterAv['seasons']:
-        sId = str(s['id'])
-        sYear = str(s['startYear'])
-        result['seaId2seaYear'][sId] = sYear
-        result['seaYear2seaId'][sYear] = sId
-        result['seaData'][sYear] = s
-
-    auxCurrData = auxFilterData['selectedFilters']
-    result['currFilters'].update(auxCurrData)
-    result['currFilters']['seaYear'] = result['seaId2seaYear'][str(auxCurrData['season'])]
-    result['currFilters']['compKey'] = result['compId2compKey'][str(auxCurrData['competition'])]
-    result['currFilters']['seaId'] = str(auxCurrData['season'])
-    result['currFilters']['compId'] = str(auxCurrData['competition'])
-
-    return result
-
-
-def procesaMDteams2InfoEqs(rawData: dict) -> Dict[str, Dict]:
-    result = {'eqData': {}, 'eqAbrev2eqId': {}, 'seq2eqId': {}, 'seq2eqAbrev': {}, 'eqId2eqAbrev': {}}
-
-    eqDataTxlat = {'id': 'calId', 'clubId': 'id', 'fullName': 'nomblargo', 'shortName': 'nombcorto',
-                   'abbreviatedName': 'abrev',
-                   'logo': 'icono', 'secondaryLogo': 'iconoSec'}
-    auxFilterData: dict = list(rawData.values())[0][3]['data']
-
-    auxTeamsData: dict = auxFilterData['teams']
-
-    for seq, eq in enumerate(auxTeamsData):
-        eqAbrev = eq['abbreviatedName']
-        eqId = str(eq['clubId'])
-        result['seq2eqId'][str(seq)] = eqId
-        result['seq2eqAbrev'][str(seq)] = eqAbrev
-        result['eqAbrev2eqId'][eqAbrev] = eqId
-        result['eqId2eqAbrev'][eqId] = eqAbrev
-        result['eqData'][eqId] = {eqDataTxlat.get(k, k): v for k, v in eq.items()}
-
-    return result
-
-
-def processMDfl2InfoCal(rawData: dict) -> Dict[str, Dict]:
-    """
-    Saca la información de calendario del script que lleva embebida la página del calendario
-    :param rawData:
-    :return:
-    """
-    global embeddedDataEquipos  # pylint: disable=global-statement
-
-    if embeddedDataCalendario is not None:
-        return embeddedDataCalendario
-
-    result = {}
-
-    LV2HA = {'Local': 'home', 'Visitante': 'away'}
-
-    if embeddedDataEquipos is None:
-        embeddedDataEquipos = procesaMDteams2InfoEqs(rawData)
-
-    auxFilterData: dict = list(rawData.values())[0][3]['data']
-    auxRounds: dict = auxFilterData['rounds']
-
-    for r in auxRounds:
-        infoRound = {'partidos': {}, 'pendientes': set(), 'jugados': set(), 'equipos': set(), 'idEmparej': set()}
-
-        infoRound.update(MDround2roundData(r))
-
-        for g in r['matches']:
-            partPendiente: bool = g['matchStatus'] != 'FINALIZED'
-            datosPart = {'fechaPartido': pd.to_datetime(g['startDateTime']),
-                         'pendiente': partPendiente, 'equipos': {}, 'resultado': {}}
-            datosPart['partido'] = g['id']
-
-            for loc in LocalVisitante:
-                datosEq = {}
-                clavTrad = LV2HA[loc]
-                clavTradOther = LV2HA[OtherLoc(loc)]
-
-                eqSeq = g[clavTrad + 'Team'].split(':')[-1]
-                datosEq['id'] = embeddedDataEquipos['seq2eqId'][eqSeq]
-                datosEq.update(embeddedDataEquipos['eqData'][datosEq['id']])
-                if not partPendiente:
-                    datosEq['puntos'] = g[clavTrad + 'TeamScore']
-                    datosEq['haGanado'] = datosEq['puntos'] > g[clavTradOther + 'TeamScore']
-                    datosPart['resultado'][loc] = datosEq['puntos']
-                    infoRound['equipos'].add(datosEq['abrev'])
-                datosPart['equipos'][loc] = datosEq
-
-            datosPart['loc2abrev'] = {k: v['abrev'] for k, v in datosPart['equipos'].items()}
-            datosPart['abrev2loc'] = {v['abrev']: k for k, v in datosPart['equipos'].items()}
-            datosPart['participantes'] = {v['abrev'] for v in datosPart['equipos'].values()}
-            datosPart['claveEmparejamiento'] = ",".join(sorted([str(v['id']) for v in datosPart['equipos'].values()]))
-
-            infoRound['idEmparej'].add(datosPart['claveEmparejamiento'])
-
-            infoRound['partidos'][datosPart['claveEmparejamiento']] = datosPart
-            if partPendiente:
-                infoRound['pendientes'].add(datosPart['claveEmparejamiento'])
-            else:
-                infoRound['jugados'].add(datosPart['claveEmparejamiento'])
-
-        result[infoRound['jornada']] = infoRound
-
-    return result
-
-
 def composeURLcalendario(currURL: str = calendario_URLBASE, targComp: str = None, targTemp=None,
                          ) -> str:
     if embeddedDataTemporadas is None:
@@ -749,20 +582,3 @@ def procesaEnlacesPartido(divPartido: bs4.Tag) -> dict:
     return result
 
 
-rondaId2fasePlayOff: dict = {291: 'final', 293: 'cuartos de final', 292: 'semifinal'}
-
-
-def MDround2roundData(jornada: dict) -> dict:
-    result = {'jorId': jornada['id'], 'jornada': jornada['roundNumber'], 'jornadaMD': jornada['roundNumber'],
-              'esPlayOff': (jornada['subphase'] is not None), 'fasePlayOff': None, 'partRonda': None}
-
-    if result['esPlayOff']:
-        result['fasePlayOff'] = rondaId2fasePlayOff[jornada['subphase']['id']]
-        result['partRonda'] = jornada['subphase']['subphaseNumber']
-        result['jornada'] = numPartidoPO2jornada(result['fasePlayOff'], result['partRonda'])
-
-    result['infoJornada'] = infoJornada(jornada=result['jornada'], esPlayOff=result['esPlayOff'],
-                                        fasePlayOff=result['fasePlayOff'],
-                                        partRonda=result['partRonda'])
-
-    return result
