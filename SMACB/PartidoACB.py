@@ -1,11 +1,12 @@
 import logging
 import re
-from compression import zstd
 from itertools import product
 from pickle import dumps
 from time import gmtime
 from traceback import print_exc
 from typing import Optional, Dict, Tuple, Union, List
+
+from compression import zstd
 
 import numpy as np
 import pandas as pd
@@ -241,13 +242,12 @@ class PartidoACB():
             self.Equipos[loc]['abrev'] = abrev
 
     def procesaLineaTablaEstadistica(self, fila, headers, estado):
-        result = {
-            'competicion': self.competicion, 'temporada': self.temporada, 'jornada': self.jornada,
-            'equipo': self.Equipos[estado]['Nombre'], 'CODequipo': self.Equipos[estado]['abrev'],
-            'IDequipo': self.Equipos[estado]['id'], 'rival': self.Equipos[OtherLoc(estado)]['Nombre'],
-            'CODrival': self.Equipos[OtherLoc(estado)]['abrev'], 'IDrival': self.Equipos[OtherLoc(estado)]['id'],
-            'url': self.url, 'estado': estado, 'esLocal': (estado == "Local"),
-            'haGanado': (self.ResultadoCalendario[estado] > self.ResultadoCalendario[OtherLoc(estado)])}
+        result = {'competicion': self.competicion, 'temporada': self.temporada, 'jornada': self.jornada,
+                  'equipo': self.Equipos[estado]['Nombre'], 'CODequipo': self.Equipos[estado]['abrev'],
+                  'IDequipo': self.Equipos[estado]['id'], 'rival': self.Equipos[OtherLoc(estado)]['Nombre'],
+                  'CODrival': self.Equipos[OtherLoc(estado)]['abrev'], 'IDrival': self.Equipos[OtherLoc(estado)]['id'],
+                  'url': self.url, 'estado': estado, 'esLocal': (estado == "Local"),
+                  'haGanado': (self.ResultadoCalendario[estado] > self.ResultadoCalendario[OtherLoc(estado)])}
 
         filaClass = fila.attrs.get('class', '')
 
@@ -675,8 +675,8 @@ def GeneraURLpartido(link):
 
     liurlcomps = extractGetParams(link2process)
     CheckParameters(liurlcomps)
-    return templateURLficha % (
-        liurlcomps['cod_competicion'], int(liurlcomps['cod_edicion']), int(liurlcomps['partido']))
+    return templateURLficha % (liurlcomps['cod_competicion'], int(liurlcomps['cod_edicion']),
+                               int(liurlcomps['partido']))
 
 
 def extractPrefijosTablaEstads(tablaEstads):
@@ -704,26 +704,24 @@ def extractPrefijosTablaEstads(tablaEstads):
     return headers
 
 
-def procesaPaginaResumen(urlResumen: Union[str, DownloadedPage], home=None, browser=None, config=None) -> Tuple[
-    dict, DownloadedPage]:
+def procesaPaginaResumen(urlResumen: Union[str, DownloadedPage], home=None, browser=None,
+                         config=None) -> Tuple[dict, DownloadedPage]:
     if isinstance(urlResumen, DownloadedPage):
         resumenPage = urlResumen
     else:
         browser, config = prepareDownloading(browser, config)
         resumenPage = downloadPage(urlResumen, home=home, browser=browser, config=config)
 
-    resultado = {
-        'comparativaEstads': procesaMDresEstadsCompar(
-            extractPagDataScripts(resumenPage, 'initialMatchStatsComparative')),
+    resultado = {'comparativaEstads': procesaMDresEstadsCompar(
+        extractPagDataScripts(resumenPage, 'initialMatchStatsComparative')),
         'infoRachas': procesaMDresInfoRachas(extractPagDataScripts(resumenPage, 'initialLeadTracker')),
-        'cartaTiro': procesaMDresCartaTiro(extractPagDataScripts(resumenPage, 'initialShotmap')),
-    }
+        'cartaTiro': procesaMDresCartaTiro(extractPagDataScripts(resumenPage, 'initialShotmap')), }
 
     return resultado, resumenPage
 
 
-def procesaPlayByPlay(urlJugadas: Union[str, DownloadedPage], home=None, browser=None, config=None) -> Tuple[
-    dict, DownloadedPage]:
+def procesaPlayByPlay(urlJugadas: Union[str, DownloadedPage], home=None, browser=None,
+                      config=None) -> Tuple[dict, DownloadedPage]:
     if isinstance(urlJugadas, DownloadedPage):
         jugadasPage = urlJugadas
     else:
@@ -742,26 +740,23 @@ def procesaPlayByPlay(urlJugadas: Union[str, DownloadedPage], home=None, browser
     logging.debug("Resumen de jugadas en partido")
     for k in sorted(auxResult['contadores'].keys(), key=jugadaKey2sort):
         v = auxResult['contadores'][k]
-        logging.debug(f"{jugadaKey2str(k)} [{v:3}]: {jugadaTag2Desc.get(k, "")}")
+        logging.debug("%s [%s]: %s", jugadaKey2str(k), f"{v:3}", jugadaTag2Desc.get(k, ""))
 
-    logging.debug(
-        f"Estado parseo Trad:{auxResult['contConocidas'][True]} No trad: {auxResult['contConocidas'][False]} ")
+    logging.debug("Estado parseo Trad:%s No trad: %s ", auxResult['contConocidas'][True],
+                  auxResult['contConocidas'][False])
 
-    resultado = {'playByPlay': auxResult['jugadas'],
-
-                 }
+    resultado = {'playByPlay': auxResult['jugadas'], }
     return resultado, jugadasPage
 
 
-def procesaBoxScore(urlBoxscore: Union[str, DownloadedPage], home=None, browser=None, config=None) -> Tuple[
-    dict, DownloadedPage]:
+def procesaBoxScore(urlBoxscore: Union[str, DownloadedPage], home=None, browser=None,
+                    config=None) -> Tuple[dict, DownloadedPage]:
     if isinstance(urlBoxscore, DownloadedPage):
         boxscorePage = urlBoxscore
     else:
         browser, config = prepareDownloading(browser, config)
         boxscorePage = downloadPage(urlBoxscore, home=home, browser=browser, config=config)
 
-    resultado = {'boxscore': procesaMDboxscore(extractPagDataScripts(boxscorePage, 'initialStatistics')),
-                 }
+    resultado = {'boxscore': procesaMDboxscore(extractPagDataScripts(boxscorePage, 'initialStatistics')), }
 
     return resultado, boxscorePage
