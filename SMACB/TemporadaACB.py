@@ -26,7 +26,7 @@ from Utils.FechaHora import fechaParametro2pddatetime, fecha2fechaCalDif
 from Utils.Web import prepareDownloading, browserConfigData
 from .CalendarioACB import calendario_URLBASE, CalendarioACB
 from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEqCalendario, infoPartLV, infoSigPartido,
-                        LocalVisitante, OtherLoc, OtherTeam, infoJornada, )
+                        LocalVisitante, OtherLoc, OtherTeam, infoJornada, URL_BASE, )
 from .FichaJugador import FichaJugador, CAMBIOSJUGADORES
 from .PartidoACB import PartidoACB
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB, CAMBIOSCLUB, CambiosPlantillaTipo
@@ -164,7 +164,7 @@ class TemporadaACB:
 
         return partidosBajados
 
-    def actualizaInfoAuxiliar(self, nuevoPartido, browser, config):
+    def actualizaInfoAuxiliar(self, nuevoPartido: PartidoACB, browser, config):
         self.actualizaNombresEquipo(nuevoPartido)
         self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
         self.actualizaTraduccionesJugador(nuevoPartido)
@@ -246,7 +246,8 @@ class TemporadaACB:
                 continue
             if (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None):
                 try:
-                    nuevaFicha = FichaJugador.fromURL(datosJug['linkPersona'], datosPartido=datosJug,
+                    urlJug = mergeURL(URL_BASE, datosJug['linkPersona'])
+                    nuevaFicha = FichaJugador.fromURL(urlJug, datosPartido=datosJug,
                                                       home=browser.get_url(), browser=browser, config=config)
                     self.fichaJugadores[codJ] = nuevaFicha
                 except Exception as exc:
@@ -256,10 +257,9 @@ class TemporadaACB:
                     if codJ in JUGADORESDESCARGADOS:
                         JUGADORESDESCARGADOS.remove(codJ)
                     continue
-
             elif refrescaFichas or (not hasattr(self.fichaJugadores[codJ], 'sinDatos')) or (
                     self.fichaJugadores[codJ].sinDatos is None) or (self.fichaJugadores[codJ].sinDatos):
-                urlJugAux = mergeURL(browser.get_url(), datosJug['linkPersona'])
+                urlJugAux = mergeURL(URL_BASE, datosJug['linkPersona'])
                 if urlJugAux != self.fichaJugadores[codJ].URL:
                     self.fichaJugadores[codJ].URL = urlJugAux
                     self.changed = True

@@ -1,8 +1,8 @@
 # No olvidar actualizar con las de programa las que están en los scripts
 # Librerias para el programa
 
-#git+https://github.com/cesaralba/CAPcore-python@develop
-git+https://github.com/cesaralba/CAPcore-python@202506
+git+https://github.com/cesaralba/CAPcore-python@develop
+#git+https://github.com/cesaralba/CAPcore-python@202506
 
 ConfigArgParse>=1.7.1
 

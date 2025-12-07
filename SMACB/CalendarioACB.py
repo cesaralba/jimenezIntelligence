@@ -575,8 +575,5 @@ def procesaEnlacesPartido(divPartido: bs4.Tag) -> dict:
         pathDest = datosURL.path
         clase = pathDest.split('/')[-1]
         result[clase] = dest
-        if 'urlbase' not in result:
-            pathBase = "/".join(pathDest.split('/')[:-1])
-            result['urlbase'] = urlunparse(datosURL._replace(path=pathBase))
 
     return result

@@ -116,7 +116,7 @@ def tagAttrHasValue(tagData: bs4.element.Tag, attrName: str, value: str | Patter
 logger = logging.getLogger()
 
 
-def extractPagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dict[str,Any]]:
+def extractPagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dict[str, Any]]:
     patWrapper = r'^self\.__next_f\.push\((.*)\)$'
 
     calData = calPage.data
@@ -157,11 +157,11 @@ def extractPagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dic
     result = {}
 
     for data in auxList:
-        auxHash={}
+        auxHash = {}
         auxHash.update(data)
 
         if list(auxHash.keys())[0] in result:
-            clave=list(auxHash.keys())[0]
+            clave = list(auxHash.keys())[0]
             print(f"Clave #{clave}# ya existe en resultado:\n")
             pp(result[clave])
             print("==================")
