@@ -329,7 +329,7 @@ def jugada2str(play: str) -> str:
         if licType == 202:
             return f"{play['playerName']}"
         if licType is None:
-            return f"Equipo"
+            return "Equipo"
         res = f"{play}"
         logging.warning("jugada2subject: licenseType desconocido '%s'. %s", licType, res)
 
@@ -436,11 +436,10 @@ def procesaMDboxscore(rawData: dict):
 
         for dataPer in datosEq['statsByPeriods']:
             periodo = dataPer['quarter']
-            statsQ = dataPer['stats']
-            datosTotal = extraeEstadsPeriodo(statsQ['total'])
+            datosTotal = extraeEstadsPeriodo(dataPer['stats']['total'])
             datosTotal['Segs'] = 0
-            datosNoAsig = extraeEstadsPeriodo(statsQ['team'])
-            for dataJug in statsQ['players']:
+            datosNoAsig = extraeEstadsPeriodo(dataPer['stats']['team'])
+            for dataJug in dataPer['stats']['players']:
                 playerData = copyDictWithTranslation(dataJug['player'], PLYSTATS2KEYS, EXCLUDEPLAYSTATS)
                 playerData['esLocal'] = loc == "Local"
 
@@ -520,8 +519,8 @@ def procesaMDresDatosPartido(rawData: dict) -> Optional[Dict[str, Dict]]:
             loc = HA2LV[auxLoc]
             infoTeam = copyDictWithTranslation(teamData, translation=TRTEAMDATA, excludes=EXTEAMDATA)
             infoTeam.update({TRTEAMDATA.get(k, k): str(teamData[k]) for k in ['id', 'clubId']})
-            infoTeam['Nombres'] = {teamData[k] for k in {'fullName', 'shortName'}}
-            infoTeam['Logos'] = {teamData[k] for k in {'logo', 'secondaryLogo'}}
+            infoTeam['Nombres'] = {teamData[k] for k in ['fullName', 'shortName']}
+            infoTeam['Logos'] = {teamData[k] for k in ['logo', 'secondaryLogo']}
 
             infoTeam['Puntos'] = datosPartido[f"current{auxLoc.capitalize()}Score"]
             resultado['equipos'][loc] = infoTeam
