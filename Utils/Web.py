@@ -2,7 +2,7 @@ import ast
 import logging
 import re
 from collections import namedtuple
-from pprint import pp
+from pprint import pprint
 from re import Pattern
 from typing import Optional, Dict, Any
 
@@ -119,22 +119,17 @@ logger = logging.getLogger()
 def extractPagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dict[str, Any]]:
     patWrapper = r'^self\.__next_f\.push\((.*)\)$'
 
-    calData = calPage.data
-
     auxList = []
 
-    for scr in calData.find_all('script'):
-        scrText = scr.text
-        if keyword and keyword not in scrText:
+    for scr in calPage.data.find_all('script'):
+        if keyword and keyword not in scr.text:
             continue
-        reWrapper = re.match(patWrapper, scrText)
+        reWrapper = re.match(patWrapper, scr.text)
         if reWrapper is None:
             continue
 
-        wrappedText = reWrapper.group(1)
-
         try:
-            firstEval = ast.literal_eval(wrappedText)
+            firstEval = ast.literal_eval(reWrapper.group(1))
         except SyntaxError:
             logging.exception("No scanea Eval: %s", scr.prettify())
             continue
@@ -162,9 +157,7 @@ def extractPagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dic
 
         if list(auxHash.keys())[0] in result:
             clave = list(auxHash.keys())[0]
-            print(f"Clave #{clave}# ya existe en resultado:\n")
-            pp(result[clave])
-            print("==================")
+            logging.error("Clave #%s# ya existe en resultado:\n%s", clave, pprint(result[clave]))
             continue
         result.update(auxHash)
 
