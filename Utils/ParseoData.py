@@ -4,11 +4,11 @@ from typing import Optional, Any, List
 
 import bs4
 import pandas as pd
-from CAPcore.Misc import onlySetElement
+from CAPcore.Misc import onlySetElement, extractREGroups, BadString
 from CAPcore.Web import mergeURL
 from bs4 import NavigableString
 
-from SMACB.Constants import URLIMG2IGNORE
+from SMACB.Constants import URLIMG2IGNORE, DEFTZ
 from .FechaHora import PATRONFECHA
 
 
@@ -65,11 +65,20 @@ def parseFecha(data: str) -> Optional[Any]:
 
     reProc = re.match(REfechaNac, data)
     if reProc:
-        result = pd.to_datetime(reProc['fechanac'], format=PATRONFECHA)
+        result = pd.to_datetime(reProc['fechanac'], format=PATRONFECHA).tz_localize(DEFTZ)
     else:
         print("FECHANAC no casa RE", data, REfechaNac)
 
     return result
+
+
+def ProcesaTiempo(cadena):
+    reTiempo = r"^\s*(\d+):(\d+)\s*$"
+    auxTemp = extractREGroups(cadena=cadena, regex=reTiempo)
+    if auxTemp:
+        return int(auxTemp[0]) * 60 + int(auxTemp[1])
+
+    raise BadString(f"ProcesaEstadisticas:ProcesaTiempo '{cadena}' no casa RE '{reTiempo}'")
 
 
 def findLocucionNombre(data: bs4.BeautifulSoup) -> dict:

@@ -41,6 +41,7 @@ def recuperaClasifLigaLR(tempData: TemporadaACB, fecha=None):
     global clasifLigaLR
     global numEqs
     global mitadEqs
+    global tradEquipos
     # pylint: enable=global-statement
 
     if clasifLigaLR is None:

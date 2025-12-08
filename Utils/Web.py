@@ -1,8 +1,15 @@
+import ast
+import logging
 import re
 from collections import namedtuple
-from typing import Optional
+from pprint import pprint
+from re import Pattern
+from typing import Optional, Dict, Any
 
-from CAPcore.Web import createBrowser, mergeURL
+import bs4.element
+import json5
+from CAPcore.Misc import listize
+from CAPcore.Web import createBrowser, mergeURL, DownloadedPage
 from configargparse import Namespace
 
 # https://effbot.org/zone/default-values.htm#what-to-do-instead
@@ -69,4 +76,89 @@ def generaURLClubes(edicion: Optional[str] = None, urlRef: str = None):
 
     return result
 
+
+def generaURLEstadsPartido(partidoId, urlRef: str = None):
+    # https://www.acb.com/partido/estadisticas/id/104476
+    params = ['/partido', 'estadisticas', 'id', str(partidoId)]
+
+    urlSTR = "/".join(params)
+
+    result = mergeURL(urlRef, urlSTR)
+
+    return result
+
+
 # TODO: Generar URL jugadores y URL entrenadores
+
+def tagAttrHasValue(tagData: bs4.element.Tag, attrName: str, value: str | Pattern, partial: bool = False) -> bool:
+    if tagData is None:
+        return False
+
+    if attrName not in tagData.attrs:
+        return False
+    attrValue = tagData[attrName]
+    attrValueList = listize(attrValue)
+
+    for auxVal in attrValueList:
+        if isinstance(value, Pattern):
+            if re.match(value, auxVal):
+                return True
+            continue
+        if partial:
+            if value in attrValueList:
+                return True
+            continue
+        if value == attrValueList:
+            return True
+    return False
+
+
+logger = logging.getLogger()
+
+
+def extractPagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dict[str, Any]]:
+    patWrapper = r'^self\.__next_f\.push\((.*)\)$'
+
+    auxList = []
+
+    for scr in calPage.data.find_all('script'):
+        if keyword and keyword not in scr.text:
+            continue
+        reWrapper = re.match(patWrapper, scr.text)
+        if reWrapper is None:
+            continue
+
+        try:
+            firstEval = ast.literal_eval(reWrapper.group(1))
+        except SyntaxError:
+            logging.exception("No scanea Eval: %s", scr.prettify())
+            continue
+
+        patForcedict = r"^\s*([^:]+)\s*:\s*(.*)\s*$"
+        reForceDict = re.match(patForcedict, firstEval[1])
+
+        if reForceDict is None:
+            logger.error("No casa RE '%s' : %s", reForceDict, scr.prettify())
+            continue
+        dictForced = "{" + f'"{reForceDict.group(1)}":{reForceDict.group(2)}' + "}"
+        try:
+            jsonParsed = json5.loads(dictForced)
+        except Exception:
+            logging.exception("No scanea json: %s", scr.prettify())
+            continue
+
+        auxList.append(jsonParsed)
+
+    result = {}
+
+    for data in auxList:
+        auxHash = {}
+        auxHash.update(data)
+
+        if list(auxHash.keys())[0] in result:
+            clave = list(auxHash.keys())[0]
+            logging.error("Clave #%s# ya existe en resultado:\n%s", clave, pprint(result[clave]))
+            continue
+        result.update(auxHash)
+
+    return result

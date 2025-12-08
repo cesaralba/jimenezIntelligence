@@ -4,6 +4,8 @@ from CAPcore.Misc import BadParameters
 
 URL_BASE = "https://www.acb.com"
 
+DEFTZ = "CET"
+
 bool2esp = {True: "S", False: "N"}
 haGanado2esp = {True: "V", False: "D"}
 titular2esp = {True: "T", False: "B"}
@@ -89,6 +91,15 @@ POSABREV2NOMBRE = {'A': 'Alero', 'E': 'Escolta', 'B': 'Base', 'P': 'Pívot', 'AP
 
 
 def numPartidoPO2jornada(fasePO: str, numPart: str) -> int:
-    fasePO2jorBase = {'1/8 de final': 50, '1/4 de final': 60, 'semifinales': 70, 'final': 80}
+    """
+Convierte la ronda/partido entre una jornada numérica. Hecho para no depender de la jornada calculada por ACB
+que depende del número de partidos/jornadas
+    :param fasePO: cadenas conocidas hasta el momento en la página de ACB
+    :param numPart: número de partido en la serie de playoff
+    :return: número de jornada (base de la ronda + número de partido en la serie
+    """
+    fasePO2jorBase: dict[str, int] = {'1/8 de final': 50, '1/4 de final': 60, 'semifinales': 70, 'final': 80,
+                                      'octavos de final': 50,
+                                      'cuartos de final': 60, 'semifinal': 70}
 
     return fasePO2jorBase[fasePO.lower()] + int(numPart)
