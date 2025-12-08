@@ -353,6 +353,7 @@ def descargaYparseaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=
     # Asume que todo va a fallar
     if datosPartido is not None:
         auxResult['sinDatos'] = True
+        auxResult['id'] = datosPartido['codigo']
         auxResult['alias'] = datosPartido['nombre']
 
     logging.info("Descargando ficha jugador '%s'", urlFicha)
