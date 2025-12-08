@@ -27,15 +27,16 @@ jugadaTag2Desc = {
     (105, None): "Tapón rec",
 
     (106, None): "Pérdida",
-    (106, 1): "Pérdida - pasos",
-    (106, 2): 'Pérdida - 3" zona',
-    (106, 7): "Pérdida - final pos",
-    (106, 8): 'Pérdida - infracción 8"',
-    (106, 11): "Pérdida - balón retenido",
-    (106, 12): "Pérdida - mal pase",
-    (106, 13): "Pérdida - balón perdido",
-    (106, 14): "Pérdida - dobles",
-    (106, 15): "Pérdida - campo atrás",
+    (106, 1): "Pér - pasos",
+    (106, 2): 'Pér - 3" zona',
+    (106, 7): "Pér - final pos",
+    (106, 8): 'Pér - infracción 8"',
+    (106, 9): 'Pér - final posesión',
+    (106, 11): "Pér - balón retenido",
+    (106, 12): "Pér - mal pase",
+    (106, 13): "Pér - balón perdido",
+    (106, 14): "Pér - dobles",
+    (106, 15): "Pér - campo atrás",
 
     (107, None): "Asistencia (2p)",
     (108, None): "Asistencia (3p)",
@@ -48,31 +49,39 @@ jugadaTag2Desc = {
     (116, None): "Final periodo",
     (118, None): "Tiempo muerto TV",
     (119, None): "Asistencia (FP)",
-    (121, None): "Gana posesión?",
+    (121, None): "Comienzo periodo",
     (123, None): "Final partido",
     (159, None): "Falta pers 0TL",
-
     (160, None): "Falta pers 1TL",
     (161, None): "Falta pers 2TL",
     (162, None): "Falta pers 3TL",
+    (165, None): "Falta antideportiva",
     (166, None): "Falta antideportiva",
+    (167, None): "Falta antideportiva (ataque?)",
     (168, None): "Falta antideportiva compensada",
     (173, None): "Falta técnica compensada",
     (178, None): "Salto ganado",
     (179, None): "Salto perdido",
 
+    (200, None): "Descalificante partido",
+
     (406, None): "Rev - Tipo de tiro",
     (407, None): "Rev - Canasta válida",
+    (408, None): "Rev - Reloj posesión",
     (409, None): "Rev - Reloj de partido",
     (410, None): "Rev - Enfrentamiento",
     (411, None): "Rev - Tipo de falta",
+    (412, None): "Rev - violación",
     (413, None): "Rev - Ult jug tocar",
+    (414, None): "Rev - Acción jugador",
     (415, None): "Rev - Cambios",
+
     (416, None): "Challenge Ent loc",
     (417, None): "Challenge Ent vis",
     (533, None): "Mate fallado",
     (537, None): "Falta técnica 1TL",
     (540, None): "Técnica entrenador",
+    (544, None): "Técnica banquillo",
     (599, None): "Entra a pista (quint inicial)",
     (748, None): "Challenge ganado",
     (749, None): "Challenge perdido",
@@ -359,7 +368,8 @@ def procesaMDjugadas(rawData: dict):
         return None
 
     listaJugs: List[Dict] = list(rawData.values())[0][3]['initialMatchPlayByPlay']['plays']
-    resultado = {'jugadas': [], 'clavesDesconocidas': {}, 'contadores': {}, 'contConocidas': {True: 0, False: 0}}
+    resultado = {'jugadas': [], 'clavesDesconocidas': {}, 'contadores': {}, 'infoJugadores': {},
+                 'contConocidas': {True: 0, False: 0}}
 
     logging.debug("Listado de jugadas")
     for play in sorted(listaJugs, key=jugadaSort, reverse=True):
@@ -369,7 +379,7 @@ def procesaMDjugadas(rawData: dict):
 
         resultado['jugadas'].append(jugada)
 
-        playKey: Tuple[int, Optional[int]] = (play['playType'], play['playTag'])
+        playKey: Tuple[int, Optional[int]] = play2key(play)
 
         if playKey not in jugadaTag2Desc:
             if playKey not in resultado['clavesDesconocidas']:
@@ -381,9 +391,15 @@ def procesaMDjugadas(rawData: dict):
         resultado['contadores'][playKey] += 1
         resultado['contConocidas'][playKey in jugadaTag2Desc] += 1
 
+        if jugada['codigoJug'] not in resultado['infoJugadores']:
+            resultado['infoJugadores'][jugada['codigoJug']] = {k: play[k] for k in ['playerName', 'playerNumber']}
         logging.debug(jugada2str(play))
 
     return resultado
+
+
+def play2key(play: dict) -> Tuple[int, Optional[int]]:
+    return (play['playType'], play['playTag'])
 
 
 EQKEYS2ADD = ['clubId', 'fullName', 'shortName', 'abbreviatedName']
