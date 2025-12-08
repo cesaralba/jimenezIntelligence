@@ -5,7 +5,6 @@ Created on Jan 4, 2018
 """
 import logging
 import sys
-import traceback
 from collections import defaultdict
 from copy import copy
 from itertools import chain
@@ -21,6 +20,7 @@ import numpy as np
 import pandas as pd
 from CAPcore.LoggedDict import LoggedDictDiff, LoggedDict
 from CAPcore.Web import mergeURL
+from requests import HTTPError
 
 from Utils.FechaHora import fechaParametro2pddatetime, fecha2fechaCalDif
 from Utils.Web import prepareDownloading, browserConfigData
@@ -174,7 +174,7 @@ class TemporadaACB:
             self.Calendario.nuevaTraduccionEquipo2Codigo(nombres=eqData['Nombre'], abrev=eqData['abrev'],
                                                          idEq=eqData['id'])
 
-    def actualizaNombresEquipo(self, partido):
+    def actualizaNombresEquipo(self, partido: PartidoACB):
         for loc in partido.Equipos:
             nombrePartido = partido.Equipos[loc]['Nombre']
             codigoParam = partido.Equipos[loc]['abrev']
@@ -182,7 +182,7 @@ class TemporadaACB:
             if self.Calendario.nuevaTraduccionEquipo2Codigo(nombrePartido, codigoParam, idParam):
                 self.changed = True
 
-    def grabaTemporada(self, filename):
+    def grabaTemporada(self, filename: str):
         aux = copy(self)
 
         # Clean stuff that shouldn't be saved
@@ -233,8 +233,9 @@ class TemporadaACB:
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
         self.changed |= self.actualizaClase()
 
-    def actualizaFichasPartido(self, nuevoPartido, browser=None, config=None):
-        browser, config = prepareDownloading(browser, config, calendario_URLBASE)
+    def actualizaFichasPartido(self, nuevoPartido: PartidoACB, browser=None, config=None):
+        if self.descargaFichas:
+            browser, config = prepareDownloading(browser, config, calendario_URLBASE)
 
         refrescaFichas = False
 
@@ -245,20 +246,32 @@ class TemporadaACB:
             if codJ in JUGADORESDESCARGADOS:
                 continue
             if (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None):
-                try:
-                    urlJug = mergeURL(URL_BASE, datosJug['linkPersona'])
-                    nuevaFicha = FichaJugador.fromURL(urlJug, datosPartido=datosJug,
-                                                      home=browser.get_url(), browser=browser, config=config)
+                if self.descargaFichas:
+                    try:
+                        urlJug = mergeURL(URL_BASE, datosJug['linkPersona'])
+                        nuevaFicha = FichaJugador.fromURL(urlJug, datosPartido=datosJug,
+                                                          home=browser.get_url(), browser=browser, config=config)
+                        self.fichaJugadores[codJ] = nuevaFicha
+                        JUGADORESDESCARGADOS.add(codJ)
+                        self.changed = True
+                    except HTTPError:
+                        logging.exception("Partido [%s]: something happened creating record for %s. Datos: %s",
+                                          nuevoPartido.url, codJ, datosJug)
+                        nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
+                                                              timestamp=nuevoPartido.timestamp)
+                        self.fichaJugadores[codJ] = nuevaFicha
+                        JUGADORESDESCARGADOS.add(codJ)
+                        self.changed = True
+
+                else:  # Crear desde info de partido
+                    nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
+                                                          timestamp=nuevoPartido.timestamp)
                     self.fichaJugadores[codJ] = nuevaFicha
-                except Exception as exc:
-                    print(f"SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido [{nuevoPartido.url}]: something "
-                          f"happened creating record for {codJ}. Datos: {datosJug}", exc)
-                    traceback.print_tb(exc.__traceback__)
-                    if codJ in JUGADORESDESCARGADOS:
-                        JUGADORESDESCARGADOS.remove(codJ)
-                    continue
-            elif refrescaFichas or (not hasattr(self.fichaJugadores[codJ], 'sinDatos')) or (
-                    self.fichaJugadores[codJ].sinDatos is None) or (self.fichaJugadores[codJ].sinDatos):
+                    JUGADORESDESCARGADOS.add(codJ)
+                    self.changed = True
+
+            elif self.descargaFichas and (refrescaFichas or (not hasattr(self.fichaJugadores[codJ], 'sinDatos')) or (
+                    self.fichaJugadores[codJ].sinDatos is None) or self.fichaJugadores[codJ].sinDatos):
                 urlJugAux = mergeURL(URL_BASE, datosJug['linkPersona'])
                 if urlJugAux != self.fichaJugadores[codJ].URL:
                     self.fichaJugadores[codJ].URL = urlJugAux
@@ -267,18 +280,11 @@ class TemporadaACB:
                     self.changed |= self.fichaJugadores[codJ].actualizaFromWeb(datosPartido=datosJug, browser=browser,
                                                                                config=config)
                     JUGADORESDESCARGADOS.add(codJ)
-                except Exception as exc:
-                    print(f"SMACB.TemporadaACB.TemporadaACB.actualizaFichasPartido [{nuevoPartido.url}]: something "
-                          f"happened updating record of {codJ}. Datos: {datosJug}", exc)
-                    traceback.print_tb(exc.__traceback__)
-                if codJ in JUGADORESDESCARGADOS:
-                    JUGADORESDESCARGADOS.remove(codJ)
+                except HTTPError:
+                    logging.exception("Partido [%s]: something happened updating record for %s. Datos: %s",
+                                      nuevoPartido.url, codJ, datosJug)
 
             self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
-
-        # TODO: Procesar ficha de entrenadores
-        for codE in nuevoPartido.Entrenadores:
-            pass
 
     def actualizaPlantillas(self, browser=None, config=None):
         result = False

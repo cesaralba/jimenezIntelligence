@@ -1,6 +1,4 @@
 import logging
-import sys
-import traceback
 from collections import defaultdict
 from time import gmtime
 from typing import Dict, NamedTuple
@@ -60,10 +58,8 @@ class PlantillaACB():
                         self.club.get('nombreActual', 'Desconocido'), self.edicion, self.URL)
             data = descargaURLplantilla(self.URL, home, browser, config)
         except Exception:
-            print(
-                f"SMACB.PlantillaACB.PlantillaACB.descargaYactualizaPlantilla: something happened updating record of  "
-                f"'{self.club}']'", sys.exc_info())
-            traceback.print_tb(sys.exc_info()[2])
+            logging.exception(
+                "Something happened updating record of '%s' ", self.club)
             return False
 
         result |= self.actualizaPlantillaDescargada(data)
