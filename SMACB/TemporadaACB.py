@@ -289,7 +289,6 @@ class TemporadaACB:
     def actualizaPlantillas(self, browser=None, config=None):
         result = False
         if self.descargaPlantillas:
-
             browser, config = prepareDownloading(browser, config, calendario_URLBASE)
             logger.info("%s Actualizando plantillas", self)
             datosPlantillas = descargaPlantillasCabecera(browser, config)
@@ -301,6 +300,8 @@ class TemporadaACB:
                 result |= resPlant
 
                 self.changed |= result
+        else: # TODO: Sin descarga
+            pass
         return result
 
     def actualizaTraduccionesJugador(self, nuevoPartido):
