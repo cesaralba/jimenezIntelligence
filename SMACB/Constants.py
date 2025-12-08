@@ -4,6 +4,8 @@ from CAPcore.Misc import BadParameters
 
 URL_BASE = "https://www.acb.com"
 
+DEFTZ = "CET"
+
 bool2esp = {True: "S", False: "N"}
 haGanado2esp = {True: "V", False: "D"}
 titular2esp = {True: "T", False: "B"}
@@ -16,6 +18,7 @@ EqRival = ('Eq', 'Rival')
 LOCALNAMES = {'Local', 'L', 'local'}
 VISITNAMES = {'Visitante', 'V', 'visitante'}
 
+POLABELLIST = ['1/8 de final', '1/4 de final', 'semifinales', 'final']
 POLABEL2FASE = {'final': 'Final', 'semifinales': 'Semis', '1/4 de final': 'Cuartos', '1/8 de final': 'Octavos'}
 POLABEL2ABREV = {'final': 'F', 'semifinales': 'S', '1/4 de final': 'C', '1/8 de final': 'O'}
 
@@ -73,11 +76,11 @@ infoEqCalendario = namedtuple(typename='infoEqCalendario',
 filaTrayectoriaEq = namedtuple(typename='filaTrayectoriaEq',
                                field_names=['fechaPartido', 'jornada', 'cod_edicion', 'cod_competicion', 'equipoMe',
                                             'equipoRival', 'esLocal', 'haGanado', 'pendiente', 'url', 'abrevEqs',
-                                            'resultado'],
-                               defaults=[None, None, None, None, None, None, None, None, None, None, None, None])
+                                            'resultado', 'infoJornada'],
+                               defaults=[None, None, None, None, None, None, None, None, None, None, None, None, None])
 filaMergeTrayectoria = namedtuple(typename='filaMergeTrayectoria',
-                                  field_names=['jornada', 'izda', 'dcha', 'precedente'],
-                                  defaults=[None, None, None, None])
+                                  field_names=['jornada', 'izda', 'dcha', 'precedente', 'infoJornada', 'pendiente'],
+                                  defaults=[None, None, None, None, None, False])
 URLIMG2IGNORE = {'/Images/Web/silueta1.gif', '/Images/Web/silueta2.gif', ''}
 CLAVESFICHAJUGADOR = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia',
                       'junior', 'audioURL']
@@ -88,6 +91,15 @@ POSABREV2NOMBRE = {'A': 'Alero', 'E': 'Escolta', 'B': 'Base', 'P': 'Pívot', 'AP
 
 
 def numPartidoPO2jornada(fasePO: str, numPart: str) -> int:
-    fasePO2jorBase = {'1/8 de final': 50, '1/4 de final': 60, 'semifinales': 70, 'final': 80}
+    """
+Convierte la ronda/partido entre una jornada numérica. Hecho para no depender de la jornada calculada por ACB
+que depende del número de partidos/jornadas
+    :param fasePO: cadenas conocidas hasta el momento en la página de ACB
+    :param numPart: número de partido en la serie de playoff
+    :return: número de jornada (base de la ronda + número de partido en la serie
+    """
+    fasePO2jorBase: dict[str, int] = {'1/8 de final': 50, '1/4 de final': 60, 'semifinales': 70, 'final': 80,
+                                      'octavos de final': 50,
+                                      'cuartos de final': 60, 'semifinal': 70}
 
     return fasePO2jorBase[fasePO.lower()] + int(numPart)

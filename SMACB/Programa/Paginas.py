@@ -4,6 +4,7 @@ from reportlab.platypus import NextPageTemplate, PageBreak, Spacer
 from SMACB.Constants import infoSigPartido
 from SMACB.Programa.Funciones import preparaListaTablas
 from SMACB.Programa.Globals import CATESTADSEQASCENDING
+from SMACB.Programa.Presentacion import vuelcaCadena
 from SMACB.Programa.Secciones import (tablaAnalisisEstadisticos, paginasJugadores, cabeceraPortada, metadataPrograma,
                                       bloqueRestoJYBasics, tablaClasifLiga, reportTrayectoriaEquipos, tablaCruces,
                                       tablaPartidosLigaReg)
@@ -55,9 +56,12 @@ def paginaPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
     tabClasif = tablaClasifLiga(tempData, datosSig)
     result.append(tabClasif)
     result.append(Spacer(width=120 * mm, height=2 * mm))
-    trayectoria = reportTrayectoriaEquipos(tempData, datosSig)
+    trayectoria, mensajeAviso = reportTrayectoriaEquipos(tempData, datosSig, limitRows=40)
     if trayectoria:
         result.append(trayectoria)
+        if mensajeAviso != "":
+            result.append(vuelcaCadena(mensajeAviso, fontsize=8))
+
         result.append(Spacer(width=120 * mm, height=1 * mm))
 
     return result
@@ -77,7 +81,7 @@ def paginaPartidosLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
     result.append(NextPageTemplate('apaisada'))
     result.append(PageBreak())
     result.extend(
-        tablaPartidosLigaReg(tempData, equiposAmarcar=datosSig.abrevLV, currJornada=int(datosSig.sigPartido['jornada']),
+        tablaPartidosLigaReg(tempData, equiposAmarcar=datosSig.abrevLV, datosJornada=datosSig.sigPartido['infoJornada'],
                              FONTSIZE=8.5))
 
     return result

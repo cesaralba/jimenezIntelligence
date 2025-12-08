@@ -5,8 +5,10 @@ from typing import Optional
 
 import bs4
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
+from requests import HTTPError
 
-from SMACB.Constants import URLIMG2IGNORE, CLAVESFICHAJUGADOR, CLAVESDICT, TRADPOSICION, POSABREV2NOMBRE
+from SMACB.Constants import URLIMG2IGNORE, CLAVESFICHAJUGADOR, CLAVESDICT, TRADPOSICION, POSABREV2NOMBRE, URL_BASE
+from Utils.Misc import copyDictWithTranslation
 from Utils.ParseoData import findLocucionNombre, procesaCosasUtilesPlantilla
 from Utils.Web import getObjID, prepareDownloading
 
@@ -78,11 +80,44 @@ class FichaJugador:
         return changes
 
     @staticmethod
+    def fromPartido(idJugador: str, datosPartido: Optional[dict] = None, **kwargs):
+        """
+        Crear una ficha de jugador a partir de los datos del partido. Bien porque no se descarguen fichas,
+        bien como fallback
+        :param idJugador: Código del jugador
+        :param datosPartido: Info del partido (de PartidoACB.Jugadores
+        :param kwargs: parámetros que no vienen en datosPartido (timestamp)
+        :return: Nuevo objeto creado
+        """
+        TRFICHAJUG = {'IDequipo': 'club', 'codigo': 'id', 'nombres': 'alias'}
+        EXFICHAJUG = {'competicion', 'temporada', 'jornada', 'equipo', 'CODequipo', 'rival', 'CODrival', 'IDrival',
+                      'url', 'estado', 'esLocal', 'haGanado', 'estads', 'esJugador', 'entrenador', 'haJugado', 'dorsal',
+                      'esTitular', 'linkPersona', }
+
+        if datosPartido is None:
+            datosPartido = {}
+
+        fichaJug = {'id': idJugador}
+        if 'linkPersona' in datosPartido:
+            fichaJug['URL'] = mergeURL(URL_BASE, datosPartido['linkPersona'])
+        fichaJug.update(kwargs)
+
+        auxDatosPartido = copyDictWithTranslation(source=datosPartido, translation=TRFICHAJUG, excludes=EXFICHAJUG)
+        fichaJug.update(auxDatosPartido)
+
+        return FichaJugador(**fichaJug)
+
+    @staticmethod
     def fromURL(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
         browser, config = prepareDownloading(browser, config)
 
-        fichaJug = descargaYparseaURLficha(urlFicha, datosPartido=datosPartido, home=home, browser=browser,
-                                           config=config)
+        try:
+            fichaJug = descargaYparseaURLficha(urlFicha, datosPartido=datosPartido, home=home, browser=browser,
+                                               config=config)
+        except HTTPError:
+            logging.exception("Problemas descargando jugador '%s'", urlFicha)
+            return None
+
         return FichaJugador(**fichaJug)
 
     @staticmethod
@@ -92,17 +127,22 @@ class FichaJugador:
         if datosFichaPlantilla is None:
             return None
         datosFichaPlantilla = adaptaDatosFichaPlantilla(datosFichaPlantilla, idClub)
-        fichaJug = descargaYparseaURLficha(datosFichaPlantilla['URL'], home=home, browser=browser, config=config)
 
         newData = {}
         newData.update(datosFichaPlantilla)
-        newData.update(fichaJug)
+
+        try:
+            fichaJug = descargaYparseaURLficha(datosFichaPlantilla['URL'], home=home, browser=browser, config=config)
+            newData.update(fichaJug)
+        except HTTPError:
+            logging.exception("Problemas descargando jugador '%s'", datosFichaPlantilla['URL'])
+
         return FichaJugador(**newData)
 
     def actualizaFromWeb(self, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
 
         result = False
-        changeInfo = dict()
+        changeInfo = {}
 
         result |= self.addAtributosQueFaltan()
 
@@ -129,7 +169,7 @@ class FichaJugador:
         datosFichaPlantilla = adaptaDatosFichaPlantilla(datosFichaPlantilla, idClub)
 
         result = False
-        changeInfo = dict()
+        changeInfo = {}
 
         result |= self.addAtributosQueFaltan()
 
@@ -145,7 +185,7 @@ class FichaJugador:
     def updateFichaJugadorFromDownloadedData(self, changeInfo, newData):
         result = False
         # No hay necesidad de poner la URL en el informe
-        if self.URL != newData['URL']:
+        if 'URL' in newData and self.URL != newData['URL']:
             self.urlConocidas.add(newData['URL'])
             self.URL = newData['URL']
             result |= True
@@ -310,17 +350,17 @@ def descargaYparseaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=
     browser, config = prepareDownloading(browser, config)
 
     auxResult = {}
-    try:
-        # Asume que todo va a fallar
-        if datosPartido is not None:
-            auxResult['sinDatos'] = True
-            auxResult['alias'] = datosPartido['nombre']
+    # Asume que todo va a fallar
+    if datosPartido is not None:
+        auxResult['sinDatos'] = True
+        auxResult['alias'] = datosPartido['nombre']
 
-        logging.info("Descargando ficha jugador '%s'", urlFicha)
+    logging.info("Descargando ficha jugador '%s'", urlFicha)
+    try:
         fichaJug: DownloadedPage = downloadPage(urlFicha, home=home, browser=browser, config=config)
 
         auxResult['URL'] = browser.get_url()
-        auxResult['timestamp'] = gmtime()
+        auxResult['timestamp'] = fichaJug.timestamp
 
         auxResult['id'] = getObjID(urlFicha, 'ver')
 
@@ -333,9 +373,8 @@ def descargaYparseaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=
 
         auxResult.update(findLocucionNombre(data=fichaData))
 
-    except Exception as exc:
-        print(f"descargaYparseaURLficha: problemas descargando '{urlFicha}': {exc}")
-        raise exc
+    except HTTPError:
+        logging.exception("descargaYparseaURLficha: problemas descargando '%s'", urlFicha)
 
     result = {k: v for k, v in auxResult.items() if (v is not None) and (v != "")}
     return result

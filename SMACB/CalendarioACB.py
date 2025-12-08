@@ -1,33 +1,40 @@
-import functools
 import logging
 import re
+import sys
+import traceback
 from collections import defaultdict
-from copy import copy, deepcopy
+from copy import copy
 from time import gmtime
+from typing import Set, Optional, Dict, Any
+from urllib.parse import urlparse, urlunparse, parse_qs, ParseResult, urlencode
 
+import bs4.element
 import pandas as pd
-from CAPcore.Misc import FORMATOtimestamp, listize, onlySetElement
-from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
+from CAPcore.Misc import listize, onlySetElement
+from CAPcore.Web import downloadPage, DownloadedPage
 
-from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif
-from Utils.Web import getObjID, prepareDownloading
-from .Constants import URL_BASE, POLABEL2FASE, REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada
+from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif, procesaFechaJornada
+from Utils.ProcessMDparts import procesaMDcalFl2calendarIDs, procesaMDcalTeams2InfoEqs, processMDcalFl2Info
+from Utils.Web import prepareDownloading, tagAttrHasValue, generaURLEstadsPartido, logger, extractPagDataScripts
+from .Constants import REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada, infoJornada, LocalVisitante, OtherLoc, DEFTZ
 
-logger = logging.getLogger()
-
-calendario_URLBASE = "https://www.acb.com/calendario"
+calendario_URLBASE = 'https://www.acb.com/es/calendario'
 
 # https://www.acb.com/calendario/index/temporada_id/2018
 # https://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
 template_CALENDARIOYEAR = "https://www.acb.com/calendario/index/temporada_id/{year}"
-template_CALENDARIOFULL = "https://www.acb.com/calendario/index/temporada_id/{year}/edicion_id/{compoID}"
 template_PARTIDOSEQUIPO = "https://www.acb.com/club/partidos/id/{idequipo}"
 
 ETIQubiq = ['local', 'visitante']
 
+embeddedDataTemporadas: Optional[dict] = None
+embeddedDataEquipos: Optional[dict] = None
+embeddedDataCalendario: Optional[dict] = None
+
 UMBRALbusquedaDistancia = 1  # La comparación debe ser >
 
-CALENDARIOEQUIPOS = dict()
+CALENDARIOEQUIPOS = {}
+JORNADASCOMPLETAS: Optional[Set] = None
 
 
 class CalendarioACB:
@@ -55,18 +62,24 @@ class CalendarioACB:
             self.timestamp = content.timestamp
         if 'source' in content:
             self.url = content.source
-        calendarioData = content.data
+        calendarioData: bs4.element.Tag = content.data
 
-        for divJ in calendarioData.find_all("div", {"class": "cabecera_jornada"}):
-            datosCab = procesaCab(divJ)
+        reRound = re.compile(r"^Round_round___")
+        reRoundTitle = re.compile(r"^RoundTitle_roundTitle__")
+        jornadasCurrCal = set()
 
-            currJornada: int = int(datosCab['jornada'])
+        for divJ in calendarioData.find_all("div", {"class": reRound}):  # ,
+            datosCab = procesaCab(divJ.find("div", {'class': reRoundTitle}))
+            if datosCab is None:
+                continue
 
-            divPartidos = divJ.find_next_sibling("div", {"class": "listado_partidos"})
+            self.Jornadas[datosCab['jornada']] = self.procesaBloqueJornada(divJ, datosCab, **kwargs)
+            jornadasCurrCal.add(datosCab['jornada'])
 
-            self.Jornadas[currJornada] = self.procesaBloqueJornada(divPartidos, datosCab, **kwargs)
-
-        self.actualizaDatosPlayoffJornada()
+        jor2del: set = set(self.Jornadas.keys()).difference(jornadasCurrCal)
+        for j in jor2del:
+            print(f"Eliminando jornada desaparecida '{j}'")
+            self.Jornadas.pop(j)
 
     def esJornadaPlayOff(self, currJ: int):
         return (len(self.Jornadas[currJ]['partidos']) + len(self.Jornadas[currJ]['pendientes'])) != (
@@ -101,157 +114,144 @@ class CalendarioACB:
             (self.tradEquipos['c2n'][abrev]).add(eqName)
 
             if idEq is not None:
-                if (idEq not in self.tradEquipos['i2c']) or (idEq not in self.tradEquipos['i2n']) or (
+                idStr = str(idEq)
+                if (idStr not in self.tradEquipos['i2c']) or (idStr not in self.tradEquipos['i2n']) or (
                         eqName not in self.tradEquipos['n2i']) or (abrev not in self.tradEquipos['c2i']):
                     result = True
-                self.tradEquipos['i2c'][idEq].add(abrev)
-                (self.tradEquipos['c2i'][abrev]).add(idEq)
-                self.tradEquipos['n2i'][eqName].add(idEq)
-                (self.tradEquipos['i2n'][idEq]).add(eqName)
+                self.tradEquipos['i2c'][idStr].add(abrev)
+                (self.tradEquipos['c2i'][abrev]).add(idStr)
+                self.tradEquipos['n2i'][eqName].add(idStr)
+                (self.tradEquipos['i2n'][idStr]).add(eqName)
 
         return result
 
     def descargaCalendario(self, home=None, browser=None, config=None) -> DownloadedPage:
         browser, config = prepareDownloading(browser, config)
 
+        global embeddedDataTemporadas  # pylint: disable=global-statement
+        global embeddedDataEquipos  # pylint: disable=global-statement
+        global embeddedDataCalendario  # pylint: disable=global-statement
+
         if self.url is None:
             logger.info("DescargaCalendario. Creando URL %s. Edicion: %s. Compo: %s", self.url, self.edicion,
                         self.competicion)
             pagCalendario = downloadPage(self.urlbase, home=home, browser=browser, config=config)
-            pagCalendarioData = pagCalendario.data
-            divTemporadas = pagCalendarioData.find("div", {"class": "desplegable_temporada"})
 
-            currYear = divTemporadas.find('div', {"class": "elemento"})['data-t2v-id']
+            avFilters = extractPagDataScripts(pagCalendario, 'availableFilters')
+            embeddedDataTemporadas = procesaMDcalFl2calendarIDs(avFilters)
 
-            urlYear = template_CALENDARIOYEAR.format(year=self.edicion)
+            currYear = embeddedDataTemporadas['currFilters']['seaYear']
+            currComp = embeddedDataTemporadas['currFilters']['compKey']
+
             if self.edicion is None:
                 self.edicion = currYear
-                pagYear = pagCalendario
-            else:
-                listaTemporadas = {x['data-t2v-id']: x.get_text() for x in
-                                   divTemporadas.find_all('div', {"class": "elemento"})}
-                if self.edicion not in listaTemporadas:
-                    raise KeyError(f"Temporada solicitada {self.edicion} no está entre las "
-                                   f"disponibles ({', '.join(listaTemporadas.keys())})")
 
-                pagYear = downloadPage(urlYear, home=None, browser=browser, config=config)
+            self.url = composeURLcalendario(self.urlbase, targComp=self.competicion, targTemp=self.edicion)
+            if (self.edicion == currYear) and (self.competicion == currComp):
+                embeddedDataEquipos = procesaMDcalTeams2InfoEqs(avFilters)
+                embeddedDataCalendario = processMDcalFl2Info(avFilters, embeddedDataEquipos)
+                for embData in embeddedDataEquipos['eqData'].values():
+                    self.nuevaTraduccionEquipo2Codigo([embData['nomblargo'], embData['nombcorto']], embData['abrev'],
+                                                      embData['id'])
+                return pagCalendario
 
-            pagYearData = pagYear.data
+            logger.info("DescargaCalendario. URL %s", self.url)
+            result = downloadPage(self.url, browser=browser, home=None, config=config)
 
-            divCompos = pagYearData.find("div", {"class": "desplegable_competicion"})
-            listaCompos = {x['data-t2v-id']: x.get_text() for x in divCompos.find_all('div', {"class": "elemento"})}
-            compoClaves = compo2clave(listaCompos)
-
-            priCompoID = divCompos.find('div', {"class": "elemento_seleccionado"}).find('input')['value']
-
-            if self.competicion not in compoClaves:
-                listaComposTxt = [f"{k} = '{listaCompos[v]}'" for k, v in compoClaves.items()]
-                compo = self.competicion
-                listaCompos = ", ".join(listaComposTxt)
-                raise KeyError(f"Compo solicitada {compo} no disponible. Disponibles: {listaCompos}")
-
-            self.url = template_CALENDARIOFULL.format(year=self.edicion, compoID=compoClaves[self.competicion])
-
-            if compoClaves[self.competicion] == priCompoID:
-                result = pagYear
-            else:
-                result = downloadPage(self.url, browser=browser, home=None, config=config)
         else:
             logger.info("DescargaCalendario. URL %s", self.url)
             result = downloadPage(self.url, browser=browser, home=None, config=config)
 
+        avFilters = extractPagDataScripts(result, 'availableFilters')
+        embeddedDataTemporadas = procesaMDcalFl2calendarIDs(avFilters)
+        embeddedDataEquipos = procesaMDcalTeams2InfoEqs(avFilters)
+        embeddedDataCalendario = processMDcalFl2Info(avFilters, embeddedDataEquipos)
+
+        for embData in embeddedDataEquipos['eqData'].values():
+            self.nuevaTraduccionEquipo2Codigo([embData['nomblargo'], embData['nombcorto']], embData['abrev'],
+                                              embData['id'])
+
         return result
 
-    def procesaBloqueJornada(self, divDatos, dictCab, **kwargs):
+    def procesaBloqueJornada(self, divDatos: bs4.element.Tag, dictCab: dict, **kwargs):
         # TODO: incluir datos de competicion
-        result = dict()
-        result['nombre'] = dictCab['comp']
-        result['jornada'] = int(dictCab['jornada'])
+        result = {}
+        result['nombre'] = self.competicion
+        result['jornada'] = dictCab['jornada']
+        result['fechas'] = set()
         result['partidos'] = []
         result['pendientes'] = []
         result['equipos'] = set()
         result['idEmparej'] = set()
-        result['esPlayoff'] = dictCab['esPlayoff']
+        result['esPlayoff']: bool = dictCab['esPlayoff']
+        result['infoJornada']: infoJornada = dictCab['infoJornada']
 
-        # print(divPartidos)
-        for artP in divDatos.find_all("article", {"class": "partido"}):
-            datosPart = self.procesaBloquePartido(dictCab, artP)
+        # print(divDatos.prettify())
+        for bloqueFecha in divDatos.find_all("h3"):
+            fechaParts = procesaFechaJornada(bloqueFecha.getText())
+            auxDictCab = {'fechaParts': fechaParts}
+            auxDictCab.update(dictCab)
+            for artP in bloqueFecha.find_next_siblings('div'):
+                datosPart = self.procesaBloquePartido(auxDictCab, artP)
+                datosPart['infoJornada']: infoJornada = result['infoJornada']
 
-            result['equipos'].update(datosPart['participantes'])
-            result['idEmparej'].add(datosPart['claveEmparejamiento'])
+                result['equipos'].update(datosPart['participantes'])
+                result['idEmparej'].add(datosPart['claveEmparejamiento'])
 
-            if datosPart['pendiente']:
-                if datosPart['fechaPartido'] == NEVER:
-                    nuevaFecha = self.recuperaFechaAmbigua(datosPart, **kwargs)
-                    if nuevaFecha:
-                        datosPart['fechaPartido'] = nuevaFecha
-                result['pendientes'].append(datosPart)
-            else:
-                self.Partidos[datosPart['url']] = datosPart
-                result['partidos'].append(datosPart)
+                if datosPart['pendiente']:
+                    if datosPart['fechaPartido'] == NEVER:
+                        nuevaFecha = self.recuperaFechaAmbigua(datosPart, **kwargs)
+                        if nuevaFecha:
+                            datosPart['fechaPartido'] = nuevaFecha
+                    result['pendientes'].append(datosPart)
+                else:
+                    self.Partidos[datosPart['url']] = datosPart
+                    result['partidos'].append(datosPart)
 
         result['numPartidos'] = len(result['partidos']) + len(result['pendientes'])
-        if result['esPlayoff']:
-            result['fasePlayoff'] = POLABEL2FASE[dictCab['etiqFasePOff'].lower()]
-            result['partFasePlayoff'] = dictCab['numPartPoff']
         return result
 
-    def procesaBloquePartido(self, datosJornada, divPartido):
-        # TODO: incluir datos de competicion
-        resultado = dict()
+    def procesaBloquePartido(self, datosJornada: dict, divPartido: bs4.element.Tag):
+        resultado = {}
         resultado['pendiente'] = True
-        resultado['fechaPartido'] = NEVER
+        resultado['fechaPartido'] = datosJornada.get('fechaParts', NEVER)
         resultado['jornada'] = datosJornada['jornada']
 
         resultado['cod_competicion'] = self.competicion
         resultado['cod_edicion'] = self.edicion
 
-        datosPartEqs = dict()
+        reHoraPart = re.compile('^RoundMatch_roundMatch__time__')
+        divHoraPart = divPartido.find('div', {'class': reHoraPart})
+        if divHoraPart and not isSkeleton(divHoraPart):
+            try:
+                resultado[('fechaPartido')] = pd.to_datetime(divHoraPart.getText()).tz_localize(DEFTZ)
+            except Exception as exc:
+                print(exc)
+                print(f"Problems parsing date '{divHoraPart.getText()}'  ", sys.exc_info())
+                traceback.print_tb(sys.exc_info()[2])
+                resultado['fechaPartido'] = datosJornada['fechaParts']
 
-        for eqUbic, div in zip(ETIQubiq, divPartido.find_all("div", {"class": "logo_equipo"})):
-            auxDatos = datosPartEqs.get(eqUbic.capitalize(), {})
-            image = div.find("img")
-            imageURL = mergeURL(self.urlbase, image['src'])
-            imageALT = image['alt']
-            auxDatos.update({'icono': imageURL, 'imageTit': imageALT})
-            datosPartEqs[eqUbic.capitalize()] = auxDatos
+        reDatosEquiposPartido = re.compile(r"^RoundMatch_roundMatch__teams__")
+        auxDatosEqs = divPartido.find('div', {'class': reDatosEquiposPartido})
+        if not auxDatosEqs:
+            raise ValueError(f"Partido sin equipos!\n{divPartido.prettify()}")
 
-        for eqUbic in ETIQubiq:
-            auxDatos = datosPartEqs.get(eqUbic.capitalize(), {})
-            divsEq = divPartido.find_all("div", {"class": eqUbic})
-            infoEq = procesaDivsEquipo(divsEq)
-            auxDatos.update(infoEq)
-            self.nuevaTraduccionEquipo2Codigo(nombres=[infoEq['nomblargo'], infoEq['nombcorto']], abrev=infoEq['abrev'],
-                                              idEq=None)
-            datosPartEqs[eqUbic.capitalize()] = auxDatos
-
+        datosPartEqs = procesaDatosEquiposPartido(auxDatosEqs)
         resultado['equipos'] = datosPartEqs
-        resultado['loc2abrev'] = {k: v['abrev'] for k, v in datosPartEqs.items()}
-        resultado['abrev2loc'] = {v['abrev']: k for k, v in datosPartEqs.items()}
-        resultado['participantes'] = {v['abrev'] for v in datosPartEqs.values()}
+        resultado['loc2abrev'] = {loc: datosPartEqs[loc]['abrev'] for loc in LocalVisitante}
+        resultado['abrev2loc'] = {datosPartEqs[loc]['abrev']: loc for loc in LocalVisitante}
+        resultado['participantes'] = {datosPartEqs[loc]['abrev'] for loc in LocalVisitante}
         resultado['claveEmparejamiento'] = self.idGrupoEquiposNorm(resultado['participantes'])
 
-        if 'enlace' in datosPartEqs['Local']:
+        datosMD = embeddedDataCalendario[resultado['jornada']]['partidos'][resultado['claveEmparejamiento']]
+        CAMPOSAMOVER = ['fechaPartido', 'partido']
+        resultado.update({k: datosMD[k] for k in CAMPOSAMOVER if k in datosMD})
+
+        if all('puntos' in eq for eq in datosPartEqs.values()):
             resultado['pendiente'] = False
-            linkGame = datosPartEqs['Local']['enlace']
-            resultado['url'] = mergeURL(self.url, linkGame)
-            resultado['resultado'] = {k: v['puntos'] for k, v in datosPartEqs.items()}
-            resultado['partido'] = getObjID(linkGame)
-
-        else:
-            divTiempo = divPartido.find('div', {"class": "info"})
-
-            if divTiempo:
-                auxFecha = divTiempo.find('span', {"class": "fecha"}).next
-                auxHora = divTiempo.find('span', {"class": "hora"}).get_text()
-                if isinstance(auxFecha, str) and auxFecha != '':
-                    cadFecha = auxFecha.lower()
-                    cadHora = auxHora.strip() if auxHora else None
-                    try:
-                        resultado['fechaPartido'] = procesaFechaHoraPartido(cadFecha.strip(), cadHora, datosJornada)
-                    except ValueError as err:
-                        print(err)
-                        resultado['fechaPartido'] = NEVER
+            resultado['resultado'] = {loc: datosPartEqs[loc]['puntos'] for loc in LocalVisitante}
+            resultado['url'] = generaURLEstadsPartido(resultado['partido'], urlRef=self.url)
+            resultado['enlaces'] = procesaEnlacesPartido(divPartido)
 
         return resultado
 
@@ -280,6 +280,14 @@ class CalendarioACB:
             auxPendientes = [p for p in dataJor['pendientes'] if
                              targAbrevs.intersection(p['participantes']) and p['pendiente']]
             pendientes.extend(auxPendientes)
+        for p in jugados:
+            for _, e in p['equipos'].items():
+                if 'idEq' not in e:
+                    e['idEq'] = onlySetElement(self.tradEquipos['c2i'][e['abrev']])
+        for p in pendientes:
+            for _, e in p['equipos'].items():
+                if 'idEq' not in e:
+                    e['idEq'] = onlySetElement(self.tradEquipos['c2i'][e['abrev']])
 
         return jugados, pendientes
 
@@ -298,16 +306,23 @@ class CalendarioACB:
         return targAbrevs
 
     def idGrupoEquiposNorm(self, conjAbrevs):
-        result = ",".join(map(str, sorted([onlySetElement(self.tradEquipos['c2i'][e]) for e in conjAbrevs])))
+        result = ",".join(map(str, sorted([str(onlySetElement(self.tradEquipos['c2i'][e])) for e in conjAbrevs])))
         return result
 
-    @functools.cache
     def jornadasCompletas(self):
         """
         Devuelve las IDs de jornadas para las que se han jugado todos los partidos
         :return: set con las jornadas para las que no quedan partidos (el id, entero)
         """
+        # pylint: disable=global-statement
+        global JORNADASCOMPLETAS
+        # pylint: enable=global-statement
+
+        if JORNADASCOMPLETAS is not None:
+            return JORNADASCOMPLETAS
+
         result = {j for j, data in self.Jornadas.items() if len(data['pendientes']) == 0}
+        JORNADASCOMPLETAS = result
         return result
 
     def cal2dict(self):
@@ -326,176 +341,46 @@ class CalendarioACB:
         return result
 
 
-def BuscaCalendario(url=URL_BASE, home=None, browser=None, config=None):
-    if config is None:
-        config = dict()
-    indexPage = downloadPage(url, home, browser, config)
-
-    index = indexPage.data
-
-    callinks = index.find_all("a", text="Calendario")
-
-    if len(callinks) == 1:
-        link = callinks[0]
-    else:
-        for auxlink in callinks:
-            if 'calendario.php' in auxlink['href']:
-                link = auxlink
-                break
-        else:
-            raise SystemError(f"Too many or none links to Calendario. {callinks}")
-
-    result = mergeURL(url, link['href'])
-
-    return result
+def isSkeleton(tagElem: bs4.element.Tag, tag2search: str = "span") -> bool:
+    if tagElem is None:
+        return True
+    reSkel = re.compile(r"^_skeleton_")
+    if tagElem.find(tag2search, {"class": reSkel}):
+        return True
+    return False
 
 
-def compo2clave(listaCompos):
-    """
-    Dado un diccionario con lo que aparece en el desplegable (idComp -> nombre compo), devuelve otro con las claves
-    tradicionales (pre verano 2019)
-    :param listaCompos:
-    :return:
-    """
-    PATliga = r'^liga\W'
-    PATsupercopa = r'^supercopa\W'
-    PATcopa = r'^copa\W.*rey'
-
-    result = dict()
-
-    for idComp, label in listaCompos.items():
-        if re.match(PATliga, label, re.IGNORECASE):
-            result['LACB'] = idComp
-        elif re.match(PATsupercopa, label, re.IGNORECASE):
-            result['SCOPA'] = idComp
-        elif re.match(PATcopa, label, re.IGNORECASE):
-            result['COPA'] = idComp
-
-    return result
-
-
-def procesaCab(cab):
+def procesaCab(cab: bs4.element.Tag) -> Optional[Dict]:
     """
     Extrae datos relevantes de la cabecera de cada jornada en el calendario
     :param cab: div que contiene la cabecera COMPLETA
     :return:  {'comp': 'Liga Endesa', 'yini': '2018', 'yfin': '2019', 'jor': '46'}
     """
-    resultado = dict()
-    cadL = cab.find('div', {"class": "float-left"}).text
-    cadR = cab.find('div', {"class": "fechas"}).text
-    resultado['nombreJornada'] = cadL
-    resultado['fechasJornada'] = cadR
+    if isSkeleton(cab):
+        return None
+    nombreJornada = cab.getText()
 
-    patronL = (r'(?P<comp>.*) (?P<yini>\d{4})-(?P<yfin>\d{4})\s+(:?-\s+(?P<extraComp>.*)\s+)?'
-               r'-\s*(?P<nombreJornada>.*)\s*$')
+    resultado = {}
 
-    reL = re.match(patronL, cadL, re.IGNORECASE)
-    if reL:
-        dictFound = reL.groupdict()
-        resultado.update(dictFound)
+    reJLR = re.match(REGEX_JLR, nombreJornada, re.IGNORECASE)
 
-        nombreJornada = dictFound['nombreJornada']
-        reJLR = re.match(REGEX_JLR, nombreJornada, re.IGNORECASE)
-        if reJLR:
-            resultado['esPlayoff'] = False
-            resultado.update(reJLR.groupdict())
-        else:
-            resultado['esPlayoff'] = True
-            rePoff = re.match(REGEX_PLAYOFF, nombreJornada, re.IGNORECASE)
-            resultado.update(rePoff.groupdict())
-            resultado['jornada'] = f"{numPartidoPO2jornada(resultado['etiqFasePOff'], resultado['numPartPoff'])}"
-
-        if cadR != '':
-            try:
-                resultado['auxFechas'] = procesaFechasJornada(cadR)
-            except ValueError as exc:
-                raise ValueError(f"procesaCab: {cab} RE: problemas procesando fechas de '{cadR}': '{exc}'") from exc
+    if reJLR:
+        resultado['jornada'] = int(reJLR.group('jornada'))
+        resultado['esPlayoff'] = False
+        resultado['infoJornada'] = infoJornada(jornada=resultado['jornada'], esPlayOff=False)
     else:
-        raise ValueError(f"procesaCab: valor '{cadL}' no casa RE '{patronL}'")
+        resultado['esPlayoff'] = True
+        rePoff = re.match(REGEX_PLAYOFF, nombreJornada, re.IGNORECASE)
 
-    return resultado
+        if rePoff is None:
+            raise ValueError(f"procesaCab: {cab.prettify()}: texto '{nombreJornada}' no casa RE '{REGEX_PLAYOFF}'")
 
-
-def procesaFechasJornada(cadFechas):
-    resultado = dict()
-
-    mes2n = {'ene': 1, 'feb': 2, 'mar': 3, 'abr': 4, 'may': 5, 'jun': 6, 'jul': 7, 'ago': 8, 'sep': 9, 'oct': 10,
-             'nov': 11, 'dic': 12}
-
-    patronBloqueFechas = r'^(?P<dias>\d{1,2}(-\d{1,2})*)\s+(?P<mes>\w+)\s+(?P<year>\d{4})$'
-
-    bloques = list()
-    cadWrk = cadFechas.lower().strip()
-
-    for bY in cadWrk.split(' y '):
-        for b in bY.strip().split(','):
-            bloques.append(b.strip())
-
-    for b in bloques:
-        reFecha = re.match(patronBloqueFechas, b.strip())
-        if reFecha:
-            yearN = int(reFecha['year'].strip())
-            for d in reFecha['dias'].split("-"):
-                diaN = int(d.strip())
-                cadResult = f"{yearN:04d}-{mes2n[reFecha['mes']]:02d}-{diaN:02d}"
-                if diaN in resultado:
-                    resultado[diaN].add(cadResult)
-                else:
-                    resultado[diaN] = {cadResult}
-        else:
-            raise ValueError(f"procesaFechasJornada: {cadFechas} RE: '{b}' no casa patrón '{patronBloqueFechas}'")
-
-    return resultado
-
-
-def procesaDivsEquipo(divList):
-    resultado = dict()
-    resultado['haGanado'] = None
-
-    for d in divList:
-        if 'equipo' in d.attrs['class']:
-            resultado['abrev'] = d.find('span', {"class": "abreviatura"}).get_text().strip()
-            resultado['nomblargo'] = d.find('span', {"class": "nombre_largo"}).get_text().strip()
-            resultado['nombcorto'] = d.find('span', {"class": "nombre_corto"}).get_text().strip()
-        elif 'resultado' in d.attrs['class']:
-            resultado['puntos'] = int(d.find('a').get_text().strip())
-            resultado['enlace'] = d.find('a').attrs['href']
-            resultado['haGanado'] = 'ganador' in d.attrs['class']
-        else:
-            raise ValueError(f"procesaDivsEquipo: CASO NO TRATADO: {str(d)}")
-
-    return resultado
-
-
-def procesaFechaHoraPartido(cadFecha, cadHora, datosCab):
-    resultado = NEVER
-    diaSem2n = {'lun': 0, 'mar': 1, 'mié': 2, 'jue': 3, 'vie': 4, 'sáb': 5, 'dom': 6}
-    patronDiaPartido = r'^(?P<diasem>\w+)\s(?P<diames>\d{1,2})$'
-
-    reFechaPart = re.match(patronDiaPartido, cadFecha.strip())
-
-    if reFechaPart:
-        if cadHora is None:
-            cadHora = "00:00"
-        diaSemN = diaSem2n[reFechaPart['diasem']]
-        diaMesN = int(reFechaPart['diames'])
-
-        auxFechasN = deepcopy(datosCab['auxFechas'])[diaMesN]
-
-        if len(auxFechasN) > 1:
-            pass  # Caso tratado en destino
-        else:
-            cadFechaFin = auxFechasN.pop()
-            cadMezclada = f"{cadFechaFin.strip()} {cadHora.strip()}"
-            try:
-                fechaPart = pd.to_datetime(cadMezclada)
-                resultado = fechaPart
-            except ValueError:
-                print(f"procesaFechaHoraPartido: '{cadFechaFin}' no casa RE '{FORMATOtimestamp}'")
-                resultado = NEVER
-
-    else:
-        raise ValueError(f"RE: '{cadFecha}' no casa patrón '{patronDiaPartido}'")
+        etiqPOff = rePoff.group('etiqFasePOff')
+        numPartPOff = rePoff.group('numPartPoff')
+        resultado['jornada'] = numPartidoPO2jornada(etiqPOff, numPartPOff)
+        resultado['infoJornada'] = infoJornada(jornada=resultado['jornada'], esPlayOff=resultado['esPlayoff'],
+                                               fasePlayOff=etiqPOff.lower(),
+                                               partRonda=int(numPartPOff))
 
     return resultado
 
@@ -517,8 +402,8 @@ def recuperaPartidosEquipo(idEquipo, home=None, browser=None, config=None):
 
 
 def procesaPaginaPartidosEquipo(content: DownloadedPage):
-    result = dict()
-    result['jornadas'] = dict()
+    result = {}
+    result['jornadas'] = {}
 
     if 'timestamp' in content:
         result['timestamp'] = content.timestamp
@@ -555,7 +440,7 @@ def procesaPaginaPartidosEquipo(content: DownloadedPage):
             formato = PATRONFECHAHORA if cadHora else PATRONFECHA
             cadMezclada = f"{cadFechaFin} {cadHora.strip()}" if cadHora else cadFechaFin
             try:
-                fechaPart = pd.to_datetime(cadMezclada, format=formato)
+                fechaPart = pd.to_datetime(cadMezclada, format=formato).tz_localize(DEFTZ)
             except ValueError:
                 print(f"procesaPaginaPartidosEquipo: '{cadMezclada}' no casa RE '{fila}'")
                 return None
@@ -568,7 +453,13 @@ def procesaPaginaPartidosEquipo(content: DownloadedPage):
 
 
 def p2DictK(cal: CalendarioACB, datosPart: dict) -> str:
-    jor = datosPart['jornada']
+    """
+    Extrae de la información del partido una clave que puede usarse para comparar calendarios
+    :param cal: Objeto Calendario correspondiente a la temporada
+    :param datosPart: Información del partido extraída del calendario
+    :return: Cadena con clave {JOR}#{IDLOCAL}#{IDVIS}
+    """
+    jor = f"{datosPart['jornada']}"
     idLoc = onlySetElement(cal.tradEquipos['c2i'][datosPart['loc2abrev']['Local']])
     idVis = onlySetElement(cal.tradEquipos['c2i'][datosPart['loc2abrev']['Visitante']])
     result = "#".join((jor, idLoc, idVis)) if (isinstance(idLoc, str) and isinstance(idVis, str)) else None
@@ -581,4 +472,108 @@ def dictK2partStr(cal: CalendarioACB, partK: str) -> str:
     abrVis = list(cal.tradEquipos['i2c'][idVis])[-1]
 
     result = f"J{int(jor):02}: {abrLoc}-{abrVis}"
+    return result
+
+
+def composeURLcalendario(currURL: str = calendario_URLBASE, targComp: str = None, targTemp=None,
+                         ) -> str:
+    if embeddedDataTemporadas is None:
+        raise ValueError("composeURLcalendario: necesito informacion para filtros")
+
+    if targTemp is None:
+        targTemp = embeddedDataTemporadas['currFilters']['seaYear']
+    if targComp is None:
+        targComp = embeddedDataTemporadas['currFilters']['compKey']
+
+    compsCurr: ParseResult = urlparse(currURL)
+    infoParams = parse_qs(compsCurr.query)
+    desiredParams = copy(infoParams)
+    desiredParams.update({'temporada': embeddedDataTemporadas['seaData'][targTemp]['id'],
+                          'competicion': embeddedDataTemporadas['compKey2compId'][targComp]})
+    result = urlunparse(
+        ParseResult(scheme=compsCurr.scheme, netloc=compsCurr.netloc, path=compsCurr.path, params=compsCurr.params,
+                    query=urlencode(desiredParams), fragment=compsCurr.fragment))
+
+    return result
+
+
+# Expresiones regulares de class (CSS) para parseo de páginas
+reDatosEq = re.compile(r'^RoundMatch_roundMatch__(home|away)Team__')
+reDatosEqLink = re.compile(r'^RoundMatch_roundMatch__teamLink___')
+reDatosEqLinkLogo = re.compile(r'^RoundMatch_roundMatch__teamLogoLink__')
+
+reDatosEqLinkName = re.compile(r'^RoundMatch_roundMatch__teamName--fullName__')
+reDatosEqLinkAbrev = re.compile(r'^RoundMatch_roundMatch__teamName--shortName__')
+reDatosEqPScore = re.compile(r'^RoundMatch_roundMatch__teamScore__')
+
+rePartidoEnlaces = re.compile(r'^RoundMatch_roundMatch__links__')
+
+CAMPOSDEEQUIPOAMOVER = ['nombcorto', 'id']
+
+
+def procesaDatosEquiposPartido(divData: bs4.element.Tag) -> dict:
+    result = {}
+
+    for loc, divEq in zip(LocalVisitante, divData.find_all('div', {'class': reDatosEq})):
+        datosEq = procesaDivsUnicoEquipo(divData, divEq)
+
+        result[loc] = datosEq
+
+    if all('puntos' in result[loc] for loc in LocalVisitante):
+        for loc in LocalVisitante:
+            result[loc]['haGanado'] = result[loc]['puntos'] > result[OtherLoc(loc)]['puntos']
+            result[loc]['pendiente'] = False
+    else:
+        for loc in LocalVisitante:
+            result[loc]['pendiente'] = True
+
+    return result
+
+
+def procesaDivsUnicoEquipo(divData: bs4.Tag, divEq: bs4.Tag) -> dict[Any, Any]:
+    datosEq = {}
+
+    for linkTeam in divEq.find_all('a', {'class': reDatosEqLink}):
+        if tagAttrHasValue(linkTeam, 'class', reDatosEqLinkLogo):
+            continue
+
+        datosEq['hrefTeam'] = linkTeam['href']
+        divTeamName = linkTeam.find('span', {'class': reDatosEqLinkName})
+        if divTeamName:
+            datosEq['nomblargo'] = divTeamName.getText().strip()
+        divTeamAbrev = linkTeam.find('span', {'class': reDatosEqLinkAbrev})
+        if divTeamAbrev:
+            datosEq['abrev'] = divTeamAbrev.getText().strip()
+            datosMD = embeddedDataEquipos['eqData'][embeddedDataEquipos['eqAbrev2eqId'][datosEq['abrev']]]
+            datosEq.update({k: datosMD[k] for k in CAMPOSDEEQUIPOAMOVER if k in datosMD})
+
+        divTeamScore = divEq.find('p', {'class': reDatosEqPScore})
+        if divTeamScore:
+            puntosSTR = divTeamScore.getText()
+            if puntosSTR.strip() != "":
+                try:
+                    datosEq['puntos'] = int(puntosSTR)
+                except ValueError as exc:
+                    logging.error("DivTeam no tiene puntos %s", divEq.prettify())
+                    logging.error("Partido %s", divData.prettify())
+                    raise exc
+    return datosEq
+
+
+def procesaEnlacesPartido(divPartido: bs4.Tag) -> dict:
+    result = {}
+
+    divEnlaces = divPartido.find('div', {'class': rePartidoEnlaces})
+
+    if not divEnlaces:
+        return result
+
+    for link in divEnlaces.find_all('a'):
+        dest = link['href']
+
+        datosURL = urlparse(dest)
+        pathDest = datosURL.path
+        clase = pathDest.split('/')[-1]
+        result[clase] = dest
+
     return result

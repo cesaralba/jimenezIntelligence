@@ -1,5 +1,5 @@
 import re
-from _collections import defaultdict
+from collections import defaultdict
 from unicodedata import normalize
 
 from CAPcore.Misc import cosaCorta, cosaLarga, listize, onlySetElement
@@ -16,7 +16,7 @@ class BoWTraductor():
         self.NORMA = NORMA  # Valores para NORMA ['NFC', 'NFKC', 'NFD', 'NFKD']
         self.TradConocidas = defaultdict(set)
         self.TradNormalizadas = defaultdict(set)
-        self.vn2bow = dict()
+        self.vn2bow = {}
 
     def AddTraduccion(self, clave, valor):
         """
