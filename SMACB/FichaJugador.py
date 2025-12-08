@@ -185,7 +185,7 @@ class FichaJugador:
     def updateFichaJugadorFromDownloadedData(self, changeInfo, newData):
         result = False
         # No hay necesidad de poner la URL en el informe
-        if self.URL != newData['URL']:
+        if 'URL' in newData and self.URL != newData['URL']:
             self.urlConocidas.add(newData['URL'])
             self.URL = newData['URL']
             result |= True
