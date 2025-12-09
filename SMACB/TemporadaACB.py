@@ -22,7 +22,7 @@ from CAPcore.LoggedDict import LoggedDictDiff, LoggedDict
 from CAPcore.Web import mergeURL
 from requests import HTTPError
 
-from Utils.FechaHora import fechaParametro2pddatetime, fecha2fechaCalDif
+from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Web import prepareDownloading, browserConfigData
 from .CalendarioACB import calendario_URLBASE, CalendarioACB
 from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEqCalendario, infoPartLV, infoSigPartido,
@@ -300,7 +300,7 @@ class TemporadaACB:
                 result |= resPlant
 
                 self.changed |= result
-        else: # TODO: Sin descarga
+        else:  # TODO: Sin descarga
             pass
         return result
 
@@ -743,8 +743,7 @@ class TemporadaACB:
         result = {}
         auxCalendDict = self.Calendario.cal2dict()
         result.update(auxCalendDict['pendientes'])
-        for k, url in auxCalendDict['jugados'].items():
-            result[k] = fecha2fechaCalDif(self.Partidos[url].fechaPartido)
+        result.update(auxCalendDict['jugados'])
 
         return result
 

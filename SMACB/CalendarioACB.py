@@ -336,7 +336,7 @@ class CalendarioACB:
             for jug in data['partidos']:
                 pendK = p2DictK(self, jug)
                 if pendK:
-                    result['jugados'][pendK] = jug['url']
+                    result['jugados'][pendK] = fecha2fechaCalDif(jug['fechaPartido'])
 
         return result
 
