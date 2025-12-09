@@ -62,11 +62,9 @@ def main(args: Namespace):
     ajustaInternalsTemporada(args, temporada)
 
     nuevosPartidos = temporada.actualizaTemporada(browser=browser, config=args)
-    resultOS = 1  # No hubo cambios
     if nuevosPartidos or temporada.changed or args.saveanyway:
         sys.setrecursionlimit(50000)
         if 'outfile' in args and args.outfile:
-            resultOS = 0
             temporada.grabaTemporada(args.outfile)
 
     if nuevosPartidos:
@@ -80,8 +78,6 @@ def main(args: Namespace):
 
     if CAMBIOSCALENDARIO:
         print(f"Cambios en calendario\n{resumenCambiosCalendario(CAMBIOSCALENDARIO, temporada=temporada)}", "\n" * 2)
-
-    sys.exit(resultOS)
 
 
 def ajustaInternalsTemporada(args, temporada):
