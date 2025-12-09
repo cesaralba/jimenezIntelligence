@@ -13,7 +13,7 @@ from pickle import dump, load
 from sys import exc_info, setrecursionlimit
 from time import gmtime, strftime
 from traceback import print_exception
-from typing import Any, Iterable, Dict, Tuple, List
+from typing import Any, Iterable, Dict, Tuple, List, Set
 from typing import Optional
 
 import numpy as np
@@ -130,7 +130,7 @@ class TemporadaACB:
         self.Calendario.actualizaCalendario(browser=browser, config=config)
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
 
-        partidosBajados = set()
+        partidosBajados: Set[str] = set()
 
         for partido in sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys()))):
             try:
@@ -154,10 +154,15 @@ class TemporadaACB:
         self.changed |= self.buscaCambiosCalendario()
 
         if self.descargaPlantillas:
-            resPlant = self.actualizaPlantillas(browser=browser, config=config)
+            resPlant = self.actualizaPlantillasConDescarga(browser=browser, config=config)
             self.changed |= resPlant
             if resPlant:
                 self.changed |= self.actualizaFichaJugadoresFromCambiosPlant(CAMBIOSCLUB)
+        else:  # TODO: Sin descarga
+            resPlant = self.actualizaPlantillasSinDescarga()
+            self.changed |= resPlant
+            # if resPlant:
+            #     self.changed |= self.actualizaFichaJugadoresFromCambiosPlant(CAMBIOSCLUB)
 
         if self.changed != changeOrig:
             self.timestamp = gmtime()
@@ -286,22 +291,39 @@ class TemporadaACB:
 
             self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
 
-    def actualizaPlantillas(self, browser=None, config=None):
+    def actualizaPlantillasConDescarga(self, browser=None, config=None) -> bool:
         result = False
-        if self.descargaPlantillas:
-            browser, config = prepareDownloading(browser, config, calendario_URLBASE)
-            logger.info("%s Actualizando plantillas", self)
-            datosPlantillas = descargaPlantillasCabecera(browser, config)
-            for p_id in datosPlantillas:
-                if p_id not in self.plantillas:
-                    self.plantillas[p_id] = PlantillaACB(p_id, edicion=self.edicion)
 
-                resPlant = self.plantillas[p_id].descargaYactualizaPlantilla(browser=None, config=config)
-                result |= resPlant
+        browser, config = prepareDownloading(browser, config, calendario_URLBASE)
+        logger.info("%s Actualizando plantillas", self)
+        datosPlantillas = descargaPlantillasCabecera(browser, config)
+        for p_id in datosPlantillas:
+            if p_id not in self.plantillas:
+                self.plantillas[p_id] = PlantillaACB(p_id, edicion=self.edicion)
 
-                self.changed |= result
-        else:  # TODO: Sin descarga
-            pass
+            resPlant = self.plantillas[p_id].descargaYactualizaPlantilla(browser=None, config=config)
+            result |= resPlant
+
+            self.changed |= result
+
+        return result
+
+    def actualizaPlantillasSinDescarga(self) -> bool:
+        result = False
+
+        logger.info("%s Actualizando plantillas", self)
+
+        for p_id in self.tradEquipos['i2n']:
+            if p_id not in self.plantillas:
+                self.plantillas[p_id] = PlantillaACB(p_id, edicion=self.edicion)
+                result = True
+            nombresClub = sorted(self.tradEquipos['i2n'][p_id], key=len)
+            dataClub = {'club': {'nombreActual': nombresClub[0], 'nombreOficial': nombresClub[-1]}}
+            resPlant = self.plantillas[p_id].actualizaPlantillaDescargada(dataClub)
+            result |= resPlant
+
+        self.changed |= result
+
         return result
 
     def actualizaTraduccionesJugador(self, nuevoPartido):
