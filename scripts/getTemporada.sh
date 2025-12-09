@@ -57,6 +57,7 @@ fi
 
 export PYTHONPATH=${PYTHONPATH:-}:${WRKDIR}
 
+set +e #La salida !=0 es aceptable
 python ${WRKDIR}/bin/DescargaTemporada.py ${ORIGPARAM} -o ${DESTSMFILE} -b
 
 if [ $? = 0 ]
