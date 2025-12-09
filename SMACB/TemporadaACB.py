@@ -158,7 +158,7 @@ class TemporadaACB:
             self.changed |= resPlant
             if resPlant:
                 self.changed |= self.actualizaFichaJugadoresFromCambiosPlant(CAMBIOSCLUB)
-        else:  # TODO: Sin descarga
+        else:
             resPlant = self.actualizaPlantillasSinDescarga()
             self.changed |= resPlant
             # if resPlant:
