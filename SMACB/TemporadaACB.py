@@ -271,7 +271,6 @@ class TemporadaACB:
                     nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
                                                           timestamp=nuevoPartido.timestamp)
                     self.fichaJugadores[codJ] = nuevaFicha
-                    JUGADORESDESCARGADOS.add(codJ)
                     self.changed = True
 
             elif self.descargaFichas and (refrescaFichas or (not hasattr(self.fichaJugadores[codJ], 'sinDatos')) or (
