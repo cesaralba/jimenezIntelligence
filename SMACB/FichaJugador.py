@@ -8,6 +8,7 @@ from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 from requests import HTTPError
 
 from SMACB.Constants import URLIMG2IGNORE, CLAVESFICHAJUGADOR, CLAVESDICT, TRADPOSICION, POSABREV2NOMBRE, URL_BASE
+from SMACB.PartidoACB import PartidoACB
 from Utils.Misc import copyDictWithTranslation
 from Utils.ParseoData import findLocucionNombre, procesaCosasUtilesPlantilla
 from Utils.Web import getObjID, prepareDownloading
@@ -254,7 +255,7 @@ class FichaJugador:
             self.urlConocidas.add(self.URL)
         return changes
 
-    def nuevoPartido(self, partido):
+    def nuevoPartido(self, partido: PartidoACB) -> bool:
         """
         Actualiza información relativa a partidos jugados
         :param partido: OBJETO partidoACB
@@ -268,7 +269,7 @@ class FichaJugador:
             return False
 
         self.partidos.add(partido.url)
-
+        logging.debug("Jugador [%s] %s ha jugado '%s'", self.id, self.nombre, partido.url)
         datosJug = partido.Jugadores[self.id]
         self.equipos.add(datosJug['IDequipo'])
 
