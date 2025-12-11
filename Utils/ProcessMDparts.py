@@ -2,9 +2,9 @@ import logging
 from typing import Dict, Optional, List, Tuple
 
 import pandas as pd
+from CAPcore.Misc import copyDictWithTranslation
 
 from SMACB.Constants import LocalVisitante, OtherLoc, numPartidoPO2jornada, infoJornada
-from Utils.Misc import copyDictWithTranslation, createDictOfType
 from Utils.ParseoData import ProcesaTiempo
 
 LV2HA = {'Local': 'home', 'Visitante': 'away'}
@@ -299,7 +299,7 @@ def procesaMDresInfoRachas(rawData: dict):
 
 def procesaMDresCartaTiro(rawData: dict):
     EXCLUDESCTIRO = {'playerName', 'playerNumber', 'playerImage', 'playerLicenseId'}
-    resultado = createDictOfType(LocalVisitante, list)
+    resultado = dict.fromkeys(LocalVisitante, [])
 
     if len(rawData) > 1:
         return None
