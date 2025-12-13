@@ -5,7 +5,7 @@ Created on Apr 1, 2018
 '''
 
 from SMACB.Constants import POSICIONES
-from SMACB.TemporadaACB import calculaTempStats, calculaVars
+from SMACB.TemporadaEstads import calculaTempStats, calculaVars
 
 CATMERCADOFINAL = ['nombre', 'equipo', 'pos', 'cupo', 'Alta', 'lesion', 'info', 'precio', 'prom3Jornadas', 'promVal',
                    'ProxPartido', 'valJornada', 'codigo']

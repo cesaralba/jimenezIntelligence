@@ -5,7 +5,7 @@ from collections import defaultdict
 from statistics import mean, median, stdev
 from time import gmtime, mktime, strftime, time
 
-from CAPcore.Misc import FORMATOtimestamp, SubSet
+from CAPcore.Misc import FORMATOtimestamp, SubSet,
 from SMACB.SuperManager import SuperManagerACB
 from configargparse import ArgumentParser
 from pandas import DataFrame, ExcelWriter
@@ -14,7 +14,8 @@ from SMACB.Constants import MINPRECIO, POSICIONES, PRECIOpunto
 from SMACB.ManageSMDataframes import (calculaDFcategACB, calculaDFconVars, calculaDFprecedentes, CATMERCADOFINAL,
                                       COLSPREC)
 from SMACB.PartidoACB import PartidoACB
-from SMACB.TemporadaACB import calculaVars, calculaZ, TemporadaACB
+from SMACB.TemporadaACB import TemporadaACB
+from SMACB.TemporadaEstads import calculaZ, calculaVars
 
 
 def jugadoresMezclaStatus(datos):

@@ -4,6 +4,8 @@ from CAPcore.Misc import BadParameters
 
 URL_BASE = "https://www.acb.com"
 
+DEFTZ = "CET"
+
 bool2esp = {True: "S", False: "N"}
 haGanado2esp = {True: "V", False: "D"}
 titular2esp = {True: "T", False: "B"}
@@ -15,6 +17,10 @@ EqRival = ('Eq', 'Rival')
 
 LOCALNAMES = {'Local', 'L', 'local'}
 VISITNAMES = {'Visitante', 'V', 'visitante'}
+
+POLABELLIST = ['1/8 de final', '1/4 de final', 'semifinales', 'final']
+POLABEL2FASE = {'final': 'Final', 'semifinales': 'Semis', '1/4 de final': 'Cuartos', '1/8 de final': 'Octavos'}
+POLABEL2ABREV = {'final': 'F', 'semifinales': 'S', '1/4 de final': 'C', '1/8 de final': 'O'}
 
 PLAYOFFFASE = {1: 'Final', 2: 'Semis', 4: 'Cuartos', 8: 'Octavos'}
 PLAYOFFABREV = {'Final': 'F', 'Semis': 'S', 'Cuartos': 'C', 'Octavos': 'O'}
@@ -32,6 +38,9 @@ ALLCATS = {'+/-', 'A', 'A/BP', 'A/TC-C', 'BP', 'BR', 'C', 'DER', 'DERpot', 'EffR
 DEFAULTNUMFORMAT = '{:3.2f}'
 RANKFORMAT = '{:2d}'
 DEFAULTPERCFORMAT = DEFAULTNUMFORMAT + '%'
+
+REGEX_JLR = r'Jornada\s*(?P<jornada>\d+)'
+REGEX_PLAYOFF = r'(?P<etiqFasePOff>.+)\s+\((?P<numPartPoff>\d+).\)\s*'
 
 
 def OtherLoc(team):
@@ -52,6 +61,9 @@ def OtherTeam(team):
     raise BadParameters(f"OtherTeam: '{team}' provided. It only accept 'Eq' or 'Rival'")
 
 
+infoJornada = namedtuple('infoJornada', field_names=['jornada', 'esPlayOff', 'fasePlayOff', 'partRonda'],
+                         defaults=[False, None, None])
+
 infoSigPartido = namedtuple(typename='infoSigPartido',
                             field_names=['sigPartido', 'abrevLV', 'jugLocal', 'pendLocal', 'jugVis', 'pendVis',
                                          'eqIsLocal'], defaults=[None, None, None, None, None, None, None, ])
@@ -64,11 +76,11 @@ infoEqCalendario = namedtuple(typename='infoEqCalendario',
 filaTrayectoriaEq = namedtuple(typename='filaTrayectoriaEq',
                                field_names=['fechaPartido', 'jornada', 'cod_edicion', 'cod_competicion', 'equipoMe',
                                             'equipoRival', 'esLocal', 'haGanado', 'pendiente', 'url', 'abrevEqs',
-                                            'resultado'],
-                               defaults=[None, None, None, None, None, None, None, None, None, None, None, None])
+                                            'resultado', 'infoJornada'],
+                               defaults=[None, None, None, None, None, None, None, None, None, None, None, None, None])
 filaMergeTrayectoria = namedtuple(typename='filaMergeTrayectoria',
-                                  field_names=['jornada', 'izda', 'dcha', 'precedente'],
-                                  defaults=[None, None, None, None])
+                                  field_names=['jornada', 'izda', 'dcha', 'precedente', 'infoJornada', 'pendiente'],
+                                  defaults=[None, None, None, None, None, False])
 URLIMG2IGNORE = {'/Images/Web/silueta1.gif', '/Images/Web/silueta2.gif', ''}
 CLAVESFICHAJUGADOR = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia',
                       'junior', 'audioURL']
@@ -76,3 +88,18 @@ CLAVESDICT = ['id', 'URL', 'alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion'
               'primPartidoT', 'ultPartidoT', 'ultPartidoP']
 TRADPOSICION = {'Alero': 'A', 'Escolta': 'E', 'Base': 'B', 'Pívot': 'P', 'Ala-pívot': 'AP', '': '?'}
 POSABREV2NOMBRE = {'A': 'Alero', 'E': 'Escolta', 'B': 'Base', 'P': 'Pívot', 'AP': 'Ala-pívot'}
+
+
+def numPartidoPO2jornada(fasePO: str, numPart: str) -> int:
+    """
+Convierte la ronda/partido entre una jornada numérica. Hecho para no depender de la jornada calculada por ACB
+que depende del número de partidos/jornadas
+    :param fasePO: cadenas conocidas hasta el momento en la página de ACB
+    :param numPart: número de partido en la serie de playoff
+    :return: número de jornada (base de la ronda + número de partido en la serie
+    """
+    fasePO2jorBase: dict[str, int] = {'1/8 de final': 50, '1/4 de final': 60, 'semifinales': 70, 'final': 80,
+                                      'octavos de final': 50,
+                                      'cuartos de final': 60, 'semifinal': 70}
+
+    return fasePO2jorBase[fasePO.lower()] + int(numPart)
