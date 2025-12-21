@@ -11,7 +11,8 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, TableStyle, Table
 
 import SMACB.Programa.Globals as GlobACB
-from SMACB.Constants import infoSigPartido, LocalVisitante, MARCADORESCLASIF, RANKFORMAT, infoJornada, POLABEL2FASE
+from SMACB.Constants import infoSigPartido, LocalVisitante, MARCADORESCLASIF, RANKFORMAT, infoJornada, POLABEL2FASE, \
+    DEFTZ
 from SMACB.Programa.Clasif import infoEquipoPO
 from SMACB.Programa.Constantes import (ESTADISTICOEQ, estiloNegBal, estiloPosMarker, colEq, DEFTABVALUE, FORMATOCAMPOS,
                                        colorTablaDiagonal, ANCHOMARCAPOS)
@@ -140,7 +141,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
         tFormato = "%d-%m-%Y"
         if fechaRef and abs((tStamp - fechaRef).days) <= 3:
             tFormato = "%a %d@%H:%M"
-        result = tStamp.strftime(tFormato)
+        result = tStamp.tz_convert(DEFTZ).strftime(tFormato)
         return result
 
     def preparaDatos(datos, tstampRef, jornadasCompletas: Set[int] = sentinel):
