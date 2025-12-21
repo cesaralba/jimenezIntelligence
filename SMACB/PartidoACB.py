@@ -8,6 +8,7 @@ from traceback import print_exc
 from typing import Optional, Dict, Tuple, Union, List
 
 import numpy as np
+import pandas
 import pandas as pd
 from CAPcore.Misc import BadParameters, BadString, extractREGroups
 from CAPcore.Web import downloadPage, extractGetParams, DownloadedPage, mergeURL
@@ -455,7 +456,7 @@ class PartidoACB():
             if dataJor.esPlayOff:
                 jorStr = f"{POLABEL2FASE[dataJor.fasePlayOff.lower()]}({dataJor.partRonda:1})"
 
-        return (f"{jorStr}: [{self.fechaPartido}] "
+        return (f"{jorStr}: [{self.fechaPartido.strftime("%Y-%m-%d %H:%M")}] "
                 f"{self.EquiposCalendario['Local']['nomblargo']} ({self.CodigosCalendario['Local']}) "
                 f"{self.ResultadoCalendario['Local']:d} - {self.ResultadoCalendario['Visitante']:d} "
                 f"{self.EquiposCalendario['Visitante']['nomblargo']} ({self.CodigosCalendario['Visitante']})")
