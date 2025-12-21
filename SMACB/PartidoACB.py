@@ -43,7 +43,7 @@ class PartidoACB():
         self.timestamp = None
         self.esPlayoff: bool = False
 
-        self.Equipos = {x: {'Jugadores': []} for x in LocalVisitante}
+        self.Equipos = dict.fromkeys(LocalVisitante,{'Jugadores': []})
 
         self.Jugadores = {}
         self.Entrenadores = {}
