@@ -455,7 +455,9 @@ class PartidoACB():
             if dataJor.esPlayOff:
                 jorStr = f"{POLABEL2FASE[dataJor.fasePlayOff.lower()]}({dataJor.partRonda:1})"
 
-        return (f"{jorStr}: [{self.fechaPartido}] "
+        fechaStr = self.fechaPartido.tz_convert(DEFTZ).strftime("%Y-%m-%d %H:%M")
+
+        return (f"{jorStr}: [{fechaStr}] "
                 f"{self.EquiposCalendario['Local']['nomblargo']} ({self.CodigosCalendario['Local']}) "
                 f"{self.ResultadoCalendario['Local']:d} - {self.ResultadoCalendario['Visitante']:d} "
                 f"{self.EquiposCalendario['Visitante']['nomblargo']} ({self.CodigosCalendario['Visitante']})")

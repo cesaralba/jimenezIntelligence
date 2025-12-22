@@ -11,8 +11,9 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, TableStyle, Table
 
 import SMACB.Programa.Globals as GlobACB
-from SMACB.Constants import infoSigPartido, LocalVisitante, MARCADORESCLASIF, RANKFORMAT, infoJornada, POLABEL2FASE
-from SMACB.Programa.Clasif import infoEquipoPO
+from SMACB.Constants import infoSigPartido, LocalVisitante, MARCADORESCLASIF, RANKFORMAT, infoJornada, POLABEL2FASE, \
+    DEFTZ
+from SMACB.Programa.Clasif import infoEquipoPO, infoClasifEquipoLR
 from SMACB.Programa.Constantes import (ESTADISTICOEQ, estiloNegBal, estiloPosMarker, colEq, DEFTABVALUE, FORMATOCAMPOS,
                                        colorTablaDiagonal, ANCHOMARCAPOS)
 from SMACB.Programa.Datos import datosRestoJornada
@@ -20,7 +21,7 @@ from SMACB.Programa.FuncionesAux import auxCalculaBalanceStr, auxJugsBajaTablaJu
     GENERADORFECHA, GENMAPDICT, GENERADORTIEMPO, GENERADORETTIRO, GENERADORETREBOTE, auxBold, equipo2clasif, \
     auxLabelEqTabla, auxCruceDiag, auxCruceTotalPend, auxCruceTotalResuelto, auxCruceResuelto, auxCrucePendiente, \
     auxCruceTotales, auxLigaDiag, auxTablaLigaPartJugado, auxTablaLigaPartPendiente, auxCalculaInfoPO, \
-    presTrayectoriaPlayOff
+    presTrayectoriaPlayOff, muestraDifPuntos
 from SMACB.Programa.Globals import recuperaClasifLigaLR, recuperaEstadsGlobales, recuperaEstadoLigaPO
 from SMACB.TemporadaACB import TemporadaACB
 from SMACB.TemporadaEstads import extraeCampoYorden
@@ -140,7 +141,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
         tFormato = "%d-%m-%Y"
         if fechaRef and abs((tStamp - fechaRef).days) <= 3:
             tFormato = "%a %d@%H:%M"
-        result = tStamp.strftime(tFormato)
+        result = tStamp.tz_convert(DEFTZ).strftime(tFormato)
         return result
 
     def preparaDatos(datos, tstampRef, jornadasCompletas: Set[int] = sentinel):
@@ -200,11 +201,12 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     return t
 
 
-def bloqueCabEquipo(datosEq, tempData, fecha, datosJornada: infoJornada):
+def bloqueCabEquipo(datosEq, tempData, fecha, esLocal: bool, datosJornada: infoJornada):
     recuperaClasifLigaLR(tempData, fecha)
     # TODO: Imagen (descargar imagen de escudo y plantarla)
-    nombre = datosEq['nombcorto']
 
+    posLR: int
+    clasifAux: infoClasifEquipoLR
     posLR, clasifAux = equipo2clasif(GlobACB.clasifLigaLR, datosEq['abrev'])
     if datosJornada.esPlayOff:
 
@@ -217,15 +219,22 @@ def bloqueCabEquipo(datosEq, tempData, fecha, datosJornada: infoJornada):
         currResult = (currEstado.fases[datosJornada.fasePlayOff.lower()].V
                       if datosJornada.fasePlayOff.lower() in currEstado.fases else 0)
 
-        result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b> {currResult}</para>"),
+        result = [Paragraph(
+            f"<para align='center' fontSize='16' leading='17'><b>{datosEq['nombcorto']}</b> {currResult}</para>"),
                   Paragraph(f"<para align='center' fontSize='12'>{infoStr}</para>")]
 
     else:
-        infoStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=datosJornada.jornada,
-                                       jornadasCompletas=tempData.jornadasCompletas())
+        balStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=datosJornada.jornada,
+                                      jornadasCompletas=tempData.jornadasCompletas())
 
-        result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b></para>"),
-                  Paragraph(f"<para align='center' fontSize='12'>{infoStr}</para>")]
+        Lstr = "L" if esLocal else "V"
+        Lkey = 'Local' if esLocal else 'Visitante'
+
+        locStr = auxCalculaBalanceStr(clasifAux.CasaFuera[Lkey])
+        result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{datosEq['nombcorto']}</b></para>"),
+                  Paragraph(
+                      f"<para align='center' fontSize='12'>{balStr} "
+                      f"{muestraDifPuntos(clasifAux.Pfav - clasifAux.Pcon)} ({posLR}º) {Lstr}:{locStr}</para>")]
 
     return result
 
@@ -326,6 +335,27 @@ def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSp
     return t
 
 
+def encabezadoPagEstadsJugs(datosTemp: TemporadaACB, datosSig: infoSigPartido, abrevEq: str):
+    recuperaClasifLigaLR(tempData=datosTemp)
+
+    pos: int
+    clasifAux: infoClasifEquipoLR
+
+    pos, clasifAux = equipo2clasif(GlobACB.clasifLigaLR, abrevEq)
+
+    localia: str = datosSig.sigPartido['abrev2loc'][abrevEq]
+    nombreEq: str = datosSig.sigPartido['equipos'][localia]['nomblargo']
+
+    cadenaEncabJugs = (f"<b>{nombreEq} [{abrevEq}]</b> {clasifAux.V}-{clasifAux.D} "
+                       f"{muestraDifPuntos(clasifAux.Pfav - clasifAux.Pcon)},{pos}º")
+
+    FONTSIZE = 12
+
+    result = vuelcaCadena(cadenaEncabJugs, fontsize=FONTSIZE, alignment=TA_CENTER)
+
+    return result
+
+
 def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None, tablasIncluidas: List[str] = sentinel):
     if tablasIncluidas is sentinel:
         tablasIncluidas = []
@@ -378,7 +408,7 @@ def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None, tablasIncluidas: L
     auxDF = jugDF.copy()
 
     for claveTabla in tablasIncluidas:
-        infoTabla = tablas[claveTabla]  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
+        infoTabla = tablas[claveTabla]
         t = auxGeneraTablaJugs(auxDF, claveTabla, infoTabla, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA,
                                repeatRows=1, abrev=abrev)
 
@@ -716,7 +746,7 @@ def presTablaPartidosLigaRegEstilos(data, equiposAmarcar: Optional[Iterable[str]
     return listaEstilos
 
 
-def vuelcaCadena(mensaje, fontsize=10):
-    metadataStyle = ParagraphStyle('tabEstadsRowHeader', fontSize=fontsize, alignment=TA_LEFT, leading=1)
+def vuelcaCadena(mensaje, fontsize=10, alignment=TA_LEFT):
+    metadataStyle = ParagraphStyle('tabEstadsRowHeader', fontSize=fontsize, alignment=alignment, leading=1)
     result = Paragraph(mensaje, style=metadataStyle)
     return result
