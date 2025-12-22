@@ -275,7 +275,7 @@ def auxLabelEqTabla(nombre: str, abrev: str) -> str:
 def auxCruceDiag(diag, ponBal=False, ponDif=False) -> str:
     strSep = "<br/>" if (ponBal and ponDif) else ""
     strBal = diag['balanceTotal'] if ponBal else ""
-    strDif = f"({diag['diffP']})" if ponDif else ""
+    strDif = f"({muestraDifPuntos(diag['diffP'])})" if ponDif else ""
     return f"{strBal}{strSep}{strDif}"
 
 
@@ -475,10 +475,9 @@ def calculaEstadsYOrdenLiga(dataTemp: TemporadaACB, fecha: Any | None = None, es
     return result, resultRank
 
 
-def muestraDifPuntos(data: infoClasifEquipoLR) -> str:
-    dif = data.Pfav - data.Pcon
-    sigStr = "+" if dif >= 0 else ""
+def muestraDifPuntos(difP: int) -> str:
+    sigStr = "+" if difP >= 0 else ""
 
-    result = f"{sigStr}{dif}"
+    result = f"{sigStr}{difP}"
 
     return result

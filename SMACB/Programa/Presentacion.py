@@ -207,6 +207,8 @@ def bloqueCabEquipo(datosEq, tempData, fecha, esLocal: bool, datosJornada: infoJ
     # TODO: Imagen (descargar imagen de escudo y plantarla)
     nombre = datosEq['nombcorto']
 
+    posLR: int
+    clasifAux: infoClasifEquipoLR
     posLR, clasifAux = equipo2clasif(GlobACB.clasifLigaLR, datosEq['abrev'])
     if datosJornada.esPlayOff:
 
@@ -232,7 +234,7 @@ def bloqueCabEquipo(datosEq, tempData, fecha, esLocal: bool, datosJornada: infoJ
         locStr = auxCalculaBalanceStr(clasifAux.CasaFuera[Lkey])
         result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b></para>"),
                   Paragraph(
-                      f"<para align='center' fontSize='12'>{balStr} {muestraDifPuntos(clasifAux)} "
+                      f"<para align='center' fontSize='12'>{balStr} {muestraDifPuntos(clasifAux.Pfav - clasifAux.Pcon)} "
                       f"({posLR}º) {Lstr}:{locStr}</para>")]
 
     return result
@@ -346,7 +348,7 @@ def encabezadoPagEstadsJugs(datosTemp: TemporadaACB, datosSig: infoSigPartido, a
     nombreEq: str = datosSig.sigPartido['equipos'][localia]['nomblargo']
     cadBalLocal = f"{clasifAux.CasaFuera[localia].V}-{clasifAux.CasaFuera[localia].D}"
 
-    cadenaEncabJugs = f"<b>{nombreEq} [{abrevEq}]</b> {clasifAux.V}-{clasifAux.D} {muestraDifPuntos(clasifAux)},{pos}º Como {localia.lower()}: {cadBalLocal}"
+    cadenaEncabJugs = f"<b>{nombreEq} [{abrevEq}]</b> {clasifAux.V}-{clasifAux.D} {muestraDifPuntos(clasifAux.Pfav - clasifAux.Pcon)},{pos}º Como {localia.lower()}: {cadBalLocal}"
 
     CELLPAD = 0.5
     FONTSIZE = 12

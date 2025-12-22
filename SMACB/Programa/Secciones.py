@@ -15,7 +15,7 @@ from SMACB.Programa.Datos import datosTablaClasif, datosJugadores, auxFindTarget
     preparaInfoCruces, preparaInfoLigaReg
 from SMACB.Programa.FuncionesAux import auxCalculaFirstBalNeg, partidoTrayectoria, auxBold, auxLeyendaCrucesResueltos, \
     auxLeyendaCrucesTotalResueltosEq, auxLeyendaCrucesTotalResueltos, auxLeyendaCrucesTotalPendientes, \
-    auxLeyendaRepartoVictPorLoc, jor2StrCab
+    auxLeyendaRepartoVictPorLoc, jor2StrCab, muestraDifPuntos
 from SMACB.Programa.Globals import recuperaClasifLigaLR, recuperaEstadsGlobales
 from SMACB.Programa.Presentacion import tablaEstadsBasicas, tablaRestoJornada, bloqueCabEquipo, tablasJugadoresEquipo, \
     auxGeneraLeyendaEstadsCelda, auxFilasTablaEstadisticos, presTablaCruces, presTablaCrucesEstilos, \
@@ -94,7 +94,7 @@ def tablaClasifLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
                   Paragraph(f"<para align='center' fontsize={FONTPARA}>{dato.victs:2}-{dato.derrs:2}</para>"),
                   Paragraph(f"<para align='right' fontsize={FONTPARA}>{dato.ratio:3.0f}%</para>"),
                   Paragraph(f"<para align='right' fontsize={FONTPARA}>{dato.puntF:4}/{dato.puntC:4}</para>"),
-                  Paragraph(f"<para align='right' fontsize={FONTPARA}>{dato.diffP}</para>")]
+                  Paragraph(f"<para align='right' fontsize={FONTPARA}>{muestraDifPuntos(dato.diffP)}</para>")]
         return result
 
     recuperaClasifLigaLR(tempData)
