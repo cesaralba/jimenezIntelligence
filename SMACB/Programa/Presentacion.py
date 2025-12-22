@@ -1,6 +1,5 @@
 from itertools import product
 from operator import itemgetter
-from pprint import pp
 from typing import Set, Optional, List, Iterable
 
 import pandas as pd
@@ -346,15 +345,15 @@ def encabezadoPagEstadsJugs(datosTemp: TemporadaACB, datosSig: infoSigPartido, a
 
     localia: str = datosSig.sigPartido['abrev2loc'][abrevEq]
     nombreEq: str = datosSig.sigPartido['equipos'][localia]['nomblargo']
-    cadBalLocal = f"{clasifAux.CasaFuera[localia].V}-{clasifAux.CasaFuera[localia].D}"
 
-    cadenaEncabJugs = f"<b>{nombreEq} [{abrevEq}]</b> {clasifAux.V}-{clasifAux.D} {muestraDifPuntos(clasifAux.Pfav - clasifAux.Pcon)},{pos}º Como {localia.lower()}: {cadBalLocal}"
+    cadenaEncabJugs = (f"<b>{nombreEq} [{abrevEq}]</b> {clasifAux.V}-{clasifAux.D} "
+                       f"{muestraDifPuntos(clasifAux.Pfav - clasifAux.Pcon)},{pos}º")
 
-    CELLPAD = 0.5
     FONTSIZE = 12
-    ANCHOLETRA = FONTSIZE * 0.5
 
-    pp(cadenaEncabJugs)
+    result = vuelcaCadena(cadenaEncabJugs, fontsize=FONTSIZE, alignment=TA_CENTER)
+
+    return result
 
 
 def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None, tablasIncluidas: List[str] = sentinel):
@@ -747,7 +746,7 @@ def presTablaPartidosLigaRegEstilos(data, equiposAmarcar: Optional[Iterable[str]
     return listaEstilos
 
 
-def vuelcaCadena(mensaje, fontsize=10):
-    metadataStyle = ParagraphStyle('tabEstadsRowHeader', fontSize=fontsize, alignment=TA_LEFT, leading=1)
+def vuelcaCadena(mensaje, fontsize=10, alignment=TA_LEFT):
+    metadataStyle = ParagraphStyle('tabEstadsRowHeader', fontSize=fontsize, alignment=alignment, leading=1)
     result = Paragraph(mensaje, style=metadataStyle)
     return result

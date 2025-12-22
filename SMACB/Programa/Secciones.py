@@ -271,6 +271,7 @@ def paginasJugadores(tempData: TemporadaACB, datosSig: infoSigPartido, tablas: L
     juLocal = datosSig.jugLocal
     juVisit = datosSig.jugVis
 
+    SEPENCAB = 3
     if not tablas:
         return result
 
@@ -281,6 +282,8 @@ def paginasJugadores(tempData: TemporadaACB, datosSig: infoSigPartido, tablas: L
         encabJugsLocal = encabezadoPagEstadsJugs(datosTemp=tempData, datosSig=datosSig, abrevEq=abrEqs[0])
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
+        result.append(encabJugsLocal)
+        result.append(Spacer(100 * mm, SEPENCAB * mm))
 
         for (_, t) in tablasJugadLocal:
             result.append(Spacer(100 * mm, 2 * mm))
@@ -295,6 +298,8 @@ def paginasJugadores(tempData: TemporadaACB, datosSig: infoSigPartido, tablas: L
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
+        result.append(encabJugsVis)
+        result.append(Spacer(100 * mm, SEPENCAB * mm))
 
         for (_, t) in tablasJugadVisit:
             result.append(Spacer(100 * mm, 2 * mm))
