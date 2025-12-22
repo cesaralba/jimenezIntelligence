@@ -28,8 +28,6 @@ def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
     partido = datosSig.sigPartido
     datosJornada: infoJornada = partido['infoJornada']
 
-    datosLocal = partido['equipos']['Local']
-    datosVisit = partido['equipos']['Visitante']
     compo = partido['cod_competicion']
     edicion = partido['cod_edicion']
     fh = time2Str(partido['fechaPartido'])
@@ -41,8 +39,10 @@ def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
         f"<para align='center' fontName='Helvetica' fontSize=20 leading=22><b>{compo}</b> {edicion} - "
         f"{jorStr}<br/>{fh}</para>", style)
 
-    cabLocal = bloqueCabEquipo(datosLocal, tempData, partido['fechaPartido'], esLocal=True, datosJornada=datosJornada)
-    cabVisit = bloqueCabEquipo(datosVisit, tempData, partido['fechaPartido'], esLocal=False, datosJornada=datosJornada)
+    cabLocal = bloqueCabEquipo(partido['equipos']['Local'], tempData, partido['fechaPartido'], esLocal=True,
+                               datosJornada=datosJornada)
+    cabVisit = bloqueCabEquipo(partido['equipos']['Visitante'], tempData, partido['fechaPartido'], esLocal=False,
+                               datosJornada=datosJornada)
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black)])

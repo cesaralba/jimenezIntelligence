@@ -204,7 +204,6 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
 def bloqueCabEquipo(datosEq, tempData, fecha, esLocal: bool, datosJornada: infoJornada):
     recuperaClasifLigaLR(tempData, fecha)
     # TODO: Imagen (descargar imagen de escudo y plantarla)
-    nombre = datosEq['nombcorto']
 
     posLR: int
     clasifAux: infoClasifEquipoLR
@@ -220,7 +219,8 @@ def bloqueCabEquipo(datosEq, tempData, fecha, esLocal: bool, datosJornada: infoJ
         currResult = (currEstado.fases[datosJornada.fasePlayOff.lower()].V
                       if datosJornada.fasePlayOff.lower() in currEstado.fases else 0)
 
-        result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b> {currResult}</para>"),
+        result = [Paragraph(
+            f"<para align='center' fontSize='16' leading='17'><b>{datosEq['nombcorto']}</b> {currResult}</para>"),
                   Paragraph(f"<para align='center' fontSize='12'>{infoStr}</para>")]
 
     else:
@@ -231,10 +231,10 @@ def bloqueCabEquipo(datosEq, tempData, fecha, esLocal: bool, datosJornada: infoJ
         Lkey = 'Local' if esLocal else 'Visitante'
 
         locStr = auxCalculaBalanceStr(clasifAux.CasaFuera[Lkey])
-        result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b></para>"),
+        result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{datosEq['nombcorto']}</b></para>"),
                   Paragraph(
-                      f"<para align='center' fontSize='12'>{balStr} {muestraDifPuntos(clasifAux.Pfav - clasifAux.Pcon)} "
-                      f"({posLR}º) {Lstr}:{locStr}</para>")]
+                      f"<para align='center' fontSize='12'>{balStr} "
+                      f"{muestraDifPuntos(clasifAux.Pfav - clasifAux.Pcon)} ({posLR}º) {Lstr}:{locStr}</para>")]
 
     return result
 
