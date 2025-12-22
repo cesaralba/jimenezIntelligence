@@ -4,12 +4,12 @@ from time import gmtime
 from typing import Optional
 
 import bs4
+from CAPcore.Misc import copyDictWithTranslation
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 from requests import HTTPError
 
 from SMACB.Constants import URLIMG2IGNORE, CLAVESFICHAJUGADOR, CLAVESDICT, TRADPOSICION, POSABREV2NOMBRE, URL_BASE
 from SMACB.PartidoACB import PartidoACB
-from Utils.Misc import copyDictWithTranslation
 from Utils.ParseoData import findLocucionNombre, procesaCosasUtilesPlantilla
 from Utils.Web import getObjID, prepareDownloading
 

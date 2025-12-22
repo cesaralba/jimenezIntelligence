@@ -36,20 +36,16 @@ def paginaJugadores(tempData: TemporadaACB, datosSig: infoSigPartido, argListaTa
     tablasAmostrar = preparaListaTablas(argListaTablas)
     if tablasAmostrar:
         if len(datosSig.jugLocal) + len(datosSig.jugVis):
-            infoJugadores = paginasJugadores(tempData, datosSig.abrevLV, datosSig.jugLocal, datosSig.jugVis,
-                                             tablasAmostrar)
+            infoJugadores = paginasJugadores(tempData=tempData, datosSig=datosSig, tablas=tablasAmostrar)
             result.extend(infoJugadores)
 
     return result
 
 
 def paginaPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
-    result = []
+    result = [cabeceraPortada(tempData, datosSig), Spacer(width=120 * mm, height=1 * mm), metadataPrograma(tempData),
+              Spacer(width=120 * mm, height=2 * mm)]
 
-    result.append(cabeceraPortada(tempData, datosSig))
-    result.append(Spacer(width=120 * mm, height=1 * mm))
-    result.append(metadataPrograma(tempData))
-    result.append(Spacer(width=120 * mm, height=2 * mm))
     tabEstadsBasicas = bloqueRestoJYBasics(tempData, datosSig)
     result.append(tabEstadsBasicas)
     result.append(Spacer(width=120 * mm, height=2 * mm))

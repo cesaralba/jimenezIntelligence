@@ -24,7 +24,7 @@ def time2Str(timeref):
     """
     formatStr = "%d-%m-%Y" if (timeref.hour == 0 and timeref.min == 0) else "%d-%m-%Y %H:%M"
 
-    result = timeref.strftime(formatStr)
+    result = timeref.tz_convert(DEFTZ).strftime(formatStr)
 
     return result
 

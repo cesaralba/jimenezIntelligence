@@ -1,12 +1,11 @@
 import logging
 import re
+from compression import zstd
 from itertools import product
 from pickle import dumps
 from time import gmtime
 from traceback import print_exc
 from typing import Optional, Dict, Tuple, Union, List
-
-from compression import zstd
 
 import numpy as np
 import pandas as pd
@@ -17,7 +16,6 @@ from bs4 import Tag
 
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
-from Utils.Misc import createDictOfType
 from Utils.ParseoData import ProcesaTiempo
 from Utils.ProcessMDparts import procesaMDresInfoPeriodos, procesaMDresEstadsCompar, procesaMDresInfoRachas, \
     procesaMDresCartaTiro, procesaMDjugadas, jugadaSort, jugada2str, jugadaKey2sort, jugadaTag2Desc, jugadaKey2str, \
@@ -49,8 +47,8 @@ class PartidoACB():
 
         self.Jugadores = {}
         self.Entrenadores = {}
-        self.pendientes: Dict[str, List] = createDictOfType(LocalVisitante, list)
-        self.aprendidos: Dict[str, List] = createDictOfType(LocalVisitante, list)
+        self.pendientes: Dict[str, List] = dict.fromkeys(LocalVisitante, [])
+        self.aprendidos: Dict[str, List] = dict.fromkeys(LocalVisitante, [])
         self.metadataEnlaces: dict = kwargs.get('enlaces', {})
         self.availMD = {}
         self.metadataEmb = {}
@@ -457,7 +455,9 @@ class PartidoACB():
             if dataJor.esPlayOff:
                 jorStr = f"{POLABEL2FASE[dataJor.fasePlayOff.lower()]}({dataJor.partRonda:1})"
 
-        return (f"{jorStr}: [{self.fechaPartido}] "
+        fechaStr = self.fechaPartido.tz_convert(DEFTZ).strftime("%Y-%m-%d %H:%M")
+
+        return (f"{jorStr}: [{fechaStr}] "
                 f"{self.EquiposCalendario['Local']['nomblargo']} ({self.CodigosCalendario['Local']}) "
                 f"{self.ResultadoCalendario['Local']:d} - {self.ResultadoCalendario['Visitante']:d} "
                 f"{self.EquiposCalendario['Visitante']['nomblargo']} ({self.CodigosCalendario['Visitante']})")
