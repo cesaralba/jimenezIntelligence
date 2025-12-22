@@ -1,5 +1,6 @@
 from itertools import product
 from operator import itemgetter
+from pprint import pp
 from typing import Set, Optional, List, Iterable
 
 import pandas as pd
@@ -13,7 +14,7 @@ from reportlab.platypus import Paragraph, TableStyle, Table
 import SMACB.Programa.Globals as GlobACB
 from SMACB.Constants import infoSigPartido, LocalVisitante, MARCADORESCLASIF, RANKFORMAT, infoJornada, POLABEL2FASE, \
     DEFTZ
-from SMACB.Programa.Clasif import infoEquipoPO
+from SMACB.Programa.Clasif import infoEquipoPO, infoClasifEquipoLR
 from SMACB.Programa.Constantes import (ESTADISTICOEQ, estiloNegBal, estiloPosMarker, colEq, DEFTABVALUE, FORMATOCAMPOS,
                                        colorTablaDiagonal, ANCHOMARCAPOS)
 from SMACB.Programa.Datos import datosRestoJornada
@@ -21,7 +22,7 @@ from SMACB.Programa.FuncionesAux import auxCalculaBalanceStr, auxJugsBajaTablaJu
     GENERADORFECHA, GENMAPDICT, GENERADORTIEMPO, GENERADORETTIRO, GENERADORETREBOTE, auxBold, equipo2clasif, \
     auxLabelEqTabla, auxCruceDiag, auxCruceTotalPend, auxCruceTotalResuelto, auxCruceResuelto, auxCrucePendiente, \
     auxCruceTotales, auxLigaDiag, auxTablaLigaPartJugado, auxTablaLigaPartPendiente, auxCalculaInfoPO, \
-    presTrayectoriaPlayOff
+    presTrayectoriaPlayOff, muestraDifPuntos
 from SMACB.Programa.Globals import recuperaClasifLigaLR, recuperaEstadsGlobales, recuperaEstadoLigaPO
 from SMACB.TemporadaACB import TemporadaACB
 from SMACB.TemporadaEstads import extraeCampoYorden
@@ -201,7 +202,7 @@ def tablaRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     return t
 
 
-def bloqueCabEquipo(datosEq, tempData, fecha, datosJornada: infoJornada):
+def bloqueCabEquipo(datosEq, tempData, fecha, esLocal: bool, datosJornada: infoJornada):
     recuperaClasifLigaLR(tempData, fecha)
     # TODO: Imagen (descargar imagen de escudo y plantarla)
     nombre = datosEq['nombcorto']
@@ -222,11 +223,17 @@ def bloqueCabEquipo(datosEq, tempData, fecha, datosJornada: infoJornada):
                   Paragraph(f"<para align='center' fontSize='12'>{infoStr}</para>")]
 
     else:
-        infoStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=datosJornada.jornada,
-                                       jornadasCompletas=tempData.jornadasCompletas())
+        balStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=datosJornada.jornada,
+                                      jornadasCompletas=tempData.jornadasCompletas())
 
+        Lstr = "L" if esLocal else "V"
+        Lkey = 'Local' if esLocal else 'Visitante'
+
+        locStr = auxCalculaBalanceStr(clasifAux.CasaFuera[Lkey])
         result = [Paragraph(f"<para align='center' fontSize='16' leading='17'><b>{nombre}</b></para>"),
-                  Paragraph(f"<para align='center' fontSize='12'>{infoStr}</para>")]
+                  Paragraph(
+                      f"<para align='center' fontSize='12'>{balStr} {muestraDifPuntos(clasifAux)} "
+                      f"({posLR}º) {Lstr}:{locStr}</para>")]
 
     return result
 
@@ -327,6 +334,27 @@ def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSp
     return t
 
 
+def encabezadoPagEstadsJugs(datosTemp: TemporadaACB, datosSig: infoSigPartido, abrevEq: str):
+    recuperaClasifLigaLR(tempData=datosTemp)
+
+    pos: int
+    clasifAux: infoClasifEquipoLR
+
+    pos, clasifAux = equipo2clasif(GlobACB.clasifLigaLR, abrevEq)
+
+    localia: str = datosSig.sigPartido['abrev2loc'][abrevEq]
+    nombreEq: str = datosSig.sigPartido['equipos'][localia]['nomblargo']
+    cadBalLocal = f"{clasifAux.CasaFuera[localia].V}-{clasifAux.CasaFuera[localia].D}"
+
+    cadenaEncabJugs = f"<b>{nombreEq} [{abrevEq}]</b> {clasifAux.V}-{clasifAux.D} {muestraDifPuntos(clasifAux)},{pos}º Como {localia.lower()}: {cadBalLocal}"
+
+    CELLPAD = 0.5
+    FONTSIZE = 12
+    ANCHOLETRA = FONTSIZE * 0.5
+
+    pp(cadenaEncabJugs)
+
+
 def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None, tablasIncluidas: List[str] = sentinel):
     if tablasIncluidas is sentinel:
         tablasIncluidas = []
@@ -379,7 +407,7 @@ def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None, tablasIncluidas: L
     auxDF = jugDF.copy()
 
     for claveTabla in tablasIncluidas:
-        infoTabla = tablas[claveTabla]  # , [COLSIDENT +COLS_TOTALES], [COLSIDENT +COLS_ULTP]
+        infoTabla = tablas[claveTabla]
         t = auxGeneraTablaJugs(auxDF, claveTabla, infoTabla, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA,
                                repeatRows=1, abrev=abrev)
 

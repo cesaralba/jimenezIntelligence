@@ -19,7 +19,7 @@ from SMACB.Programa.FuncionesAux import auxCalculaFirstBalNeg, partidoTrayectori
 from SMACB.Programa.Globals import recuperaClasifLigaLR, recuperaEstadsGlobales
 from SMACB.Programa.Presentacion import tablaEstadsBasicas, tablaRestoJornada, bloqueCabEquipo, tablasJugadoresEquipo, \
     auxGeneraLeyendaEstadsCelda, auxFilasTablaEstadisticos, presTablaCruces, presTablaCrucesEstilos, \
-    presTablaPartidosLigaReg, presTablaPartidosLigaRegEstilos, vuelcaCadena
+    presTablaPartidosLigaReg, presTablaPartidosLigaRegEstilos, vuelcaCadena, encabezadoPagEstadsJugs
 from SMACB.TemporadaACB import TemporadaACB
 from Utils.FechaHora import time2Str
 
@@ -41,8 +41,8 @@ def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
         f"<para align='center' fontName='Helvetica' fontSize=20 leading=22><b>{compo}</b> {edicion} - "
         f"{jorStr}<br/>{fh}</para>", style)
 
-    cabLocal = bloqueCabEquipo(datosLocal, tempData, partido['fechaPartido'], datosJornada=datosJornada)
-    cabVisit = bloqueCabEquipo(datosVisit, tempData, partido['fechaPartido'], datosJornada=datosJornada)
+    cabLocal = bloqueCabEquipo(datosLocal, tempData, partido['fechaPartido'], esLocal=True, datosJornada=datosJornada)
+    cabVisit = bloqueCabEquipo(datosVisit, tempData, partido['fechaPartido'], esLocal=False, datosJornada=datosJornada)
 
     tStyle = TableStyle([('BOX', (0, 0), (-1, -1), 2, colors.black), ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                          ('GRID', (0, 0), (-1, -1), 0.5, colors.black)])
@@ -265,8 +265,11 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
     return t, mensajeAviso
 
 
-def paginasJugadores(tempData: TemporadaACB, abrEqs, juLocal, juVisit, tablas: List[str]):
+def paginasJugadores(tempData: TemporadaACB, datosSig: infoSigPartido, tablas: List[str]):
     result = []
+    abrEqs = datosSig.abrevLV
+    juLocal = datosSig.jugLocal
+    juVisit = datosSig.jugVis
 
     if not tablas:
         return result
@@ -275,6 +278,7 @@ def paginasJugadores(tempData: TemporadaACB, abrEqs, juLocal, juVisit, tablas: L
         datosLocal = datosJugadores(tempData, abrEqs[0], juLocal)
         tablasJugadLocal = tablasJugadoresEquipo(datosLocal, abrev=abrEqs[0], tablasIncluidas=tablas)
 
+        encabJugsLocal = encabezadoPagEstadsJugs(datosTemp=tempData, datosSig=datosSig, abrevEq=abrEqs[0])
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
 
@@ -286,6 +290,8 @@ def paginasJugadores(tempData: TemporadaACB, abrEqs, juLocal, juVisit, tablas: L
     if len(juVisit):
         datosVisit = datosJugadores(tempData, abrEqs[1], juVisit)
         tablasJugadVisit = tablasJugadoresEquipo(datosVisit, abrev=abrEqs[1], tablasIncluidas=tablas)
+
+        encabJugsVis = encabezadoPagEstadsJugs(datosTemp=tempData, datosSig=datosSig, abrevEq=abrEqs[1])
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())

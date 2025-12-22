@@ -473,3 +473,12 @@ def calculaEstadsYOrdenLiga(dataTemp: TemporadaACB, fecha: Any | None = None, es
     result = dfEstads[colList]
 
     return result, resultRank
+
+
+def muestraDifPuntos(data: infoClasifEquipoLR) -> str:
+    dif = data.Pfav - data.Pcon
+    sigStr = "+" if dif >= 0 else ""
+
+    result = f"{sigStr}{dif}"
+
+    return result
