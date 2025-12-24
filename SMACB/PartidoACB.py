@@ -43,12 +43,12 @@ class PartidoACB():
         self.timestamp = None
         self.esPlayoff: bool = False
 
-        self.Equipos = dict.fromkeys(LocalVisitante,{'Jugadores': []})
+        self.Equipos = {loc:{'Jugadores': []} for loc in LocalVisitante}
 
         self.Jugadores = {}
         self.Entrenadores = {}
-        self.pendientes: Dict[str, List] = dict.fromkeys(LocalVisitante, [])
-        self.aprendidos: Dict[str, List] = dict.fromkeys(LocalVisitante, [])
+        self.pendientes: Dict[str, List] = {loc:[] for loc in LocalVisitante}
+        self.aprendidos: Dict[str, List] = {loc:[] for loc in LocalVisitante}
         self.metadataEnlaces: dict = kwargs.get('enlaces', {})
         self.availMD = {}
         self.metadataEmb = {}
