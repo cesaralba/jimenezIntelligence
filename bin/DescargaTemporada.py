@@ -59,13 +59,13 @@ def main(args: Namespace):
         parEdicion = paramsURL['cod_edicion']
 
     temporada = TemporadaACB(competicion=parCompeticion, edicion=parEdicion, urlbase=sourceURL)
-    ajustaInternalsTemporada(args, temporada)
+    finalArgs = procesaParamsTemporada(temporada, args)
 
-    nuevosPartidos = temporada.actualizaTemporada(browser=browser, config=args)
-    if nuevosPartidos or temporada.changed or args.saveanyway:
+    nuevosPartidos = temporada.actualizaTemporada(browser=browser, config=finalArgs)
+    if nuevosPartidos or temporada.changed or finalArgs.saveanyway:
         sys.setrecursionlimit(50000)
-        if 'outfile' in args and args.outfile:
-            temporada.grabaTemporada(args.outfile)
+        if finalArgs.outfile:
+            temporada.grabaTemporada(finalArgs.outfile)
 
     if nuevosPartidos:
         print(f"Partidos descargados\n{resumenNuevosPartidos(nuevosPartidos, temporada)}", "\n" * 2)
@@ -80,15 +80,23 @@ def main(args: Namespace):
         print(f"Cambios en calendario\n{resumenCambiosCalendario(CAMBIOSCALENDARIO, temporada=temporada)}", "\n" * 2)
 
 
-def ajustaInternalsTemporada(args, temporada):
+def procesaParamsTemporada(temporada, args) -> Namespace:
     if 'infile' in args and args.infile:
         temporada.cargaTemporada(args.infile)
-    if 'procesaBio' in args and args.procesaBio and not temporada.descargaFichas:
+    if args.procesaBio and not temporada.descargaFichas:
         temporada.descargaFichas = True
         temporada.changed = True
-    if 'procesaPlantilla' in args and args.procesaPlantilla and not temporada.descargaPlantillas:
+    if args.procesaPlantilla and not temporada.descargaPlantillas:
         temporada.descargaPlantillas = True
         temporada.changed = True
+
+    auxDict = {}
+    auxDict.update(args.__dict__)
+    auxDict.update({'procesaBio': temporada.descargaFichas, 'procesaPlantilla': temporada.descargaPlantillas})
+
+    result = Namespace(**auxDict)
+
+    return result
 
 
 def preparaLogs(args: Namespace):

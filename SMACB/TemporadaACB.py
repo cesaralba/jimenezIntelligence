@@ -12,6 +12,7 @@ from copy import copy
 from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
+from pprint import pp
 from sys import exc_info, setrecursionlimit
 from time import gmtime, strftime
 from traceback import print_exception
@@ -56,7 +57,7 @@ def auxJorFech2periodo(dfTemp: pd.DataFrame):
     jf2periodo = defaultdict(lambda: defaultdict(int))
 
     dfPairs: List[Tuple[Any, str]] = dfTemp.apply(lambda r: (r['fechaPartido'].date(), r['jornada']), axis=1).unique()
-    for p in sorted(list(dfPairs)):
+    for p in sorted(dfPairs):
         if curVal is None or curVal[1] != p[1]:
             if curVal:
                 periodoAct += 1
@@ -125,46 +126,47 @@ class TemporadaACB:
         return result
 
     def actualizaTemporada(self, home=None, browser=None, config=None):
+        interrupted=False
         changeOrig = self.changed
 
         browser, config = prepareDownloading(browser, config, calendario_URLBASE)
 
         self.Calendario.actualizaCalendario(browser=browser, config=config)
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
+        self.changed |= self.buscaCambiosCalendario()
 
         partidosBajados: Set[str] = set()
 
-        for partido in sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys()))):
-            try:
-                nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
-                nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
-                if nuevoPartido.check():
+        try:
+            for partido in sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys()))):
+                try:
+                    nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
+                    nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
+                    if not nuevoPartido.check():
+                        continue
+                    self.actualizaInfoAuxiliar(nuevoPartido, browser, config)
                     self.Partidos[partido] = nuevoPartido
                     partidosBajados.add(partido)
-                    self.actualizaInfoAuxiliar(nuevoPartido, browser, config)
-            except KeyboardInterrupt:
-                print("actualizaTemporada: Ejecución terminada por el usuario")
-                break
-            except BaseException:
-                print(f"actualizaTemporada: problemas descargando  partido '{partido}': {exc_info()}")
-                print_exception(*exc_info())
+                except BaseException:
+                    logging.exception("actualizaTemporada: problemas descargando  partido '%s'",partido)
 
-            if 'justone' in config and config.justone:  # Just downloads a game (for testing/dev purposes)
-                break
+                if 'justone' in config and config.justone:  # Just downloads a game (for testing/dev purposes)
+                    break
+        except KeyboardInterrupt:
+            logging.info("actualizaTemporada: Ejecución terminada por el usuario")
+            interrupted=True
 
         self.changed |= (len(partidosBajados) > 0)
-        self.changed |= self.buscaCambiosCalendario()
 
-        if self.descargaPlantillas:
-            resPlant = self.actualizaPlantillasConDescarga(browser=browser, config=config)
-            self.changed |= resPlant
-            if resPlant:
-                self.changed |= self.actualizaFichaJugadoresFromCambiosPlant(CAMBIOSCLUB)
-        else:
-            resPlant = self.actualizaPlantillasSinDescarga()
-            self.changed |= resPlant
-            # if resPlant:
-            #     self.changed |= self.actualizaFichaJugadoresFromCambiosPlant(CAMBIOSCLUB)
+        if not interrupted:
+            if self.descargaPlantillas:
+                resPlant = self.actualizaPlantillasConDescarga(browser=browser, config=config)
+                self.changed |= resPlant
+                if resPlant:
+                    self.changed |= self.actualizaFichaJugadoresFromCambiosPlant(CAMBIOSCLUB)
+            else:
+                resPlant = self.actualizaPlantillasSinDescarga()
+                self.changed |= resPlant
 
         if self.changed != changeOrig:
             self.timestamp = gmtime()
@@ -250,7 +252,7 @@ class TemporadaACB:
             refrescaFichas = True
 
         for codJ, datosJug in nuevoPartido.Jugadores.items():
-            if (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None):
+            if (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None) or (self.fichaJugadores[codJ].sinDatos):
                 if self.descargaFichas:
                     try:
                         if codJ not in JUGADORESDESCARGADOS:
@@ -399,7 +401,7 @@ class TemporadaACB:
         * Si la abrev objetivo es local (True) o visit (False)
         """
         juCal, peCal = self.Calendario.partidosEquipo(abrEq)
-        peOrd = sorted(list(peCal), key=itemgetter('fechaPartido'))
+        peOrd = sorted(peCal, key=itemgetter('fechaPartido'))
 
         juOrdTem = sorted([p['url'] for p in juCal], key=lambda u: self.Partidos[u].fechaPartido)
 
@@ -727,6 +729,7 @@ class TemporadaACB:
             if not cambios.jugadores:
                 continue
             for jugQuitado, datos in cambios.jugadores.removed.items():
+                #TODO: Qué hacer con los eliminados?
                 print(f"Eliminación de jugadores no contemplada id:{jugQuitado} jugador"
                       f"{self.fichaJugadores[jugQuitado]} idClub: {idClub} {self.plantillas[idClub]} {datos}")
             result |= self.actualizaFichaJugadoresNuevos(cambios=cambios, idClub=idClub, brwCfg=browserConfig)
