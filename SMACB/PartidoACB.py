@@ -16,6 +16,7 @@ from bs4 import Tag
 
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
+from Utils.Misc import createDictFromGenerator
 from Utils.ParseoData import ProcesaTiempo
 from Utils.ProcessMDparts import procesaMDresInfoPeriodos, procesaMDresEstadsCompar, procesaMDresInfoRachas, \
     procesaMDresCartaTiro, procesaMDjugadas, jugadaSort, jugada2str, jugadaKey2sort, jugadaTag2Desc, jugadaKey2str, \
@@ -43,12 +44,12 @@ class PartidoACB():
         self.timestamp = None
         self.esPlayoff: bool = False
 
-        self.Equipos = {loc:{'Jugadores': []} for loc in LocalVisitante}
+        self.Equipos = createDictFromGenerator(LocalVisitante,lambda:{'Jugadores': []})
 
         self.Jugadores = {}
         self.Entrenadores = {}
-        self.pendientes: Dict[str, List] = {loc:[] for loc in LocalVisitante}
-        self.aprendidos: Dict[str, List] = {loc:[] for loc in LocalVisitante}
+        self.pendientes: Dict[str, List] = createDictFromGenerator(LocalVisitante,list)
+        self.aprendidos: Dict[str, List] = createDictFromGenerator(LocalVisitante,list)
         self.metadataEnlaces: dict = kwargs.get('enlaces', {})
         self.availMD = {}
         self.metadataEmb = {}

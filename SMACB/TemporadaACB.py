@@ -125,7 +125,6 @@ class TemporadaACB:
 
     def getConfig(self) -> Namespace:
         result = Namespace(**{'procesaBio': self.descargaFichas, 'procesaPlantilla': self.descargaPlantillas})
-c
         return result
 
     def actualizaTemporada(self, home=None, browser=None, config=None):

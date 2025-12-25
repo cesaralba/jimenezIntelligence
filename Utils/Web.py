@@ -2,7 +2,7 @@ import ast
 import logging
 import re
 from collections import namedtuple
-from pprint import pprint, pp
+from pprint import pprint
 from re import Pattern
 from typing import Optional, Dict, Any
 
@@ -40,7 +40,7 @@ def prepareDownloading(browser, config, urlRef: Optional[str] = None):
     :param urlRef: página a descargar
     :return: browser,config (los mismos o creados según la situación)
     """
-    pp(config)
+
     if config is None:
         config = Namespace()
     else:
