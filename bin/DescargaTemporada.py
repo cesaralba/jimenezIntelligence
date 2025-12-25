@@ -12,6 +12,7 @@ from SMACB.CalendarioACB import calendario_URLBASE
 from SMACB.DiferenciasTrasDescargaTemp import resumenCambioJugadores, resumenNuevosPartidos, resumenCambioClubes, \
     resumenCambiosCalendario
 from SMACB.TemporadaACB import TemporadaACB, CAMBIOSJUGADORES, CAMBIOSCLUB, CAMBIOSCALENDARIO
+from Utils.ManageArgs import createArgs, GetParam
 
 
 def parse_arguments() -> Namespace:
@@ -62,10 +63,10 @@ def main(args: Namespace):
     finalArgs = procesaParamsTemporada(temporada, args)
 
     nuevosPartidos = temporada.actualizaTemporada(browser=browser, config=finalArgs)
-    if nuevosPartidos or temporada.changed or finalArgs.saveanyway:
+    if nuevosPartidos or temporada.changed or GetParam(finalArgs, 'saveanyway'):
         sys.setrecursionlimit(50000)
-        if finalArgs.outfile:
-            temporada.grabaTemporada(finalArgs.outfile)
+        if GetParam(finalArgs, 'outfile'):
+            temporada.grabaTemporada(GetParam(finalArgs, 'outfile'))
 
     if nuevosPartidos:
         print(f"Partidos descargados\n{resumenNuevosPartidos(nuevosPartidos, temporada)}", "\n" * 2)
@@ -81,7 +82,7 @@ def main(args: Namespace):
 
 
 def procesaParamsTemporada(temporada, args) -> Namespace:
-    if 'infile' in args and args.infile:
+    if args.infile:
         temporada.cargaTemporada(args.infile)
     if args.procesaBio and not temporada.descargaFichas:
         temporada.descargaFichas = True
@@ -90,20 +91,16 @@ def procesaParamsTemporada(temporada, args) -> Namespace:
         temporada.descargaPlantillas = True
         temporada.changed = True
 
-    auxDict = {}
-    auxDict.update(args.__dict__)
-    auxDict.update({'procesaBio': temporada.descargaFichas, 'procesaPlantilla': temporada.descargaPlantillas})
-
-    result = Namespace(**auxDict)
+    result = createArgs(args, temporada.getConfig())
 
     return result
 
 
 def preparaLogs(args: Namespace):
     logger = logging.getLogger()
-    if args.debug:
+    if GetParam(args, 'debug'):
         prepareLogger(logger=logger, level=logging.DEBUG)
-    elif args.verbose:
+    elif GetParam(args, 'verbose'):
         prepareLogger(logger=logger, level=logging.INFO)
     else:
         prepareLogger(logger=logger)

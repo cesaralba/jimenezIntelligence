@@ -3,19 +3,16 @@ Created on Jan 4, 2018
 
 @author: calba
 """
-import functools
 import logging
 import sys
-import traceback
+from argparse import Namespace
 from collections import defaultdict
 from copy import copy
 from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
-from pprint import pp
-from sys import exc_info, setrecursionlimit
+from sys import setrecursionlimit
 from time import gmtime, strftime
-from traceback import print_exception
 from typing import Any, Iterable, Dict, Tuple, List, Set
 from typing import Optional
 
@@ -26,6 +23,7 @@ from CAPcore.Web import mergeURL
 from requests import HTTPError
 
 from Utils.FechaHora import fechaParametro2pddatetime
+from Utils.ManageArgs import GetParam
 from Utils.Web import prepareDownloading, browserConfigData
 from .CalendarioACB import calendario_URLBASE, CalendarioACB
 from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEqCalendario, infoPartLV, infoSigPartido,
@@ -125,8 +123,13 @@ class TemporadaACB:
         result = f"{self.competicion} Temporada: {self.edicion} Datos: {tstampStr}"
         return result
 
+    def getConfig(self) -> Namespace:
+        result = Namespace(**{'procesaBio': self.descargaFichas, 'procesaPlantilla': self.descargaPlantillas})
+c
+        return result
+
     def actualizaTemporada(self, home=None, browser=None, config=None):
-        interrupted=False
+        interrupted = False
         changeOrig = self.changed
 
         browser, config = prepareDownloading(browser, config, calendario_URLBASE)
@@ -140,21 +143,21 @@ class TemporadaACB:
         try:
             for partido in sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys()))):
                 try:
-                    nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
-                    nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
-                    if not nuevoPartido.check():
+                    partidoDescargado = PartidoACB(**(self.Calendario.Partidos[partido]))
+                    partidoDescargado.descargaPartido(home=home, browser=browser, config=config)
+                    if not partidoDescargado.check():
                         continue
-                    self.actualizaInfoAuxiliar(nuevoPartido, browser, config)
-                    self.Partidos[partido] = nuevoPartido
+                    self.actualizaInfoAuxiliar(nuevoPartido=partidoDescargado, browser=browser, config=config)
+                    self.Partidos[partido] = partidoDescargado
                     partidosBajados.add(partido)
                 except BaseException:
-                    logging.exception("actualizaTemporada: problemas descargando  partido '%s'",partido)
+                    logging.exception("actualizaTemporada: problemas descargando  partido '%s'", partido)
 
-                if 'justone' in config and config.justone:  # Just downloads a game (for testing/dev purposes)
+                if GetParam(config,'justone'):  # Just downloads a game (for testing/dev purposes)
                     break
         except KeyboardInterrupt:
             logging.info("actualizaTemporada: Ejecución terminada por el usuario")
-            interrupted=True
+            interrupted = True
 
         self.changed |= (len(partidosBajados) > 0)
 
@@ -252,7 +255,8 @@ class TemporadaACB:
             refrescaFichas = True
 
         for codJ, datosJug in nuevoPartido.Jugadores.items():
-            if (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None) or (self.fichaJugadores[codJ].sinDatos):
+            if (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None) or (
+            self.fichaJugadores[codJ].sinDatos):
                 if self.descargaFichas:
                     try:
                         if codJ not in JUGADORESDESCARGADOS:
@@ -729,7 +733,7 @@ class TemporadaACB:
             if not cambios.jugadores:
                 continue
             for jugQuitado, datos in cambios.jugadores.removed.items():
-                #TODO: Qué hacer con los eliminados?
+                # TODO: Qué hacer con los eliminados?
                 print(f"Eliminación de jugadores no contemplada id:{jugQuitado} jugador"
                       f"{self.fichaJugadores[jugQuitado]} idClub: {idClub} {self.plantillas[idClub]} {datos}")
             result |= self.actualizaFichaJugadoresNuevos(cambios=cambios, idClub=idClub, brwCfg=browserConfig)
