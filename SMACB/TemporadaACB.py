@@ -11,6 +11,7 @@ from copy import copy
 from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
+from pprint import pp
 from sys import setrecursionlimit
 from time import gmtime, strftime
 from typing import Any, Iterable, Dict, Tuple, List, Set
@@ -88,8 +89,6 @@ class TemporadaACB:
     """
     Calendario: CalendarioACB
 
-    # TODO: función __str__
-
     def __init__(self, **kwargs):
         """
 
@@ -123,6 +122,8 @@ class TemporadaACB:
         result = f"{self.competicion} Temporada: {self.edicion} Datos: {tstampStr}"
         return result
 
+    __str__ = __repr__
+
     def getConfig(self) -> Namespace:
         result = Namespace(**{'procesaBio': self.descargaFichas, 'procesaPlantilla': self.descargaPlantillas})
         return result
@@ -152,7 +153,7 @@ class TemporadaACB:
                 except BaseException:
                     logging.exception("actualizaTemporada: problemas descargando  partido '%s'", partido)
 
-                if GetParam(config,'justone'):  # Just downloads a game (for testing/dev purposes)
+                if GetParam(config,'justone',False):  # Just downloads a game (for testing/dev purposes)
                     break
         except KeyboardInterrupt:
             logging.info("actualizaTemporada: Ejecución terminada por el usuario")
@@ -248,55 +249,63 @@ class TemporadaACB:
         if self.descargaFichas:
             browser, config = prepareDownloading(browser, config, calendario_URLBASE)
 
-        refrescaFichas = False
+        refrescaFichas = GetParam(config,'refresca',False)
 
-        if 'refresca' in config and config.refresca:
-            refrescaFichas = True
+        self.changed|= self.creaPlantillasDesdePartido(nuevoPartido)
 
         for codJ, datosJug in nuevoPartido.Jugadores.items():
-            if (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None) or (
-            self.fichaJugadores[codJ].sinDatos):
-                if self.descargaFichas:
+            if self.descargaFichas:
+                creaFicha = (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None) or GetParam(self.fichaJugadores[codJ],'sinDatos')
+                if creaFicha:
                     try:
-                        if codJ not in JUGADORESDESCARGADOS:
-                            urlJug = mergeURL(URL_BASE, datosJug['linkPersona'])
-                            nuevaFicha = FichaJugador.fromURL(urlJug, datosPartido=datosJug,
-                                                              home=browser.get_url(), browser=browser, config=config)
-                            self.fichaJugadores[codJ] = nuevaFicha
-                            JUGADORESDESCARGADOS.add(codJ)
-                            self.changed = True
+                        urlJug = mergeURL(URL_BASE, datosJug['linkPersona'])
+                        nuevaFicha = FichaJugador.fromURL(urlJug, datos=datosJug,
+                                                          home=browser.get_url(), browser=browser, config=config)
+                        self.fichaJugadores[codJ] = nuevaFicha
+                        JUGADORESDESCARGADOS.add(codJ)
+                        self.changed = True
                     except HTTPError:
                         logging.exception("Partido [%s]: something happened creating record for %s. Datos: %s",
                                           nuevoPartido.url, codJ, datosJug)
-                        nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
+                        nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datos=datosJug,
                                                               timestamp=nuevoPartido.timestamp)
                         self.fichaJugadores[codJ] = nuevaFicha
                         JUGADORESDESCARGADOS.add(codJ)
                         self.changed = True
 
-                else:  # Crear desde info de partido
-                    nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
-                                                          timestamp=nuevoPartido.timestamp)
-                    self.fichaJugadores[codJ] = nuevaFicha
-                    self.changed = True
-
-            elif self.descargaFichas and (refrescaFichas or (not hasattr(self.fichaJugadores[codJ], 'sinDatos')) or (
-                    self.fichaJugadores[codJ].sinDatos is None) or self.fichaJugadores[codJ].sinDatos):
-                if codJ not in JUGADORESDESCARGADOS:
-                    urlJugAux = mergeURL(URL_BASE, datosJug['linkPersona'])
-                    if urlJugAux != self.fichaJugadores[codJ].URL:
-                        self.fichaJugadores[codJ].URL = urlJugAux
-                        self.changed = True
-                    try:
-                        self.changed |= self.fichaJugadores[codJ].actualizaFromWeb(datosPartido=datosJug,
-                                                                                   browser=browser,
-                                                                                   config=config)
-                        JUGADORESDESCARGADOS.add(codJ)
-                    except HTTPError:
-                        logging.exception("Partido [%s]: something happened updating record for %s. Datos: %s",
-                                          nuevoPartido.url, codJ, datosJug)
+                elif refrescaFichas:
+                    if codJ not in JUGADORESDESCARGADOS:
+                        urlJugAux = mergeURL(URL_BASE, datosJug['linkPersona'])
+                        if urlJugAux != self.fichaJugadores[codJ].URL:
+                            self.fichaJugadores[codJ].URL = urlJugAux
+                            self.changed = True
+                        try:
+                            self.changed |= self.fichaJugadores[codJ].actualizaFromWeb(datosPartido=datosJug,
+                                                                                       browser=browser,
+                                                                                       config=config)
+                            JUGADORESDESCARGADOS.add(codJ)
+                        except HTTPError:
+                            logging.exception("Partido [%s]: something happened updating record for %s. Datos: %s",
+                                              nuevoPartido.url, codJ, datosJug)
+            else:  # Crear desde info de partido
+                nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
+                                                      timestamp=nuevoPartido.timestamp)
+                self.fichaJugadores[codJ] = nuevaFicha
+                self.changed = True
 
             self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
+
+    def creaPlantillasDesdePartido(self, nuevoPartido: PartidoACB)->bool:
+        auxChanged=False
+        for eq in nuevoPartido.Equipos.values():
+            eqId = eq['id']
+            if eqId in self.plantillas:
+                continue
+            self.plantillas[eqId] = PlantillaACB(eqId, edicion=self.edicion)
+            auxChanged = True
+            dataClub = {'club': {'nombreActual': eq['Nombre'], 'nombreOficial': eq['Nombre']}}
+            self.plantillas[eqId].actualizaPlantillaDescargada(dataClub)
+        return auxChanged
 
     def actualizaPlantillasConDescarga(self, browser=None, config=None) -> bool:
         result = False
@@ -338,10 +347,10 @@ class TemporadaACB:
             if codJ in self.fichaJugadores:
                 ficha = self.fichaJugadores[codJ]
 
-                self.tradJugadores['nombre2ids'][ficha.nombre].add(ficha.id)
-                self.tradJugadores['nombre2ids'][ficha.alias].add(ficha.id)
-                self.tradJugadores['id2nombres'][ficha.id].add(ficha.nombre)
-                self.tradJugadores['id2nombres'][ficha.id].add(ficha.alias)
+                self.tradJugadores['nombre2ids'][ficha.nombre].add(ficha.persID)
+                self.tradJugadores['nombre2ids'][ficha.alias].add(ficha.persID)
+                self.tradJugadores['id2nombres'][ficha.persID].add(ficha.nombre)
+                self.tradJugadores['id2nombres'][ficha.persID].add(ficha.alias)
 
             self.tradJugadores['nombre2ids'][datosJug['nombre']].add(datosJug['codigo'])
             self.tradJugadores['id2nombres'][datosJug['codigo']].add(datosJug['nombre'])
@@ -881,33 +890,35 @@ def limitaLineasEnTrayectoriaEquipos(limitRows, lineas):
     for revGame in reversed(lineas):
         data: filaMergeTrayectoria = revGame
         if data.pendiente or data.precedente:
-            if quedan > 0:
+            if quedan > 0: #Hay sitio -> p'adentro
                 result.append(data)
                 quedan -= 1
                 continue
-            if quedan == 0:
+            if quedan == 0: # No hay sitio, quitamos una fila que no sea ni precedente ni partido pendiente
                 for insrow in reversed(result):
                     if not (insrow.pendiente or insrow.precedente):
                         result.remove(insrow)
                         result.append(data)
                         break
-                else:
+                else: # No hay nada que eliminar, se añade en cualquier caso y se pone un aviso
+                    # Como solo se produce cuando hay 0 el mensaje sólo se pone una vez
                     result.append(data)
                     quedan -= 1
                     mensajeAviso = ("La pagina no puede contener el número mínimo de resultados. "
                                     "El formato puede descuadrarse")
                     print(mensajeAviso)
                     continue
-            else:
+            else: # No hay sitio pero se añada aunque se descaraje el formato
                 result.append(data)
                 quedan -= 1
 
             print(f"Pendiente: {quedan}")
             continue
-        if quedan > 0:
+        # Filas prescindibles.
+        if quedan > 0: # Hay sitio -> p'adentro
             result.append(data)
             quedan -= 1
-        else:
+        else: # No hay sitio, poner aviso en la tabla
             if mensajeAviso == "":
                 mensajeAviso = "Filas de trayectoria eliminadas por tamaño de página"
     return result, mensajeAviso
