@@ -9,6 +9,7 @@ from SMACB.TemporadaACB import TemporadaACB
 
 def resumenCambioJugadores(cambiosJugadores: dict, temporada: TemporadaACB):
     jugList = []
+
     for jugCod, jugData in cambiosJugadores.items():
         if not jugData:
             continue
@@ -16,7 +17,7 @@ def resumenCambioJugadores(cambiosJugadores: dict, temporada: TemporadaACB):
         clubStr = "" if ultClub is None else f"{temporada.plantillas[ultClub].nombreClub()}"
 
         jugadorStr = f"{temporada.fichaJugadores[jugCod].nombreFicha()}"
-        if 'NuevoJugador' in jugData:
+        if 'NuevaFicha' in jugData:
             jugList.append(f"* Nuevo fichaje de {clubStr}: {jugadorStr}")
         else:
             claves2skip = {'urlFoto'}
