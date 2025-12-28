@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, Union
 
 from configargparse import Namespace
 
@@ -24,5 +24,5 @@ def createArgs(*args: Optional[Dict, Namespace]) -> Namespace:
     return result
 
 
-def GetParam(args: Namespace, paramName: str, defValue=None) -> Any:
+def GetParam(args: Union[Namespace, object], paramName: str, defValue=None) -> Any:
     return getattr(args, paramName, defValue)
