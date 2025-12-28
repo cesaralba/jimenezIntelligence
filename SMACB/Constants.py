@@ -82,8 +82,11 @@ filaMergeTrayectoria = namedtuple(typename='filaMergeTrayectoria',
                                   field_names=['jornada', 'izda', 'dcha', 'precedente', 'infoJornada', 'pendiente'],
                                   defaults=[None, None, None, None, None, False])
 URLIMG2IGNORE = {'/Images/Web/silueta1.gif', '/Images/Web/silueta2.gif', ''}
-CLAVESFICHAJUGADOR = ['alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia',
-                      'junior', 'audioURL']
+
+CLAVESFICHAPERSONA = {'URL', 'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'nacionalidad'}
+CLAVESFICHAJUGADOR = {'posicion', 'altura', 'licencia', 'junior'}
+CLAVESFICHAENTRENADOR = []
+
 CLAVESDICT = ['id', 'URL', 'alias', 'nombre', 'lugarNac', 'fechaNac', 'posicion', 'altura', 'nacionalidad', 'licencia',
               'primPartidoT', 'ultPartidoT', 'ultPartidoP']
 TRADPOSICION = {'Alero': 'A', 'Escolta': 'E', 'Base': 'B', 'Pívot': 'P', 'Ala-pívot': 'AP', '': '?'}
