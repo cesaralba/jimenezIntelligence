@@ -44,12 +44,12 @@ class PartidoACB():
         self.timestamp = None
         self.esPlayoff: bool = False
 
-        self.Equipos = createDictFromGenerator(LocalVisitante,lambda:{'Jugadores': []})
+        self.Equipos = createDictFromGenerator(LocalVisitante, lambda: {'Jugadores': []})
 
         self.Jugadores = {}
         self.Entrenadores = {}
-        self.pendientes: Dict[str, List] = createDictFromGenerator(LocalVisitante,list)
-        self.aprendidos: Dict[str, List] = createDictFromGenerator(LocalVisitante,list)
+        self.pendientes: Dict[str, List] = createDictFromGenerator(LocalVisitante, list)
+        self.aprendidos: Dict[str, List] = createDictFromGenerator(LocalVisitante, list)
         self.metadataEnlaces: dict = kwargs.get('enlaces', {})
         self.availMD = {}
         self.metadataEmb = {}
@@ -84,7 +84,7 @@ class PartidoACB():
 
         self.procesaPartido(partidoPage)
 
-        self.descargaEmbMetadata(home=home, browser=browser, config=config)
+        # CAP: recuperar al final self.descargaEmbMetadata(home=home, browser=browser, config=config)
 
     def procesaPartido(self, content: DownloadedPage):
         raiser = False

@@ -11,7 +11,6 @@ from copy import copy
 from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
-from pprint import pp
 from sys import setrecursionlimit
 from time import gmtime, strftime
 from typing import Any, Iterable, Dict, Tuple, List, Set
@@ -153,7 +152,7 @@ class TemporadaACB:
                 except BaseException:
                     logging.exception("actualizaTemporada: problemas descargando  partido '%s'", partido)
 
-                if GetParam(config,'justone',False):  # Just downloads a game (for testing/dev purposes)
+                if GetParam(config, 'justone', False):  # Just downloads a game (for testing/dev purposes)
                     break
         except KeyboardInterrupt:
             logging.info("actualizaTemporada: Ejecución terminada por el usuario")
@@ -249,13 +248,14 @@ class TemporadaACB:
         if self.descargaFichas:
             browser, config = prepareDownloading(browser, config, calendario_URLBASE)
 
-        refrescaFichas = GetParam(config,'refresca',False)
+        refrescaFichas = GetParam(config, 'refresca', False)
 
-        self.changed|= self.creaPlantillasDesdePartido(nuevoPartido)
+        self.changed |= self.creaPlantillasDesdePartido(nuevoPartido)
 
         for codJ, datosJug in nuevoPartido.Jugadores.items():
             if self.descargaFichas:
-                creaFicha = (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None) or GetParam(self.fichaJugadores[codJ],'sinDatos')
+                creaFicha = (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None) or GetParam(
+                    self.fichaJugadores[codJ], 'sinDatos')
                 if creaFicha:
                     try:
                         urlJug = mergeURL(URL_BASE, datosJug['linkPersona'])
@@ -272,7 +272,6 @@ class TemporadaACB:
                         self.fichaJugadores[codJ] = nuevaFicha
                         JUGADORESDESCARGADOS.add(codJ)
                         self.changed = True
-
                 elif refrescaFichas:
                     if codJ not in JUGADORESDESCARGADOS:
                         urlJugAux = mergeURL(URL_BASE, datosJug['linkPersona'])
@@ -295,8 +294,8 @@ class TemporadaACB:
 
             self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
 
-    def creaPlantillasDesdePartido(self, nuevoPartido: PartidoACB)->bool:
-        auxChanged=False
+    def creaPlantillasDesdePartido(self, nuevoPartido: PartidoACB) -> bool:
+        auxChanged = False
         for eq in nuevoPartido.Equipos.values():
             eqId = eq['id']
             if eqId in self.plantillas:
@@ -890,17 +889,17 @@ def limitaLineasEnTrayectoriaEquipos(limitRows, lineas):
     for revGame in reversed(lineas):
         data: filaMergeTrayectoria = revGame
         if data.pendiente or data.precedente:
-            if quedan > 0: #Hay sitio -> p'adentro
+            if quedan > 0:  # Hay sitio -> p'adentro
                 result.append(data)
                 quedan -= 1
                 continue
-            if quedan == 0: # No hay sitio, quitamos una fila que no sea ni precedente ni partido pendiente
+            if quedan == 0:  # No hay sitio, quitamos una fila que no sea ni precedente ni partido pendiente
                 for insrow in reversed(result):
                     if not (insrow.pendiente or insrow.precedente):
                         result.remove(insrow)
                         result.append(data)
                         break
-                else: # No hay nada que eliminar, se añade en cualquier caso y se pone un aviso
+                else:  # No hay nada que eliminar, se añade en cualquier caso y se pone un aviso
                     # Como solo se produce cuando hay 0 el mensaje sólo se pone una vez
                     result.append(data)
                     quedan -= 1
@@ -908,17 +907,17 @@ def limitaLineasEnTrayectoriaEquipos(limitRows, lineas):
                                     "El formato puede descuadrarse")
                     print(mensajeAviso)
                     continue
-            else: # No hay sitio pero se añada aunque se descaraje el formato
+            else:  # No hay sitio pero se añada aunque se descaraje el formato
                 result.append(data)
                 quedan -= 1
 
             print(f"Pendiente: {quedan}")
             continue
         # Filas prescindibles.
-        if quedan > 0: # Hay sitio -> p'adentro
+        if quedan > 0:  # Hay sitio -> p'adentro
             result.append(data)
             quedan -= 1
-        else: # No hay sitio, poner aviso en la tabla
+        else:  # No hay sitio, poner aviso en la tabla
             if mensajeAviso == "":
                 mensajeAviso = "Filas de trayectoria eliminadas por tamaño de página"
     return result, mensajeAviso

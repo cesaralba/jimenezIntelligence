@@ -41,23 +41,17 @@ class FichaPersona:
         self.nombre: Optional[str] = None
         self.alias: Optional[str] = None
         self.lugarNac: Optional[str] = None
-        self.fechaNac: Optional[str] = None
+        self.fechaNac: Optional[Timestamp] = None
         self.nacionalidad: Optional[str] = None
         self.nombresConocidos: Set[str] = set()
         self.fotos: Set[str] = set()
         self.urlConocidas: Set[str] = set()
 
+        self.equipos: Set[str] = set()
         self.ultClub: Optional[str] = None
 
         self.partsTemporada: PartidosClub = PartidosClub(persID=self.persID, tipoFicha=self.tipoFicha, clubId=None)
         self.partsClub: Dict[str, PartidosClub] = {}
-
-        self.primPartidoP: Optional[str] = None
-        self.ultPartidoP: Optional[str] = None
-        self.primPartidoT: Optional[str] = None
-        self.ultPartidoT: Optional[str] = None
-        self.partidos: Set[str] = set()
-        self.equipos: Set[str] = set()
 
         self.actualizaBioBasic(changeInfo=changesInfo, **kwargs)
 
@@ -114,11 +108,23 @@ class FichaPersona:
         raise NotImplementedError("infoFichaStr tiene que estar en las clases derivadas")
 
     def nombreFicha(self):
+        def cadPartidos(me: FichaPersona, idClub=None) -> str:
+            if idClub is None:
+                idClub = me.ultClub
+            if idClub is None:
+                return "Sin club"
+            # TODO: Conseguir abreviatura de club
+            if idClub not in me.partsClub:
+                return f"Sin partidos con club: '{idClub}'"
+
+            data: PartidosClub = me.partsClub[idClub]
+            result = (f"Parts(club:{idClub}):[{len(data.partidos)}] {data.primPartidoT.strftime('%Y-%m-%d')} -> "
+                      f"{data.ultPartidoT.strftime('%Y-%m-%d')}")
+            return result
+
         nombreStr = self.alias or self.nombre
-        fechaNacStr = "Sin datos" if self.fechaNac is None else self.fechaNac.strftime('%Y-%m-%d')
-        gamesStr = "Sin partidos registrados" if self.primPartidoT is None else (
-            f"Parts:[{len(self.partidos)}] {self.primPartidoT.strftime('%Y-%m-%d')} -> "
-            f"{self.ultPartidoT.strftime('%Y-%m-%d')}")
+        fechaNacStr = "No Fnac" if self.fechaNac is None else self.fechaNac.strftime('%Y-%m-%d')
+        gamesStr = cadPartidos(self)
         prefPers, datosPers = self.infoFichaStr()
         eqPlural = "s" if len(self.equipos) != 1 else ""
 
@@ -251,8 +257,8 @@ class PartidosClub:
 
         self.primPartidoP: Optional[str] = None
         self.ultPartidoP: Optional[str] = None
-        self.primPartidoT: Optional[str] = None
-        self.ultPartidoT: Optional[str] = None
+        self.primPartidoT: Optional[Timestamp] = None
+        self.ultPartidoT: Optional[Timestamp] = None
         self.partidos: Set[str] = set()
 
     def addPartido(self, persona: FichaPersona, partido: PartidoACB) -> bool:
@@ -286,6 +292,7 @@ class PartidosClub:
 
         if persona.ultClub is None:
             persona.ultClub = datosPersPart['IDequipo']
+        persona.equipos.add(datosPersPart['IDequipo'])
 
         if (self.primPartidoT is None) or (partido.fechaPartido < self.primPartidoT):
             self.primPartidoP = partido.url
@@ -340,7 +347,7 @@ class FichaClubPersona:
         return all(getattr(self, k) == kwargs.get(k, None) for k in EXCLUDEFICHACLUBPERSONA)
 
     def getCurrentData(self):
-        result = {k: v.get() for k,v in self.__dict__.items() if isinstance(v, LoggedValue)}
+        result = {k: v.get() for k, v in self.__dict__.items() if isinstance(v, LoggedValue)}
 
         return result
 
