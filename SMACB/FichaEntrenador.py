@@ -1,19 +1,33 @@
+from typing import Tuple
+
+from Utils.Web import sentinel
+from .Constants import CLAVESFICHAENTRENADOR
 from .FichaPersona import FichaPersona
 
-sentinel=object
 
 class FichaEntrenador(FichaPersona):
     def __init__(self, **kwargs):
-        changesInfo = {'NuevoEntrenador': True}
+        changesInfo = {'NuevaFicha': (None, True)}
 
-        dataConocida = {'tipoFicha': 'entrenador', 'changesInfo': changesInfo}
-        dataConocida.update(kwargs)
-        super().__init__(**dataConocida)
+        super().__init__(NuevaFicha=True, tipoFicha='entrenador', changesInfo=changesInfo, **kwargs)
 
-
-    def actualizaBio(self, data)->bool:
-        # Los entrenadores tienen las mismas cosas que FichaPersona, los jugadores necesitarán tratamiento específico
-        result=False
-        result |= self.actualizaBioBasic(**data)
+    def actualizaBio(self, changeInfo=sentinel, **kwargs):
+        if changeInfo is sentinel:
+            changeInfo = {}
+        result = False
+        for k in CLAVESFICHAENTRENADOR:
+            if k not in kwargs:
+                continue
+            if getattr(self, k) != kwargs[k]:
+                result |= True
+                oldV = getattr(self, k)
+                setattr(self, k, kwargs[k])
+                changeInfo[k] = (oldV, kwargs[k])
 
         return result
+
+    def infoFichaStr(self) -> Tuple[str, str]:
+        prefix = "Ent"
+        cadenaStr = "TBD"
+
+        return prefix, cadenaStr

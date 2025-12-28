@@ -1,349 +1,300 @@
 import logging
 from collections import defaultdict
-from time import gmtime
-from typing import Optional
+from typing import Optional, Tuple
 
 import bs4
-from CAPcore.Misc import copyDictWithTranslation
-from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
+from CAPcore.LoggedValue import LoggedValue
+from CAPcore.Web import downloadPage, DownloadedPage
 from requests import HTTPError
 
-from SMACB.Constants import URLIMG2IGNORE, CLAVESFICHAJUGADOR, CLAVESDICT, TRADPOSICION, POSABREV2NOMBRE, URL_BASE
-from SMACB.PartidoACB import PartidoACB
+from SMACB.Constants import CLAVESFICHAJUGADOR, POSABREV2NOMBRE
+from SMACB.FichaPersona import FichaPersona
 from Utils.ParseoData import findLocucionNombre, procesaCosasUtilesPlantilla
-from Utils.Web import getObjID, prepareDownloading
+from Utils.Web import getObjID, prepareDownloading, sentinel
 
 CAMBIOSJUGADORES = defaultdict(dict)
 
 
-class FichaJugador:
+class FichaJugador(FichaPersona):
     def __init__(self, **kwargs):
-        changesInfo = {'NuevoJugador': True}
-        if 'id' not in kwargs:
-            raise ValueError(f"Jugador nuevo sin 'id': {kwargs}")
-        self.id = kwargs.get('id', None)
-        self.URL = kwargs.get('URL', None)
-        self.sinDatos: Optional[bool] = None
+        changesInfo = {'NuevaFicha': (None, True)}
 
-        self.timestamp = kwargs.get('timestamp', None)
-        self.nombre = kwargs.get('nombre', None)
-        self.alias = kwargs.get('alias', self.nombre)
-        self.lugarNac = kwargs.get('lugarNac', None)
-        self.fechaNac = kwargs.get('fechaNac', None)
-        self.posicion = kwargs.get('posicion', None)
-        self.altura = kwargs.get('altura', None)
-        self.nacionalidad = kwargs.get('nacionalidad', None)
-        self.licencia = kwargs.get('licencia', None)
-        self.junior = kwargs.get('junior', False)
-        self.audioURL = kwargs.get('audioURL', None)
+        self.posicion = None
+        self.altura = None
+        self.licencia = None
+        self.junior = None
 
-        self.ultClub = None
+        super().__init__(NuevaFicha=True, tipoFicha='jugador', changesInfo=changesInfo, **kwargs)
 
-        self.nombresConocidos = set()
-        self.urlConocidas = set()
-        self.fotos = set()
+        self.actualizaBio(changeInfo=changesInfo, **kwargs)
 
-        self.primPartidoP = None
-        self.ultPartidoP = None
-        self.primPartidoT = None
-        self.ultPartidoT = None
-        self.partidos = set()
-        self.equipos = set()
+        CAMBIOSJUGADORES[self.persID].update(changesInfo)
 
-        if self.nombre is not None:
-            self.nombresConocidos.add(self.nombre)
-        if self.alias is not None:
-            self.nombresConocidos.add(self.alias)
-
-        if self.URL is not None:
-            self.urlConocidas.add(self.URL)
-
-        self.updateFoto(urlFoto=kwargs.get('urlFoto', None), urlBase=self.URL, changeDict=changesInfo)
-
-        ultClub = kwargs.get('club', None)
-        if ultClub is not None:
-            self.equipos.add(ultClub)
-            self.ultClub = ultClub
-
-        addedData = {k: kwargs.get(k, None) for k in CLAVESFICHAJUGADOR if kwargs.get(k, None) is not None}
-        changesInfo.update(addedData)
-        CAMBIOSJUGADORES[self.id].update(changesInfo)
-
-    def updateFoto(self, urlFoto: Optional[str], urlBase: Optional[str], changeDict: Optional[dict] = None):
-        changes = False
-
-        if urlFoto is not None and urlFoto not in URLIMG2IGNORE:
-            changes = True
-            newURL = mergeURL(urlBase, urlFoto)
-            self.fotos.add(newURL)
-            if changeDict:
-                changeDict['urlFoto'] = ("", "Nueva")
-        return changes
-
-    @staticmethod
-    def fromPartido(idJugador: str, datosPartido: Optional[dict] = None, **kwargs):
-        """
-        Crear una ficha de jugador a partir de los datos del partido. Bien porque no se descarguen fichas,
-        bien como fallback
-        :param idJugador: Código del jugador
-        :param datosPartido: Info del partido (de PartidoACB.Jugadores
-        :param kwargs: parámetros que no vienen en datosPartido (timestamp)
-        :return: Nuevo objeto creado
-        """
-        TRFICHAJUG = {'IDequipo': 'club', 'codigo': 'id', 'nombres': 'alias'}
-        EXFICHAJUG = {'competicion', 'temporada', 'jornada', 'equipo', 'CODequipo', 'rival', 'CODrival', 'IDrival',
-                      'url', 'estado', 'esLocal', 'haGanado', 'estads', 'esJugador', 'entrenador', 'haJugado', 'dorsal',
-                      'esTitular', 'linkPersona', }
-
-        if datosPartido is None:
-            datosPartido = {}
-
-        fichaJug = {'id': idJugador}
-        if 'linkPersona' in datosPartido:
-            fichaJug['URL'] = mergeURL(URL_BASE, datosPartido['linkPersona'])
-        fichaJug.update(kwargs)
-
-        auxDatosPartido = copyDictWithTranslation(source=datosPartido, translation=TRFICHAJUG, excludes=EXFICHAJUG)
-        fichaJug.update(auxDatosPartido)
-
-        return FichaJugador(**fichaJug)
-
-    @staticmethod
-    def fromURL(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
-        browser, config = prepareDownloading(browser, config)
-
-        try:
-            fichaJug = descargaYparseaURLficha(urlFicha, datosPartido=datosPartido, home=home, browser=browser,
-                                               config=config)
-        except HTTPError:
-            logging.exception("Problemas descargando jugador '%s'", urlFicha)
-            return None
-
-        return FichaJugador(**fichaJug)
-
-    @staticmethod
-    def fromDatosPlantilla(datosFichaPlantilla: Optional[dict] = None, idClub: Optional[str] = None, home=None,
-                           browser=None, config=None
-                           ):
-        if datosFichaPlantilla is None:
-            return None
-        datosFichaPlantilla = adaptaDatosFichaPlantilla(datosFichaPlantilla, idClub)
-
-        newData = {}
-        newData.update(datosFichaPlantilla)
-
-        try:
-            fichaJug = descargaYparseaURLficha(datosFichaPlantilla['URL'], home=home, browser=browser, config=config)
-            newData.update(fichaJug)
-        except HTTPError:
-            logging.exception("Problemas descargando jugador '%s'", datosFichaPlantilla['URL'])
-
-        return FichaJugador(**newData)
-
-    def actualizaFromWeb(self, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
-
+    def actualizaBio(self, changeInfo=sentinel, **kwargs):
+        if changeInfo is sentinel:
+            changeInfo = {}
         result = False
-        changeInfo = {}
-
-        result |= self.addAtributosQueFaltan()
-
-        browser, config = prepareDownloading(browser, config)
-        newData = descargaYparseaURLficha(self.URL, datosPartido=datosPartido, home=home, browser=browser,
-                                          config=config)
-
-        if self.sinDatos is None or self.sinDatos:
-            self.sinDatos = newData.get('sinDatos', False)
-            result = True
-
-        result |= self.updateFichaJugadorFromDownloadedData(changeInfo, newData)
-
-        if result:
-            self.timestamp = newData.get('timestamp', gmtime())
-            if changeInfo:
-                CAMBIOSJUGADORES[self.id].update(changeInfo)
-
-        return result
-
-    def actualizaFromPlantilla(self, datosFichaPlantilla: Optional[dict] = None, idClub: Optional[str] = None):
-        if datosFichaPlantilla is None:
-            return False
-        datosFichaPlantilla = adaptaDatosFichaPlantilla(datosFichaPlantilla, idClub)
-
-        result = False
-        changeInfo = {}
-
-        result |= self.addAtributosQueFaltan()
-
-        result |= self.updateFichaJugadorFromDownloadedData(changeInfo, datosFichaPlantilla)
-
-        if result:
-            self.timestamp = datosFichaPlantilla.get('timestamp', gmtime())
-            if changeInfo:
-                CAMBIOSJUGADORES[self.id].update(changeInfo)
-
-        return result
-
-    def updateFichaJugadorFromDownloadedData(self, changeInfo, newData):
-        result = False
-        # No hay necesidad de poner la URL en el informe
-        if 'URL' in newData and self.URL != newData['URL']:
-            self.urlConocidas.add(newData['URL'])
-            self.URL = newData['URL']
-            result |= True
-
         for k in CLAVESFICHAJUGADOR:
-            if k not in newData:
+            if k not in kwargs:
                 continue
-            if getattr(self, k) != newData[k]:
+            if getattr(self, k) != kwargs[k]:
                 result |= True
-                changeInfo[k] = (getattr(self, k), newData[k])
-                setattr(self, k, newData[k])
+                oldV = getattr(self, k)
+                setattr(self, k, kwargs[k])
+                changeInfo[k] = (oldV, kwargs[k])
 
-        if self.nombre is not None:
-            self.nombresConocidos.add(self.nombre)
-            result |= True
-
-        if self.alias is not None:
-            self.nombresConocidos.add(self.alias)
-            result |= True
-
-        if 'urlFoto' in newData:
-            result |= self.updateFoto(newData['urlFoto'], self.URL, changeInfo)
-
-        ultClub = newData.get('club', None)
-        if self.ultClub != ultClub:
-            result |= True
-            if ultClub is not None:
-                result |= (ultClub not in self.equipos)
-                self.equipos.add(ultClub)
-                if self.ultClub != ultClub:
-                    if (self.ultClub is None) or (newData.get('activo', False)):
-                        changeInfo['ultClub'] = (self.ultClub, ultClub)
-                        self.ultClub = ultClub
-                        result |= True
         return result
 
-    def addAtributosQueFaltan(self) -> bool:
-        """
-        Añade
-        :param:
-        :return: si ha habido cambios
-        """
-        changes = False
-        if not hasattr(self, 'sinDatos'):
-            changes = True
-            setattr(self, 'sinDatos', None)
-        if not hasattr(self, 'nombresConocidos'):
-            changes = True
-            setattr(self, 'nombresConocidos', set())
-            if self.nombre is not None:
-                self.nombresConocidos.add(self.nombre)
-            if self.alias is not None:
-                self.nombresConocidos.add(self.alias)
-        if not hasattr(self, 'ultClub'):
-            changes = True
-            setattr(self, 'ultClub', None)
-        if not hasattr(self, 'junior'):
-            changes = True
-            setattr(self, 'junior', None)
-        if not hasattr(self, 'audioURL'):
-            changes = True
-            setattr(self, 'audioURL', None)
-        if not hasattr(self, 'urlConocidas'):
-            changes = True
-            setattr(self, 'urlConocidas', set())
-            self.urlConocidas.add(self.URL)
-        return changes
-
-    def nuevoPartido(self, partido: PartidoACB) -> bool:
-        """
-        Actualiza información relativa a partidos jugados
-        :param partido: OBJETO partidoACB
-        :return: Si ha cambiado el objeto o no
-        """
-
-        if self.id not in partido.Jugadores:
-            raise ValueError(f"Jugador '{self.nombre}' ({self.id}) no ha jugado partido {partido.url}")
-
-        if partido.url in self.partidos:
-            return False
-
-        self.partidos.add(partido.url)
-        logging.debug("Jugador [%s] %s ha jugado '%s'", self.id, self.nombre, partido.url)
-        datosJug = partido.Jugadores[self.id]
-        self.equipos.add(datosJug['IDequipo'])
-
-        if self.ultClub is None:
-            self.ultClub = datosJug['IDequipo']
-
-        if (self.primPartidoT is None) or (partido.fechaPartido < self.primPartidoT):
-            self.primPartidoP = partido.url
-            self.primPartidoT = partido.fechaPartido
-
-        if (self.ultPartidoT is None) or (partido.fechaPartido > self.ultPartidoT):
-            self.ultPartidoP = partido.url
-            self.ultPartidoT = partido.fechaPartido
-        return True
-
-    def __repr__(self):
-        nombreStr = self.alias or self.nombre
-        fechaNacStr = "Sin datos" if self.fechaNac is None else self.fechaNac.strftime('%Y-%m-%d')
-        gamesStr = "Sin partidos registrados" if self.primPartidoT is None else (
-            f"Parts:[{len(self.partidos)}] {self.primPartidoT.strftime('%Y-%m-%d')} -> "
-            f"{self.ultPartidoT.strftime('%Y-%m-%d')}")
-        eqPlural = "s" if len(self.equipos) != 1 else ""
-
-        return (f"{nombreStr} ({self.id}) {fechaNacStr} "
-                f"({len(self.equipos)} eq{eqPlural}) {gamesStr}")
-
-    def nombreFicha(self):
-        nombreStr = self.alias or self.nombre
-        fechaNacStr = "Sin datos" if self.fechaNac is None else self.fechaNac.strftime('%Y-%m-%d')
-        gamesStr = "Sin partidos registrados" if self.primPartidoT is None else (
-            f"Parts:[{len(self.partidos)}] {self.primPartidoT.strftime('%Y-%m-%d')} -> "
-            f"{self.ultPartidoT.strftime('%Y-%m-%d')}")
+    def infoFichaStr(self) -> Tuple[str, str]:
         alturaStr = f"{self.altura}cm " if (self.altura is not None) and (self.altura > 0) else ""
         posStr = f"{self.posicion}" if (self.posicion is not None) and (self.posicion != "") else ""
-        eqPlural = "s" if len(self.equipos) != 1 else ""
 
-        return (f"{nombreStr} ({self.id}) {fechaNacStr} {alturaStr}{posStr} "
-                f"({len(self.equipos)} eq{eqPlural}) {gamesStr}")
+        prefix = "Jug"
+        cadenaStr = f"{alturaStr}{posStr}"
 
-    def limpiaPartidos(self):
-        self.primPartidoP = None
-        self.ultPartidoP = None
-        self.primPartidoT = None
-        self.ultPartidoT = None
-        self.partidos = set()
-        self.timestamp = gmtime()
+        return prefix, cadenaStr
 
-    def __add__(self, other):
-        CLAVESAIGNORAR = ['id', 'url', 'timestamp', 'primPartidoP', 'ultPartidoP', 'primPartidoT', 'ultPartidoT',
-                          'partidos']
-        if self.id != other.id:
-            raise ValueError(f"Claves de fichas no coinciden '{self.nombre}' {self.id} != {other.id}")
+    # @staticmethod
+    # def fromPartido(idJugador: str, datosPartido: Optional[dict] = None, **kwargs):
+    #     """
+    #     Crear una ficha de jugador a partir de los datos del partido. Bien porque no se descarguen fichas,
+    #     bien como fallback
+    #     :param idJugador: Código del jugador
+    #     :param datosPartido: Info del partido (de PartidoACB.Jugadores
+    #     :param kwargs: parámetros que no vienen en datosPartido (timestamp)
+    #     :return: Nuevo objeto creado
+    #     """
+    #     TRFICHAJUG = {'IDequipo': 'club', 'codigo': 'id', 'nombres': 'alias'}
+    #     EXFICHAJUG = {'competicion', 'temporada', 'jornada', 'equipo', 'CODequipo', 'rival', 'CODrival', 'IDrival',
+    #                 'url', 'estado', 'esLocal', 'haGanado', 'estads', 'esJugador', 'entrenador', 'haJugado', 'dorsal',
+    #                   'esTitular', 'linkPersona', }
+    #
+    #     if datosPartido is None:
+    #         datosPartido = {}
+    #
+    #     fichaJug = {'id': idJugador}
+    #     if 'linkPersona' in datosPartido:
+    #         fichaJug['URL'] = mergeURL(URL_BASE, datosPartido['linkPersona'])
+    #     fichaJug.update(kwargs)
+    #
+    #     auxDatosPartido = copyDictWithTranslation(source=datosPartido, translation=TRFICHAJUG, excludes=EXFICHAJUG)
+    #     fichaJug.update(auxDatosPartido)
+    #
+    #     return FichaJugador(**fichaJug)
 
-        changes = False
-        newer = self.timestamp < other.timestamp
-        for k in vars(other).keys():
-            if k in CLAVESAIGNORAR:
-                continue
-            if not hasattr(other, k) or getattr(other, k) is None:
-                continue
-            if (getattr(self, k) is None and getattr(other, k) is not None) or (
-                    newer and getattr(self, k) != getattr(other, k)):
-                setattr(self, k, getattr(other, k))
-                changes = True
+    # @staticmethod
+    # def fromURL(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
+    #     browser, config = prepareDownloading(browser, config)
+    #
+    #     try:
+    #         fichaJug = descargaYparseaURLficha(urlFicha, datosPartido=datosPartido, home=home, browser=browser,
+    #                                            config=config)
+    #     except HTTPError:
+    #         logging.exception("Problemas descargando jugador '%s'", urlFicha)
+    #         return None
+    #
+    #     return FichaJugador(**fichaJug)
 
-        return changes
-
-    def dictDatosJugador(self):
-        result = {k: getattr(self, k) for k in CLAVESDICT}
-        result['numEquipos'] = len(self.equipos)
-        result['numPartidos'] = len(self.partidos)
-        result['pos'] = TRADPOSICION.get(self.posicion, '**')
-
-        return result
+    # @staticmethod
+    # def fromDatosPlantilla(datosFichaPlantilla: Optional[dict] = None, idClub: Optional[str] = None, home=None,
+    #                        browser=None, config=None
+    #                        ):
+    #     if datosFichaPlantilla is None:
+    #         return None
+    #     datosFichaPlantilla = adaptaDatosFichaPlantilla(datosFichaPlantilla, idClub)
+    #
+    #     newData = {}
+    #     newData.update(datosFichaPlantilla)
+    #
+    #     try:
+    #         fichaJug = descargaYparseaURLficha(datosFichaPlantilla['URL'], home=home, browser=browser, config=config)
+    #         newData.update(fichaJug)
+    #     except HTTPError:
+    #         logging.exception("Problemas descargando jugador '%s'", datosFichaPlantilla['URL'])
+    #
+    #     return FichaJugador(**newData)
+    #
+    # def actualizaFromWeb(self, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
+    #
+    #     result = False
+    #     changeInfo = {}
+    #
+    #     result |= self.addAtributosQueFaltan()
+    #
+    #     browser, config = prepareDownloading(browser, config)
+    #     newData = descargaYparseaURLficha(self.URL, datosPartido=datosPartido, home=home, browser=browser,
+    #                                       config=config)
+    #
+    #     if self.sinDatos is None or self.sinDatos:
+    #         self.sinDatos = newData.get('sinDatos', False)
+    #         result = True
+    #
+    #     result |= self.updateFichaJugadorFromDownloadedData(changeInfo, newData)
+    #
+    #     if result:
+    #         self.timestamp = newData.get('timestamp', gmtime())
+    #         if changeInfo:
+    #             CAMBIOSJUGADORES[self.id].update(changeInfo)
+    #
+    #     return result
+    #
+    # def actualizaFromPlantilla(self, datosFichaPlantilla: Optional[dict] = None, idClub: Optional[str] = None):
+    #     if datosFichaPlantilla is None:
+    #         return False
+    #     datosFichaPlantilla = adaptaDatosFichaPlantilla(datosFichaPlantilla, idClub)
+    #
+    #     result = False
+    #     changeInfo = {}
+    #
+    #     result |= self.addAtributosQueFaltan()
+    #
+    #     result |= self.updateFichaJugadorFromDownloadedData(changeInfo, datosFichaPlantilla)
+    #
+    #     if result:
+    #         self.timestamp = datosFichaPlantilla.get('timestamp', gmtime())
+    #         if changeInfo:
+    #             CAMBIOSJUGADORES[self.id].update(changeInfo)
+    #
+    #     return result
+    #
+    # def updateFichaJugadorFromDownloadedData(self, changeInfo, newData):
+    #     result = False
+    #     # No hay necesidad de poner la URL en el informe
+    #     if 'URL' in newData and self.URL != newData['URL']:
+    #         self.urlConocidas.add(newData['URL'])
+    #         self.URL = newData['URL']
+    #         result |= True
+    #
+    #     for k in CLAVESFICHAJUGADOR:
+    #         if k not in newData:
+    #             continue
+    #         if getattr(self, k) != newData[k]:
+    #             result |= True
+    #             changeInfo[k] = (getattr(self, k), newData[k])
+    #             setattr(self, k, newData[k])
+    #
+    #     if self.nombre is not None:
+    #         self.nombresConocidos.add(self.nombre)
+    #         result |= True
+    #
+    #     if self.alias is not None:
+    #         self.nombresConocidos.add(self.alias)
+    #         result |= True
+    #
+    #     if 'urlFoto' in newData:
+    #         result |= self.updateFoto(newData['urlFoto'], self.URL, changeInfo)
+    #
+    #     ultClub = newData.get('club', None)
+    #     if self.ultClub != ultClub:
+    #         result |= True
+    #         if ultClub is not None:
+    #             result |= (ultClub not in self.equipos)
+    #             self.equipos.add(ultClub)
+    #             if self.ultClub != ultClub:
+    #                 if (self.ultClub is None) or (newData.get('activo', False)):
+    #                     changeInfo['ultClub'] = (self.ultClub, ultClub)
+    #                     self.ultClub = ultClub
+    #                     result |= True
+    #     return result
+    #
+    # def addAtributosQueFaltan(self) -> bool:
+    #     """
+    #     Añade
+    #     :param:
+    #     :return: si ha habido cambios
+    #     """
+    #     changes = False
+    #     if not hasattr(self, 'sinDatos'):
+    #         changes = True
+    #         setattr(self, 'sinDatos', None)
+    #     if not hasattr(self, 'nombresConocidos'):
+    #         changes = True
+    #         setattr(self, 'nombresConocidos', set())
+    #         if self.nombre is not None:
+    #             self.nombresConocidos.add(self.nombre)
+    #         if self.alias is not None:
+    #             self.nombresConocidos.add(self.alias)
+    #     if not hasattr(self, 'ultClub'):
+    #         changes = True
+    #         setattr(self, 'ultClub', None)
+    #     if not hasattr(self, 'junior'):
+    #         changes = True
+    #         setattr(self, 'junior', None)
+    #     if not hasattr(self, 'audioURL'):
+    #         changes = True
+    #         setattr(self, 'audioURL', None)
+    #     if not hasattr(self, 'urlConocidas'):
+    #         changes = True
+    #         setattr(self, 'urlConocidas', set())
+    #         self.urlConocidas.add(self.URL)
+    #     return changes
+    #
+    # # def nuevoPartido(self, partido: PartidoACB) -> bool:
+    # #     """
+    # #     Actualiza información relativa a partidos jugados
+    # #     :param partido: OBJETO partidoACB
+    # #     :return: Si ha cambiado el objeto o no
+    # #     """
+    # #
+    # #     if self.id not in partido.Jugadores:
+    # #         raise ValueError(f"Jugador '{self.nombre}' ({self.id}) no ha jugado partido {partido.url}")
+    # #
+    # #     if partido.url in self.partidos:
+    # #         return False
+    # #
+    # #     self.partidos.add(partido.url)
+    # #     logging.debug("Jugador [%s] %s ha jugado '%s'", self.id, self.nombre, partido.url)
+    # #     datosJug = partido.Jugadores[self.id]
+    # #     self.equipos.add(datosJug['IDequipo'])
+    # #
+    # #     if self.ultClub is None:
+    # #         self.ultClub = datosJug['IDequipo']
+    # #
+    # #     if (self.primPartidoT is None) or (partido.fechaPartido < self.primPartidoT):
+    # #         self.primPartidoP = partido.url
+    # #         self.primPartidoT = partido.fechaPartido
+    # #
+    # #     if (self.ultPartidoT is None) or (partido.fechaPartido > self.ultPartidoT):
+    # #         self.ultPartidoP = partido.url
+    # #         self.ultPartidoT = partido.fechaPartido
+    # #     return True
+    #
+    #
+    # def limpiaPartidos(self):
+    #     self.primPartidoP = None
+    #     self.ultPartidoP = None
+    #     self.primPartidoT = None
+    #     self.ultPartidoT = None
+    #     self.partidos = set()
+    #     self.timestamp = gmtime()
+    #
+    # def __add__(self, other):
+    #     CLAVESAIGNORAR = ['id', 'url', 'timestamp', 'primPartidoP', 'ultPartidoP', 'primPartidoT', 'ultPartidoT',
+    #                       'partidos']
+    #     if self.id != other.id:
+    #         raise ValueError(f"Claves de fichas no coinciden '{self.nombre}' {self.id} != {other.id}")
+    #
+    #     changes = False
+    #     newer = self.timestamp < other.timestamp
+    #     for k in vars(other).keys():
+    #         if k in CLAVESAIGNORAR:
+    #             continue
+    #         if not hasattr(other, k) or getattr(other, k) is None:
+    #             continue
+    #         if (getattr(self, k) is None and getattr(other, k) is not None) or (
+    #                 newer and getattr(self, k) != getattr(other, k)):
+    #             setattr(self, k, getattr(other, k))
+    #             changes = True
+    #
+    #     return changes
+    #
+    # def dictDatosJugador(self):
+    #     result = {k: getattr(self, k) for k in CLAVESDICT}
+    #     result['numEquipos'] = len(self.equipos)
+    #     result['numPartidos'] = len(self.partidos)
+    #     result['pos'] = TRADPOSICION.get(self.posicion, '**')
+    #
+    #     return result
 
 
 def descargaYparseaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=None
@@ -397,3 +348,17 @@ def adaptaDatosFichaPlantilla(datosFichaPlantilla: dict, idClub: Optional[str]) 
         datosFichaPlantilla['club'] = idClub
 
     return datosFichaPlantilla
+
+
+class FichaClubPersona:
+    def __init__(self, **kwargs):
+        self.persId: Optional[str] = None
+        self.clubId: Optional[str] = None
+        self.alta: LoggedValue = LoggedValue()
+        self.baja: LoggedValue = LoggedValue()
+
+        for k, v in kwargs.items():
+            if hasattr(self, k):
+                currVal = getattr(self, k)
+                currVal.set(v)
+                setattr(self, k, currVal)

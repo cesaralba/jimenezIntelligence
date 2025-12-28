@@ -1,31 +1,36 @@
 import logging
 from time import gmtime
-from typing import Optional, Set, Dict
+from typing import Optional, Set, Dict, Any, Tuple
 
 import bs4
+from CAPcore.LoggedValue import LoggedValue
+from CAPcore.Misc import copyDictWithTranslation
 from CAPcore.Web import mergeURL, DownloadedPage, downloadPage
+from pandas import Timestamp
 
 from Utils.ParseoData import procesaCosasUtilesPlantilla, findLocucionNombre
-from Utils.Web import prepareDownloading, getObjID
-from .Constants import URL_BASE, URLIMG2IGNORE
+from Utils.Web import prepareDownloading, getObjID, sentinel
+from .Constants import URL_BASE, URLIMG2IGNORE, CLAVESFICHAPERSONA
 from .PartidoACB import PartidoACB
 from .Trayectoria import Trayectoria
 
 VALIDPERSONATYPES = {'jugador', 'entrenador'}
 
-PERSONABASICTAGS={'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'nacionalidad', }
+PERSONABASICTAGS = {'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'nacionalidad', }
 
-sentinel=object
 
 class FichaPersona:
-    def __init__(self, **kwargs):
-        changesInfo = kwargs.get('changesInfo', {})
+    def __init__(self, changesInfo=sentinel, **kwargs):
+        if changesInfo is sentinel:
+            changesInfo = {}
+
         self.timestamp = kwargs.get('timestamp', gmtime())
 
         if 'id' not in kwargs:
             raise ValueError(f"Ficha nueva sin 'persID': {kwargs}")
-        self.persID = kwargs['id']
-        tipoPers = kwargs.get('tipoFicha', None)
+        self.persID: str = kwargs['id']
+        self.sinDatos: Optional[bool] = None
+        tipoPers: Optional[str] = kwargs.get('tipoFicha', None)
         if tipoPers not in VALIDPERSONATYPES:
             raise ValueError(f"Persona Id '{self.persID}' Tipo '{tipoPers}' no válido. Aceptados: {VALIDPERSONATYPES}")
         self.tipoFicha: Optional[str] = tipoPers
@@ -40,6 +45,8 @@ class FichaPersona:
         self.nacionalidad: Optional[str] = None
         self.nombresConocidos: Set[str] = set()
         self.fotos: Set[str] = set()
+        self.urlConocidas: Set[str] = set()
+
         self.ultClub: Optional[str] = None
 
         self.partsTemporada: PartidosClub = PartidosClub(persID=self.persID, tipoFicha=self.tipoFicha, clubId=None)
@@ -52,37 +59,42 @@ class FichaPersona:
         self.partidos: Set[str] = set()
         self.equipos: Set[str] = set()
 
-        self.actualizaBioBasic(**kwargs)
+        self.actualizaBioBasic(changeInfo=changesInfo, **kwargs)
 
-    def actualizaBio(self, data,changeInfo=sentinel):
-        raise NotImplemented("actualizaBio tiene que estar en las clases derivadas")
+    def actualizaBio(self, changeInfo=sentinel, **kwargs):
+        raise NotImplementedError("actualizaBio tiene que estar en las clases derivadas")
 
-    def actualizaBioBasic(self, **kwargs)->bool:
-        camposAmirar = {'URL', 'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'nacionalidad'}
+    def actualizaBioBasic(self, changeInfo=sentinel, **kwargs) -> bool:
 
+        if changeInfo is sentinel:
+            changeInfo = {}
         result = False
-        for k in camposAmirar:
+        for k in CLAVESFICHAPERSONA:
             if k not in kwargs:
                 continue
             if getattr(self, k) != kwargs[k]:
                 result |= True
+                oldV = getattr(self, k)
                 setattr(self, k, kwargs[k])
+                changeInfo[k] = (oldV, kwargs[k])
 
-        if self.nombre is not None:
-            if self.nombre not in self.nombresConocidos:
-                result |= True
-                self.nombresConocidos.add(self.nombre)
+        if self.nombre is not None and self.nombre not in self.nombresConocidos:
+            result |= True
+            self.nombresConocidos.add(self.nombre)
 
-        if self.alias is not None:
-            if self.alias not in self.nombresConocidos:
-                result |= True
-                self.nombresConocidos.add(self.alias)
+        if self.alias is not None and self.alias not in self.nombresConocidos:
+            result |= True
+            self.nombresConocidos.add(self.alias)
 
-        result|=self.updateFoto(urlFoto=kwargs.get('urlFoto', None), urlBase=self.URL)
+        result |= self.updateFoto(urlFoto=kwargs.get('urlFoto', None), urlBase=self.URL, changeDict=changeInfo)
+
         ultClub = kwargs.get('club', None)
         if ultClub is not None:
             self.equipos.add(ultClub)
             self.ultClub = ultClub
+            changeInfo['club'] = (None, ultClub)
+            result |= True
+
         return result
 
     def buildURL(self):
@@ -98,13 +110,33 @@ class FichaPersona:
 
         return result
 
-    def updateFoto(self, urlFoto: Optional[str], urlBase: Optional[str]):
+    def infoFichaStr(self) -> Tuple[str, str]:
+        raise NotImplementedError("infoFichaStr tiene que estar en las clases derivadas")
+
+    def nombreFicha(self):
+        nombreStr = self.alias or self.nombre
+        fechaNacStr = "Sin datos" if self.fechaNac is None else self.fechaNac.strftime('%Y-%m-%d')
+        gamesStr = "Sin partidos registrados" if self.primPartidoT is None else (
+            f"Parts:[{len(self.partidos)}] {self.primPartidoT.strftime('%Y-%m-%d')} -> "
+            f"{self.ultPartidoT.strftime('%Y-%m-%d')}")
+        prefPers, datosPers = self.infoFichaStr()
+        eqPlural = "s" if len(self.equipos) != 1 else ""
+
+        return (f"{prefPers}: {nombreStr} ({self.persID}) {fechaNacStr} {datosPers} "
+                f"({len(self.equipos)} eq{eqPlural}) {gamesStr}")
+
+    __repr__ = nombreFicha
+    __str__ = nombreFicha
+
+    def updateFoto(self, urlFoto: Optional[str], urlBase: Optional[str], changeDict: Optional[dict] = None):
         changes = False
 
         if urlFoto is not None and urlFoto not in URLIMG2IGNORE:
             changes = True
             newURL = mergeURL(urlBase, urlFoto)
             self.fotos.add(newURL)
+            if changeDict:
+                changeDict['urlFoto'] = ("", "Nueva")
         return changes
 
     def descargaPagina(self, home=None, browser=None, config=None) -> Optional[DownloadedPage]:
@@ -137,8 +169,36 @@ class FichaPersona:
 
         return result
 
-    def ficha2dict(self) -> Dict[str,str]:
-        result = {k:getattr(self,k) for k in PERSONABASICTAGS}
+    @classmethod
+    def fromPartido(cls, idJugador: str, datosPartido: Optional[dict] = None, **kwargs):
+        """
+        Crear una ficha de jugador a partir de los datos del partido. Bien porque no se descarguen fichas,
+        bien como fallback
+        :param idJugador: Código del jugador
+        :param datosPartido: Info del partido (de PartidoACB.Jugadores
+        :param kwargs: parámetros que no vienen en datosPartido (timestamp)
+        :return: Nuevo objeto creado
+        """
+        TRFICHAJUG = {'IDequipo': 'club', 'codigo': 'id', 'nombres': 'alias'}
+        EXFICHAJUG = {'competicion', 'temporada', 'jornada', 'equipo', 'CODequipo', 'rival', 'CODrival', 'IDrival',
+                      'url', 'estado', 'esLocal', 'haGanado', 'estads', 'esJugador', 'entrenador', 'haJugado', 'dorsal',
+                      'esTitular', 'linkPersona', }
+
+        if datosPartido is None:
+            datosPartido = {}
+
+        fichaJug = {'id': idJugador}
+        if 'linkPersona' in datosPartido:
+            fichaJug['URL'] = mergeURL(URL_BASE, datosPartido['linkPersona'])
+        fichaJug.update(kwargs)
+
+        auxDatosPartido = copyDictWithTranslation(source=datosPartido, translation=TRFICHAJUG, excludes=EXFICHAJUG)
+        fichaJug.update(auxDatosPartido)
+
+        return cls(**fichaJug)
+
+    def ficha2dict(self) -> Dict[str, str]:
+        result = {k: getattr(self, k) for k in PERSONABASICTAGS}
         return result
 
     def nuevoPartido(self, partido: PartidoACB) -> bool:
@@ -169,7 +229,7 @@ class FichaPersona:
         return result
 
     def actualizaDatosWeb(self, browser=None, config=None, home=None) -> bool:
-        result =False
+        result = False
         pag = self.descargaPagina(home, browser, config)
         if pag is None:
             return False
@@ -235,6 +295,65 @@ class PartidosClub:
             self.ultPartidoP = partido.url
             self.ultPartidoT = partido.fechaPartido
         return True
+
+
+EXCLUDEFICHACLUBPERSONA = ['persId', 'clubId']
+
+
+class FichaClubPersona:
+    def __init__(self, **kwargs):
+        changesInfo = kwargs.get('changesInfo', {})
+
+        self.persId: Optional[str] = None
+        self.clubId: Optional[str] = None
+        self.alta: Optional[Timestamp] = None
+        self.baja: Optional[Timestamp] = None
+        self.activo: Optional[bool] = None
+
+        for k, v in kwargs.items():
+            if hasattr(self, k):
+                currVal = getattr(self, k)
+                currVal.set(v)
+                setattr(self, k, currVal)
+
+        if self.alta is None:
+            self.alta = gmtime()
+
+    def update(self, **kwargs):
+        changesInfo = kwargs.get('changesInfo', {})
+
+        if not self.checkPersonId(**kwargs):
+            objK = {k: self.__dict__.get(k) for k in EXCLUDEFICHACLUBPERSONA}
+            newK = {k: kwargs.get(k) for k in EXCLUDEFICHACLUBPERSONA}
+
+            raise KeyError(f"Actualización de la persona incorrecta. Actual: {objK}. Datos: {newK}")
+
+        changesInfo.update(getLoggedDiff(self, kwargs))
+
+        for k, (_, vNew) in changesInfo.items():
+            getattr(self, k).set(vNew)
+
+        return changesInfo
+
+    def checkPersonId(self, **kwargs):
+
+        return all(getattr(self, k) == kwargs.get(k, None) for k in EXCLUDEFICHACLUBPERSONA)
+
+    def getCurrentData(self):
+        result = {k: v.get() for k,v in self.__dict__.items() if isinstance(v, LoggedValue)}
+
+        return result
+
+
+def getLoggedDiff(obj: object, newData: Dict[str, Any]) -> Dict[str, Tuple[Any, Any]]:
+    result = {}
+    for k, v in newData.items():
+        if hasattr(obj, k):
+            auxObjV = getattr(obj, k)
+            objV = auxObjV.get() if isinstance(auxObjV, (LoggedValue)) else auxObjV
+            if v != objV:
+                result[k] = (objV, v)
+    return result
 
 
 def extraeDatosPersonales(datosPag: Optional[DownloadedPage], datosPartido: Optional[dict] = None):
