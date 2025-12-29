@@ -1,4 +1,5 @@
-from typing import Iterable, Dict, Callable, Type, Sequence, Hashable, Union
+from collections.abc import Hashable
+from typing import Iterable, Dict, Callable, Type, Sequence, Union
 
 
 def sortedByStringLength(data: Iterable[str], reverse: bool = False) -> Iterable[str]:
@@ -15,4 +16,9 @@ def createDictFromGenerator(keys: Sequence[Hashable], genFunc: Union[Type, Calla
 
     result = {k: genFunc() for k in keys}
 
+    return result
+
+
+def iterable2quotedString(data: Iterable[str], charQuote: str = "'", mergedStr: str = ", ") -> str:
+    result = mergedStr.join(f"{charQuote}{s}{charQuote}" for s in sorted(data))
     return result
