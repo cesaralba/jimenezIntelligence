@@ -12,7 +12,7 @@ from SMACB.CalendarioACB import calendario_URLBASE
 from SMACB.DiferenciasTrasDescargaTemp import resumenCambioJugadores, resumenNuevosPartidos, resumenCambioClubes, \
     resumenCambiosCalendario
 from SMACB.TemporadaACB import TemporadaACB, CAMBIOSJUGADORES, CAMBIOSCLUB, CAMBIOSCALENDARIO
-from Utils.ManageArgs import createArgs, GetParam
+from Utils.ManageArgs import createArgs
 
 
 def parse_arguments() -> Namespace:
@@ -63,10 +63,10 @@ def main(args: Namespace):
     finalArgs = procesaParamsTemporada(temporada, args)
 
     nuevosPartidos = temporada.actualizaTemporada(browser=browser, config=finalArgs)
-    if nuevosPartidos or temporada.changed or GetParam(finalArgs, 'saveanyway'):
+    if nuevosPartidos or temporada.changed or getattr(finalArgs, 'saveanyway'):
         sys.setrecursionlimit(50000)
-        if GetParam(finalArgs, 'outfile'):
-            temporada.grabaTemporada(GetParam(finalArgs, 'outfile'))
+        if getattr(finalArgs, 'outfile'):
+            temporada.grabaTemporada(getattr(finalArgs, 'outfile'))
 
     if nuevosPartidos:
         print(f"Partidos descargados\n{resumenNuevosPartidos(nuevosPartidos, temporada)}", "\n" * 2)
@@ -98,9 +98,9 @@ def procesaParamsTemporada(temporada, args) -> Namespace:
 
 def preparaLogs(args: Namespace):
     logger = logging.getLogger()
-    if GetParam(args, 'debug'):
+    if getattr(args, 'debug'):
         prepareLogger(logger=logger, level=logging.DEBUG)
-    elif GetParam(args, 'verbose'):
+    elif getattr(args, 'verbose'):
         prepareLogger(logger=logger, level=logging.INFO)
     else:
         prepareLogger(logger=logger)

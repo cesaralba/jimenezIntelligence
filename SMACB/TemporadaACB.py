@@ -23,7 +23,6 @@ from CAPcore.Web import mergeURL
 from requests import HTTPError
 
 from Utils.FechaHora import fechaParametro2pddatetime
-from Utils.ManageArgs import GetParam
 from Utils.Web import prepareDownloading, browserConfigData
 from .CalendarioACB import calendario_URLBASE, CalendarioACB
 from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEqCalendario, infoPartLV, infoSigPartido,
@@ -152,7 +151,7 @@ class TemporadaACB:
                 except BaseException:
                     logging.exception("actualizaTemporada: problemas descargando  partido '%s'", partido)
 
-                if GetParam(config, 'justone', False):  # Just downloads a game (for testing/dev purposes)
+                if getattr(config, 'justone', False):  # Just downloads a game (for testing/dev purposes)
                     break
         except KeyboardInterrupt:
             logging.info("actualizaTemporada: Ejecución terminada por el usuario")
@@ -177,6 +176,9 @@ class TemporadaACB:
 
     def actualizaInfoAuxiliar(self, nuevoPartido: PartidoACB, browser, config):
         self.actualizaNombresEquipo(nuevoPartido)
+        if not getattr(config, 'procesaPlantilla', False):
+            self.creaPlantillasDesdePartido(nuevoPartido=nuevoPartido)
+
         self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
         self.actualizaTraduccionesJugador(nuevoPartido)
         # Añade la información de equipos de partido a traducciones de equipo.
@@ -248,13 +250,13 @@ class TemporadaACB:
         if self.descargaFichas:
             browser, config = prepareDownloading(browser, config, calendario_URLBASE)
 
-        refrescaFichas = GetParam(config, 'refresca', False)
+        refrescaFichas = getattr(config, 'refresca', False)
 
         self.changed |= self.creaPlantillasDesdePartido(nuevoPartido)
 
         for codJ, datosJug in nuevoPartido.Jugadores.items():
             if self.descargaFichas:
-                creaFicha = (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None) or GetParam(
+                creaFicha = (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None) or getattr(
                     self.fichaJugadores[codJ], 'sinDatos')
                 if creaFicha:
                     try:
