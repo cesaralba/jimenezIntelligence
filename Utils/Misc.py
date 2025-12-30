@@ -2,6 +2,8 @@ from collections.abc import Hashable
 from typing import Iterable, Dict, Callable, Type, Sequence, Union
 
 
+# Funciones de conveniencia que acabarán en CAPCORE
+
 def sortedByStringLength(data: Iterable[str], reverse: bool = False) -> Iterable[str]:
     return sorted(data, key=lambda x: (len(x), x), reverse=reverse)
 
