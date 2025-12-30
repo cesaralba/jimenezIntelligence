@@ -6,7 +6,7 @@ from itertools import product
 from pickle import dumps
 from time import gmtime
 from traceback import print_exc
-from typing import Optional, Dict, Tuple, Union, List
+from typing import Optional, Dict, Tuple, Union, List, Any
 
 import numpy as np
 import pandas as pd
@@ -602,26 +602,18 @@ class PartidoACB():
         result = {'timestamp': self.timestamp.utctimetuple()}
 
         def generaPlantillaJugadores(idJugs: Iterable[str]) -> Dict[str, Dict[str, str]]:
-            EXJUGADORES = ['competicion', 'temporada', 'jornada', 'equipo', 'CODequipo', 'IDequipo', 'rival',
-                           'CODrival', 'IDrival', 'estado', 'esLocal', 'haGanado', 'estads', 'esJugador', 'entrenador',
-                           'haJugado', 'esTitular', 'linkPersona', 'url']
-            TRJUGADORES = {'codigo': 'id', 'urlPersona': 'URL', 'nombre': 'alias', }
             result = {}
             for idJug in idJugs:
-                result[idJug] = copyDictWithTranslation(self.Jugadores[idJug], translation=TRJUGADORES,
-                                                        excludes=EXJUGADORES)
-                result[idJug].update({'activo': True})
+                auxData: dict = persPartido2dictFicha(self.Jugadores[idJug])
+                auxData.update({'activo': True})
+                result[idJug] = auxData
+
             return result
 
         def generaPlantillaEntrenador(idEntr: str) -> Dict[str, Dict[str, str]]:
-            EXENTRENADOR = ['competicion', 'temporada', 'jornada', 'equipo', 'CODequipo', 'IDequipo', 'rival',
-                            'CODrival', 'IDrival', 'estado', 'esLocal', 'haGanado', 'esJugador', 'entrenador',
-                            'linkPersona', 'dorsal', 'url']
-            TRENTRENADOR = {'codigo': 'id', 'urlPersona': 'URL', 'nombre': 'alias', }
-            result = {idEntr: {'dorsal': '1', 'nombre': self.Entrenadores[idEntr]['nombre']}}
-            result[idEntr].update(
-                copyDictWithTranslation(self.Entrenadores[idEntr], translation=TRENTRENADOR, excludes=EXENTRENADOR))
-            result[idEntr].update({'activo': True})
+            auxData: dict = persPartido2dictFicha(self.Entrenadores[idEntr])
+            auxData.update({'activo': True, 'dorsal': '1', 'nombre': self.Entrenadores[idEntr]['nombre']})
+            result = {idEntr: auxData}
 
             return result
 
@@ -798,3 +790,15 @@ def procesaBoxScore(urlBoxscore: Union[str, DownloadedPage], home=None, browser=
     resultado = {'boxscore': procesaMDboxscore(extractPagDataScripts(boxscorePage, 'initialStatistics')), }
 
     return resultado, boxscorePage
+
+
+def persPartido2dictFicha(dataPers: Dict[str, Any]) -> Dict[str, str]:
+    EXCLUDES = {'CODequipo', 'CODrival', 'IDequipo', 'IDrival', 'competicion', 'entrenador', 'equipo', 'esJugador',
+                'esLocal', 'esTitular', 'estado', 'estads', 'haGanado', 'haJugado', 'jornada', 'linkPersona', 'rival',
+                'temporada', 'url'}
+
+    TRCAMPOS = {'codigo': 'id', 'urlPersona': 'URL', 'nombre': 'alias', }
+
+    result = copyDictWithTranslation(dataPers, translation=TRCAMPOS, excludes=EXCLUDES)
+
+    return result
