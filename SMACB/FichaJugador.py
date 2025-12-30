@@ -197,68 +197,6 @@ class FichaJugador(FichaPersona):
     #                     result |= True
     #     return result
     #
-    # def addAtributosQueFaltan(self) -> bool:
-    #     """
-    #     Añade
-    #     :param:
-    #     :return: si ha habido cambios
-    #     """
-    #     changes = False
-    #     if not hasattr(self, 'sinDatos'):
-    #         changes = True
-    #         setattr(self, 'sinDatos', None)
-    #     if not hasattr(self, 'nombresConocidos'):
-    #         changes = True
-    #         setattr(self, 'nombresConocidos', set())
-    #         if self.nombre is not None:
-    #             self.nombresConocidos.add(self.nombre)
-    #         if self.alias is not None:
-    #             self.nombresConocidos.add(self.alias)
-    #     if not hasattr(self, 'ultClub'):
-    #         changes = True
-    #         setattr(self, 'ultClub', None)
-    #     if not hasattr(self, 'junior'):
-    #         changes = True
-    #         setattr(self, 'junior', None)
-    #     if not hasattr(self, 'audioURL'):
-    #         changes = True
-    #         setattr(self, 'audioURL', None)
-    #     if not hasattr(self, 'urlConocidas'):
-    #         changes = True
-    #         setattr(self, 'urlConocidas', set())
-    #         self.urlConocidas.add(self.URL)
-    #     return changes
-    #
-    # # def nuevoPartido(self, partido: PartidoACB) -> bool:
-    # #     """
-    # #     Actualiza información relativa a partidos jugados
-    # #     :param partido: OBJETO partidoACB
-    # #     :return: Si ha cambiado el objeto o no
-    # #     """
-    # #
-    # #     if self.id not in partido.Jugadores:
-    # #         raise ValueError(f"Jugador '{self.nombre}' ({self.id}) no ha jugado partido {partido.url}")
-    # #
-    # #     if partido.url in self.partidos:
-    # #         return False
-    # #
-    # #     self.partidos.add(partido.url)
-    # #     logging.debug("Jugador [%s] %s ha jugado '%s'", self.id, self.nombre, partido.url)
-    # #     datosJug = partido.Jugadores[self.id]
-    # #     self.equipos.add(datosJug['IDequipo'])
-    # #
-    # #     if self.ultClub is None:
-    # #         self.ultClub = datosJug['IDequipo']
-    # #
-    # #     if (self.primPartidoT is None) or (partido.fechaPartido < self.primPartidoT):
-    # #         self.primPartidoP = partido.url
-    # #         self.primPartidoT = partido.fechaPartido
-    # #
-    # #     if (self.ultPartidoT is None) or (partido.fechaPartido > self.ultPartidoT):
-    # #         self.ultPartidoP = partido.url
-    # #         self.ultPartidoT = partido.fechaPartido
-    # #     return True
-    #
     #
     # def limpiaPartidos(self):
     #     self.primPartidoP = None
