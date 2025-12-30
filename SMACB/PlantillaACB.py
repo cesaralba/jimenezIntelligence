@@ -1,5 +1,6 @@
 import logging
 from collections import defaultdict
+from copy import copy
 from time import gmtime
 from typing import Dict, NamedTuple
 
@@ -9,6 +10,7 @@ from CAPcore.LoggedDict import LoggedDict, LoggedDictDiff
 from CAPcore.Misc import onlySetElement
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
+from Utils.Misc import createDictFromGenerator
 from Utils.ParseoData import extractPlantillaInfoDiv
 from Utils.Web import getObjID, generaURLPlantilla, generaURLClubes, prepareDownloading
 from .Constants import URL_BASE, URLIMG2IGNORE
@@ -105,7 +107,7 @@ class PlantillaACB():
 
         for v in self.tecnicos.valuesV():
             auxFoto = v.get('urlFoto', None)
-            if auxFoto is None or auxFoto in URLIMG2IGNORE:
+            if auxFoto in URLIMG2IGNORE.union({None}):
                 v.purge({'urlFoto'})
 
             auxNombre = v.get('nombre', None)
@@ -114,12 +116,12 @@ class PlantillaACB():
             if auxNombre is not None and isinstance(auxNombre, set):
                 changes.update({'nombre': getFromSet(auxNombre, -1)})
             if auxAlias is not None and isinstance(auxAlias, set):
-                changes.update({'alias': getFromSet(auxNombre, 0)})
+                changes.update({'alias': getFromSet(auxAlias, 0)})
             v.update(changes)
 
         for v in self.jugadores.valuesV():
             auxFoto = v.get('urlFoto', None)
-            if auxFoto is None or auxFoto in URLIMG2IGNORE:
+            if auxFoto in URLIMG2IGNORE.union({None}):
                 v.purge({'urlFoto'})
 
             auxAlias = v.get('alias', None)
@@ -132,6 +134,31 @@ class PlantillaACB():
 
     def nombreClub(self):
         return self.club.get('nombreActual', 'TBD')
+
+    def getCurrentDict(self, activos: bool = True):
+        """
+        Vuelca un dict de dicts con la plantilla
+        :param activos:
+        :return:
+        """
+        claves2copy = ['jugadores', 'tecnicos', 'club']
+        result = createDictFromGenerator(claves2copy, dict)
+
+        for clave in claves2copy:
+            dict2work: dict = getattr(self, clave)
+
+            for idPers, data in dict2work.items():
+                if not isinstance(data, dict):
+                    result[clave][idPers] = data
+                    continue
+                if not (data['activo'] and activos):
+                    continue
+                auxData = copy(data)
+                if activos:
+                    auxData.pop('activo')
+                result[clave][idPers] = auxData
+
+        return result
 
     def __str__(self):
         result = (f"{self.nombreClub()} [{self.id}] Year: {self.edicion} "

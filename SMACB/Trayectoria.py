@@ -15,11 +15,11 @@ EstanciaClubData = namedtuple('EstanciaClubData', ['numTemps', 'numPeriods', 'ul
 
 class Trayectoria:
     def __init__(self, trayectoria: List[TempClubInfo]):
-        self.trayectoria: List[EstanciaClub] = construyeEstanciaList(trayectoria)
+        self.estancias: List[EstanciaClub] = construyeEstanciaList(trayectoria)
 
     def tempsACB(self):
         auxSet = set()
-        for est in self.trayectoria:
+        for est in self.estancias:
             auxSet.update(est.tempIDs)
         result = len(auxSet)
         return result
@@ -29,7 +29,7 @@ class Trayectoria:
         :param ultimoPeriodo:
         :return:
         """
-        ultEst = self.trayectoria[-1]
+        ultEst = self.estancias[-1]
         if ultimoPeriodo:
             return ultEst.numTemps
         resEstancias = self.resumenTrayectoria()[ultEst.clubId]
@@ -39,7 +39,7 @@ class Trayectoria:
     def resumenTrayectoria(self) -> Dict[str, ResEstanciasTray]:
         auxTrayect = defaultdict(lambda: {'clubId': None, 'numTemps': 0, 'numPeriods': 0, 'periodos': []})
 
-        for est in self.trayectoria:
+        for est in self.estancias:
             auxTrayect[est.clubId]['clubId'] = est.clubId
             auxTrayect[est.clubId]['numTemps'] += est.numTemps
             auxTrayect[est.clubId]['numPeriods'] += 1

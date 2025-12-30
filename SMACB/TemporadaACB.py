@@ -148,6 +148,10 @@ class TemporadaACB:
                     self.actualizaInfoAuxiliar(nuevoPartido=partidoDescargado, browser=browser, config=config)
                     self.Partidos[partido] = partidoDescargado
                     partidosBajados.add(partido)
+
+                except KeyboardInterrupt as exc:
+                    logging.info("actualizaTemporada: interrumpida ejecución descargando  partido '%s'", partido)
+                    raise KeyboardInterrupt from exc
                 except BaseException:
                     logging.exception("actualizaTemporada: problemas descargando  partido '%s'", partido)
 
@@ -177,9 +181,12 @@ class TemporadaACB:
     def actualizaInfoAuxiliar(self, nuevoPartido: PartidoACB, browser, config):
         self.actualizaNombresEquipo(nuevoPartido)
         if not getattr(config, 'procesaPlantilla', False):
-            self.creaPlantillasDesdePartido(nuevoPartido=nuevoPartido)
+            self.changed |= self.creaPlantillasDesdePartido(nuevoPartido=nuevoPartido)
 
         self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
+        if not getattr(config, 'procesaPlantilla', False):
+            self.changed |= self.actualizaPlantillasDesdePartido(nuevoPartido=nuevoPartido)
+
         self.actualizaTraduccionesJugador(nuevoPartido)
         # Añade la información de equipos de partido a traducciones de equipo.
         # (el código de equipo ya no viene en el calendario)
@@ -252,8 +259,6 @@ class TemporadaACB:
 
         refrescaFichas = getattr(config, 'refresca', False)
 
-        self.changed |= self.creaPlantillasDesdePartido(nuevoPartido)
-
         for codJ, datosJug in nuevoPartido.Jugadores.items():
             if self.descargaFichas:
                 creaFicha = (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None) or getattr(
@@ -289,10 +294,11 @@ class TemporadaACB:
                             logging.exception("Partido [%s]: something happened updating record for %s. Datos: %s",
                                               nuevoPartido.url, codJ, datosJug)
             else:  # Crear desde info de partido
-                nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
-                                                      timestamp=nuevoPartido.timestamp)
-                self.fichaJugadores[codJ] = nuevaFicha
-                self.changed = True
+                if codJ not in self.fichaJugadores:
+                    nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
+                                                          timestamp=nuevoPartido.timestamp)
+                    self.fichaJugadores[codJ] = nuevaFicha
+                    self.changed = True
 
             self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
 
@@ -306,6 +312,16 @@ class TemporadaACB:
             auxChanged = True
             dataClub = {'club': {'nombreActual': eq['Nombre'], 'nombreOficial': eq['Nombre']}}
             self.plantillas[eqId].actualizaPlantillaDescargada(dataClub)
+        return auxChanged
+
+    def actualizaPlantillasDesdePartido(self, nuevoPartido: PartidoACB) -> bool:
+        auxChanged = False
+        for loc, eq in nuevoPartido.Equipos.items():
+            eqId = eq['id']
+            plantillaAct = self.plantillas[eqId].getCurrentDict(activos=True)
+            dataPlantAux = nuevoPartido.generaPlantillaDummy(loc, plantillaAct)
+            auxChanged |= self.plantillas[eqId].actualizaPlantillaDescargada(dataPlantAux)
+
         return auxChanged
 
     def actualizaPlantillasConDescarga(self, browser=None, config=None) -> bool:
@@ -332,12 +348,10 @@ class TemporadaACB:
 
         for p_id in self.tradEquipos['i2n']:
             if p_id not in self.plantillas:
-                self.plantillas[p_id] = PlantillaACB(p_id, edicion=self.edicion)
+                nombresClub = sorted(self.tradEquipos['i2n'][p_id], key=len)
+                self.plantillas[p_id] = PlantillaACB(p_id, edicion=self.edicion, **{
+                    'club': {'nombreActual': nombresClub[0], 'nombreOficial': nombresClub[-1]}})
                 result = True
-            nombresClub = sorted(self.tradEquipos['i2n'][p_id], key=len)
-            dataClub = {'club': {'nombreActual': nombresClub[0], 'nombreOficial': nombresClub[-1]}}
-            resPlant = self.plantillas[p_id].actualizaPlantillaDescargada(dataClub)
-            result |= resPlant
 
         self.changed |= result
 

@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 
+from Utils.Misc import iterable2quotedString
 from Utils.Pandas import combinaPDindexes
 
 
@@ -9,7 +10,7 @@ def extraeCampoYorden(estads: pd.DataFrame, estadsOrden: pd.DataFrame, eq: str =
     targetCol = (eq, clave, estadistico)
 
     if targetCol not in estads.index:
-        valCorrectos = ", ".join(sorted(estads.index).map(str))
+        valCorrectos = iterable2quotedString(estads.index, charQuote="")
         raise KeyError(f"extraeCampoYorden: parametros para dato '{targetCol}' desconocidos. Referencias válidas: "
                        f"{valCorrectos}")
 
@@ -55,7 +56,7 @@ def calculaTempStats(datos, clave, filtroFechas=None):
 
     agg = datosWrk.set_index('codigo')[clave].astype('float64').groupby('codigo').agg(
         ['mean', 'std', 'count', 'median', 'min', 'max', 'skew'])
-    agg1 = agg.rename(columns=dict((x, clave + "-" + x) for x in agg.columns)).reset_index()
+    agg1 = agg.rename(columns={x: (clave + "-" + x) for x in agg.columns}).reset_index()
     return agg1
 
 
