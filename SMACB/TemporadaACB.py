@@ -136,10 +136,8 @@ class TemporadaACB:
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
         self.changed |= self.buscaCambiosCalendario()
 
-        maxPartidosABajar = 1 if (config.justone and not config.limit) else config.limit
         partidosABajar = sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys())))
-        if maxPartidosABajar:
-            partidosABajar = partidosABajar[:partidosABajar]
+        partidosABajar = limitaPartidosBajados(config, partidosABajar)
         partidosBajados: Set[str] = set()
 
         try:
@@ -159,8 +157,6 @@ class TemporadaACB:
                 except BaseException:
                     logging.exception("actualizaTemporada: problemas descargando  partido '%s'", partido)
 
-                if getattr(config, 'justone', False):  # Just downloads a game (for testing/dev purposes)
-                    break
         except KeyboardInterrupt:
             logging.info("actualizaTemporada: Ejecución terminada por el usuario")
             interrupted = True
@@ -259,15 +255,15 @@ class TemporadaACB:
 
     def actualizaFichasPartido(self, nuevoPartido: PartidoACB, browser=None, config=None):
         if self.descargaFichas:
+            refrescaFichas = getattr(config, 'refresca', False)
+
             browser, config = prepareDownloading(browser, config, calendario_URLBASE)
 
-        refrescaFichas = getattr(config, 'refresca', False)
+            for codJ, datosJug in nuevoPartido.Jugadores.items():
+                if codJ in JUGADORESDESCARGADOS:
+                    continue
 
-        for codJ, datosJug in nuevoPartido.Jugadores.items():
-            if self.descargaFichas:
-                creaFicha = (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None) or getattr(
-                    self.fichaJugadores[codJ], 'sinDatos')
-                if creaFicha:
+                if not self.fichaJugadores.get(codJ, None):
                     try:
                         urlJug = mergeURL(URL_BASE, datosJug['linkPersona'])
                         nuevaFicha = FichaJugador.fromURL(urlJug, datos=datosJug,
@@ -283,28 +279,27 @@ class TemporadaACB:
                         self.fichaJugadores[codJ] = nuevaFicha
                         JUGADORESDESCARGADOS.add(codJ)
                         self.changed = True
-                elif refrescaFichas:
-                    if codJ not in JUGADORESDESCARGADOS:
-                        urlJugAux = mergeURL(URL_BASE, datosJug['linkPersona'])
-                        if urlJugAux != self.fichaJugadores[codJ].URL:
-                            self.fichaJugadores[codJ].URL = urlJugAux
-                            self.changed = True
-                        try:
-                            self.changed |= self.fichaJugadores[codJ].actualizaFromWeb(datosPartido=datosJug,
-                                                                                       browser=browser,
-                                                                                       config=config)
-                            JUGADORESDESCARGADOS.add(codJ)
-                        except HTTPError:
-                            logging.exception("Partido [%s]: something happened updating record for %s. Datos: %s",
-                                              nuevoPartido.url, codJ, datosJug)
-            else:  # Crear desde info de partido
+                elif refrescaFichas or getattr(self.fichaJugadores[codJ], 'sindatos', True):
+                    try:
+                        self.changed |= self.fichaJugadores[codJ].actualizaFromWeb(datosPartido=datosJug,
+                                                                                   browser=browser,
+                                                                                   config=config)
+                        JUGADORESDESCARGADOS.add(codJ)
+                    except HTTPError:
+                        logging.exception("Partido [%s]: something happened updating record for %s. Datos: %s",
+                                          nuevoPartido.url, codJ, datosJug)
+
+                self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
+
+        else:
+            for codJ, datosJug in nuevoPartido.Jugadores.items():
                 if codJ not in self.fichaJugadores:
                     nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
                                                           timestamp=nuevoPartido.timestamp)
                     self.fichaJugadores[codJ] = nuevaFicha
                     self.changed = True
 
-            self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
+                self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
 
     def creaPlantillasDesdePartido(self, nuevoPartido: PartidoACB) -> bool:
         auxChanged = False
@@ -941,3 +936,10 @@ def limitaLineasEnTrayectoriaEquipos(limitRows, lineas):
             if mensajeAviso == "":
                 mensajeAviso = "Filas de trayectoria eliminadas por tamaño de página"
     return result, mensajeAviso
+
+
+def limitaPartidosBajados(config: Namespace, partidosABajar: List[str]) -> List[str]:
+    maxPartidosABajar = 1 if (config.justone and not config.limit) else config.limit
+    if maxPartidosABajar:
+        partidosABajar = partidosABajar[:maxPartidosABajar]
+    return partidosABajar
