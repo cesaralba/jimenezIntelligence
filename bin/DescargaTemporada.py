@@ -23,6 +23,8 @@ def parse_arguments() -> Namespace:
                default=False)
     parser.add('-j', dest='justone', action="store_true", env_var='SM_JUSTONE', required=False,
                help='Solo descarga un partido', default=False)
+    parser.add('-l', '--limit', dest='limit', action="store", env_var='SM_LIMIT', required=False,
+               help='Número máximo de partidos a descargar', default=0)
     parser.add('-f', dest='saveanyway', action="store_true", env_var='SM_SAVEANYWAY', required=False,
                help='Graba el fichero aunque no haya habido cambios', default=False)
     parser.add('-r', dest='refresh', action="store_true", env_var='SM_REFRESH', required=False,

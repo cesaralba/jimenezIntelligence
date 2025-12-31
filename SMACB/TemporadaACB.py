@@ -136,10 +136,14 @@ class TemporadaACB:
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
         self.changed |= self.buscaCambiosCalendario()
 
+        maxPartidosABajar = 1 if (config.justone and not config.limit) else config.limit
+        partidosABajar = sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys())))
+        if maxPartidosABajar:
+            partidosABajar = partidosABajar[:partidosABajar]
         partidosBajados: Set[str] = set()
 
         try:
-            for partido in sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys()))):
+            for partido in partidosABajar:
                 try:
                     partidoDescargado = PartidoACB(**(self.Calendario.Partidos[partido]))
                     partidoDescargado.descargaPartido(home=home, browser=browser, config=config)
