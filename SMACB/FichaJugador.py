@@ -136,7 +136,7 @@ class FichaJugador(FichaPersona):
     #     result |= self.updateFichaJugadorFromDownloadedData(changeInfo, newData)
     #
     #     if result:
-    #         self.timestamp = newData.get('timestamp', gmtime())
+    #         self.timestamp = newData.get('timestamp', getUTC())
     #         if changeInfo:
     #             CAMBIOSJUGADORES[self.id].update(changeInfo)
     #
@@ -155,7 +155,7 @@ class FichaJugador(FichaPersona):
     #     result |= self.updateFichaJugadorFromDownloadedData(changeInfo, datosFichaPlantilla)
     #
     #     if result:
-    #         self.timestamp = datosFichaPlantilla.get('timestamp', gmtime())
+    #         self.timestamp = datosFichaPlantilla.get('timestamp', getUTC())
     #         if changeInfo:
     #             CAMBIOSJUGADORES[self.id].update(changeInfo)
     #
@@ -208,7 +208,7 @@ class FichaJugador(FichaPersona):
     #     self.primPartidoT = None
     #     self.ultPartidoT = None
     #     self.partidos = set()
-    #     self.timestamp = gmtime()
+    #     self.timestamp = getUTC()
     #
     # def __add__(self, other):
     #     CLAVESAIGNORAR = ['id', 'url', 'timestamp', 'primPartidoP', 'ultPartidoP', 'primPartidoT', 'ultPartidoT',
