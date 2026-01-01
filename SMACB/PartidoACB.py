@@ -4,13 +4,12 @@ from collections.abc import Iterable
 from compression import zstd
 from itertools import product
 from pickle import dumps
-from time import gmtime
 from traceback import print_exc
 from typing import Optional, Dict, Tuple, Union, List, Any
 
 import numpy as np
 import pandas as pd
-from CAPcore.Misc import BadParameters, BadString, extractREGroups, copyDictWithTranslation
+from CAPcore.Misc import BadParameters, BadString, extractREGroups, copyDictWithTranslation, getUTC
 from CAPcore.Web import downloadPage, extractGetParams, DownloadedPage, mergeURL
 from babel.numbers import parse_number
 from bs4 import Tag
@@ -89,7 +88,7 @@ class PartidoACB():
 
     def procesaPartido(self, content: DownloadedPage):
         raiser = False
-        self.timestamp = getattr(content, 'timestamp', gmtime())
+        self.timestamp = getattr(content, 'timestamp', getUTC())
 
         if 'source' in content:
             self.url = content.source
@@ -599,7 +598,7 @@ class PartidoACB():
         self.metadataEmb = zstd.compress(dumps(resultado))
 
     def generaPlantillaDummy(self, loc: str, plantillaActual: Optional[dict] = None) -> dict:
-        result = {'timestamp': self.timestamp.utctimetuple()}
+        result = {'timestamp': self.timestamp}
 
         def generaPlantillaJugadores(idJugs: Iterable[str]) -> Dict[str, Dict[str, str]]:
             result = {}
@@ -800,5 +799,4 @@ def persPartido2dictFicha(dataPers: Dict[str, Any]) -> Dict[str, str]:
     TRCAMPOS = {'codigo': 'id', 'urlPersona': 'URL', 'nombre': 'alias', }
 
     result = copyDictWithTranslation(dataPers, translation=TRCAMPOS, excludes=EXCLUDES)
-
     return result

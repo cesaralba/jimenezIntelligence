@@ -1,5 +1,7 @@
 from collections.abc import Hashable
-from typing import Iterable, Dict, Callable, Type, Sequence, Union
+from typing import Iterable, Dict, Callable, Type, Sequence, Union, Any, Tuple
+
+from CAPcore.LoggedValue import LoggedValue
 
 
 # Funciones de conveniencia que acabarán en CAPCORE
@@ -23,4 +25,28 @@ def createDictFromGenerator(keys: Sequence[Hashable], genFunc: Union[Type, Calla
 
 def iterable2quotedString(data: Iterable[str], charQuote: str = "'", mergedStr: str = ", ") -> str:
     result = mergedStr.join(f"{charQuote}{s}{charQuote}" for s in sorted(data))
+    return result
+
+
+def getObjLoggedDictDiff(obj: object, newData: Dict[str, Any], INCLUDES=None,
+                         EXCLUDES=None) -> Dict[str, Tuple[Any, Any]]:
+    """
+
+    :param obj:
+    :param newData:
+    :param INCLUDES:
+    :param EXCLUDES:
+    :return:
+    """
+    result = {}
+    for k, v in newData.items():
+        if INCLUDES and k not in INCLUDES:
+            continue
+        if EXCLUDES and k in EXCLUDES:
+            continue
+        if hasattr(obj, k):
+            auxObjV = getattr(obj, k)
+            objV = auxObjV.get() if isinstance(auxObjV, LoggedValue) else auxObjV
+            if v != objV:
+                result[k] = (objV, v)
     return result

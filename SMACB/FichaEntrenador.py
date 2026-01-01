@@ -1,8 +1,11 @@
 from typing import Tuple
 
+from CAPcore.LoggedValue import LoggedValue
+from CAPcore.Misc import getUTC
+
 from Utils.Web import sentinel
 from .Constants import CLAVESFICHAENTRENADOR
-from .FichaPersona import FichaPersona
+from .FichaPersona import FichaPersona, FichaClubPersona
 
 
 class FichaEntrenador(FichaPersona):
@@ -31,3 +34,15 @@ class FichaEntrenador(FichaPersona):
         cadenaStr = "TBD"
 
         return prefix, cadenaStr
+
+    def nuevaFichaClub(self, **kwargs):
+        return FichaClubEntrenador(**kwargs)
+
+
+class FichaClubEntrenador(FichaClubPersona):
+    def __init__(self, **kwargs):
+        timestamp = kwargs.get('timestamp', getUTC())
+
+        self.dorsal: LoggedValue = LoggedValue(timestamp=timestamp)
+
+        super().__init__(**kwargs)

@@ -2,7 +2,8 @@
 # Librerias para el programa
 
 #git+https://github.com/cesaralba/CAPcore-python@develop
-git+https://github.com/cesaralba/CAPcore-python@202512
+#git+https://github.com/cesaralba/CAPcore-python@202512
+git+https://github.com/cesaralba/CAPcore-python@18_getUTC_et_all_ACB
 
 ConfigArgParse>=1.7.1
 

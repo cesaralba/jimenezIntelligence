@@ -1,13 +1,14 @@
 import logging
-from time import gmtime
-from typing import Optional, Set, Dict, Any, Tuple
+from datetime import datetime
+from typing import Optional, Set, Dict, Tuple, Any
 
 import bs4
 from CAPcore.LoggedValue import LoggedValue
-from CAPcore.Misc import copyDictWithTranslation
+from CAPcore.Misc import copyDictWithTranslation, getUTC
 from CAPcore.Web import mergeURL, DownloadedPage, downloadPage
 from pandas import Timestamp
 
+from Utils.Misc import getObjLoggedDictDiff
 from Utils.ParseoData import procesaCosasUtilesPlantilla, findLocucionNombre
 from Utils.Web import prepareDownloading, getObjID, sentinel
 from .Constants import URL_BASE, URLIMG2IGNORE, CLAVESFICHAPERSONA
@@ -24,15 +25,15 @@ class FichaPersona:
         if changesInfo is sentinel:
             changesInfo = {}
 
-        self.timestamp = kwargs.get('timestamp', gmtime())
+        self.timestamp = kwargs.get('timestamp', getUTC())
 
         if 'id' not in kwargs:
-            raise ValueError(f"Ficha nueva sin 'persID': {kwargs}")
-        self.persID: str = kwargs['id']
+            raise ValueError(f"Ficha nueva sin 'persId': {kwargs}")
+        self.persId: str = kwargs['id']
         self.sinDatos: Optional[bool] = None
         tipoPers: Optional[str] = kwargs.get('tipoFicha', None)
         if tipoPers not in VALIDPERSONATYPES:
-            raise ValueError(f"Persona Id '{self.persID}' Tipo '{tipoPers}' no válido. Aceptados: {VALIDPERSONATYPES}")
+            raise ValueError(f"Persona Id '{self.persId}' Tipo '{tipoPers}' no válido. Aceptados: {VALIDPERSONATYPES}")
         self.tipoFicha: Optional[str] = tipoPers
         self.URL: Optional[str] = None
         self.trayectoria: Optional[Trayectoria] = None
@@ -50,7 +51,9 @@ class FichaPersona:
         self.equipos: Set[str] = set()
         self.ultClub: Optional[str] = None
 
-        self.partsTemporada: PartidosClub = PartidosClub(persID=self.persID, tipoFicha=self.tipoFicha, clubId=None)
+        self.fichasClub: Dict[str, Any] = {}
+
+        self.partsTemporada: PartidosClub = PartidosClub(persId=self.persId, tipoFicha=self.tipoFicha, clubId=None)
         self.partsClub: Dict[str, PartidosClub] = {}
 
         self.actualizaBioBasic(changeInfo=changesInfo, **kwargs)
@@ -86,6 +89,7 @@ class FichaPersona:
         if ultClub is not None:
             self.equipos.add(ultClub)
             self.ultClub = ultClub
+            self.fichasClub[self.ultClub] = self.nuevaFichaClub(persId=self.persId, clubId=ultClub, **kwargs)
             changeInfo['club'] = (None, ultClub)
             result |= True
 
@@ -97,7 +101,7 @@ class FichaPersona:
         if self.tipoFicha not in VALIDPERSONATYPES:
             raise ValueError(f"buildURL: unknown type of data. Valid ones: {', '.join(sorted(VALIDPERSONATYPES))}")
 
-        newPathList = ['', self.tipoFicha, 'temporada-a-temporada', 'id', self.persID]
+        newPathList = ['', self.tipoFicha, 'temporada-a-temporada', 'id', self.persId]
         newPath = '/'.join(newPathList)
 
         result = mergeURL(URL_BASE, newPath)
@@ -128,7 +132,7 @@ class FichaPersona:
         prefPers, datosPers = self.infoFichaStr()
         eqPlural = "s" if len(self.equipos) != 1 else ""
 
-        return (f"{prefPers}: {nombreStr} ({self.persID}) {fechaNacStr} {datosPers} "
+        return (f"{prefPers}: {nombreStr} ({self.persId}) {fechaNacStr} {datosPers} "
                 f"({len(self.equipos)} eq{eqPlural}) {gamesStr}")
 
     __repr__ = nombreFicha
@@ -165,8 +169,8 @@ class FichaPersona:
 
         persId = getObjID(url, 'ver', None)
         if persId is None:
-            raise ValueError(f"FichaPersona.fromURL: incapaz de sacar ID de f'{url}'. Buscados 'ver' e 'persID'")
-        newData = {'persID': persId}
+            raise ValueError(f"FichaPersona.fromURL: incapaz de sacar ID de f'{url}'. Buscados 'ver' e 'persId'")
+        newData = {'persId': persId}
         if datos is not None:
             newData.update(datos)
 
@@ -207,6 +211,9 @@ class FichaPersona:
         result = {k: getattr(self, k) for k in PERSONABASICTAGS}
         return result
 
+    def nuevaFichaClub(self, **kwargs):
+        raise NotImplementedError("nuevaFichaClub tiene que estar en las clases derivadas")
+
     def nuevoPartido(self, partido: PartidoACB) -> bool:
         """
         Actualiza información relativa a partidos jugados
@@ -217,17 +224,24 @@ class FichaPersona:
 
         dicTipo = partido.Jugadores if self.tipoFicha == 'jugador' else partido.Entrenadores
 
-        if self.persID not in dicTipo:
+        if self.persId not in dicTipo:
             raise ValueError(
-                f"{self.tipoFicha.capitalize()}: '{self.nombre}' ({self.persID}) no ha jugado partido {partido.url}")
+                f"{self.tipoFicha.capitalize()}: '{self.nombre}' ({self.persId}) no ha jugado partido {partido.url}")
 
-        datosPersPart = dicTipo[self.persID]
+        datosPersPart = dicTipo[self.persId]
         eqPersona = datosPersPart['IDequipo']
+        timestamp = partido.timestamp
 
         result |= self.partsTemporada.addPartido(persona=self, partido=partido)
 
+        if eqPersona != self.ultClub:
+            self.fichasClub[self.ultClub].bajaClub(persId=self.persId, clubId=self.ultClub, timestamp=timestamp)
+            self.fichasClub[eqPersona] = self.nuevaFichaClub(persId=self.persId, clubId=self.ultClub,
+                                                             timestamp=timestamp, **datosPersPart)
+            self.ultClub = eqPersona
+
         if eqPersona not in self.partsClub:
-            self.partsClub[eqPersona] = PartidosClub(persID=self.persID, tipoFicha=self.tipoFicha, clubId=eqPersona)
+            self.partsClub[eqPersona] = PartidosClub(persId=self.persId, tipoFicha=self.tipoFicha, clubId=eqPersona)
             result = True
 
         result |= self.partsClub[eqPersona].addPartido(persona=self, partido=partido)
@@ -249,8 +263,8 @@ class FichaPersona:
 
 
 class PartidosClub:
-    def __init__(self, persID: str, tipoFicha: str, clubId: Optional[str]):
-        self.persID: str = persID
+    def __init__(self, persId: str, tipoFicha: str, clubId: Optional[str]):
+        self.persId: str = persId
         self.tipoFicha: str = tipoFicha
         self.clubID: Optional[str] = clubId
         self.equipos: Set[str] = set()
@@ -270,22 +284,22 @@ class PartidosClub:
 
         dicTipo = partido.Jugadores if persona.tipoFicha == 'jugador' else partido.Entrenadores
 
-        if self.persID not in dicTipo:
+        if self.persId not in dicTipo:
             raise ValueError(
-                f"{persona.tipoFicha.capitalize()}: '{persona.nombre}' ({self.persID}) no ha jugado partido "
+                f"{persona.tipoFicha.capitalize()}: '{persona.nombre}' ({self.persId}) no ha jugado partido "
                 f"{partido.url}")
 
         if partido.url in self.partidos:
             return False
 
-        datosPersPart = dicTipo[self.persID]
+        datosPersPart = dicTipo[self.persId]
         eqJugador = datosPersPart['IDequipo']
         if self.clubID is None:
             self.equipos.add(eqJugador)
         else:
             if eqJugador != self.clubID:
                 raise ValueError(
-                    f"{persona.tipoFicha.capitalize()}: '{persona.nombre}' ({self.persID}) Añadiendo {partido.url} a "
+                    f"{persona.tipoFicha.capitalize()}: '{persona.nombre}' ({self.persId}) Añadiendo {partido.url} a "
                     f"registro incorrecto. Registro: '{self.clubID}'. Partido: '{eqJugador}'")
 
         self.partidos.add(partido.url)
@@ -304,66 +318,108 @@ class PartidosClub:
         return True
 
 
-EXCLUDEFICHACLUBPERSONA = ['persId', 'clubId']
+CAMPOSIDFICHACLUBPERSONA = ['persId', 'clubId']
+CAMPOSOPERFICHACLUBPERSONA = ['timestamp', 'alta', 'baja', 'changeLog', 'changesInfo']
+EXCLUDEFICHACLUBPERSONA = CAMPOSIDFICHACLUBPERSONA + CAMPOSOPERFICHACLUBPERSONA
 
 
 class FichaClubPersona:
-    def __init__(self, **kwargs):
-        changesInfo = kwargs.get('changesInfo', {})
+    def __init__(self, persId: str, clubId: str, **kwargs):
+        timestamp = kwargs.get('timestamp', getUTC())
 
-        self.persId: Optional[str] = None
-        self.clubId: Optional[str] = None
-        self.alta: Optional[Timestamp] = None
-        self.baja: Optional[Timestamp] = None
-        self.activo: Optional[bool] = None
+        self.persId: Optional[str] = persId
+        self.clubId: Optional[str] = clubId
+        self.timestamp: Optional[datetime] = timestamp
+        self.alta: LoggedValue = LoggedValue(timestamp=timestamp)
+        self.baja: LoggedValue = LoggedValue(timestamp=timestamp)
+        self.activo: LoggedValue = LoggedValue(timestamp=timestamp)
+        self.changeLog: Dict[datetime, Dict[str, Tuple]] = {}
+
+        currVals = copyDictWithTranslation(self.__dict__, excludes=set(EXCLUDEFICHACLUBPERSONA))
+        newVals = copyDictWithTranslation(kwargs, excludes=set(EXCLUDEFICHACLUBPERSONA))
 
         for k, v in kwargs.items():
+            if k in EXCLUDEFICHACLUBPERSONA + ['activo']:
+                # Activo tiene un tratamiento especial
+                continue
             if hasattr(self, k):
                 currVal = getattr(self, k)
-                currVal.set(v)
-                setattr(self, k, currVal)
+                if isinstance(currVal, LoggedValue):
+                    currVal.set(v, timestamp=timestamp)
+                else:
+                    setattr(self, k, v)
 
-        if self.alta is None:
-            self.alta = gmtime()
+        self.alta.set(timestamp, timestamp=timestamp)
+        self.activo.set(kwargs.get('activo', True))
 
-    def update(self, **kwargs):
+        if not self.activo.get():
+            self.baja.set(timestamp, timestamp=timestamp)
+
+        self.changeLog[timestamp] = getObjLoggedDictDiff(currVals, newVals)
+
+    def update(self, persId: str, clubId: str, **kwargs):
         changesInfo = kwargs.get('changesInfo', {})
+        timestamp = kwargs.get('timestamp', getUTC())
 
-        if not self.checkPersonId(**kwargs):
-            objK = {k: self.__dict__.get(k) for k in EXCLUDEFICHACLUBPERSONA}
-            newK = {k: kwargs.get(k) for k in EXCLUDEFICHACLUBPERSONA}
+        if not self.checkPersonId(persId=persId, clubId=clubId):
+            objK = {'persId': self.persId, 'clubId': self.clubId}
+            newK = {'persId': persId, 'clubId': clubId}
 
             raise KeyError(f"Actualización de la persona incorrecta. Actual: {objK}. Datos: {newK}")
 
-        changesInfo.update(getLoggedDiff(self, kwargs))
+        currVals = copyDictWithTranslation(self.__dict__, excludes=EXCLUDEFICHACLUBPERSONA)
+        newVals = copyDictWithTranslation(kwargs, excludes=EXCLUDEFICHACLUBPERSONA)
+        diffVals = getObjLoggedDictDiff(currVals, newVals)
+        changesInfo.update(diffVals)
 
         for k, (_, vNew) in changesInfo.items():
-            getattr(self, k).set(vNew)
+            if k == 'activo':
+                continue
+            currVal = getattr(self, k)
+            if isinstance(currVal, LoggedValue):
+                currVal.set(vNew, timestamp=timestamp)
+            else:
+                setattr(self, k, vNew)
 
+        if changesInfo.get('activo', None):
+            _, vNew = changesInfo.get('activo', (None, None))
+            if vNew:
+                self.alta.set(timestamp, timestamp=timestamp)
+                self.baja.clear()
+            else:
+                self.baja.set(timestamp, timestamp=timestamp)
+
+            self.activo.set(vNew, timestamp=timestamp)
+
+        self.changeLog[timestamp] = diffVals
         return changesInfo
 
     def checkPersonId(self, **kwargs):
 
-        return all(getattr(self, k) == kwargs.get(k, None) for k in EXCLUDEFICHACLUBPERSONA)
+        return all(getattr(self, k) == kwargs.get(k, None) for k in CAMPOSIDFICHACLUBPERSONA)
 
     def getCurrentData(self):
-        result = {k: v.get() for k, v in self.__dict__.items() if isinstance(v, LoggedValue)}
+        result = {k: v.get() if isinstance(v, LoggedValue) else v for k, v in self.__dict__.items()}
 
         return result
 
+    def bajaClub(self, persId: str, clubId: str, timestamp: Optional[datetime] = None):
+        if not self.checkPersonId(persId=persId, clubId=clubId):
+            objK = {'persId': self.persId, 'clubId': self.clubId}
+            newK = {'persId': persId, 'clubId': clubId}
 
-def getLoggedDiff(obj: object, newData: Dict[str, Any]) -> Dict[str, Tuple[Any, Any]]:
-    result = {}
-    for k, v in newData.items():
-        if hasattr(obj, k):
-            auxObjV = getattr(obj, k)
-            objV = auxObjV.get() if isinstance(auxObjV, (LoggedValue)) else auxObjV
-            if v != objV:
-                result[k] = (objV, v)
-    return result
+            raise KeyError(f"Actualización de la persona incorrecta. Actual: {objK}. Datos: {newK}")
+
+        return self.update(persId=persId, clubId=clubId, timestamp=timestamp, activo=False)
 
 
 def extraeDatosPersonales(datosPag: Optional[DownloadedPage], datosPartido: Optional[dict] = None):
+    """
+    Saca la información de las personas de la ficha personal en ACB.com
+    :param datosPag:
+    :param datosPartido:
+    :return:
+    """
     auxResult = {}
 
     if datosPartido is not None:

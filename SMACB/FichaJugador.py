@@ -4,11 +4,12 @@ from typing import Optional, Tuple
 
 import bs4
 from CAPcore.LoggedValue import LoggedValue
+from CAPcore.Misc import getUTC
 from CAPcore.Web import downloadPage, DownloadedPage
 from requests import HTTPError
 
 from SMACB.Constants import CLAVESFICHAJUGADOR, POSABREV2NOMBRE
-from SMACB.FichaPersona import FichaPersona
+from SMACB.FichaPersona import FichaPersona, FichaClubPersona
 from Utils.ParseoData import findLocucionNombre, procesaCosasUtilesPlantilla
 from Utils.Web import getObjID, prepareDownloading, sentinel
 
@@ -28,7 +29,7 @@ class FichaJugador(FichaPersona):
 
         self.actualizaBio(changeInfo=changesInfo, **kwargs)
 
-        CAMBIOSJUGADORES[self.persID].update(changesInfo)
+        CAMBIOSJUGADORES[self.persId].update(changesInfo)
 
     def actualizaBio(self, changeInfo=sentinel, **kwargs):
         if changeInfo is sentinel:
@@ -53,6 +54,9 @@ class FichaJugador(FichaPersona):
         cadenaStr = f"{alturaStr}{posStr}"
 
         return prefix, cadenaStr
+
+    def nuevaFichaClub(self, **kwargs):
+        return FichaClubJugador(**kwargs)
 
     # @staticmethod
     # def fromPartido(idJugador: str, datosPartido: Optional[dict] = None, **kwargs):
@@ -288,15 +292,13 @@ def adaptaDatosFichaPlantilla(datosFichaPlantilla: dict, idClub: Optional[str]) 
     return datosFichaPlantilla
 
 
-class FichaClubPersona:
+class FichaClubJugador(FichaClubPersona):
     def __init__(self, **kwargs):
-        self.persId: Optional[str] = None
-        self.clubId: Optional[str] = None
-        self.alta: LoggedValue = LoggedValue()
-        self.baja: LoggedValue = LoggedValue()
+        timestamp = kwargs.get('timestamp', getUTC())
 
-        for k, v in kwargs.items():
-            if hasattr(self, k):
-                currVal = getattr(self, k)
-                currVal.set(v)
-                setattr(self, k, currVal)
+        self.dorsal: LoggedValue = LoggedValue(timestamp=timestamp)
+        self.posicion: LoggedValue = LoggedValue(timestamp=timestamp)
+        self.licencia: LoggedValue = LoggedValue(timestamp=timestamp)
+        self.junior: LoggedValue = LoggedValue(False, timestamp=timestamp)
+
+        super().__init__(**kwargs)

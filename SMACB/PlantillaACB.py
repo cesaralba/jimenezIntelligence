@@ -1,13 +1,12 @@
 import logging
 from collections import defaultdict
 from copy import copy
-from time import gmtime
 from typing import Dict, NamedTuple
 
 import bs4
 from CAPcore.DictLoggedDict import DictOfLoggedDict, DictOfLoggedDictDiff
 from CAPcore.LoggedDict import LoggedDict, LoggedDictDiff
-from CAPcore.Misc import onlySetElement
+from CAPcore.Misc import onlySetElement, getUTC
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
 from Utils.Misc import createDictFromGenerator
@@ -70,7 +69,7 @@ class PlantillaACB():
     def actualizaPlantillaDescargada(self, data) -> bool:
         result = False
 
-        currTimestamp = data.get('timestamp', gmtime())
+        currTimestamp = data.get('timestamp', getUTC())
 
         cambiosAux = {k: getattr(self, k).diff(data.get(k, {}), doUpdate=True) for k in CambiosPlantillaTipo._fields}
 
@@ -135,10 +134,10 @@ class PlantillaACB():
     def nombreClub(self):
         return self.club.get('nombreActual', 'TBD')
 
-    def getCurrentDict(self, activos: bool = True):
+    def getCurrentDict(self, soloActivos: bool = False):
         """
         Vuelca un dict de dicts con la plantilla
-        :param activos:
+        :param soloActivos:
         :return:
         """
         claves2copy = ['jugadores', 'tecnicos', 'club']
@@ -151,11 +150,9 @@ class PlantillaACB():
                 if not isinstance(data, dict):
                     result[clave][idPers] = data
                     continue
-                if not (data['activo'] and activos):
+                if soloActivos and not data['activo']:
                     continue
                 auxData = copy(data)
-                if activos:
-                    auxData.pop('activo')
                 result[clave][idPers] = auxData
 
         return result
@@ -177,7 +174,7 @@ def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=None):
 
         result = procesaPlantillaDescargada(pagPlant)
         result['URL'] = browser.get_url()
-        result['timestamp'] = gmtime()
+        result['timestamp'] = getUTC()
         result['edicion'] = encuentraUltEdicion(pagPlant)
     except Exception as exc:
         print(f"descargaYparseaURLficha: problemas descargando '{urlPlantilla}': {exc}")

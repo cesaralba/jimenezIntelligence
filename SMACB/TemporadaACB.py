@@ -12,13 +12,13 @@ from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
 from sys import setrecursionlimit
-from time import gmtime, strftime
 from typing import Any, Iterable, Dict, Tuple, List, Set
 from typing import Optional
 
 import numpy as np
 import pandas as pd
 from CAPcore.LoggedDict import LoggedDictDiff, LoggedDict
+from CAPcore.Misc import getUTC
 from CAPcore.Web import mergeURL
 from requests import HTTPError
 
@@ -27,6 +27,7 @@ from Utils.Web import prepareDownloading, browserConfigData
 from .CalendarioACB import calendario_URLBASE, CalendarioACB
 from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEqCalendario, infoPartLV, infoSigPartido,
                         LocalVisitante, OtherLoc, OtherTeam, infoJornada, URL_BASE, )
+from .FichaEntrenador import FichaEntrenador
 from .FichaJugador import FichaJugador, CAMBIOSJUGADORES
 from .PartidoACB import PartidoACB
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB, CAMBIOSCLUB, CambiosPlantillaTipo
@@ -103,7 +104,7 @@ class TemporadaACB:
         descargaFichas = kwargs.get('descargaFichas', False)
         descargaPlantillas = kwargs.get('descargaPlantillas', False)
 
-        self.timestamp = gmtime()
+        self.timestamp = getUTC()
         self.Calendario = CalendarioACB(competicion=self.competicion, edicion=self.edicion, urlbase=self.urlbase)
         self.Partidos: Dict[str, PartidoACB] = {}
         self.changed: bool = False
@@ -111,12 +112,12 @@ class TemporadaACB:
         self.descargaFichas: bool = descargaFichas
         self.descargaPlantillas: bool = descargaPlantillas
         self.fichaJugadores: Dict[str, FichaJugador] = {}
-        self.fichaEntrenadores = {}
+        self.fichaEntrenadores: Dict[str, FichaEntrenador] = {}
         self.plantillas: Dict[str, PlantillaACB] = {}
         self.calendarioDict: LoggedDict = LoggedDict(timestamp=self.timestamp)
 
     def __repr__(self):
-        tstampStr = strftime("%Y%m%d-%H:%M:%S", self.timestamp)
+        tstampStr = self.timestamp.strftime("%Y%m%d-%H:%M:%S")
         result = f"{self.competicion} Temporada: {self.edicion} Datos: {tstampStr}"
         return result
 
@@ -174,18 +175,18 @@ class TemporadaACB:
                 self.changed |= resPlant
 
         if self.changed != changeOrig:
-            self.timestamp = gmtime()
+            self.timestamp = getUTC()
 
         return partidosBajados
 
     def actualizaInfoAuxiliar(self, nuevoPartido: PartidoACB, browser, config):
         self.actualizaNombresEquipo(nuevoPartido)
         if not getattr(config, 'procesaPlantilla', False):
-            self.changed |= self.creaPlantillasDesdePartido(nuevoPartido=nuevoPartido)
+            self.changed |= self.creaPlantillasDesdePartidoSinDesc(nuevoPartido=nuevoPartido)
 
         self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
         if not getattr(config, 'procesaPlantilla', False):
-            self.changed |= self.actualizaPlantillasDesdePartido(nuevoPartido=nuevoPartido)
+            self.changed |= self.actualizaPlantillasDesdePartidoSinDesc(nuevoPartido=nuevoPartido)
 
         self.actualizaTraduccionesJugador(nuevoPartido)
         # Añade la información de equipos de partido a traducciones de equipo.
@@ -254,15 +255,17 @@ class TemporadaACB:
         self.changed |= self.actualizaClase()
 
     def actualizaFichasPartido(self, nuevoPartido: PartidoACB, browser=None, config=None):
+
         if self.descargaFichas:
             refrescaFichas = getattr(config, 'refresca', False)
-
             browser, config = prepareDownloading(browser, config, calendario_URLBASE)
 
-            for codJ, datosJug in nuevoPartido.Jugadores.items():
-                if codJ in JUGADORESDESCARGADOS:
-                    continue
+        for codJ, datosJug in nuevoPartido.Jugadores.items():
+            if codJ in JUGADORESDESCARGADOS:
+                self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
+                continue
 
+            if self.descargaFichas:
                 if not self.fichaJugadores.get(codJ, None):
                     try:
                         urlJug = mergeURL(URL_BASE, datosJug['linkPersona'])
@@ -289,19 +292,24 @@ class TemporadaACB:
                         logging.exception("Partido [%s]: something happened updating record for %s. Datos: %s",
                                           nuevoPartido.url, codJ, datosJug)
 
-                self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
-
-        else:
-            for codJ, datosJug in nuevoPartido.Jugadores.items():
+                    self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
+            else:
                 if codJ not in self.fichaJugadores:
                     nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
                                                           timestamp=nuevoPartido.timestamp)
                     self.fichaJugadores[codJ] = nuevaFicha
                     self.changed = True
+                    JUGADORESDESCARGADOS.add(codJ)
 
-                self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
+            self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
 
-    def creaPlantillasDesdePartido(self, nuevoPartido: PartidoACB) -> bool:
+    def creaPlantillasDesdePartidoSinDesc(self, nuevoPartido: PartidoACB) -> bool:
+        """
+        Como no descargamos la plantilla (por configuración), hay que hacer operaciones como sí. En este caso se crea la
+        plantilla si no existe ya a partir de los datos que vienen en los partidos.
+        :param nuevoPartido:
+        :return:
+        """
         auxChanged = False
         for eq in nuevoPartido.Equipos.values():
             eqId = eq['id']
@@ -313,12 +321,14 @@ class TemporadaACB:
             self.plantillas[eqId].actualizaPlantillaDescargada(dataClub)
         return auxChanged
 
-    def actualizaPlantillasDesdePartido(self, nuevoPartido: PartidoACB) -> bool:
+    def actualizaPlantillasDesdePartidoSinDesc(self, nuevoPartido: PartidoACB) -> bool:
         auxChanged = False
         for loc, eq in nuevoPartido.Equipos.items():
             eqId = eq['id']
-            plantillaAct = self.plantillas[eqId].getCurrentDict(activos=True)
-            dataPlantAux = nuevoPartido.generaPlantillaDummy(loc, plantillaAct)
+            plantillaActivos = self.plantillas[eqId].getCurrentDict(soloActivos=True)
+            plantillaActual = self.plantillas[eqId].getCurrentDict(soloActivos=False)
+
+            dataPlantAux = nuevoPartido.generaPlantillaDummy(loc, plantillaActual)
             auxChanged |= self.plantillas[eqId].actualizaPlantillaDescargada(dataPlantAux)
 
         return auxChanged
@@ -361,10 +371,10 @@ class TemporadaACB:
             if codJ in self.fichaJugadores:
                 ficha = self.fichaJugadores[codJ]
 
-                self.tradJugadores['nombre2ids'][ficha.nombre].add(ficha.persID)
-                self.tradJugadores['nombre2ids'][ficha.alias].add(ficha.persID)
-                self.tradJugadores['id2nombres'][ficha.persID].add(ficha.nombre)
-                self.tradJugadores['id2nombres'][ficha.persID].add(ficha.alias)
+                self.tradJugadores['nombre2ids'][ficha.nombre].add(ficha.persId)
+                self.tradJugadores['nombre2ids'][ficha.alias].add(ficha.persId)
+                self.tradJugadores['id2nombres'][ficha.persId].add(ficha.nombre)
+                self.tradJugadores['id2nombres'][ficha.persId].add(ficha.alias)
 
             self.tradJugadores['nombre2ids'][datosJug['nombre']].add(datosJug['codigo'])
             self.tradJugadores['id2nombres'][datosJug['codigo']].add(datosJug['nombre'])

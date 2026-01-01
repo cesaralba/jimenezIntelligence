@@ -4,13 +4,12 @@ import sys
 import traceback
 from collections import defaultdict
 from copy import copy
-from time import gmtime
 from typing import Set, Optional, Dict, Any
 from urllib.parse import urlparse, urlunparse, parse_qs, ParseResult, urlencode
 
 import bs4.element
 import pandas as pd
-from CAPcore.Misc import listize, onlySetElement
+from CAPcore.Misc import listize, onlySetElement, getUTC
 from CAPcore.Web import downloadPage, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif, procesaFechaJornada
@@ -40,7 +39,7 @@ JORNADASCOMPLETAS: Optional[Set] = None
 class CalendarioACB:
 
     def __init__(self, urlbase=calendario_URLBASE, **kwargs):
-        self.timestamp = gmtime()
+        self.timestamp = getUTC()
         self.competicion = kwargs.get('competicion', "LACB")
         self.nombresCompeticion = defaultdict(int)
         self.edicion = kwargs.get('edicion')
