@@ -1,5 +1,6 @@
 from collections.abc import Hashable
-from typing import Iterable, Dict, Callable, Type, Sequence, Union, Any, Tuple
+from datetime import datetime
+from typing import Iterable, Dict, Callable, Type, Sequence, Union, Any, Tuple, Optional
 
 from CAPcore.LoggedValue import LoggedValue
 
@@ -50,3 +51,11 @@ def getObjLoggedDictDiff(obj: object, newData: Dict[str, Any], INCLUDES=None,
             if v != objV:
                 result[k] = (objV, v)
     return result
+
+def setNewValue(oldV: LoggedValue | Any, newVal:Any,timestamp:Optional[datetime]=None) -> Any:
+    newVal = oldV.set(newVal,timestamp=timestamp) if isinstance(oldV, LoggedValue) else newVal
+    return newVal
+
+def extractValue(oldV) -> Any:
+    v = oldV.get() if isinstance(oldV, LoggedValue) else oldV
+    return v
