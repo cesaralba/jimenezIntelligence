@@ -82,7 +82,7 @@ class FichaPersona:
             changeInfo = {}
         result = False
 
-        result |= updateFieldsWithLogged(self, self.varClaves(), changeInfo, kwargs)
+        result |= updateFieldsWithLogged(data=self, keyList=self.varClaves(), changeInfo=changeInfo, **kwargs)
 
         if changeInfo:
             self.varCambios()[self.persId].update(changeInfo)
@@ -95,7 +95,7 @@ class FichaPersona:
             changeInfo = {}
         result = False
 
-        result |= updateFieldsWithLogged(self, keyList=CLAVESFICHAPERSONA, changeInfo=changeInfo, **kwargs)
+        result |= updateFieldsWithLogged(data=self, keyList=CLAVESFICHAPERSONA, changeInfo=changeInfo, **kwargs)
 
         if 'URL' in kwargs:
             self.urlConocidas.add(kwargs['URL'])
@@ -736,7 +736,7 @@ def extraeDatosPersonales(datosPag: Optional[DownloadedPage], datosPartido: Opti
     return auxResult
 
 
-def updateFieldsWithLogged(self, keyList: List[str], changeInfo: object, kwargs: dict[str, Any]) -> bool:
+def updateFieldsWithLogged(data, keyList: List[str], changeInfo: object=sentinel, **kwargs) -> bool:
     if changeInfo is sentinel:
         changeInfo = {}
 
@@ -744,12 +744,12 @@ def updateFieldsWithLogged(self, keyList: List[str], changeInfo: object, kwargs:
     for k in keyList:
         if k not in kwargs:
             continue
-        oldV = getattr(self, k)
+        oldV = getattr(data, k)
         v = extractValue(oldV)
         if v != kwargs[k]:
             result |= True
             newVal = setNewValue(oldV, kwargs[k])
-            setattr(self, k, newVal)
+            setattr(data, k, newVal)
             changeInfo[k] = (v, kwargs[k])
     return result
 
