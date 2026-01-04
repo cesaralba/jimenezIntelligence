@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
+from CAPcore.Misc import iterable2quotedString
 
-from Utils.Misc import iterable2quotedString
 from Utils.Pandas import combinaPDindexes
 
 

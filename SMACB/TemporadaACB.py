@@ -18,13 +18,13 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from CAPcore.LoggedDict import LoggedDictDiff, LoggedDict
+from CAPcore.LoggedValue import extractValue
 from CAPcore.Misc import getUTC
 from CAPcore.Web import mergeURL
 from mechanicalsoup import StatefulBrowser
 from requests import HTTPError
 
 from Utils.FechaHora import fechaParametro2pddatetime
-from Utils.Misc import extractValue
 from Utils.Web import prepareDownloading, browserConfigData
 from .CalendarioACB import calendario_URLBASE, CalendarioACB
 from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEqCalendario, infoPartLV, infoSigPartido,
@@ -334,6 +334,9 @@ class TemporadaACB:
                 continue
 
             if codE not in self.fichaJugadores:
+                if datosEnt['dorsal'] == 'E':
+                    datosEnt['dorsal'] = '1'
+
                 nuevaFicha = FichaEntrenador.fromPartido(idPersona=codE, datosPartido=datosEnt,
                                                          timestamp=partido.timestamp)
                 self.fichaEntrenadores[codE] = nuevaFicha

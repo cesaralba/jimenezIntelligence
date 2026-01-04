@@ -1,53 +1,59 @@
 import logging
 from collections import defaultdict
-from datetime import datetime
-from typing import Optional, Set, Dict, Tuple, Any, List
+from pprint import pp
+from typing import Optional, Set, Dict, Tuple, List
 
 import bs4
+from CAPcore.LoggedClass import LoggedClass
 from CAPcore.LoggedDict import LoggedDict
-from CAPcore.LoggedValue import LoggedValue
-from CAPcore.Misc import copyDictWithTranslation, getUTC
+from CAPcore.LoggedValue import LoggedValue, extractValue, setNewValue
+from CAPcore.Misc import copyDictWithTranslation, getUTC, onlySetElement
 from CAPcore.Web import mergeURL, DownloadedPage, downloadPage
 from pandas import Timestamp
 from requests import HTTPError
 
-from Utils.Misc import getObjLoggedDictDiff, extractValue, setNewValue
 from Utils.ParseoData import procesaCosasUtilesPlantilla, findLocucionNombre
 from Utils.Web import prepareDownloading, getObjID, sentinel
-from .Constants import URL_BASE, URLIMG2IGNORE, CLAVESFICHAPERSONA, CLAVESFICHAENTRENADOR, CLAVESFICHAJUGADOR, \
-    POSABREV2NOMBRE
+from .Constants import URL_BASE, URLIMG2IGNORE, POSABREV2NOMBRE
+from .FichaClub import FichaClubPersona, FichaClubJugador, FichaClubEntrenador
 from .PartidoACB import PartidoACB
 from .Trayectoria import Trayectoria
 
 CAMBIOSENTRENADORES = defaultdict(LoggedDict)
 CAMBIOSJUGADORES = defaultdict(LoggedDict)
 
+CLAVESFICHAPERSONA = ['URL', 'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'nacionalidad', 'club', 'edicion']
+CLAVESFICHAJUGADOR = ['posicion', 'altura', 'licencia', 'junior']  # ,'dorsal'
+CLAVESFICHAENTRENADOR = {}  # 'dorsal'
+
 VALIDPERSONATYPES = {'jugador', 'entrenador'}
 
-PERSONABASICTAGS = {'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'nacionalidad', }
-
-CAMPOSIDFICHACLUBPERSONA = ['persId', 'clubId']
-CAMPOSOPERFICHACLUBPERSONA = ['timestamp', 'alta', 'baja', 'changeLog', 'changesInfo']
-EXCLUDEFICHACLUBPERSONA = CAMPOSIDFICHACLUBPERSONA + CAMPOSOPERFICHACLUBPERSONA
+PERSONABASICTAGS = {'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'nacionalidad', 'persId'}
 
 
-class FichaPersona:
-    def __init__(self, changesInfo=sentinel, **kwargs):
-        if changesInfo is sentinel:
-            changesInfo = {}
+class FichaPersona(LoggedClass):
+    CAMPOSPARALOG = []
 
-        self.timestamp = kwargs.get('timestamp', getUTC())
-
+    def __init__(self, **kwargs):
         if 'id' not in kwargs:
             raise ValueError(f"Ficha nueva sin 'persId': {kwargs}")
         self.persId: str = kwargs['id']
-        self.sinDatos: Optional[bool] = None
+
         tipoPers: Optional[str] = kwargs.get('tipoFicha', None)
         if tipoPers not in VALIDPERSONATYPES:
             raise ValueError(f"Persona Id '{self.persId}' Tipo '{tipoPers}' no válido. Aceptados: {VALIDPERSONATYPES}")
-        self.tipoFicha: Optional[str] = tipoPers
+        self.tipoFicha: str = tipoPers
+
+        super().__init__(**kwargs)
+
+        if 'changeInfo' not in kwargs:
+            changeInfo = {}
+            kwargs['changeInfo'] = changeInfo
+
+        self.sinDatos: Optional[bool] = None
         self.URL: Optional[str] = None
         self.trayectoria: Optional[Trayectoria] = None
+        self.edicion: Optional[str] = None
 
         self.audioURL: Optional[str] = None
         self.nombre: LoggedValue = LoggedValue(None)
@@ -60,14 +66,15 @@ class FichaPersona:
         self.urlConocidas: Set[str] = set()
 
         self.equipos: Set[str] = set()
+        self.club: LoggedValue = LoggedValue(None)
         self.ultClub: Optional[str] = None
 
         self.fichasClub: Dict[str, FichaClubPersona] = {}
-
-        self.partsTemporada: PartidosClub = PartidosClub(persId=self.persId, tipoFicha=self.tipoFicha, clubId=None)
         self.partsClub: Dict[str, PartidosClub] = {}
 
-        self.actualizaBioBasic(changeInfo=changesInfo, **kwargs)
+        self.actualizaBioBasic(**kwargs)
+        self.partsTemporada: PartidosClub = PartidosClub(persId=self.persId, tipoFicha=self.tipoFicha,
+                                                         edicion=self.edicion, clubId=None)
 
     def actualizaBio(self, changeInfo=sentinel, **kwargs):
         """
@@ -140,24 +147,11 @@ class FichaPersona:
     def infoFichaStr(self) -> Tuple[str, str]:
         raise NotImplementedError("infoFichaStr tiene que estar en las clases derivadas")
 
-    def nombreFicha(self):
-        def cadPartidos(me: FichaPersona, idClub=None) -> str:
-            if idClub is None:
-                idClub = me.ultClub
-            if idClub is None:
-                return "Sin club"
-            # TODO: Conseguir abreviatura de club
-            if idClub not in me.partsClub:
-                return f"Sin partidos con club: '{idClub}'"
-
-            data: PartidosClub = me.partsClub[idClub]
-            result = (f"Parts(club:{idClub}):[{len(data.partidos)}] {data.primPartidoT.strftime('%Y-%m-%d')} -> "
-                      f"{data.ultPartidoT.strftime('%Y-%m-%d')}")
-            return result
-
-        nombreStr = self.alias or self.nombre
+    def nombreFicha(self, trads: Optional[Dict] = None):
+        nombreStr = extractValue(self.alias) or extractValue(self.nombre)
         fechaNacStr = "No Fnac" if self.fechaNac is None else self.fechaNac.strftime('%Y-%m-%d')
-        gamesStr = cadPartidos(self)
+        gamesStr = self.partsTemporada.partsClub2str(trads=trads) if self.ultClub is None else self.partsClub[
+            self.ultClub].partsClub2str(trads=trads)
         prefPers, datosPers = self.infoFichaStr()
         eqPlural = "s" if len(self.equipos) != 1 else ""
 
@@ -219,9 +213,8 @@ class FichaPersona:
         :return: Nuevo objeto creado
         """
         TRFICHAPERS = {'IDequipo': 'club', 'codigo': 'id', 'nombres': 'alias'}
-        EXFICHAPERS = {'competicion', 'temporada', 'jornada', 'equipo', 'CODequipo', 'rival', 'CODrival', 'IDrival',
+        EXFICHAPERS = {'competicion', 'jornada', 'equipo', 'CODequipo', 'rival', 'CODrival', 'IDrival',
                        'url', 'estado', 'esLocal', 'haGanado', 'estads', 'esJugador', 'entrenador', 'haJugado',
-                       'dorsal',
                        'esTitular', 'linkPersona', }
 
         if datosPartido is None:
@@ -237,7 +230,7 @@ class FichaPersona:
 
         return cls(**fichaPers)
 
-    def ficha2dict(self) -> Dict[str, str]:
+    def ficha2dict(self, club: str = None, partsClub: bool = False) -> Dict[str, str]:
         result = {k: getattr(self, k) for k in PERSONABASICTAGS}
         return result
 
@@ -267,11 +260,14 @@ class FichaPersona:
         if eqPersona != self.ultClub:
             self.fichasClub[self.ultClub].bajaClub(persId=self.persId, clubId=self.ultClub, timestamp=timestamp)
             self.fichasClub[eqPersona] = self.nuevaFichaClub(persId=self.persId, clubId=self.ultClub,
-                                                             timestamp=timestamp, **datosPersPart)
+                                                             **datosPersPart)
             self.ultClub = eqPersona
+            print("CAP nuevo club SMACB/FichaPersona.py:270")
+            pp(self.fichasClub[eqPersona])
 
         if eqPersona not in self.partsClub:
-            self.partsClub[eqPersona] = PartidosClub(persId=self.persId, tipoFicha=self.tipoFicha, clubId=eqPersona)
+            self.partsClub[eqPersona] = PartidosClub(persId=self.persId, tipoFicha=self.tipoFicha, edicion=self.edicion,
+                                                     clubId=eqPersona)
             result = True
 
         result |= self.partsClub[eqPersona].addPartido(persona=self, partido=partido)
@@ -301,7 +297,6 @@ class FichaPersona:
 class FichaJugador(FichaPersona):
     def __init__(self, **kwargs):
         changesInfo = {'NuevaFicha': (None, True)}
-
         self.posicion = None
         self.altura = None
         self.licencia = None
@@ -522,9 +517,15 @@ class FichaEntrenador(FichaPersona):
 
         self.varCambios()[self.persId].update(changesInfo)
 
-    def infoFichaStr(self) -> Tuple[str, str]:
+    def infoFichaStr(self, club: Optional[str] = None) -> Tuple[str, str]:
         prefix = "Ent"
-        cadenaStr = "TBD"
+        cadenaStr = "Sin datos puesto"
+
+        auxClub = club
+        if club is None:
+            auxClub = self.ultClub
+        if self.fichasClub[auxClub]:
+            cadenaStr = self.fichasClub[auxClub].fichaCl2str()
 
         return prefix, cadenaStr
 
@@ -539,9 +540,10 @@ class FichaEntrenador(FichaPersona):
 
 
 class PartidosClub:
-    def __init__(self, persId: str, tipoFicha: str, clubId: Optional[str]):
+    def __init__(self, persId: str, tipoFicha: str, edicion: Optional[str], clubId: Optional[str]):
         self.persId: str = persId
         self.tipoFicha: str = tipoFicha
+        self.edicion: Optional[str] = edicion
         self.clubID: Optional[str] = clubId
         self.equipos: Set[str] = set()
 
@@ -569,6 +571,11 @@ class PartidosClub:
             return False
 
         datosPersPart = dicTipo[self.persId]
+
+        if datosPersPart['edicion'] != self.edicion:
+            raise ValueError(
+                f"Temporada del partido '{datosPersPart['edicion']}' no corresponde a la temporada aceptada '{self.edicion}'")
+
         eqJugador = datosPersPart['IDequipo']
         if self.clubID is None:
             self.equipos.add(eqJugador)
@@ -593,116 +600,30 @@ class PartidosClub:
             self.ultPartidoT = partido.fechaPartido
         return True
 
+    def partsClub2str(self, trads: Optional[Dict] = None) -> str:
+        FORMATOFECHA = '%Y-%m-%d'
+        pluralClstr = "s" if len(self.equipos) > 1 else ""
 
-class FichaClubPersona:
-    def __init__(self, persId: str, clubId: str, **kwargs):
-        timestamp = kwargs.get('timestamp', getUTC())
+        eqStr = f"Temp:{self.edicion} ({len(self.equipos)} eq{pluralClstr})"
+        if self.clubID is not None:
+            eqStr = f"IdClub:{self.clubID}@{self.edicion}"
+            if trads is not None:
+                tradCl = trads.get('i2c', {}).get(self.clubID, None)
+                if tradCl:
+                    tradName = onlySetElement(tradCl)
+                    eqStr = f"{tradName}@{self.edicion}"
 
-        self.persId: Optional[str] = persId
-        self.clubId: Optional[str] = clubId
-        self.timestamp: Optional[datetime] = timestamp
-        self.alta: LoggedValue = LoggedValue(timestamp=timestamp)
-        self.baja: LoggedValue = LoggedValue(timestamp=timestamp)
-        self.activo: LoggedValue = LoggedValue(timestamp=timestamp)
-        self.changeLog: Dict[datetime, Dict[str, Tuple]] = {}
+        partsStr = "Sin partidos registrados"
+        if len(self.partidos):
+            pluralPartsStr = "s" if len(self.partidos) > 1 else ""
+            partsStr = f"{len(self.partidos)} part{pluralPartsStr}: {self.primPartidoT.strftime(FORMATOFECHA)} -> {self.ultPartidoT.strftime(FORMATOFECHA)}"
 
-        currVals = copyDictWithTranslation(self.__dict__, excludes=set(EXCLUDEFICHACLUBPERSONA))
-        newVals = copyDictWithTranslation(kwargs, excludes=set(EXCLUDEFICHACLUBPERSONA))
-
-        for k, v in kwargs.items():
-            if k in EXCLUDEFICHACLUBPERSONA + ['activo']:
-                # Activo tiene un tratamiento especial
-                continue
-            if hasattr(self, k):
-                currVal = getattr(self, k)
-                if isinstance(currVal, LoggedValue):
-                    currVal.set(v, timestamp=timestamp)
-                else:
-                    setattr(self, k, v)
-
-        self.alta.set(timestamp, timestamp=timestamp)
-        self.activo.set(kwargs.get('activo', True))
-
-        if not self.activo.get():
-            self.baja.set(timestamp, timestamp=timestamp)
-
-        self.changeLog[timestamp] = getObjLoggedDictDiff(currVals, newVals)
-
-    def update(self, persId: str, clubId: str, **kwargs):
-        changesInfo = kwargs.get('changesInfo', {})
-        timestamp = kwargs.get('timestamp', getUTC())
-
-        if not self.checkPersonId(persId=persId, clubId=clubId):
-            objK = {'persId': self.persId, 'clubId': self.clubId}
-            newK = {'persId': persId, 'clubId': clubId}
-
-            raise KeyError(f"Actualización de la persona incorrecta. Actual: {objK}. Datos: {newK}")
-
-        currVals = copyDictWithTranslation(self.__dict__, excludes=EXCLUDEFICHACLUBPERSONA)
-        newVals = copyDictWithTranslation(kwargs, excludes=EXCLUDEFICHACLUBPERSONA)
-        diffVals = getObjLoggedDictDiff(currVals, newVals)
-        changesInfo.update(diffVals)
-
-        for k, (_, vNew) in changesInfo.items():
-            if k == 'activo':
-                continue
-            currVal = getattr(self, k)
-            if isinstance(currVal, LoggedValue):
-                currVal.set(vNew, timestamp=timestamp)
-            else:
-                setattr(self, k, vNew)
-
-        if changesInfo.get('activo', None):
-            _, vNew = changesInfo.get('activo', (None, None))
-            if vNew:
-                self.alta.set(timestamp, timestamp=timestamp)
-                self.baja.clear()
-            else:
-                self.baja.set(timestamp, timestamp=timestamp)
-
-            self.activo.set(vNew, timestamp=timestamp)
-
-        self.changeLog[timestamp] = diffVals
-        return changesInfo
-
-    def checkPersonId(self, **kwargs):
-
-        return all(getattr(self, k) == kwargs.get(k, None) for k in CAMPOSIDFICHACLUBPERSONA)
-
-    def getCurrentData(self):
-        result = {k: v.get() if isinstance(v, LoggedValue) else v for k, v in self.__dict__.items()}
+        result = f"{eqStr} {partsStr}"
 
         return result
 
-    def bajaClub(self, persId: str, clubId: str, timestamp: Optional[datetime] = None):
-        if not self.checkPersonId(persId=persId, clubId=clubId):
-            objK = {'persId': self.persId, 'clubId': self.clubId}
-            newK = {'persId': persId, 'clubId': clubId}
-
-            raise KeyError(f"Actualización de la persona incorrecta. Actual: {objK}. Datos: {newK}")
-
-        return self.update(persId=persId, clubId=clubId, timestamp=timestamp, activo=False)
-
-
-class FichaClubJugador(FichaClubPersona):
-    def __init__(self, **kwargs):
-        timestamp = kwargs.get('timestamp', getUTC())
-
-        self.dorsal: LoggedValue = LoggedValue(timestamp=timestamp)
-        self.posicion: LoggedValue = LoggedValue(timestamp=timestamp)
-        self.licencia: LoggedValue = LoggedValue(timestamp=timestamp)
-        self.junior: LoggedValue = LoggedValue(False, timestamp=timestamp)
-
-        super().__init__(**kwargs)
-
-
-class FichaClubEntrenador(FichaClubPersona):
-    def __init__(self, **kwargs):
-        timestamp = kwargs.get('timestamp', getUTC())
-
-        self.dorsal: LoggedValue = LoggedValue(timestamp=timestamp)
-
-        super().__init__(**kwargs)
+    __str__ = partsClub2str
+    __repr__ = partsClub2str
 
 
 def extraeDatosPersonales(datosPag: Optional[DownloadedPage], datosPartido: Optional[dict] = None):
@@ -736,7 +657,7 @@ def extraeDatosPersonales(datosPag: Optional[DownloadedPage], datosPartido: Opti
     return auxResult
 
 
-def updateFieldsWithLogged(data, keyList: List[str], changeInfo: object=sentinel, **kwargs) -> bool:
+def updateFieldsWithLogged(data, keyList: List[str], changeInfo: object = sentinel, **kwargs) -> bool:
     if changeInfo is sentinel:
         changeInfo = {}
 

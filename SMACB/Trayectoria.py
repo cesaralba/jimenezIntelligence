@@ -2,9 +2,9 @@ from collections import namedtuple, defaultdict
 from typing import Optional, Set, List, Dict
 
 import bs4
+from CAPcore.Misc import sortedByStringLength
 from CAPcore.Web import DownloadedPage
 
-from Utils.Misc import sortedByStringLength
 from Utils.Web import getObjID
 
 TempClubInfoBasic = namedtuple('TempClubInfoBasic', ['tempId', 'clubId', 'clubName'])

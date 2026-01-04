@@ -2,7 +2,7 @@ import ast
 import logging
 import re
 from collections import namedtuple
-from pprint import pprint
+from pprint import pformat
 from re import Pattern
 from typing import Optional, Dict, Any
 
@@ -158,7 +158,7 @@ def extractPagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dic
 
         if list(auxHash.keys())[0] in result:
             clave = list(auxHash.keys())[0]
-            logging.error("Clave #%s# ya existe en resultado:\n%s", clave, pprint(result[clave]))
+            logging.error("Clave #%s# ya existe en resultado:\n%s", clave, pformat(result[clave]))
             continue
         result.update(auxHash)
 

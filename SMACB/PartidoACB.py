@@ -9,14 +9,14 @@ from typing import Optional, Dict, Tuple, Union, List, Any
 
 import numpy as np
 import pandas as pd
-from CAPcore.Misc import BadParameters, BadString, extractREGroups, copyDictWithTranslation, getUTC
+from CAPcore.Misc import BadParameters, BadString, extractREGroups, copyDictWithTranslation, getUTC, \
+    createDictFromGenerator, iterable2quotedString
 from CAPcore.Web import downloadPage, extractGetParams, DownloadedPage, mergeURL
 from babel.numbers import parse_number
 from bs4 import Tag
 
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
-from Utils.Misc import createDictFromGenerator, iterable2quotedString
 from Utils.ParseoData import ProcesaTiempo
 from Utils.ProcessMDparts import procesaMDresInfoPeriodos, procesaMDresEstadsCompar, procesaMDresInfoRachas, \
     procesaMDresCartaTiro, procesaMDjugadas, jugadaSort, jugada2str, jugadaKey2sort, jugadaTag2Desc, jugadaKey2str, \
@@ -140,7 +140,7 @@ class PartidoACB():
                         continue
 
                     if cachedTeam is None:
-                        cachedTeam = PlantillaACB(teamId=datosJug['IDequipo'], edicion=datosJug['temporada'])
+                        cachedTeam = PlantillaACB(teamId=datosJug['IDequipo'], edicion=datosJug['edicion'])
 
                     nombreRetoc = RetocaNombreJugador(datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug[
                         'nombre']
@@ -241,7 +241,7 @@ class PartidoACB():
             self.Equipos[loc]['abrev'] = abrev
 
     def procesaLineaTablaEstadistica(self, fila, headers, estado):
-        result = {'competicion': self.competicion, 'temporada': self.temporada, 'jornada': self.jornada,
+        result = {'competicion': self.competicion, 'edicion': self.temporada, 'jornada': self.jornada,
                   'equipo': self.Equipos[estado]['Nombre'], 'CODequipo': self.Equipos[estado]['abrev'],
                   'IDequipo': self.Equipos[estado]['id'], 'rival': self.Equipos[OtherLoc(estado)]['Nombre'],
                   'CODrival': self.Equipos[OtherLoc(estado)]['abrev'], 'IDrival': self.Equipos[OtherLoc(estado)]['id'],
@@ -368,7 +368,7 @@ class PartidoACB():
         return result
 
     def jugadoresAdataframe(self) -> pd.DataFrame:
-        typesDF = {'competicion': 'object', 'temporada': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
+        typesDF = {'competicion': 'object', 'edicion': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
                    'esTitular': 'bool', 'haJugado': 'bool', 'titular': 'category', 'haGanado': 'bool',
                    'enActa': 'bool', }
 
@@ -404,7 +404,7 @@ class PartidoACB():
 
     def partidoAdataframe(self) -> pd.DataFrame:
         infoCols = ['jornada', 'Pabellon', 'Asistencia', 'prorrogas', 'VictoriaLocal', 'url', 'competicion',
-                    'temporada', 'idPartido']
+                    'edicion', 'idPartido']
         equipoCols = ['id', 'Nombre', 'abrev']
 
         infoDict = {k: getattr(self, k) for k in infoCols}
@@ -794,7 +794,7 @@ def procesaBoxScore(urlBoxscore: Union[str, DownloadedPage], home=None, browser=
 def persPartido2dictFicha(dataPers: Dict[str, Any]) -> Dict[str, str]:
     EXCLUDES = {'CODequipo', 'CODrival', 'IDequipo', 'IDrival', 'competicion', 'entrenador', 'equipo', 'esJugador',
                 'esLocal', 'esTitular', 'estado', 'estads', 'haGanado', 'haJugado', 'jornada', 'linkPersona', 'rival',
-                'temporada', 'url'}
+                'edicion', 'url'}
 
     TRCAMPOS = {'codigo': 'id', 'urlPersona': 'URL', 'nombre': 'alias', }
 

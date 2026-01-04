@@ -16,7 +16,7 @@ def resumenCambioJugadores(cambiosJugadores: dict, temporada: TemporadaACB):
         ultClub = temporada.fichaJugadores[jugCod].ultClub
         clubStr = "" if ultClub is None else f"{temporada.plantillas[ultClub].nombreClub()}"
 
-        jugadorStr = f"{temporada.fichaJugadores[jugCod].nombreFicha()}"
+        jugadorStr = f"{temporada.fichaJugadores[jugCod].nombreFicha(trads=temporada.tradEquipos)}"
         if 'NuevaFicha' in jugData:
             jugList.append(f"* Nuevo fichaje de {clubStr}: {jugadorStr}")
         else:
@@ -45,6 +45,44 @@ def resumenCambioJugadores(cambiosJugadores: dict, temporada: TemporadaACB):
     return '\n'.join(sorted(jugList))
 
 
+def resumenCambioEntrenadores(cambiosTecnicos: dict, temporada: TemporadaACB):
+    entList = []
+
+    for entCod, entData in cambiosTecnicos.items():
+        if not entData:
+            continue
+        ultClub = temporada.fichaEntrenadores[entCod].ultClub
+        clubStr = "" if ultClub is None else f"{temporada.plantillas[ultClub].nombreClub()}"
+
+        entrStr = f"{temporada.fichaEntrenadores[entCod].nombreFicha(trads=temporada.tradEquipos)}"
+        if 'NuevaFicha' in entData:
+            entList.append(f"* Nuevo fichaje de {clubStr}: {entrStr}")
+        else:
+            claves2skip = {'urlFoto'}
+            tradClaves = {'licencia': 'Cupo', 'nacionalidad': 'Pais', 'lugarNac': 'Origen', 'nombre': 'Nombre'}
+            cambiosJug = []
+            for k, v in entData.items():
+                if (k in claves2skip) or (v[0] is None):
+                    continue
+                if k == 'ultClub':
+                    if v[1] is None:
+                        cambioStr = f"Club: baja en {temporada.plantillas[v[0]].nombreClub()}"
+                    else:
+                        club1 = temporada.plantillas[v[1]].nombreClub()
+                        cambioStr = f"Club: {temporada.plantillas[v[0]].nombreClub()} -> {club1}"
+                else:
+                    cambioStr = f"{tradClaves.get(k, k)}: '{v[0]}'->'{v[1]}'"
+
+                cambiosJug.append(cambioStr)
+            if 'urlFoto' in entData:
+                cambiosJug.append("Nueva foto")
+            if len(cambiosJug) == 0:
+                continue
+            entList.append(f"* {entrStr} Cambios: {','.join(sorted(cambiosJug))}")
+
+    return '\n'.join(sorted(entList))
+
+
 def resumenNuevosPartidos(nuevosPartidos: Set[str], temporada: TemporadaACB):
     resumenPartidos = [str(temporada.Partidos[x]) for x in sorted(list(nuevosPartidos), key=lambda p: (
         temporada.Partidos[p].fechaPartido, temporada.Partidos[p].jornada))]
@@ -52,20 +90,15 @@ def resumenNuevosPartidos(nuevosPartidos: Set[str], temporada: TemporadaACB):
 
 
 def textoJugador(temporada: TemporadaACB, idJug: str):
-    return f"{temporada.fichaJugadores[idJug].nombreFicha()}"
+    return f"{temporada.fichaJugadores[idJug].nombreFicha(trads=temporada.tradEquipos)}"
 
 
 def dataPlantJug(temporada: TemporadaACB, idJug: str, idClub: str):
     return temporada.plantillas[idClub].jugadores._asdict()[idJug]
 
 
-def dataPlantTec(temporada: TemporadaACB, idTec: str, idClub: str):
-    return temporada.plantillas[idClub].tecnicos._asdict()[idTec]
-
-
-def textoTecnico(temporada: TemporadaACB, idTec: str, idClub: str):
-    auxInfo = dataPlantTec(temporada, idTec, idClub)
-    return f"ENT[{auxInfo['dorsal']}] {auxInfo.get('alias', auxInfo.get('nombre', 'NONAME'))}"
+def textoTecnico(temporada: TemporadaACB, idTec: str):
+    return f"{temporada.fichaEntrenadores[idTec].nombreFicha(trads=temporada.tradEquipos)}"
 
 
 def resumenCambioClubes(cambiosClubes: Dict[str, CambiosPlantillaTipo], temporada: TemporadaACB):
@@ -82,14 +115,14 @@ def resumenCambioClubes(cambiosClubes: Dict[str, CambiosPlantillaTipo], temporad
             cambiosClubList.append(f"Cambio en datos del club: {cambios.club.show(compact=True)}")
 
         if cambios.jugadores:
-            cambioJugsList = preparaResumenPlantillasJugadores(cambios, cl, temporada)
+            cambioJugsList = preparaResumenPlantillasJugadores(cambios, cl, temporada=temporada)
 
             if cambioJugsList:
                 lineaJugadores = "Cambio en jugadores:\n" + "\n".join(sorted(cambioJugsList))
                 cambiosClubList.append(lineaJugadores)
 
         if cambios.tecnicos:
-            cambioTecList = preparaResumenPlantillasTecnicos(cambios, cl, temporada)
+            cambioTecList = preparaResumenPlantillasTecnicos(cambios, temporada=temporada)
 
             if cambioTecList:
                 lineaTecnicos = "Cambio en técnicos:\n" + "\n".join(sorted(cambioTecList))
@@ -105,25 +138,25 @@ def resumenCambioClubes(cambiosClubes: Dict[str, CambiosPlantillaTipo], temporad
     return ""
 
 
-def preparaResumenPlantillasTecnicos(cambios, cl, temporada: TemporadaACB):
+def preparaResumenPlantillasTecnicos(cambios, temporada: TemporadaACB):
     cambioTecList = []
 
-    for idJug in cambios.tecnicos.added:
-        cambioTecList.append(f"  * Alta: {textoTecnico(temporada, idJug, cl)}")
+    for idTec in cambios.tecnicos.added:
+        cambioTecList.append(f"  * Alta: {textoTecnico(temporada, idTec)}")
 
-    for idJug, dataJug in cambios.tecnicos.changed.items():
-        auxDiffchanged = dataJug.changed
+    for idTec, dataTec in cambios.tecnicos.changed.items():
+        auxDiffchanged = dataTec.changed
         if not auxDiffchanged:
             continue
         if ('activo' in auxDiffchanged) and (not auxDiffchanged['activo'][1]):
-            cambioTecList.append(f"  * Baja: {textoTecnico(temporada, idJug, cl)}")
+            cambioTecList.append(f"  * Baja: {textoTecnico(temporada, idTec)}")
         else:
             changeStr = ",".join(
                 [f"{k}: '{auxDiffchanged[k][0]}'->'{auxDiffchanged[k][1]}'" for k in sorted(auxDiffchanged.keys())])
-            cambioTecList.append(f"  * Cambios: {textoTecnico(temporada, idJug, cl)}: {changeStr}")
+            cambioTecList.append(f"  * Cambios: {textoTecnico(temporada, idTec)}: {changeStr}")
 
-    for idJug, dataJug in cambios.tecnicos.removed.items():
-        cambioTecList.append(f"  * BORRADO:{textoTecnico(temporada, idJug, cl)}")
+    for idTec, dataTec in cambios.tecnicos.removed.items():
+        cambioTecList.append(f"  * BORRADO:{textoTecnico(temporada, idTec)}")
     return cambioTecList
 
 

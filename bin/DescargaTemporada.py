@@ -3,7 +3,6 @@
 
 import logging
 import sys
-from pprint import pp
 
 from CAPcore.Logging import prepareLogger
 from CAPcore.Web import createBrowser, extractGetParams
@@ -11,7 +10,7 @@ from configargparse import ArgumentParser, Namespace
 
 from SMACB.CalendarioACB import calendario_URLBASE
 from SMACB.DiferenciasTrasDescargaTemp import resumenCambioJugadores, resumenNuevosPartidos, resumenCambioClubes, \
-    resumenCambiosCalendario
+    resumenCambiosCalendario, resumenCambioEntrenadores
 from SMACB.TemporadaACB import TemporadaACB, CAMBIOSCLUB, CAMBIOSCALENDARIO, CAMBIOSENTRENADORES, CAMBIOSJUGADORES
 from Utils.ManageArgs import createArgs
 
@@ -73,18 +72,16 @@ def main(args: Namespace):
 
     if nuevosPartidos:
         maxPartidosABajar = 1 if (args.justone and not args.limit) else args.limit
-        limitStr=f" (limite: {maxPartidosABajar} partidos)" if maxPartidosABajar else ""
+        strNumPartidos = "s" if maxPartidosABajar > 1 else ""
+        limitStr = f" (limite: {maxPartidosABajar} partido{strNumPartidos})" if maxPartidosABajar else ""
         print(f"Partidos descargados{limitStr}\n{resumenNuevosPartidos(nuevosPartidos, temporada)}", "\n" * 2)
 
     if CAMBIOSJUGADORES:
-        pp(CAMBIOSJUGADORES)
         print(f"Cambios en jugadores\n{resumenCambioJugadores(CAMBIOSJUGADORES, temporada=temporada)}", "\n" * 2)
 
     if CAMBIOSENTRENADORES:
-        print("Aqui!")
-        pp(CAMBIOSENTRENADORES)
-    else:
-        print("No")
+        print(f"Cambios en entrenadores\n{resumenCambioEntrenadores(CAMBIOSENTRENADORES, temporada=temporada)}",
+              "\n" * 2)
 
     if CAMBIOSCLUB:
         print(f"Cambios en plantillas\n{resumenCambioClubes(CAMBIOSCLUB, temporada=temporada)}", "\n" * 2)

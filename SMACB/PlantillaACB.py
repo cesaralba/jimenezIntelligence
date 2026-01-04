@@ -6,10 +6,9 @@ from typing import Dict, NamedTuple
 import bs4
 from CAPcore.DictLoggedDict import DictOfLoggedDict, DictOfLoggedDictDiff
 from CAPcore.LoggedDict import LoggedDict, LoggedDictDiff
-from CAPcore.Misc import onlySetElement, getUTC
+from CAPcore.Misc import onlySetElement, getUTC, createDictFromGenerator
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
-from Utils.Misc import createDictFromGenerator
 from Utils.ParseoData import extractPlantillaInfoDiv
 from Utils.Web import getObjID, generaURLPlantilla, generaURLClubes, prepareDownloading
 from .Constants import URL_BASE, URLIMG2IGNORE
