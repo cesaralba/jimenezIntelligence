@@ -11,6 +11,7 @@ import json5
 from CAPcore.Misc import listize
 from CAPcore.Web import createBrowser, mergeURL, DownloadedPage
 from configargparse import Namespace
+from mechanicalsoup import StatefulBrowser
 
 # https://effbot.org/zone/default-values.htm#what-to-do-instead
 sentinel = object()
@@ -32,7 +33,7 @@ def getObjID(objURL, clave='id', defaultresult=sentinel):
     return defaultresult
 
 
-def prepareDownloading(browser, config, urlRef: Optional[str] = None):
+def prepareDownloading(browser:Optional[StatefulBrowser]=None, config:Optional[Namespace|Dict]=None):
     """
     Prepara las variables para el BeautifulSoup si no está y descarga una página si se provee
     :param browser: variable de estado del bs4
@@ -47,8 +48,6 @@ def prepareDownloading(browser, config, urlRef: Optional[str] = None):
         config = Namespace(**config) if isinstance(config, dict) else config
     if browser is None:
         browser = createBrowser(config)
-        if urlRef:
-            browser.open(urlRef)
     return browser, config
 
 

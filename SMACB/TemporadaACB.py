@@ -136,7 +136,7 @@ class TemporadaACB:
         interrupted = False
         changeOrig = self.changed
 
-        browser, config = prepareDownloading(browser, config, calendario_URLBASE)
+        browser, config = prepareDownloading(browser, config)
 
         self.Calendario.actualizaCalendario(browser=browser, config=config)
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
@@ -272,7 +272,7 @@ class TemporadaACB:
     def actualizaFichasPartidoConDesc(self, nuevoPartido: PartidoACB, browser: Optional[StatefulBrowser] = None,
                                       config: Optional[Namespace | Dict] = None) -> bool:
 
-        browser, config = prepareDownloading(browser, config, calendario_URLBASE)
+        browser, config = prepareDownloading(browser, config)
         refrescaFichas = getattr(config, 'refresca', False)
 
         for codJ, datosJug in nuevoPartido.Jugadores.items():
@@ -310,9 +310,8 @@ class TemporadaACB:
 
             self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
 
-    def actualizaFichasPartidoSinDesc(self, partido: PartidoACB, config=None):
+    def actualizaFichasPartidoSinDesc(self, partido: PartidoACB):
         changes: bool = False
-        _, config = prepareDownloading(None, config, calendario_URLBASE)
 
         for codJ, datosJug in partido.Jugadores.items():
             if codJ in JUGADORESDESCARGADOS:
@@ -380,7 +379,7 @@ class TemporadaACB:
     def actualizaPlantillasConDescarga(self, browser=None, config=None) -> bool:
         result = False
 
-        browser, config = prepareDownloading(browser, config, calendario_URLBASE)
+        browser, config = prepareDownloading(browser, config)
         logger.info("%s Actualizando plantillas", self)
         datosPlantillas = descargaPlantillasCabecera(browser, config)
         for p_id in datosPlantillas:
