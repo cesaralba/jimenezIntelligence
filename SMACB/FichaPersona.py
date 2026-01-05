@@ -1,5 +1,6 @@
 import logging
 from collections import defaultdict
+from datetime import datetime
 from typing import Optional, Set, Dict, Tuple, List, Any
 
 import bs4
@@ -223,6 +224,25 @@ class FichaPersona(LoggedClass):
 
     def clavesSubclase(self):
         return NotImplementedError("varClaves tiene que estar en las clases derivadas")
+
+    def bajaClub(self, clubId: str, timestamp: Optional[datetime] = None) -> bool:
+        changes = False
+        if timestamp is None:
+            timestamp = getUTC()
+        if clubId not in self.equipos:
+            raise KeyError(f"{self} no ha jugado en club {clubId}")
+        if clubId not in self.fichasClub:
+            raise KeyError(f"{self} no tiene ficha en club {clubId}")
+
+        changes |= self.fichasClub[clubId].bajaClub(persId=self.persId, clubId=clubId, timestamp=timestamp)
+
+        if extractValue(self.club) == clubId:
+            changes |= self.updateDataFields(timestamp=timestamp, club=None)
+
+        if extractValue(self.ultClub) == clubId:
+            changes |= self.updateDataFields(timestamp=timestamp, ultClub=None)
+
+        return changes
 
     __repr__ = nombreFicha
     __str__ = nombreFicha
@@ -601,7 +621,8 @@ class PartidosClub:
 
         if datosPersPart['edicion'] != self.edicion:
             raise ValueError(
-                f"Temporada del partido '{datosPersPart['edicion']}' no corresponde a la temporada aceptada '{self.edicion}'")
+                f"Temporada del partido '{datosPersPart['edicion']}' no corresponde a la temporada "
+                f"aceptada '{self.edicion}'")
 
         eqJugador = datosPersPart['IDequipo']
         if self.clubID is None:
@@ -641,9 +662,10 @@ class PartidosClub:
                     eqStr = f"{tradName}@{self.edicion}"
 
         partsStr = "Sin partidos registrados"
-        if len(self.partidos):
+        if self.partidos:
             pluralPartsStr = "s" if len(self.partidos) > 1 else ""
-            partsStr = f"{len(self.partidos)} part{pluralPartsStr}: {self.primPartidoT.strftime(FORMATOFECHA)} -> {self.ultPartidoT.strftime(FORMATOFECHA)}"
+            partsStr = (f"{len(self.partidos)} part{pluralPartsStr}: {self.primPartidoT.strftime(FORMATOFECHA)} "
+                        f"-> {self.ultPartidoT.strftime(FORMATOFECHA)}")
 
         result = f"{eqStr} {partsStr}"
 

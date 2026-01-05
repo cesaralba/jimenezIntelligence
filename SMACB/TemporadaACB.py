@@ -8,6 +8,7 @@ import sys
 from argparse import Namespace
 from collections import defaultdict
 from copy import copy
+from datetime import datetime
 from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
@@ -132,19 +133,29 @@ class TemporadaACB:
         result = Namespace(**{'procesaBio': self.descargaFichas, 'procesaPlantilla': self.descargaPlantillas})
         return result
 
-    def actualizaTemporada(self, home=None, browser=None, config=None):
+    def actualizaTemporada(self, browser=None, config=None):
         interrupted = False
         changeOrig = self.changed
 
         browser, config = prepareDownloading(browser, config)
 
         self.Calendario.actualizaCalendario(browser=browser, config=config)
-        self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
+        self.Calendario.actualizaDatosPlayoffJornada()
         self.changed |= self.buscaCambiosCalendario()
 
         partidosABajar = sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys())))
         partidosABajar = limitaPartidosBajados(config, partidosABajar)
         partidosBajados: Set[str] = set()
+
+        partidosABajar = ['https://www.acb.com/partido/estadisticas/id/104467',
+                          'https://www.acb.com/partido/estadisticas/id/104473',
+                          'https://www.acb.com/partido/estadisticas/id/104485',
+                          'https://www.acb.com/partido/estadisticas/id/104487',
+                          'https://www.acb.com/partido/estadisticas/id/104501',
+                          'https://www.acb.com/partido/estadisticas/id/104509',
+                          'https://www.acb.com/partido/estadisticas/id/104521',
+                          'https://www.acb.com/partido/estadisticas/id/104530',
+                          'https://www.acb.com/partido/estadisticas/id/104537']
 
         try:
             for partido in partidosABajar:
@@ -358,23 +369,55 @@ class TemporadaACB:
             eqId = eq['id']
             if eqId in self.plantillas:
                 continue
-            self.plantillas[eqId] = PlantillaACB(eqId, edicion=self.edicion)
-            auxChanged = True
-            dataClub = {'club': {'nombreActual': eq['Nombre'], 'nombreOficial': eq['Nombre']}}
+            timestamp = nuevoPartido.fechaPartido.to_pydatetime()
+            self.plantillas[eqId] = PlantillaACB(eqId, edicion=self.edicion, timestamp=timestamp)
+            auxChanged |= True
+            dataClub = {'club': {'nombreActual': eq['Nombre'], 'nombreOficial': eq['Nombre']}, 'timestamp': timestamp}
             self.plantillas[eqId].actualizaPlantillaDescargada(dataClub)
         return auxChanged
 
     def actualizaPlantillasDesdePartidoSinDesc(self, nuevoPartido: PartidoACB) -> bool:
         auxChanged = False
         for loc, eq in nuevoPartido.Equipos.items():
-            eqId = eq['id']
-            plantillaActivos = self.plantillas[eqId].getCurrentDict(soloActivos=True)
+            eqId: str = eq['id']
+            timestamp: datetime = nuevoPartido.fechaPartido.to_pydatetime()
+
             plantillaActual = self.plantillas[eqId].getCurrentDict(soloActivos=False)
+            plantillaActivos = self.plantillas[eqId].getCurrentDict(soloActivos=True)
+
+            for jugId, jugData in self.revisaTransfersEntreClubes(eqId, plantillaActivos=plantillaActivos).items():
+                plantillaActual['jugadores'][jugId] = jugData
+                auxChanged |= True
+                auxChanged |= self.fichaJugadores[jugId].bajaClub(eqId, timestamp=timestamp)
+
+            for entrId in entrenadorDestituido(entrenadorId=eq['Entrenador'], plantillaActivos=plantillaActivos):
+                print(f"Entr SI {entrId} vs Entr part {eq['Entrenador']}")
+                plantillaActual['tecnicos'][entrId]['activo'] = False
+                auxChanged |= True
+                auxChanged |= self.fichaEntrenadores[entrId].bajaClub(eqId, timestamp=timestamp)
 
             dataPlantAux = nuevoPartido.generaPlantillaDummy(loc, plantillaActual)
             auxChanged |= self.plantillas[eqId].actualizaPlantillaDescargada(dataPlantAux)
 
         return auxChanged
+
+    def revisaTransfersEntreClubes(self, idEq: str, plantillaActivos: Dict) -> Dict:
+        """
+        Forma eufemística de mirar si los jugadores de la plantilla estan en otro equipo (han jugado si no se descargan)
+        No captura jugs que se van a otra liga pero si los que van de A a B
+        :param idEq: Equipo (id) siendo considerado
+        :param plantillaActivos: (plantilla de personas activas)
+        :return: diccionario de id->data de jugadores que ya no están en el equipo (porque están en otro ACB)
+        """
+
+        jugadoresCambiados = {}
+        for jugId, dataJug in plantillaActivos.get('jugadores', {}).items():
+            fichaJug = self.fichaJugadores[jugId]
+            if extractValue(fichaJug.ultClub) != idEq:
+                dataJug['activo'] = False
+                jugadoresCambiados[jugId] = dataJug
+
+        return jugadoresCambiados
 
     def actualizaPlantillasConDescarga(self, browser=None, config=None) -> bool:
         result = False
@@ -996,3 +1039,15 @@ def limitaPartidosBajados(config: Namespace, partidosABajar: List[str]) -> List[
     if maxPartidosABajar:
         partidosABajar = partidosABajar[:maxPartidosABajar]
     return partidosABajar
+
+
+def entrenadorDestituido(entrenadorId: str, plantillaActivos: Dict) -> List[str]:
+    changes = []
+    if not plantillaActivos.get('tecnicos', {}):
+        return changes
+
+    for entrActivo in plantillaActivos['tecnicos']:
+        if entrActivo != entrenadorId:
+            changes.append(entrActivo)
+
+    return changes

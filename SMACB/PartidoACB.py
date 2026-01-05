@@ -623,7 +623,8 @@ class PartidoACB():
         eqData = self.Equipos[loc]
         result['jugadores'] = auxPlantilla['jugadores']
         result['jugadores'].update(generaPlantillaJugadores(eqData['Jugadores']))
-        result['tecnicos'] = generaPlantillaEntrenador(eqData['Entrenador'])
+        result['tecnicos'] = auxPlantilla['tecnicos']
+        result['tecnicos'].update(generaPlantillaEntrenador(eqData['Entrenador']))
         result['club'] = auxPlantilla['club']
         result['club'].update({'nombreActual': eqData['Nombre'], 'nombreOficial': eqData['Nombre']})
 
