@@ -35,9 +35,9 @@ class PartidoACB():
 
         self.jornada = None
         self.infoJornada: Optional[infoJornada] = None
-        self.fechaPartido = None
-        self.Pabellon = None
-        self.Asistencia = None
+        self.fechaPartido: Optional[pd.Timestamp] = None
+        self.Pabellon: Optional[str] = None
+        self.Asistencia: Optional[int] = None
         self.Arbitros = []
         self.ResultadosParciales = []
         self.prorrogas = 0

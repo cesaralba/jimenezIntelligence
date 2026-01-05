@@ -150,7 +150,7 @@ class TemporadaACB:
             for partido in partidosABajar:
                 try:
                     partidoDescargado = PartidoACB(**(self.Calendario.Partidos[partido]))
-                    partidoDescargado.descargaPartido(home=home, browser=browser, config=config)
+                    partidoDescargado.descargaPartido(browser=browser, config=config)
                     if not partidoDescargado.check():
                         continue
                     self.actualizaInfoAuxiliar(nuevoPartido=partidoDescargado, browser=browser, config=config)
@@ -265,7 +265,7 @@ class TemporadaACB:
         if self.descargaFichas:
             changes |= self.actualizaFichasPartidoConDesc(nuevoPartido, browser, config)
         else:
-            changes |= self.actualizaFichasPartidoSinDesc(partido=nuevoPartido, config=config)
+            changes |= self.actualizaFichasPartidoSinDesc(partido=nuevoPartido)
 
         return changes
 
@@ -292,7 +292,7 @@ class TemporadaACB:
                     logging.exception("Partido [%s]: something happened creating record for %s. Datos: %s",
                                       nuevoPartido.url, codJ, datosJug)
                     nuevaFicha = FichaJugador.fromPartido(idPersona=codJ, datos=datosJug,
-                                                          timestamp=nuevoPartido.timestamp)
+                                                          timestamp=nuevoPartido.fechaPartido.to_pydatetime())
                     self.fichaJugadores[codJ] = nuevaFicha
                     JUGADORESDESCARGADOS.add(codJ)
                     self.changed = True
@@ -320,7 +320,7 @@ class TemporadaACB:
 
             if codJ not in self.fichaJugadores:
                 nuevaFicha = FichaJugador.fromPartido(idPersona=codJ, datosPartido=datosJug,
-                                                      timestamp=partido.timestamp)
+                                                      timestamp=partido.fechaPartido.to_pydatetime())
                 self.fichaJugadores[codJ] = nuevaFicha
                 changes |= True
                 JUGADORESDESCARGADOS.add(codJ)
@@ -337,7 +337,7 @@ class TemporadaACB:
                     datosEnt['dorsal'] = '1'
 
                 nuevaFicha = FichaEntrenador.fromPartido(idPersona=codE, datosPartido=datosEnt,
-                                                         timestamp=partido.timestamp)
+                                                         timestamp=partido.fechaPartido.to_pydatetime())
                 self.fichaEntrenadores[codE] = nuevaFicha
                 changes |= True
                 TECNICOSDESGARGADOS.add(codE)
