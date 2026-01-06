@@ -147,15 +147,15 @@ class TemporadaACB:
         partidosABajar = limitaPartidosBajados(config, partidosABajar)
         partidosBajados: Set[str] = set()
 
-        partidosABajar = ['https://www.acb.com/partido/estadisticas/id/104467',
-                          'https://www.acb.com/partido/estadisticas/id/104473',
-                          'https://www.acb.com/partido/estadisticas/id/104485',
-                          'https://www.acb.com/partido/estadisticas/id/104487',
-                          'https://www.acb.com/partido/estadisticas/id/104501',
-                          'https://www.acb.com/partido/estadisticas/id/104509',
-                          'https://www.acb.com/partido/estadisticas/id/104521',
-                          'https://www.acb.com/partido/estadisticas/id/104530',
-                          'https://www.acb.com/partido/estadisticas/id/104537']
+        # partidosABajar = ['https://www.acb.com/partido/estadisticas/id/104467',
+        #                   'https://www.acb.com/partido/estadisticas/id/104473',
+        #                   'https://www.acb.com/partido/estadisticas/id/104485',
+        #                   'https://www.acb.com/partido/estadisticas/id/104487',
+        #                   'https://www.acb.com/partido/estadisticas/id/104501',
+        #                   'https://www.acb.com/partido/estadisticas/id/104509',
+        #                   'https://www.acb.com/partido/estadisticas/id/104521',
+        #                   'https://www.acb.com/partido/estadisticas/id/104530',
+        #                   'https://www.acb.com/partido/estadisticas/id/104537']
 
         try:
             for partido in partidosABajar:
@@ -391,7 +391,6 @@ class TemporadaACB:
                 auxChanged |= self.fichaJugadores[jugId].bajaClub(eqId, timestamp=timestamp)
 
             for entrId in entrenadorDestituido(entrenadorId=eq['Entrenador'], plantillaActivos=plantillaActivos):
-                print(f"Entr SI {entrId} vs Entr part {eq['Entrenador']}")
                 plantillaActual['tecnicos'][entrId]['activo'] = False
                 auxChanged |= True
                 auxChanged |= self.fichaEntrenadores[entrId].bajaClub(eqId, timestamp=timestamp)
@@ -437,6 +436,12 @@ class TemporadaACB:
         return result
 
     def actualizaPlantillasSinDescarga(self) -> bool:
+        """
+        Crea plantillas que no existan (no debería hacer nada pero...). Sin descarga, las plantillas se crean/actualizan
+        con la información de los partidos
+
+        :return: Si ha habido cambios o no
+        """
         result = False
 
         logger.info("%s Actualizando plantillas", self)

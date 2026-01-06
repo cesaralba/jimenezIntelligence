@@ -2,7 +2,8 @@ from datetime import datetime
 from pprint import pp
 from typing import Optional
 
-from CAPcore.LoggedClass import LoggedClass, diffDicts
+from CAPcore.DataChangeLogger import DataChangesTuples
+from CAPcore.LoggedClass import diffDicts, LoggedClassGenerator
 from CAPcore.LoggedValue import LoggedValue, extractValue, setNewValue
 from CAPcore.Misc import getUTC
 
@@ -11,8 +12,10 @@ CAMPOSOPERFICHACLUBPERSONA = ['alta', 'baja', 'activo']
 EXCLUDEUPDATES = CAMPOSIDFICHACLUBPERSONA + ['alta', 'baja']
 CAMPOSFICHACLUBPERSONA = CAMPOSIDFICHACLUBPERSONA + CAMPOSOPERFICHACLUBPERSONA
 
+DataLogger = LoggedClassGenerator(DataChangesTuples)
 
-class FichaClubPersona(LoggedClass):
+
+class FichaClubPersona(DataLogger):
 
     def __init__(self, persId: str, clubId: str, **kwargs):
         timestamp = kwargs['timestamp'] = kwargs.get('timestamp', getUTC())

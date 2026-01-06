@@ -33,7 +33,7 @@ def getObjID(objURL, clave='id', defaultresult=sentinel):
     return defaultresult
 
 
-def prepareDownloading(browser:Optional[StatefulBrowser]=None, config:Optional[Namespace|Dict]=None):
+def prepareDownloading(browser: Optional[StatefulBrowser] = None, config: Optional[Namespace | Dict] = None):
     """
     Prepara las variables para el BeautifulSoup si no está y descarga una página si se provee
     :param browser: variable de estado del bs4
@@ -53,7 +53,7 @@ def prepareDownloading(browser:Optional[StatefulBrowser]=None, config:Optional[N
 
 def generaURLPlantilla(plantilla, urlRef: str):
     # https://www.acb.com/club/plantilla/id/6/temporada_id/2016
-    params = ['/club', 'plantilla', 'id', plantilla.id]
+    params = ['/club', 'plantilla', 'id', plantilla.clubId]
     if plantilla.edicion is not None:
         params += ['temporada_id', plantilla.edicion]
 

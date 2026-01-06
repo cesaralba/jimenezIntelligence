@@ -4,7 +4,9 @@ from copy import copy
 from typing import Dict, NamedTuple
 
 import bs4
+from CAPcore.DataChangeLogger import DataChangesRaw
 from CAPcore.DictLoggedDict import DictOfLoggedDict, DictOfLoggedDictDiff
+from CAPcore.LoggedClass import LoggedClassGenerator
 from CAPcore.LoggedDict import LoggedDict, LoggedDictDiff
 from CAPcore.Misc import onlySetElement, getUTC, createDictFromGenerator
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
@@ -14,6 +16,8 @@ from Utils.Web import getObjID, generaURLPlantilla, generaURLClubes, prepareDown
 from .Constants import URL_BASE, URLIMG2IGNORE
 
 logger = logging.getLogger()
+
+DataLogger = LoggedClassGenerator(DataChangesRaw)
 
 
 class CambiosPlantillaTipo(NamedTuple):
@@ -25,9 +29,11 @@ class CambiosPlantillaTipo(NamedTuple):
 CAMBIOSCLUB: Dict[str, CambiosPlantillaTipo] = {}
 
 
-class PlantillaACB():
+class PlantillaACB(DataLogger):
     def __init__(self, teamId, **kwargs):
-        self.id = teamId
+        timestamp = kwargs['timestamp'] = kwargs.get('timestamp', getUTC())
+
+        self.clubId = teamId
         self.edicion = kwargs.get('edicion', None)
         self.URL = generaURLPlantilla(self, URL_BASE)
         self.timestamp = None
@@ -36,10 +42,11 @@ class PlantillaACB():
         self.jugadores = DictOfLoggedDict()
         self.tecnicos = DictOfLoggedDict()
 
-    def descargaYactualizaPlantilla(self, home=None, browser=None, config=None) -> bool:
+        super().__init__(**kwargs)
+
+    def descargaYactualizaPlantilla(self, browser=None, config=None) -> bool:
         """
         Descarga los datos y llama al procedimiento para actualizar
-        :param home:
         :param browser:
         :param config:
         :param extraTrads:
@@ -50,13 +57,13 @@ class PlantillaACB():
         try:
             auxURL = generaURLPlantilla(self, URL_BASE)
             if auxURL != self.URL:
-                print(f"[{self.id}] '{self.club['nombreActual']}' {self.edicion} URL cambiada: '{self.URL}' -> '"
+                print(f"[{self.clubId}] '{self.club['nombreActual']}' {self.edicion} URL cambiada: '{self.URL}' -> '"
                       f"{auxURL}'")
                 self.URL = auxURL
                 result |= True
-            logger.info("descargaYactualizaPlantilla. [%s] '%s' (%s) URL %s", self.id,
+            logger.info("descargaYactualizaPlantilla. [%s] '%s' (%s) URL %s", self.clubId,
                         self.club.get('nombreActual', 'Desconocido'), self.edicion, self.URL)
-            data = descargaURLplantilla(self.URL, home, browser, config)
+            data = descargaURLplantilla(self.URL, browser, config)
         except Exception:
             logging.exception(
                 "Something happened updating record of '%s' ", self.club)
@@ -82,7 +89,7 @@ class PlantillaACB():
 
         if result:
             self.timestamp = currTimestamp
-            CAMBIOSCLUB[self.id] = CambiosPlantillaTipo(**cambiosAux)
+            CAMBIOSCLUB[self.clubId] = CambiosPlantillaTipo(**cambiosAux)
 
         return result
 
@@ -98,8 +105,8 @@ class PlantillaACB():
         self.jugadores: DictOfLoggedDict = DictOfLoggedDict.updateRelease(self.jugadores)
         self.jugadores.renameKeys(keyMapping=keyRenamingJugs)  # Lo que se encuentra en la tabla es el alias
 
-        def getFromSet(auxNombre, idx):
-            sortedVals = sorted(auxNombre, key=len)
+        def getFromSet(auxNombrePar, idx):
+            sortedVals = sorted(auxNombrePar, key=len)
             result = sortedVals[idx]
             return result
 
@@ -157,19 +164,19 @@ class PlantillaACB():
         return result
 
     def __str__(self):
-        result = (f"{self.nombreClub()} [{self.id}] Year: {self.edicion} "
+        result = (f"{self.nombreClub()} [{self.clubId}] Year: {self.edicion} "
                   f"Jugadores conocidos: {len(self.jugadores)} Entrenadores conocidos: {len(self.tecnicos)}")
         return result
 
     __repr__ = __str__
 
 
-def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=None):
+def descargaURLplantilla(urlPlantilla, browser=None, config=None):
     browser, config = prepareDownloading(browser, config)
 
     try:
         logging.debug("descargaURLplantilla: downloading %s", urlPlantilla)
-        pagPlant = downloadPage(urlPlantilla, home=home, browser=browser, config=config)
+        pagPlant = downloadPage(urlPlantilla, browser=browser, config=config)
 
         result = procesaPlantillaDescargada(pagPlant)
         result['URL'] = browser.get_url()

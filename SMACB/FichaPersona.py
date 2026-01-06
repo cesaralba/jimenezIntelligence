@@ -4,7 +4,8 @@ from datetime import datetime
 from typing import Optional, Set, Dict, Tuple, List, Any
 
 import bs4
-from CAPcore.LoggedClass import LoggedClass, diffDicts
+from CAPcore.DataChangeLogger import DataChangesTuples
+from CAPcore.LoggedClass import diffDicts, LoggedClassGenerator
 from CAPcore.LoggedValue import LoggedValue, extractValue, setNewValue
 from CAPcore.Misc import copyDictWithTranslation, getUTC, onlySetElement
 from CAPcore.Web import mergeURL, DownloadedPage, downloadPage
@@ -18,6 +19,8 @@ from .FichaClub import FichaClubPersona, FichaClubJugador, FichaClubEntrenador
 from .PartidoACB import PartidoACB
 from .Trayectoria import Trayectoria
 
+DataLogger = LoggedClassGenerator(DataChangesTuples)
+
 CAMBIOSENTRENADORES = defaultdict(lambda: {'cambios': set()})
 CAMBIOSJUGADORES = defaultdict(lambda: {'cambios': set()})
 
@@ -29,7 +32,7 @@ VALIDPERSONATYPES = {'jugador', 'entrenador'}
 PERSONABASICTAGS = {'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'nacionalidad', 'persId'}
 
 
-class FichaPersona(LoggedClass):
+class FichaPersona(DataLogger):
     CLAVESPERSONA = ['URL', 'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'nacionalidad', 'club', ]
     # ['posicion', 'altura', 'licencia', 'junior', 'persId', 'tipoFicha', 'sinDatos', 'URL', 'trayectoria', 'edicion', 'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'nacionalidad', 'nombresConocidos', 'fotos', 'urlConocidas', 'equipos', 'club', 'ultClub', 'fichasClub', 'partsClub', 'timestamp', 'changeLog', 'partsTemporada']
     EXCLUDESPERSONA = ['persId', 'tipoFicha', 'sinDatos', 'trayectoria', 'nombresConocidos', 'equipos',
