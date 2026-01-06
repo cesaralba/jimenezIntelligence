@@ -1,7 +1,7 @@
 import logging
 from collections import defaultdict
 from copy import copy
-from typing import Dict, NamedTuple
+from typing import Dict, NamedTuple, Optional
 
 import bs4
 from CAPcore.DataChangeLogger import DataChangesRaw
@@ -12,7 +12,7 @@ from CAPcore.Misc import onlySetElement, getUTC, createDictFromGenerator
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
 from Utils.ParseoData import extractPlantillaInfoDiv
-from Utils.Web import getObjID, generaURLPlantilla, generaURLClubes, prepareDownloading
+from Utils.Web import getObjID, prepareDownloading
 from .Constants import URL_BASE, URLIMG2IGNORE
 
 logger = logging.getLogger()
@@ -36,7 +36,6 @@ class PlantillaACB(DataLogger):
         self.clubId = teamId
         self.edicion = kwargs.get('edicion', None)
         self.URL = generaURLPlantilla(self, URL_BASE)
-        self.timestamp = None
 
         self.club = LoggedDict()
         self.jugadores = DictOfLoggedDict()
@@ -260,7 +259,7 @@ def procesaPlantillaDescargada(plantDesc: DownloadedPage):
     return result
 
 
-def procesaTablaBajas(tablaBajas: bs4.element) -> dict:
+def procesaTablaBajas(tablaBajas: bs4.Tag) -> dict:
     result = defaultdict(dict)
 
     for row in tablaBajas.find("tbody").find_all("tr"):
@@ -348,5 +347,31 @@ def descargaPlantillasCabecera(browser=None, config=None, edicion=None, listaIDs
         idEq = getObjID(objURL=urlFull, clave='id')
 
         result.add(idEq)
+
+    return result
+
+
+def generaURLPlantilla(plantilla, urlRef: str):
+    # https://www.acb.com/club/plantilla/id/6/temporada_id/2016
+    params = ['/club', 'plantilla', 'id', plantilla.clubId]
+    if plantilla.edicion is not None:
+        params += ['temporada_id', plantilla.edicion]
+
+    urlSTR = "/".join(params)
+
+    result = mergeURL(urlRef, urlSTR)
+
+    return result
+
+
+def generaURLClubes(edicion: Optional[str] = None, urlRef: str = None):
+    # https://www.acb.com/club/index/temporada_id/2015
+    params = ['/club', 'index']
+    if edicion is not None:
+        params += ['temporada_id', edicion]
+
+    urlSTR = "/".join(params)
+
+    result = mergeURL(urlRef, urlSTR)
 
     return result
