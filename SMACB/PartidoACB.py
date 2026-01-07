@@ -29,9 +29,13 @@ from .PlantillaACB import PlantillaACB
 templateURLficha = "https://www.acb.com/fichas/%s%i%03i.php"
 
 
-class PartidoACB():
+class PartidoACB:
 
     def __init__(self, **kwargs):
+
+        self.idPartido = kwargs.get('partido', None)
+        self.competicion = kwargs['cod_competicion']
+        self.edicion = kwargs['cod_edicion']
 
         self.jornada = None
         self.infoJornada: Optional[infoJornada] = None
@@ -64,9 +68,6 @@ class PartidoACB():
 
         self.url = kwargs['url']
 
-        self.competicion = kwargs['cod_competicion']
-        self.temporada = kwargs['cod_edicion']
-        self.idPartido = kwargs.get('partido', None)
 
         for loc in LocalVisitante:
             self.Equipos[loc]['haGanado'] = self.ResultadoCalendario[loc] > self.ResultadoCalendario[OtherLoc(loc)]
@@ -112,7 +113,7 @@ class PartidoACB():
         divParciales = tabDatosGenerales.find("div", {"class": "parciales_por_cuarto"})
         aux = divParciales.get_text().split("\xa0")
 
-        self.ResultadosParciales = [(int(x[0]), int(x[1])) for x in map(lambda x: x.split("|"), aux)]
+        self.ResultadosParciales = [(int(x)  for x in r.split("|")) for r in aux]
 
         divCabecera = pagina.find("div", {"class": "contenedora_info_principal"})
         self.procesaDivCabecera(divCabecera)
@@ -241,7 +242,7 @@ class PartidoACB():
             self.Equipos[loc]['abrev'] = abrev
 
     def procesaLineaTablaEstadistica(self, fila, headers, estado):
-        result = {'competicion': self.competicion, 'edicion': self.temporada, 'jornada': self.jornada,
+        result = {'competicion': self.competicion, 'edicion': self.edicion, 'jornada': self.jornada,
                   'equipo': self.Equipos[estado]['Nombre'], 'CODequipo': self.Equipos[estado]['abrev'],
                   'IDequipo': self.Equipos[estado]['id'], 'rival': self.Equipos[OtherLoc(estado)]['Nombre'],
                   'CODrival': self.Equipos[OtherLoc(estado)]['abrev'], 'IDrival': self.Equipos[OtherLoc(estado)]['id'],
@@ -598,23 +599,23 @@ class PartidoACB():
         self.metadataEmb = zstd.compress(dumps(resultado))
 
     def generaPlantillaDummy(self, loc: str, plantillaActual: Optional[dict] = None) -> dict:
-        result = {'timestamp': self.timestamp}
+        result = {'timestamp': self.timestamp, 'edicion':self.edicion}
 
         def generaPlantillaJugadores(idJugs: Iterable[str]) -> Dict[str, Dict[str, str]]:
-            result = {}
+            funcResult = {}
             for idJug in idJugs:
                 auxData: dict = persPartido2dictFicha(self.Jugadores[idJug])
                 auxData.update({'activo': True})
-                result[idJug] = auxData
+                funcResult[idJug] = auxData
 
-            return result
+            return funcResult
 
         def generaPlantillaEntrenador(idEntr: str) -> Dict[str, Dict[str, str]]:
             auxData: dict = persPartido2dictFicha(self.Entrenadores[idEntr])
             auxData.update({'activo': True, 'dorsal': '1', 'nombre': self.Entrenadores[idEntr]['nombre']})
-            result = {idEntr: auxData}
+            funcResult = {idEntr: auxData}
 
-            return result
+            return funcResult
 
         if loc not in LocalVisitante:
             raise KeyError(f"Parametro 'loc' debe ser {iterable2quotedString(LocalVisitante)}. Actual: '{loc}'")
