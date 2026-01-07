@@ -86,7 +86,8 @@ def main(args: Namespace):
         # print(f"Cambios en entrenadores\n{resumenCambioEntrenadores(CAMBIOSENTRENADORES, temporada=temporada)}",              "\n" * 2)
 
     if CAMBIOSCLUB:
-        print(f"Cambios en plantillas\n{resumenCambioClubes(CAMBIOSCLUB, temporada=temporada)}", "\n" * 2)
+        pp(CAMBIOSCLUB)
+        # print(f"Cambios en plantillas\n{resumenCambioClubes(CAMBIOSCLUB, temporada=temporada)}", "\n" * 2)
 
     if CAMBIOSCALENDARIO:
         print(f"Cambios en calendario\n{resumenCambiosCalendario(CAMBIOSCALENDARIO, temporada=temporada)}", "\n" * 2)

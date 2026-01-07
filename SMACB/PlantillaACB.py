@@ -1,14 +1,15 @@
 import logging
 from collections import defaultdict
 from copy import copy
+from pprint import pp
 from typing import Dict, NamedTuple, Optional
 
 import bs4
 from CAPcore.DataChangeLogger import DataChangesRaw
 from CAPcore.DictLoggedDict import DictOfLoggedDict, DictOfLoggedDictDiff
-from CAPcore.LoggedClass import LoggedClassGenerator
+from CAPcore.LoggedClass import LoggedClassGenerator, diffDicts
 from CAPcore.LoggedDict import LoggedDict, LoggedDictDiff
-from CAPcore.Misc import onlySetElement, getUTC, createDictFromGenerator
+from CAPcore.Misc import onlySetElement, getUTC, createDictFromGenerator, copyDictWithTranslation
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
 from Utils.ParseoData import extractPlantillaInfoDiv
@@ -26,29 +27,73 @@ class CambiosPlantillaTipo(NamedTuple):
     tecnicos: DictOfLoggedDictDiff
 
 
-CAMBIOSCLUB: Dict[str, CambiosPlantillaTipo] = {}
+CAMBIOSCLUB: Dict[str, Dict] = defaultdict(lambda: {'cambios': set()})
 
 
-class PlantillaACB(DataLogger):
+class PlantillaACB(LoggedClassGenerator(DataChangesRaw)):
     def __init__(self, teamId, **kwargs):
         timestamp = kwargs['timestamp'] = kwargs.get('timestamp', getUTC())
 
-        self.clubId = teamId
-        self.edicion = kwargs.get('edicion', None)
-        self.URL = generaURLPlantilla(self, URL_BASE)
+        self.clubId:str = teamId
+        self.edicion:Optional[str]=None
+        self.URL:Optional[str]=None
 
-        self.club = LoggedDict()
-        self.jugadores = DictOfLoggedDict()
-        self.tecnicos = DictOfLoggedDict()
+        self.club:LoggedDict = LoggedDict()
+        self.jugadores:DictOfLoggedDict = DictOfLoggedDict()
+        self.tecnicos:DictOfLoggedDict = DictOfLoggedDict()
 
         super().__init__(**kwargs)
+
+        currentValues=self.data2log()
+
+        self.updateDataFields(URL = generaURLPlantilla(self, URL_BASE),**kwargs)
+
+        newValues=self.data2log()
+
+        changeInfo = comparaPlantillas(currentValues, newValues)
+        if not changeInfo:
+            return
+        changeInfo['Nuevaficha'] = (None, True)
+        self.updateDataLog(changeInfo=changeInfo, timestamp=timestamp)
+        CAMBIOSCLUB[self.clubId]['nuevo'] = True
+        CAMBIOSCLUB[self.clubId]['cambios'].add(timestamp)
+
+
+    def actualizaPlantillaDescargada(self, newData) -> bool:
+        result = False
+        timestamp = newData['timestamp'] = newData.get('timestamp', getUTC())
+
+        currentValues=self.data2log()
+
+        result|=self.updateDataFields(**newData)
+
+        if not result:
+            return result
+
+        newValues=self.data2log()
+        changeInfo = comparaPlantillas(currentValues, newValues)
+        self.updateDataLog(changeInfo=changeInfo, timestamp=timestamp)
+        CAMBIOSCLUB[self.clubId]['nuevo'] = True
+        CAMBIOSCLUB[self.clubId]['cambios'].add(timestamp)
+
+        return result
+
+    def getValorJugadores(self, clave, default=None):
+        return self.jugadores.extractKey(key=clave, default=default)
+
+    def data2log(self) -> dict:
+        result = {}
+        result.update(self.getCurrentDict(soloActivos=False))
+        result.update(self.class2dict(keyList=['edicion','URL']))
+
+        return result
+
 
     def descargaYactualizaPlantilla(self, browser=None, config=None) -> bool:
         """
         Descarga los datos y llama al procedimiento para actualizar
         :param browser:
         :param config:
-        :param extraTrads:
         :return:
         """
         result = False
@@ -71,29 +116,6 @@ class PlantillaACB(DataLogger):
         result |= self.actualizaPlantillaDescargada(data)
         return result
 
-    def actualizaPlantillaDescargada(self, data) -> bool:
-        result = False
-
-        currTimestamp = data.get('timestamp', getUTC())
-
-        cambiosAux = {k: getattr(self, k).diff(data.get(k, {}), doUpdate=True) for k in CambiosPlantillaTipo._fields}
-
-        result |= self.club.update(data.get('club', {}), timestamp=currTimestamp)
-        result |= self.jugadores.update(data.get('jugadores', {}), timestamp=currTimestamp)
-        result |= self.tecnicos.update(data.get('tecnicos', {}), timestamp=currTimestamp)
-
-        if self.edicion is None:
-            self.edicion = data['edicion']
-            result = True
-
-        if result:
-            self.timestamp = currTimestamp
-            CAMBIOSCLUB[self.clubId] = CambiosPlantillaTipo(**cambiosAux)
-
-        return result
-
-    def getValorJugadores(self, clave, default=None):
-        return self.jugadores.extractKey(key=clave, default=default)
 
     def actualizaClasesBase(self):
         keyRenamingFoto = {'URLimg': 'urlFoto'}
@@ -373,5 +395,33 @@ def generaURLClubes(edicion: Optional[str] = None, urlRef: str = None):
     urlSTR = "/".join(params)
 
     result = mergeURL(urlRef, urlSTR)
+
+    return result
+
+def comparaPlantillas(currentData:Dict,newData:Dict)->Dict:
+    result={}
+
+    clavesDictLD= ['jugadores', 'tecnicos']
+    clavesDict=[ 'club']
+
+    auxValores=diffDicts(copyDictWithTranslation(currentData,excludes=clavesDictLD+clavesDict),copyDictWithTranslation(newData,excludes=clavesDictLD+clavesDict))
+    if auxValores:
+        result.update({'valores':auxValores})
+
+    for k in clavesDictLD:
+        auxDLD=DictOfLoggedDict()
+        auxDLD.update(currentData.get(k, {}))
+        auxDiff=auxDLD.diff(newData.get(k, {}),doUpdate=True)
+        if auxDiff:
+            result['dicts']= result.get('dicts',{})
+            result['dicts'].update({k: auxDiff})
+
+    for k in clavesDict:
+        auxDLD=LoggedDict()
+        auxDLD.update(currentData.get(k, {}))
+        auxDiff=auxDLD.diff(newData.get(k, {}),doUpdate=True)
+        if auxDiff:
+            result['dicts']= result.get('dicts',{})
+            result['dicts'].update({k: auxDiff})
 
     return result
