@@ -86,10 +86,10 @@ class FichaClubPersona(DataLogger):
         return self.update(persId=persId, clubId=clubId, timestamp=timestamp, activo=False)
 
     def fichaCl2str(self):
-        return NotImplementedError
+        raise NotImplementedError("fichaCl2str tiene que estar en las clases derivadas")
 
     def varClaves(self):
-        return NotImplementedError("varClaves tiene que estar en las clases derivadas")
+        raise NotImplementedError("varClaves tiene que estar en las clases derivadas")
 
     def fichaCl2dict(self):
         result = self.class2dict(keyList=(CAMPOSFICHACLUBPERSONA + self.varClaves()), mapFunc=extractValue)
@@ -130,7 +130,7 @@ class FichaClubEntrenador(FichaClubPersona):
 
     def fichaCl2str(self) -> str:
         dorsal = extractValue(self.dorsal)
-        cadenaStr = "Sin informacion"
+        cadenaStr = "Sin inf puesto"
         if dorsal is not None:
             cadenaStr = "Principal" if dorsal == '1' else f"Ayudante[{dorsal}]"
         return cadenaStr

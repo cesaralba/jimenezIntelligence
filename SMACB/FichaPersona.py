@@ -34,7 +34,6 @@ PERSONABASICTAGS = {'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'naci
 
 class FichaPersona(DataLogger):
     CLAVESPERSONA = ['URL', 'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'nacionalidad', 'club', ]
-    # ['posicion', 'altura', 'licencia', 'junior', 'persId', 'tipoFicha', 'sinDatos', 'URL', 'trayectoria', 'edicion', 'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'nacionalidad', 'nombresConocidos', 'fotos', 'urlConocidas', 'equipos', 'club', 'ultClub', 'fichasClub', 'partsClub', 'timestamp', 'changeLog', 'partsTemporada']
     EXCLUDESPERSONA = ['persId', 'tipoFicha', 'sinDatos', 'trayectoria', 'nombresConocidos', 'equipos',
                        'ultClub', 'fichasClub', 'partsClub', 'timestamp', 'changeLog', 'partsTemporada', 'urlConocidas',
                        'fotos']
@@ -164,7 +163,7 @@ class FichaPersona(DataLogger):
 
         return result
 
-    def infoFichaStr(self) -> Tuple[str, str]:
+    def infoFichaStr(self, club: Optional[str] = None, trads: Optional[Dict] = None) -> Tuple[str, str]:
         raise NotImplementedError("infoFichaStr tiene que estar en las clases derivadas")
 
     def nombreFicha(self, trads: Optional[Dict] = None):
@@ -172,7 +171,7 @@ class FichaPersona(DataLogger):
         fechaNacStr = "No Fnac" if self.fechaNac is None else self.fechaNac.strftime('%Y-%m-%d')
         gamesStr = self.partsTemporada.partsClub2str(trads=trads) if self.ultClub is None else self.partsClub[
             self.ultClub].partsClub2str(trads=trads)
-        prefPers, datosPers = self.infoFichaStr()
+        prefPers, datosPers = self.infoFichaStr(trads=trads)
         eqPlural = "s" if len(self.equipos) != 1 else ""
 
         return (f"{prefPers}: {nombreStr} ({self.persId}) {fechaNacStr} {datosPers} "
@@ -223,10 +222,10 @@ class FichaPersona(DataLogger):
         return changes
 
     def varCambios(self):
-        return NotImplementedError("varCambios tiene que estar en las clases derivadas")
+        raise NotImplementedError("varCambios tiene que estar en las clases derivadas")
 
     def clavesSubclase(self):
-        return NotImplementedError("varClaves tiene que estar en las clases derivadas")
+        raise NotImplementedError("varClaves tiene que estar en las clases derivadas")
 
     def bajaClub(self, clubId: str, timestamp: Optional[datetime] = None) -> bool:
         changes = False
@@ -335,7 +334,7 @@ class FichaPersona(DataLogger):
         if pag is None:
             return False
         datosPersona = extraeDatosPersonales(datosPag=pag)
-        result |= self.actualizaBio(datosPersona)
+        result |= self.actualizaBio(**datosPersona)
         if self.trayectoria is None:
             self.trayectoria = Trayectoria.fromWebPage(data=pag)
             result |= True
@@ -344,7 +343,7 @@ class FichaPersona(DataLogger):
 
 
 class FichaJugador(FichaPersona):
-    CLAVESFICHAJUGADOR = ['posicion', 'altura', 'licencia', 'junior']
+    CLAVESFICHAJUGADOR = ['posicion', 'altura', 'licencia', 'junior', 'nacionalidad']
 
     def __init__(self, **kwargs):
         self.posicion = None
@@ -358,14 +357,40 @@ class FichaJugador(FichaPersona):
 
         # CAMBIOSJUGADORES[self.persId].update()
 
-    def infoFichaStr(self) -> Tuple[str, str]:
-        alturaStr = f"{self.altura}cm " if (self.altura is not None) and (self.altura > 0) else ""
-        posStr = f"{self.posicion}" if (self.posicion is not None) and (self.posicion != "") else ""
-
+    def infoFichaStr(self, club: Optional[str] = None, trads: Optional[Dict] = None) -> Tuple[str, str]:
         prefix = "Jug"
-        cadenaStr = f"{alturaStr}{posStr}"
 
-        return prefix, cadenaStr
+        valores2show = {k: v for k, v in {k: extractValue(getattr(self, k)) for k in self.CLAVESFICHAJUGADOR}.items() if
+                        v is not None}
+
+        auxClub = club
+        clubStr = "Sin club"
+        if club is None:  # Nos interesa el último
+            auxClub = self.ultClub
+        if auxClub is not None:  # En paro
+            clubStr = clubId2str(auxClub, self.edicion, trads)
+            if self.fichasClub[auxClub]:
+                fichaClub: FichaClubJugador = self.fichasClub[auxClub]
+
+                valoresFicha2show = {k: v for k, v in
+                                     {k: extractValue(getattr(fichaClub, k)) for k in fichaClub.SUBCLASSCLAVES}.items()
+                                     if
+                                     v is not None}
+                valores2show.update(valoresFicha2show)
+
+        formatterJug = {'posicion': {}, 'altura': {'formato': "{}cm", 'extraCond': lambda x: x > 0},
+                        'junior': {'formato': '(Junior) ', 'extraCond': lambda x: x},
+                        'licencia': {}, 'dorsal': {'formato': "Dorsal: {}"}, 'nacionalidad': {'formato': "Nac: {}"}}
+
+        strs2Show = formateaInfoJugador(valores2show, formatterJug)
+
+        CLAVES2SHOW = ['posicion', 'altura', 'nacionalidad', 'licencia', 'junior', 'dorsal', ]
+
+        cadenaStr = " ".join(strs2Show.get(k, "") for k in CLAVES2SHOW if k in strs2Show)
+        if cadenaStr == "":
+            return prefix, "Sin datos jugador"
+
+        return prefix, clubStr + " " + cadenaStr
 
     def nuevaFichaClub(self, **kwargs):
         return FichaClubJugador(**kwargs)
@@ -567,15 +592,24 @@ class FichaEntrenador(FichaPersona):
 
         # self.varCambios()[self.persId].update(changesInfo)
 
-    def infoFichaStr(self, club: Optional[str] = None) -> Tuple[str, str]:
+    def infoFichaStr(self, club: Optional[str] = None, trads: Optional[Dict] = None) -> Tuple[str, str]:
         prefix = "Ent"
-        cadenaStr = "Sin datos puesto"
 
         auxClub = club
-        if club is None:
+        if club is None:  # Nos interesa el último
             auxClub = self.ultClub
-        if self.fichasClub[auxClub]:
-            cadenaStr = self.fichasClub[auxClub].fichaCl2str()
+        if auxClub is None:  # En paro
+            cadenaStr = "Sin club"
+        else:
+            eqStr = f"IdClub:{auxClub}@{self.edicion}"
+            if trads is not None:
+                tradCl = trads.get('i2c', {}).get(auxClub, None)
+                if tradCl:
+                    tradName = onlySetElement(tradCl)
+                    eqStr = f"'{tradName}'"
+
+            cadenaStr = self.fichasClub[auxClub].fichaCl2str() if self.fichasClub[
+                auxClub] else f"No hay datos para club {eqStr}"
 
         return prefix, cadenaStr
 
@@ -778,3 +812,28 @@ def adaptaDatosFichaPlantilla(datosFichaPlantilla: dict, idClub: Optional[str]) 
         datosFichaPlantilla['club'] = idClub
 
     return datosFichaPlantilla
+
+
+def clubId2str(club: str, edicion: str, trads: dict | None = None) -> str:
+    eqStr = f"IdClub:{club}@{edicion}"
+    if trads is not None:
+        tradCl = trads.get('i2c', {}).get(club, None)
+        if tradCl:
+            tradName = onlySetElement(tradCl)
+            eqStr = f"'{tradName}'"
+    return eqStr
+
+
+def formateaInfoJugador(valores: Dict[str, Any], formatter=Dict[str, Dict]) -> Dict[str, str]:
+    FORMATODEFECTO = "{}"
+    result = {}
+    for k, v in valores.items():
+        dataFormatter: Dict = formatter.get(k, {'formato': FORMATODEFECTO})
+        formato: str = dataFormatter.get('formato', FORMATODEFECTO)
+        extraCond = dataFormatter.get('extraCond', lambda x: x != "")
+        if not extraCond(v):
+            continue
+        valResult = formato.format(v)
+        result[k] = valResult
+
+    return result
