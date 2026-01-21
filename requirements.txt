@@ -31,3 +31,4 @@ pillow>=12.1.0
 
 #Dependencias (añadidas por vulnerabilidades detectadas)
 fonttools>=4.61.1
+urllib3>=2.6.3
