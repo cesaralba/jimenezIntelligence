@@ -147,15 +147,16 @@ class TemporadaACB:
         partidosABajar = limitaPartidosBajados(config, partidosABajar)
         partidosBajados: Set[str] = set()
 
-        # partidosABajar = ['https://www.acb.com/partido/estadisticas/id/104467',
-        #                   'https://www.acb.com/partido/estadisticas/id/104473',
-        #                   'https://www.acb.com/partido/estadisticas/id/104485',
-        #                   'https://www.acb.com/partido/estadisticas/id/104487',
-        #                   'https://www.acb.com/partido/estadisticas/id/104501',
-        #                   'https://www.acb.com/partido/estadisticas/id/104509',
-        #                   'https://www.acb.com/partido/estadisticas/id/104521',
-        #                   'https://www.acb.com/partido/estadisticas/id/104530',
-        #                   'https://www.acb.com/partido/estadisticas/id/104537']
+        # Partidos del barça (2 cambios de entrenador)
+        partidosABajar = ['https://www.acb.com/partido/estadisticas/id/104467',
+                          'https://www.acb.com/partido/estadisticas/id/104473',
+                          'https://www.acb.com/partido/estadisticas/id/104485',
+                          'https://www.acb.com/partido/estadisticas/id/104487',
+                          'https://www.acb.com/partido/estadisticas/id/104501',
+                          'https://www.acb.com/partido/estadisticas/id/104509',
+                          'https://www.acb.com/partido/estadisticas/id/104521',
+                          'https://www.acb.com/partido/estadisticas/id/104530',
+                          'https://www.acb.com/partido/estadisticas/id/104537']
 
         try:
             for partido in partidosABajar:

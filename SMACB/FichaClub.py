@@ -1,21 +1,26 @@
 from datetime import datetime
-from pprint import pp
-from typing import Optional
+from typing import Optional, Any
 
 from CAPcore.DataChangeLogger import DataChangesTuples
-from CAPcore.LoggedClass import diffDicts, LoggedClassGenerator
+from CAPcore.LoggedClass import diffDicts, LoggedClassGenerator, splitCl2Str
 from CAPcore.LoggedValue import LoggedValue, extractValue, setNewValue
 from CAPcore.Misc import getUTC
 
 CAMPOSIDFICHACLUBPERSONA = ['persId', 'clubId']
-CAMPOSOPERFICHACLUBPERSONA = ['alta', 'baja', 'activo']
 EXCLUDEUPDATES = CAMPOSIDFICHACLUBPERSONA + ['alta', 'baja']
-CAMPOSFICHACLUBPERSONA = CAMPOSIDFICHACLUBPERSONA + CAMPOSOPERFICHACLUBPERSONA
 
 DataLogger = LoggedClassGenerator(DataChangesTuples)
 
+y: datetime
+
 
 class FichaClubPersona(DataLogger):
+    funcsValClass2Str = {'alta': lambda v: v.strftime("%Y-%m-%d") if v is not None else "",
+                         'baja': lambda v: v.strftime("%Y-%m-%d") if v is not None else "",
+                         'activo': lambda v: "Act" if v else "No act"
+                         }
+
+    CLASSCLAVES = ['alta', 'baja', 'activo']
 
     def __init__(self, persId: str, clubId: str, **kwargs):
         timestamp = kwargs['timestamp'] = kwargs.get('timestamp', getUTC())
@@ -61,6 +66,7 @@ class FichaClubPersona(DataLogger):
         newActivo = extractValue(self.activo)
 
         if (currActivo != newActivo) and (newActivo is not None) and not newActivo:
+            print(f"Poniendo baja! {persId} {clubId} {currActivo} {newActivo} ")
             changes |= self.updateDataFields(timestamp=timestamp, baja=timestamp)
 
         newVals = self.fichaCl2dict()
@@ -88,16 +94,34 @@ class FichaClubPersona(DataLogger):
     def fichaCl2str(self):
         raise NotImplementedError("fichaCl2str tiene que estar en las clases derivadas")
 
-    def varClaves(self):
-        raise NotImplementedError("varClaves tiene que estar en las clases derivadas")
-
-    def fichaCl2dict(self):
-        result = self.class2dict(keyList=(CAMPOSFICHACLUBPERSONA + self.varClaves()), mapFunc=extractValue)
+    def fichaCl2dict(self) -> Any:
+        result = self.class2dict(keyList=(self.CLASSCLAVES + self.SUBCLASSCLAVES), mapFunc=extractValue)
         return result
+
+    # def fichaCl2dictStr(self)->Dict:
+    #     formatters={}
+    #     formatters.update(self.funcsValClass2Str)
+    #     formatters.update(self.funcsValSubClass2Str)
+    #
+    #     aux:Dict[str,Any]=self.fichaCl2dict()
+    #
+    #     result={k:{'valor':v} for k,v in aux.items()}
+    #     for k,v in aux.items():
+    #         result[k]={'valor':v}
+    #         reprFunc=formatters.get(k,lambda v:f"'{v}'")
+    #         result[k]['repr']=reprFunc(v)
+    #
+    #     return result
 
 
 class FichaClubJugador(FichaClubPersona):
     SUBCLASSCLAVES = ['dorsal', 'posicion', 'licencia', 'junior']
+
+    funcsValSubClass2Str = {'junior': lambda v: "(Junior)" if v else "",
+                            'dorsal': lambda v: f"#{v}" if v else "Sin dorsal",
+                            'posicion': lambda v: f"{v}" if v else "No posic",
+                            'licencia': lambda v: f"{v}" if v else "No Lic"
+                            }
 
     def __init__(self, **kwargs):
         timestamp = kwargs['timestamp'] = kwargs.get('timestamp', getUTC())
@@ -110,17 +134,19 @@ class FichaClubJugador(FichaClubPersona):
         super().__init__(**kwargs)
 
     def fichaCl2str(self) -> str:
-        data = self.fichaCl2dict()
+        auxStr = self.class2dictStr(keyList=self.CLASSCLAVES + self.SUBCLASSCLAVES)
+        vals, reprs = splitCl2Str(auxStr)
+        valsList = [reprs[k] for k in ['dorsal', 'posicion', 'licencia', 'junior'] if vals[k]]
+        strCampos = (",".join(valsList) + ",") if valsList else ""
+        result = f"({strCampos}{auxStr['alta']['repr']}->{auxStr['baja']['repr']})"
 
-        pp(data)
-        return "TBD"
-
-    def varClaves(self):
-        return self.SUBCLASSCLAVES
+        return result
 
 
 class FichaClubEntrenador(FichaClubPersona):
     SUBCLASSCLAVES = ['dorsal']
+
+    funcsValSubClass2Str = {'dorsal': lambda v: "Principal" if v == '1' else f"Ayudante[{v}]"}
 
     def __init__(self, **kwargs):
         timestamp = kwargs['timestamp'] = kwargs.get('timestamp', getUTC())
@@ -129,11 +155,10 @@ class FichaClubEntrenador(FichaClubPersona):
         super().__init__(**kwargs)
 
     def fichaCl2str(self) -> str:
-        dorsal = extractValue(self.dorsal)
-        cadenaStr = "Sin inf puesto"
-        if dorsal is not None:
-            cadenaStr = "Principal" if dorsal == '1' else f"Ayudante[{dorsal}]"
-        return cadenaStr
+        auxStr = self.class2dictStr(keyList=self.CLASSCLAVES + self.SUBCLASSCLAVES)
+        vals, reprs = splitCl2Str(auxStr)
+        valsList = [reprs[k] for k in ['dorsal'] if vals[k]]
+        strCampos = (",".join(valsList) + ",") if valsList else ""
+        result = f"({strCampos}{auxStr['alta']['repr']}->{auxStr['baja']['repr']})"
 
-    def varClaves(self):
-        return self.SUBCLASSCLAVES
+        return result

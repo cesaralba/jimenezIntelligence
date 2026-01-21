@@ -1,5 +1,7 @@
-from typing import Set, Dict
+from pprint import pp
+from typing import Set, Dict, List
 
+from CAPcore.DataChangeLogger import DataChangesTuples
 from CAPcore.LoggedDict import LoggedDictDiff
 
 from SMACB.CalendarioACB import dictK2partStr
@@ -51,10 +53,21 @@ def resumenCambioEntrenadores(cambiosTecnicos: dict, temporada: TemporadaACB):
     for entCod, entData in cambiosTecnicos.items():
         if not entData:
             continue
+
+        fichaEntr = temporada.fichaEntrenadores[entCod]
+        chgLogEntr: dict = fichaEntr.changeLog
+        nuevaEntrada = ('nuevo' in entData) and entData['nuevo']
+        cambiosRecogidosId = sorted(entData['cambios'])
+        entries2show: List[DataChangesTuples] = [chgLogEntr[t] for t in cambiosRecogidosId]
+        for t in entries2show:
+            pp(t.__dict__)
+        print("================")
+        continue
+
         ultClub = temporada.fichaEntrenadores[entCod].ultClub
         clubStr = "" if ultClub is None else f"{temporada.plantillas[ultClub].nombreClub()}"
 
-        entrStr = f"{temporada.fichaEntrenadores[entCod].nombreFicha(trads=temporada.tradEquipos)}"
+        entrStr = f"{fichaEntr.nombreFicha(trads=temporada.tradEquipos)}"
         if 'NuevaFicha' in entData:
             entList.append(f"* Nuevo fichaje de {clubStr}: {entrStr}")
         else:

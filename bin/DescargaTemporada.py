@@ -10,8 +10,7 @@ from CAPcore.Web import createBrowser, extractGetParams
 from configargparse import ArgumentParser, Namespace
 
 from SMACB.CalendarioACB import calendario_URLBASE
-from SMACB.DiferenciasTrasDescargaTemp import resumenNuevosPartidos, resumenCambioClubes, \
-    resumenCambiosCalendario
+from SMACB.DiferenciasTrasDescargaTemp import resumenNuevosPartidos, resumenCambiosCalendario
 from SMACB.TemporadaACB import TemporadaACB, CAMBIOSCLUB, CAMBIOSCALENDARIO, CAMBIOSENTRENADORES, CAMBIOSJUGADORES
 from Utils.ManageArgs import createArgs
 
