@@ -1,7 +1,6 @@
 import logging
 from collections import defaultdict
 from datetime import datetime
-from pprint import pp
 from typing import Optional, Set, Dict, List, Any
 
 import bs4
@@ -224,7 +223,6 @@ class FichaPersona(DataLogger):
                 self.ultClub].partsClub2str(trads=trads)
             cadenasAmostrar.append(gamesStrAux)
 
-        pp(cadenasAmostrar)
         return f"{self.FICHAPREF}: {nombreStr} ({self.persId}) {" ".join(cadenasAmostrar)}"
 
     def nuevoPartido(self, partido: PartidoACB) -> bool:
