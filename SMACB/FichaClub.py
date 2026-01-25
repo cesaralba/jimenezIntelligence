@@ -98,6 +98,8 @@ class FichaClubPersona(DataLogger):
         result = self.class2dict(keyList=(self.CLASSCLAVES + self.SUBCLASSCLAVES), mapFunc=extractValue)
         return result
 
+    __repr__ = fichaCl2str
+    __str__ = fichaCl2str
     # def fichaCl2dictStr(self)->Dict:
     #     formatters={}
     #     formatters.update(self.funcsValClass2Str)
@@ -138,9 +140,12 @@ class FichaClubJugador(FichaClubPersona):
         vals, reprs = splitCl2Str(auxStr)
         valsList = [reprs[k] for k in ['dorsal', 'posicion', 'licencia', 'junior'] if vals[k]]
         strCampos = (",".join(valsList) + ",") if valsList else ""
-        result = f"({strCampos}{auxStr['alta']['repr']}->{auxStr['baja']['repr']})"
+        result = f"({strCampos}{reprs['alta']}->{reprs['baja']})"
 
         return result
+
+    __repr__ = fichaCl2str
+    __str__ = fichaCl2str
 
 
 class FichaClubEntrenador(FichaClubPersona):
@@ -162,3 +167,6 @@ class FichaClubEntrenador(FichaClubPersona):
         result = f"({strCampos}{auxStr['alta']['repr']}->{auxStr['baja']['repr']})"
 
         return result
+
+    __repr__ = fichaCl2str
+    __str__ = fichaCl2str

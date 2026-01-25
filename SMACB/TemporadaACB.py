@@ -6,7 +6,7 @@ Created on Jan 4, 2018
 import logging
 import sys
 from argparse import Namespace
-from collections import defaultdict
+from collections import defaultdict, Counter
 from copy import copy
 from datetime import datetime
 from itertools import chain
@@ -30,7 +30,8 @@ from Utils.Web import prepareDownloading, browserConfigData
 from .CalendarioACB import calendario_URLBASE, CalendarioACB
 from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEqCalendario, infoPartLV, infoSigPartido,
                         LocalVisitante, OtherLoc, OtherTeam, infoJornada, URL_BASE, )
-from .FichaPersona import CAMBIOSENTRENADORES, FichaEntrenador, CAMBIOSJUGADORES, FichaJugador
+from .FichaPersona import CAMBIOSENTRENADORES, FichaEntrenador, CAMBIOSJUGADORES, FichaJugador, FichaPersona, \
+    PartidosClub
 from .PartidoACB import PartidoACB
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB, CAMBIOSCLUB, CambiosPlantillaTipo
 from .TemporadaEstads import auxCalculaEstadsSubDataframe
@@ -927,6 +928,24 @@ class TemporadaACB:
         CAMBIOSCALENDARIO = self.calendarioDict.diff(calActualDict)
 
         return self.calendarioDict.replace(calActualDict)
+
+    def balanceVictorias(self, pers: FichaPersona, clubId: Optional[str] = None) -> str:
+        data: PartidosClub
+        if clubId is None:
+            data = pers.partsTemporada
+        elif clubId not in pers.partsClub:
+            return "Sin info partidos"
+        else:
+            data = pers.partsClub[clubId]
+
+        if not len(data.partidos):
+            return "0-0"
+
+        balanceAux = Counter([self.Partidos[p].haGanado(pers) for p in data.partidos])
+
+        result = "-".join(str(balanceAux.get(r, 0)) for r in [True, False])
+
+        return result
 
 
 def cargaTemporada(fname: str) -> TemporadaACB:

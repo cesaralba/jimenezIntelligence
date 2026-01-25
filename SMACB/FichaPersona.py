@@ -34,7 +34,7 @@ PERSONABASICTAGS = {'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'naci
 
 class FichaPersona(DataLogger):
     FICHAPREF = "Esto no deberia salir"
-    CLAVESPERSONA = ['URL', 'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'nacionalidad', 'club', ]
+    CLASSCLAVES = ['URL', 'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'nacionalidad', 'club', ]
     SUBCLASSCLAVES = ["Esto no debería usarse"]
     EXCLUDESPERSONA = ['persId', 'tipoFicha', 'sinDatos', 'trayectoria', 'nombresConocidos', 'equipos',
                        'ultClub', 'fichasClub', 'partsClub', 'timestamp', 'changeLog', 'partsTemporada', 'urlConocidas',
@@ -199,22 +199,24 @@ class FichaPersona(DataLogger):
                 idClub] else f"No hay datos para club {eqStr}"
         return cadenaStr
 
-    def nombreFicha(self, muestraPartidos: bool = False, muestraInfoPers: bool = False, trads: Optional[Dict] = None):
+    def nombreFicha(self, muestraPartidos: bool = False, muestraInfoPers: bool = False, muestraFicha: bool = False,
+                    trads: Optional[Dict] = None):
         cadenasAmostrar = []
-        objVals = self.class2dictStr(keyList=self.CLAVESPERSONA + self.SUBCLASSCLAVES)
+        objVals = self.class2dictStr(keyList=self.CLASSCLAVES + self.SUBCLASSCLAVES)
         vals: Dict[str, Any]
         reprs: Dict[str, str]
         vals, reprs = splitCl2Str(objVals)
         auxAliasStr = reprs['alias'] if vals['alias'] else "Sin nombre"
         nombreStr = reprs['nombre'] if vals['nombre'] else auxAliasStr
 
-        cadenasAmostrar.append(self.infoFichaStr(trads=trads))
-
         if muestraInfoPers:
             clavesPers = ['fechaNac', 'nacionalidad']
             infoPersAux = [reprs[k] for k in clavesPers if vals[k] is not None]
-            infoPersStr = f"{','.join(infoPersAux)}" if infoPersAux else "Sin info pers"
-            cadenasAmostrar.append(infoPersStr)
+            if infoPersAux:
+                cadenasAmostrar.append(f"{','.join(infoPersAux)}")
+
+        if muestraFicha:
+            cadenasAmostrar.append(self.infoFichaStr(trads=trads))
 
         if len(self.equipos) != 1:
             cadenasAmostrar.append(f"({len(self.equipos)} eqs)")
@@ -223,7 +225,7 @@ class FichaPersona(DataLogger):
                 self.ultClub].partsClub2str(trads=trads)
             cadenasAmostrar.append(gamesStrAux)
 
-        return f"{self.FICHAPREF}: {nombreStr} ({self.persId}) {" ".join(cadenasAmostrar)}"
+        return f"{self.FICHAPREF}: {nombreStr} ({self.persId}){" ".join(cadenasAmostrar)}"
 
     def nuevoPartido(self, partido: PartidoACB) -> bool:
         """
@@ -373,7 +375,7 @@ class FichaPersona(DataLogger):
         return cls(**fichaPers)
 
     def ficha2dict(self) -> Dict[str, Any]:
-        result = self.class2dict(keyList=self.CLAVESPERSONA + self.clavesSubclase(), mapFunc=extractValue)
+        result = self.class2dict(keyList=self.CLASSCLAVES + self.SUBCLASSCLAVES, mapFunc=extractValue)
         if self.ultClub is not None and self.ultClub in self.fichasClub:
             datosFicha = self.fichasClub[self.ultClub].fichaCl2dict()
             result.update(datosFicha)
@@ -399,7 +401,7 @@ class FichaPersona(DataLogger):
 
 class FichaJugador(FichaPersona):
     FICHAPREF = "Jug"
-    SUBCLASSCLAVES = ['posicion', 'altura', 'licencia', 'junior', 'nacionalidad']
+    SUBCLASSCLAVES = ['posicion', 'altura', 'licencia', 'junior']
     funcsValSubClass2Str = {'altura': lambda v: f"{v}cm" if v else "", 'junior': lambda v: "(Junior)" if v else "",
                             'posicion': lambda v: f"{v}" if v else "", 'licencia': lambda v: f"{v}" if v else "", }
 

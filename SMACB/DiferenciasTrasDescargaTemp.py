@@ -1,99 +1,116 @@
 from pprint import pp
-from typing import Set, Dict, List
+from typing import Set, Dict, List, Any
 
-from CAPcore.DataChangeLogger import DataChangesTuples
+from CAPcore.DataChangeLogger import DataChangesTuples, DataChanges
 from CAPcore.LoggedDict import LoggedDictDiff
+from CAPcore.Misc import onlySetElement
 
-from SMACB.CalendarioACB import dictK2partStr
-from SMACB.PlantillaACB import CambiosPlantillaTipo
-from SMACB.TemporadaACB import TemporadaACB
+from .CalendarioACB import dictK2partStr
+from .FichaClub import FichaClubEntrenador
+from .FichaPersona import FichaEntrenador, FichaJugador
+from .PlantillaACB import CambiosPlantillaTipo
+from .TemporadaACB import TemporadaACB
 
 
 def resumenCambioJugadores(cambiosJugadores: dict, temporada: TemporadaACB):
-    jugList = []
+    entList = []
 
     for jugCod, jugData in cambiosJugadores.items():
+
         if not jugData:
             continue
-        ultClub = temporada.fichaJugadores[jugCod].ultClub
-        clubStr = "" if ultClub is None else f"{temporada.plantillas[ultClub].nombreClub()}"
+        nuevaFicha = ('nuevo' in jugData) and jugData['nuevo']
+        cadenasAmostrar: List[str] = []
+        fichaEntr: FichaJugador = temporada.fichaJugadores[jugCod]
+        chgLogEntr: dict = fichaEntr.changeLog
 
-        jugadorStr = f"{temporada.fichaJugadores[jugCod].nombreFicha(trads=temporada.tradEquipos)}"
-        if 'NuevaFicha' in jugData:
-            jugList.append(f"* Nuevo fichaje de {clubStr}: {jugadorStr}")
-        else:
-            claves2skip = {'urlFoto'}
-            tradClaves = {'licencia': 'Cupo', 'nacionalidad': 'Pais', 'lugarNac': 'Origen', 'nombre': 'Nombre'}
-            cambiosJug = []
-            for k, v in jugData.items():
-                if (k in claves2skip) or (v[0] is None):
-                    continue
-                if k == 'ultClub':
-                    if v[1] is None:
-                        cambioStr = f"Club: baja en {temporada.plantillas[v[0]].nombreClub()}"
-                    else:
-                        club1 = temporada.plantillas[v[1]].nombreClub()
-                        cambioStr = f"Club: {temporada.plantillas[v[0]].nombreClub()} -> {club1}"
-                else:
-                    cambioStr = f"{tradClaves.get(k, k)}: '{v[0]}'->'{v[1]}'"
+        entries2show: List[DataChangesTuples] = sorted(chgLogEntr[t] for t in jugData['cambios'])
+        chgList = DataChanges.merge(*entries2show)
 
-                cambiosJug.append(cambioStr)
-            if 'urlFoto' in jugData:
-                cambiosJug.append("Nueva foto")
-            if len(cambiosJug) == 0:
-                continue
-            jugList.append(f"* {jugadorStr} Cambios: {','.join(sorted(cambiosJug))}")
+        cadenasAmostrar.append(fichaEntr.nombreFicha(muestraPartidos=False, muestraInfoPers=True))
+        cadenasAmostrar.extend(preparaSalidaPersona(chgList, fichaEntr, nuevaFicha, temporada))
 
-    return '\n'.join(sorted(jugList))
+        entList.append(f"* {" ".join(cadenasAmostrar)}")
+
+    return '\n'.join(sorted(entList))
 
 
 def resumenCambioEntrenadores(cambiosTecnicos: dict, temporada: TemporadaACB):
     entList = []
 
     for entCod, entData in cambiosTecnicos.items():
+
         if not entData:
             continue
-
-        fichaEntr = temporada.fichaEntrenadores[entCod]
+        nuevaFicha = ('nuevo' in entData) and entData['nuevo']
+        cadenasAmostrar: List[str] = []
+        fichaEntr: FichaEntrenador = temporada.fichaEntrenadores[entCod]
         chgLogEntr: dict = fichaEntr.changeLog
-        nuevaEntrada = ('nuevo' in entData) and entData['nuevo']
-        cambiosRecogidosId = sorted(entData['cambios'])
-        entries2show: List[DataChangesTuples] = [chgLogEntr[t] for t in cambiosRecogidosId]
-        for t in entries2show:
-            pp(t.__dict__)
-        print("================")
-        continue
 
-        ultClub = temporada.fichaEntrenadores[entCod].ultClub
-        clubStr = "" if ultClub is None else f"{temporada.plantillas[ultClub].nombreClub()}"
+        entries2show: List[DataChangesTuples] = sorted(chgLogEntr[t] for t in entData['cambios'])
+        chgList = DataChanges.merge(*entries2show)
 
-        entrStr = f"{fichaEntr.nombreFicha(trads=temporada.tradEquipos)}"
-        if 'NuevaFicha' in entData:
-            entList.append(f"* Nuevo fichaje de {clubStr}: {entrStr}")
-        else:
-            claves2skip = {'urlFoto'}
-            tradClaves = {'licencia': 'Cupo', 'nacionalidad': 'Pais', 'lugarNac': 'Origen', 'nombre': 'Nombre'}
-            cambiosJug = []
-            for k, v in entData.items():
-                if (k in claves2skip) or (v[0] is None):
-                    continue
-                if k == 'ultClub':
-                    if v[1] is None:
-                        cambioStr = f"Club: baja en {temporada.plantillas[v[0]].nombreClub()}"
-                    else:
-                        club1 = temporada.plantillas[v[1]].nombreClub()
-                        cambioStr = f"Club: {temporada.plantillas[v[0]].nombreClub()} -> {club1}"
-                else:
-                    cambioStr = f"{tradClaves.get(k, k)}: '{v[0]}'->'{v[1]}'"
+        cadenasAmostrar.append(fichaEntr.nombreFicha(muestraPartidos=False, muestraInfoPers=True))
+        cadenasAmostrar.extend(preparaSalidaPersona(chgList, fichaEntr, nuevaFicha, temporada))
 
-                cambiosJug.append(cambioStr)
-            if 'urlFoto' in entData:
-                cambiosJug.append("Nueva foto")
-            if len(cambiosJug) == 0:
-                continue
-            entList.append(f"* {entrStr} Cambios: {','.join(sorted(cambiosJug))}")
+        entList.append(f"* {" ".join(cadenasAmostrar)}")
 
     return '\n'.join(sorted(entList))
+
+
+def preparaSalidaPersona(chgList: dict[str, list[Any] | dict[Any, Any]], fichaEntr: FichaEntrenador,
+                         nuevaFicha: bool | Any, temporada: TemporadaACB) -> List[str]:
+    result = []
+    if nuevaFicha:
+        KEYS2IGNORE = ['nombre', 'alias', 'URL', 'audioURL', 'club']
+
+        result.append("Nueva ficha:")
+        for clavePers in fichaEntr.CLASSCLAVES:
+            if clavePers in KEYS2IGNORE:
+                continue
+            if clavePers not in chgList['values']:
+                continue
+            valorFinal = chgList['values'][clavePers]['values'][-1]
+            result.append(f"{clavePers.capitalize()}: '{valorFinal}'")
+            if 'audioURL' in chgList['values']:
+                result.append("Audio nombre")
+    else:
+        result.append("Cambios:")
+        for clavePers in fichaEntr.CLASSCLAVES:
+            if clavePers not in chgList['values']:
+                continue
+            valoresClave = chgList['values'][clavePers]['values']
+            cadenaValor = f"'{valoresClave[-1]}'" if valoresClave[
+                                                         0] is None else f"'{valoresClave[0]}' -> '{valoresClave[-1]}'"
+            result.append(f"{clavePers.capitalize()}:{cadenaValor}")
+
+        if 'URL' in chgList['values']:
+            result.append("Cambio URL")
+        if 'audioURL' in chgList['values']:
+            result.append("Audio nombre")
+    if 'club' in chgList['values']:
+        clubStrList = []
+        clTray = chgList['values']['club']['values']
+        if clTray[0] is None:
+            clTray = clTray[1:]
+
+        for clStay in clTray:
+            if clStay is None:
+                clubStrList.append("Sin club")
+                continue
+            nombreClub = onlySetElement(temporada.tradEquipos['i2c'][clStay])
+            stay: FichaClubEntrenador = fichaEntr.fichasClub.get(clStay, None)
+            if stay is None:
+                clubStrList.append(f"'{nombreClub}' Sin info")
+                continue
+            clubStrList.append(
+                f"{nombreClub} {stay.fichaCl2str()} {temporada.balanceVictorias(pers=fichaEntr, clubId=clStay)}")
+        result.append(" ->".join(clubStrList))
+    else:
+        pp(fichaEntr.SUBCLASSCLAVES)
+        result.append("Cambio! No nuevaficha")
+
+    return result
 
 
 def resumenNuevosPartidos(nuevosPartidos: Set[str], temporada: TemporadaACB):

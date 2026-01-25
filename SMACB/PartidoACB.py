@@ -15,6 +15,7 @@ from CAPcore.Web import downloadPage, extractGetParams, DownloadedPage, mergeURL
 from babel.numbers import parse_number
 from bs4 import Tag
 
+import SMACB.FichaPersona as FP
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
 from Utils.ParseoData import ProcesaTiempo
@@ -68,7 +69,6 @@ class PartidoACB:
 
         self.url = kwargs['url']
 
-
         for loc in LocalVisitante:
             self.Equipos[loc]['haGanado'] = self.ResultadoCalendario[loc] > self.ResultadoCalendario[OtherLoc(loc)]
 
@@ -113,7 +113,7 @@ class PartidoACB:
         divParciales = tabDatosGenerales.find("div", {"class": "parciales_por_cuarto"})
         aux = divParciales.get_text().split("\xa0")
 
-        self.ResultadosParciales = [(int(x)  for x in r.split("|")) for r in aux]
+        self.ResultadosParciales = [(int(x) for x in r.split("|")) for r in aux]
 
         divCabecera = pagina.find("div", {"class": "contenedora_info_principal"})
         self.procesaDivCabecera(divCabecera)
@@ -466,6 +466,17 @@ class PartidoACB:
                 f"{self.ResultadoCalendario['Local']:d} - {self.ResultadoCalendario['Visitante']:d} "
                 f"{self.EquiposCalendario['Visitante']['nomblargo']} ({self.CodigosCalendario['Visitante']})")
 
+    def haGanado(self, pers: FP.FichaPersona) -> bool:
+        persId: str = pers.persId
+        tipoPers: str = pers.tipoFicha
+
+        tablaAmirar = self.Jugadores if tipoPers == "jugador" else self.Entrenadores
+
+        if persId not in tablaAmirar:
+            raise KeyError(f"haGanado: {tipoPers} {pers.alias or pers.nombre} no ha jugado partido {self}")
+
+        return tablaAmirar[persId]['haGanado']
+
     def __str__(self):
         return self.resumenPartido()
 
@@ -599,7 +610,7 @@ class PartidoACB:
         self.metadataEmb = zstd.compress(dumps(resultado))
 
     def generaPlantillaDummy(self, loc: str, plantillaActual: Optional[dict] = None) -> dict:
-        result = {'timestamp': self.timestamp, 'edicion':self.edicion}
+        result = {'timestamp': self.timestamp, 'edicion': self.edicion}
 
         def generaPlantillaJugadores(idJugs: Iterable[str]) -> Dict[str, Dict[str, str]]:
             funcResult = {}
