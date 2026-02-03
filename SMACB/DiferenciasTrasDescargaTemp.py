@@ -1,15 +1,18 @@
+from datetime import datetime
 from pprint import pp
 from typing import Set, Dict, List, Any
 
-from CAPcore.DataChangeLogger import DataChangesTuples, DataChanges
+from CAPcore.DataChangeLogger import DataChangesTuples, DataChangesRaw
 from CAPcore.LoggedDict import LoggedDictDiff
 from CAPcore.Misc import onlySetElement
 
 from .CalendarioACB import dictK2partStr
 from .FichaClub import FichaClubEntrenador
 from .FichaPersona import FichaEntrenador, FichaJugador
-from .PlantillaACB import CambiosPlantillaTipo
+from .PlantillaACB import CambiosPlantillaTipo, PlantillaACB
 from .TemporadaACB import TemporadaACB
+
+DATEFORMATRES = "%Y-%m-%d"
 
 
 def resumenCambioJugadores(cambiosJugadores: dict, temporada: TemporadaACB):
@@ -25,7 +28,7 @@ def resumenCambioJugadores(cambiosJugadores: dict, temporada: TemporadaACB):
         chgLogEntr: dict = fichaEntr.changeLog
 
         entries2show: List[DataChangesTuples] = sorted(chgLogEntr[t] for t in jugData['cambios'])
-        chgList = DataChanges.merge(*entries2show)
+        chgList = DataChangesTuples.merge(*entries2show)
 
         cadenasAmostrar.append(fichaEntr.nombreFicha(muestraPartidos=False, muestraInfoPers=True))
         cadenasAmostrar.extend(preparaSalidaPersona(chgList, fichaEntr, nuevaFicha, temporada))
@@ -48,7 +51,7 @@ def resumenCambioEntrenadores(cambiosTecnicos: dict, temporada: TemporadaACB):
         chgLogEntr: dict = fichaEntr.changeLog
 
         entries2show: List[DataChangesTuples] = sorted(chgLogEntr[t] for t in entData['cambios'])
-        chgList = DataChanges.merge(*entries2show)
+        chgList = DataChangesTuples.merge(*entries2show)
 
         cadenasAmostrar.append(fichaEntr.nombreFicha(muestraPartidos=False, muestraInfoPers=True))
         cadenasAmostrar.extend(preparaSalidaPersona(chgList, fichaEntr, nuevaFicha, temporada))
@@ -132,6 +135,61 @@ def textoTecnico(temporada: TemporadaACB, idTec: str):
 
 
 def resumenCambioClubes(cambiosClubes: Dict[str, CambiosPlantillaTipo], temporada: TemporadaACB):
+    result = []
+    for eq, eqData in cambiosClubes.items():
+        if not eqData:
+            continue
+        nuevaFicha = ('nuevo' in eqData) and eqData['nuevo']
+
+        datosEq: PlantillaACB = temporada.plantillas[eq]
+
+        chgLogEntr: dict = datosEq.changeLog
+
+        entries2show: List[DataChangesTuples] = sorted(chgLogEntr[t] for t in eqData['cambios'])
+
+        chgList = DataChangesRaw.merge(*entries2show)
+
+        cambiosClubList = []
+
+        nombreClub = temporada.plantillas[eq].nombreClub()
+
+        print(f"Club {nombreClub}")
+        if 'club' in chgList['values']:
+            print(f"Antes: {len(cambiosClubList)}")
+            cambiosClubList.extend(procesaCambiosClub(chgList['values']['club']))
+            print(f"Despues: {len(cambiosClubList)}")
+
+        # print(chgList['values'].keys())
+
+        if not cambiosClubList:
+            print("Skipping")
+            continue
+
+        print(f"Adding result. Antes {len(result)}")
+        if result:
+            result.append("")
+        nuevoStr = " (nuevo en liga)" if nuevaFicha else ""
+        result.append(f"Club: {nombreClub}{nuevoStr}")
+        result.extend(cambiosClubList)
+
+        print(f"Adding result. Despues {len(result)}")
+
+        continue
+
+        # print(f"-------- {eq}")
+        # #pp(eqData)
+        # # pp(datosEq.__dict__)
+        #
+        # pp(datosEq.changeLog)
+        # for c in sorted(eqData['cambios']):
+        #     print(c)
+        #     pp(datosEq.changeLog[c].__dict__)
+
+    print(">result")
+    pp(result)
+    print("<result")
+    return "\n".join(result)
+
     listaCambios = []
 
     for cl, cambios in cambiosClubes.items():
@@ -235,3 +293,25 @@ def resumenCambiosCalendario(cambios: LoggedDictDiff, temporada: TemporadaACB):
         cambiosCalendario.append(f"* {claveP} Cambia: pasa de @{hini} a @{hfin}")
 
     return "\n".join(sorted(cambiosCalendario))
+
+
+def procesaCambiosClub(cambiosDict: Dict) -> List[str]:
+    resultLines = []
+    k: str
+    for k, chg in cambiosDict['values'].items():
+        valChain = []
+        newVal: datetime
+        for ts, newVal in zip(([None] + chg['timestamps']), chg['values']):
+            if ts is None and newVal is None:
+                continue
+            tsString = f"({ts.strftime(DATEFORMATRES)})" if ts is not None else ""
+            valChain.append(f"'{newVal}'{tsString}")
+        resultLines.append(f"    * {k.capitalize()}:{'->'.join(valChain)}")
+
+    if resultLines:
+        resultLines.insert(0, "  Cambios en información de club")
+
+    print(">En procesaCambiosClub")
+    pp(resultLines)
+    print("<En procesaCambiosClub")
+    return resultLines
