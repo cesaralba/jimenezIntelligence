@@ -40,6 +40,7 @@ class FichaPersona(DataLogger):
                        'ultClub', 'fichasClub', 'partsClub', 'timestamp', 'changeLog', 'partsTemporada', 'urlConocidas',
                        'fotos']
     funcsValClass2Str = {'fechaNac': lambda v: v.strftime("Nac: %Y-%m-%d") if v is not None else "", }
+    transValClass = {'nacionalidad':'nac'}
 
     def __init__(self, persId: str, tipoFicha: str, **kwargs):
         timestamp = kwargs['timestamp'] = kwargs.get('timestamp', getUTC())
@@ -225,7 +226,7 @@ class FichaPersona(DataLogger):
                 self.ultClub].partsClub2str(trads=trads)
             cadenasAmostrar.append(gamesStrAux)
 
-        return f"{self.FICHAPREF}: {nombreStr} ({self.persId}){" ".join(cadenasAmostrar)}"
+        return f"[{self.persId}] {self.FICHAPREF}: {nombreStr} {" ".join(cadenasAmostrar)}"
 
     def nuevoPartido(self, partido: PartidoACB) -> bool:
         """
@@ -404,7 +405,7 @@ class FichaJugador(FichaPersona):
     SUBCLASSCLAVES = ['posicion', 'altura', 'licencia', 'junior']
     funcsValSubClass2Str = {'altura': lambda v: f"{v}cm" if v else "", 'junior': lambda v: "(Junior)" if v else "",
                             'posicion': lambda v: f"{v}" if v else "", 'licencia': lambda v: f"{v}" if v else "", }
-
+    transValSubClass = {'junior':'','licencia':'lic','posicion':'posic','altura':'alt'}
     def __init__(self, **kwargs):
         self.posicion = None
         self.altura = None
@@ -609,6 +610,7 @@ class FichaEntrenador(FichaPersona):
     FICHAPREF = "Ent"
     SUBCLASSCLAVES = []
     funcsValSubClass2Str = {}
+    transValSubClass = {}
 
     def __init__(self, **kwargs):
         super().__init__(tipoFicha='entrenador', **kwargs)

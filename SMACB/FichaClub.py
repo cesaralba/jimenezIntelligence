@@ -11,14 +11,13 @@ EXCLUDEUPDATES = CAMPOSIDFICHACLUBPERSONA + ['alta', 'baja']
 
 DataLogger = LoggedClassGenerator(DataChangesTuples)
 
-y: datetime
-
 
 class FichaClubPersona(DataLogger):
     funcsValClass2Str = {'alta': lambda v: v.strftime("%Y-%m-%d") if v is not None else "",
                          'baja': lambda v: v.strftime("%Y-%m-%d") if v is not None else "",
                          'activo': lambda v: "Act" if v else "No act"
                          }
+    transValClass = {}
 
     CLASSCLAVES = ['alta', 'baja', 'activo']
 
@@ -119,11 +118,13 @@ class FichaClubPersona(DataLogger):
 class FichaClubJugador(FichaClubPersona):
     SUBCLASSCLAVES = ['dorsal', 'posicion', 'licencia', 'junior']
 
-    funcsValSubClass2Str = {'junior': lambda v: "(Junior)" if v else "",
+    funcsValSubClass2Str = {'junior': lambda v: "(Junior)" if v else "(Senior)",
                             'dorsal': lambda v: f"#{v}" if v else "Sin dorsal",
                             'posicion': lambda v: f"{v}" if v else "No posic",
                             'licencia': lambda v: f"{v}" if v else "No Lic"
                             }
+
+    transValSubClass = {'junior':'','licencia':'lic','posicion':'posic'}
 
     def __init__(self, **kwargs):
         timestamp = kwargs['timestamp'] = kwargs.get('timestamp', getUTC())
@@ -152,6 +153,7 @@ class FichaClubEntrenador(FichaClubPersona):
     SUBCLASSCLAVES = ['dorsal']
 
     funcsValSubClass2Str = {'dorsal': lambda v: "Principal" if v == '1' else f"Ayudante[{v}]"}
+    transValSubClass = {'dorsal':'puesto'}
 
     def __init__(self, **kwargs):
         timestamp = kwargs['timestamp'] = kwargs.get('timestamp', getUTC())
