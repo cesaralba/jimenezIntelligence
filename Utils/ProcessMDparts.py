@@ -209,7 +209,7 @@ def MDround2roundData(jornada: dict) -> dict:
 
     if result['esPlayOff']:
         result['fasePlayOff'] = rondaId2fasePlayOff[jornada['subphase']['id']]
-        result['partRonda'] = jornada['subphase']['subphaseNumber']
+        result['partRonda'] = jornada['subphase']['subphaseNumber'] or 1
         result['jornada'] = numPartidoPO2jornada(result['fasePlayOff'], result['partRonda'])
 
     result['infoJornada'] = infoJornada(jornada=result['jornada'], esPlayOff=result['esPlayOff'],

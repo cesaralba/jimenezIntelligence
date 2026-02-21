@@ -193,10 +193,11 @@ class PartidoACB():
             rePlayOff = re.match(REGEX_PLAYOFF, espTiempo[0], re.IGNORECASE)
             if rePlayOff:
                 self.esPlayoff = True
-                self.jornada = numPartidoPO2jornada(rePlayOff.group('etiqFasePOff'), rePlayOff.group('numPartPoff'))
+                self.jornada = numPartidoPO2jornada(rePlayOff.group('etiqFasePOff'),
+                                                    (rePlayOff.group('numPartPoff') or 1))
                 self.infoJornada = infoJornada(jornada=self.jornada, esPlayOff=self.esPlayoff,
                                                fasePlayOff=rePlayOff.group('etiqFasePOff'),
-                                               partRonda=int(rePlayOff.group('numPartPoff')))
+                                               partRonda=int(rePlayOff.group('numPartPoff') or 1))
             else:
                 raise ValueError(
                     f"Problemas sacando jornada de cabecera. RE:|{REGEX_JLR}|{REGEX_PLAYOFF}| Cadena:[{espTiempo[0]}|")
