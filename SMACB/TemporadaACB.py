@@ -12,6 +12,7 @@ from datetime import datetime
 from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
+from pprint import pp
 from sys import setrecursionlimit
 from typing import Any, Iterable, Dict, Tuple, List, Set
 from typing import Optional
@@ -388,6 +389,7 @@ class TemporadaACB:
             plantillaActivos = self.plantillas[eqId].getCurrentDict(soloActivos=True)
 
             for jugId, jugData in self.revisaTransfersEntreClubes(eqId, plantillaActivos=plantillaActivos).items():
+                pp(jugData)
                 plantillaActual['jugadores'][jugId] = jugData
                 auxChanged |= True
                 auxChanged |= self.fichaJugadores[jugId].bajaClub(eqId, timestamp=timestamp)
@@ -418,6 +420,7 @@ class TemporadaACB:
                 dataJug['activo'] = False
                 jugadoresCambiados[jugId] = dataJug
 
+        pp(jugadoresCambiados)
         return jugadoresCambiados
 
     def actualizaPlantillasConDescarga(self, browser=None, config=None) -> bool:

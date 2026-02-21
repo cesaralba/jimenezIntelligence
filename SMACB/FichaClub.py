@@ -65,7 +65,6 @@ class FichaClubPersona(DataLogger):
         newActivo = extractValue(self.activo)
 
         if (currActivo != newActivo) and (newActivo is not None) and not newActivo:
-            print(f"Poniendo baja! {persId} {clubId} {currActivo} {newActivo} ")
             changes |= self.updateDataFields(timestamp=timestamp, baja=timestamp)
 
         newVals = self.fichaCl2dict()
