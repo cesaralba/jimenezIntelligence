@@ -376,7 +376,7 @@ def procesaCab(cab: bs4.element.Tag) -> Optional[Dict]:
             raise ValueError(f"procesaCab: {cab.prettify()}: texto '{nombreJornada}' no casa RE '{REGEX_PLAYOFF}'")
 
         etiqPOff = rePoff.group('etiqFasePOff')
-        numPartPOff = rePoff.group('numPartPoff')
+        numPartPOff = rePoff.group('numPartPoff') or 1
         resultado['jornada'] = numPartidoPO2jornada(etiqPOff, numPartPOff)
         resultado['infoJornada'] = infoJornada(jornada=resultado['jornada'], esPlayOff=resultado['esPlayoff'],
                                                fasePlayOff=etiqPOff.lower(),
