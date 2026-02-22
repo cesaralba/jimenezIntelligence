@@ -9,9 +9,10 @@ from CAPcore.Logging import prepareLogger
 from CAPcore.Web import createBrowser, extractGetParams
 from configargparse import ArgumentParser, Namespace
 
+import SMACB.TemporadaACB as ACBTemp
 from SMACB.CalendarioACB import calendario_URLBASE
 from SMACB.DiferenciasTrasDescargaTemp import resumenNuevosPartidos, resumenCambiosCalendario
-from SMACB.TemporadaACB import TemporadaACB, CAMBIOSCLUB, CAMBIOSCALENDARIO, CAMBIOSENTRENADORES, CAMBIOSJUGADORES
+from SMACB.TemporadaACB import TemporadaACB, CAMBIOSCLUB, CAMBIOSENTRENADORES, CAMBIOSJUGADORES
 from Utils.ManageArgs import createArgs
 
 
@@ -88,8 +89,9 @@ def main(args: Namespace):
         pp(CAMBIOSCLUB)
         # print(f"Cambios en plantillas\n{resumenCambioClubes(CAMBIOSCLUB, temporada=temporada)}", "\n" * 2)
 
-    if CAMBIOSCALENDARIO:
-        print(f"Cambios en calendario\n{resumenCambiosCalendario(CAMBIOSCALENDARIO, temporada=temporada)}", "\n" * 2)
+    if ACBTemp.CAMBIOSCALENDARIO:
+        print(f"Cambios en calendario\n{resumenCambiosCalendario(ACBTemp.CAMBIOSCALENDARIO, temporada=temporada)}",
+              "\n" * 2)
 
 
 def procesaParamsTemporada(temporada, args) -> Namespace:
