@@ -232,11 +232,11 @@ def resumenCambiosCalendario(cambios: LoggedDictDiff, temporada: TemporadaACB):
 
     for pk, fh in cambios.added.items():
         claveP = dictK2partStr(temporada.Calendario, pk)
-        cambiosCalendario.append(f"* {claveP} Nuevo partido @{fh}")
+        cambiosCalendario.append(f"* Nuevo partido: {claveP} @{fh}")
 
     for pk in cambios.removed.keys():
         claveP = dictK2partStr(temporada.Calendario, pk)
-        cambiosCalendario.append(f"* {claveP} Partido eliminado")
+        cambiosCalendario.append(f"* Partido eliminado: {claveP}")
 
     for pk, fhs in cambios.changed.items():
         claveP = dictK2partStr(temporada.Calendario, pk)

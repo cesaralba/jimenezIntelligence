@@ -468,10 +468,22 @@ def p2DictK(cal: CalendarioACB, datosPart: dict) -> str:
 
 def dictK2partStr(cal: CalendarioACB, partK: str) -> str:
     jor, idLoc, idVis = partK.split('#')
+
     abrLoc = list(cal.tradEquipos['i2c'][idLoc])[-1]
     abrVis = list(cal.tradEquipos['i2c'][idVis])[-1]
 
-    result = f"J{int(jor):02}: {abrLoc}-{abrVis}"
+    jorAux = int(jor)
+    jorStr = f"J{jorAux:02}"
+
+    datosJor = cal.Jornadas[jorAux]
+    infoJor: infoJornada = datosJor['infoJornada']
+    if infoJor.esPlayOff:
+        jorStr = f"{infoJor.fasePlayOff.capitalize()}[{infoJor.partRonda}]"
+
+    abrLoc = list(cal.tradEquipos['i2c'][idLoc])[-1]
+    abrVis = list(cal.tradEquipos['i2c'][idVis])[-1]
+
+    result = f"{jorStr}: {abrLoc}-{abrVis}"
     return result
 
 
