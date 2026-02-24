@@ -95,13 +95,12 @@ class CalendarioACB:
             if 'numPartidos' not in jData:
                 jData['numPartidos'] = len(jData['partidos']) + len(jData['pendientes'])
 
-            if len(jData.get('idEmparej', {})) != 0:
-                continue
-            for game in jData['partidos'] + jData['pendientes']:
-                if 'claveEmparejamiento' not in game:
-                    game['claveEmparejamiento'] = self.idGrupoEquiposNorm(game['participantes'])
-                    jData['equipos'].update(game['participantes'])
-                    jData['idEmparej'].add(game['claveEmparejamiento'])
+            if len(jData.get('idEmparej', {})) == 0:
+                for game in jData['partidos'] + jData['pendientes']:
+                    if 'claveEmparejamiento' not in game:
+                        game['claveEmparejamiento'] = self.idGrupoEquiposNorm(game['participantes'])
+                        jData['equipos'].update(game['participantes'])
+                        jData['idEmparej'].add(game['claveEmparejamiento'])
 
     def nuevaTraduccionEquipo2Codigo(self, nombres, abrev, idEq=None):
         result = False
@@ -480,9 +479,6 @@ def dictK2partStr(cal: CalendarioACB, partK: str) -> str:
     if infoJor.esPlayOff:
         jorStr = f"{infoJor.fasePlayOff.capitalize()}[{infoJor.partRonda}]"
 
-    abrLoc = list(cal.tradEquipos['i2c'][idLoc])[-1]
-    abrVis = list(cal.tradEquipos['i2c'][idVis])[-1]
-
     result = f"{jorStr}: {abrLoc}-{abrVis}"
     return result
 
@@ -562,14 +558,13 @@ def procesaDivsUnicoEquipo(divData: bs4.Tag, divEq: bs4.Tag) -> dict[Any, Any]:
         divTeamScore = divEq.find('p', {'class': reDatosEqPScore})
         if divTeamScore:
             puntosSTR = divTeamScore.getText()
-            if puntosSTR.strip() == "":
-                continue
-            try:
-                datosEq['puntos'] = int(puntosSTR)
-            except ValueError as exc:
-                logging.error("DivTeam no tiene puntos %s", divEq.prettify())
-                logging.error("Partido %s", divData.prettify())
-                raise exc
+            if puntosSTR.strip() != "":
+                try:
+                    datosEq['puntos'] = int(puntosSTR)
+                except ValueError as exc:
+                    logging.error("DivTeam no tiene puntos %s", divEq.prettify())
+                    logging.error("Partido %s", divData.prettify())
+                    raise exc
     return datosEq
 
 
