@@ -19,8 +19,6 @@ from .Constants import REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada, infoJorna
 
 calendario_URLBASE = 'https://www.acb.com/es/calendario'
 
-# https://www.acb.com/calendario/index/temporada_id/2018
-# https://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
 template_CALENDARIOYEAR = "https://www.acb.com/calendario/index/temporada_id/{year}"
 template_PARTIDOSEQUIPO = "https://www.acb.com/club/partidos/id/{idequipo}"
 
@@ -240,6 +238,7 @@ class CalendarioACB:
         resultado['loc2abrev'] = {loc: datosPartEqs[loc]['abrev'] for loc in LocalVisitante}
         resultado['abrev2loc'] = {datosPartEqs[loc]['abrev']: loc for loc in LocalVisitante}
         resultado['participantes'] = {datosPartEqs[loc]['abrev'] for loc in LocalVisitante}
+        resultado['participantesId'] = {datosPartEqs[loc]['id'] for loc in LocalVisitante}
         resultado['claveEmparejamiento'] = self.idGrupoEquiposNorm(resultado['participantes'])
 
         datosMD = embeddedDataCalendario[resultado['jornada']]['partidos'][resultado['claveEmparejamiento']]

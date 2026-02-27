@@ -12,7 +12,6 @@ from datetime import datetime
 from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
-from pprint import pp
 from sys import setrecursionlimit
 from typing import Any, Iterable, Dict, Tuple, List, Set
 from typing import Optional
@@ -145,7 +144,8 @@ class TemporadaACB:
         self.Calendario.actualizaDatosPlayoffJornada()
         self.changed |= self.buscaCambiosCalendario()
 
-        partidosABajar = sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys())))
+        partidosABajar = sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys())),
+                                key=lambda s: self.Calendario.Partidos[s]['fechaPartido'])
         partidosABajar = limitaPartidosBajados(config, partidosABajar)
         partidosBajados: Set[str] = set()
 
@@ -378,7 +378,6 @@ class TemporadaACB:
             plantillaActivos = self.plantillas[eqId].getCurrentDict(soloActivos=True)
 
             for jugId, jugData in self.revisaTransfersEntreClubes(eqId, plantillaActivos=plantillaActivos).items():
-                pp(jugData)
                 plantillaActual['jugadores'][jugId] = jugData
                 auxChanged |= True
                 auxChanged |= self.fichaJugadores[jugId].bajaClub(eqId, timestamp=timestamp)
@@ -409,7 +408,6 @@ class TemporadaACB:
                 dataJug['activo'] = False
                 jugadoresCambiados[jugId] = dataJug
 
-        pp(jugadoresCambiados)
         return jugadoresCambiados
 
     def actualizaPlantillasConDescarga(self, browser=None, config=None) -> bool:
@@ -930,7 +928,7 @@ class TemporadaACB:
         else:
             data = pers.partsClub[clubId]
 
-        if not len(data.partidos):
+        if not data.partidos:
             return "0-0"
 
         balanceAux = Counter([self.Partidos[p].haGanado(pers) for p in data.partidos])

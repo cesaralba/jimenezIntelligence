@@ -40,7 +40,7 @@ class FichaPersona(DataLogger):
                        'ultClub', 'fichasClub', 'partsClub', 'timestamp', 'changeLog', 'partsTemporada', 'urlConocidas',
                        'fotos']
     funcsValClass2Str = {'fechaNac': lambda v: v.strftime("Nac: %Y-%m-%d") if v is not None else "", }
-    transValClass = {'nacionalidad':'nac'}
+    transValClass = {'nacionalidad': 'nac'}
 
     def __init__(self, persId: str, tipoFicha: str, **kwargs):
         timestamp = kwargs['timestamp'] = kwargs.get('timestamp', getUTC())
@@ -253,7 +253,7 @@ class FichaPersona(DataLogger):
         if eqPersona != self.ultClub:
             self.fichasClub[self.ultClub].bajaClub(persId=self.persId, clubId=self.ultClub, timestamp=timestamp)
             self.fichasClub[eqPersona] = self.nuevaFichaClub(persId=self.persId, clubId=self.ultClub,
-                                                             **datosPersPart)
+                                                             **datosPersPart, timestamp=timestamp)
             self.updateDataFields(timestamp=timestamp, club=eqPersona)
             self.ultClub = eqPersona
 
@@ -405,7 +405,8 @@ class FichaJugador(FichaPersona):
     SUBCLASSCLAVES = ['posicion', 'altura', 'licencia', 'junior']
     funcsValSubClass2Str = {'altura': lambda v: f"{v}cm" if v else "", 'junior': lambda v: "(Junior)" if v else "",
                             'posicion': lambda v: f"{v}" if v else "", 'licencia': lambda v: f"{v}" if v else "", }
-    transValSubClass = {'junior':'','licencia':'lic','posicion':'posic','altura':'alt'}
+    transValSubClass = {'junior': '', 'licencia': 'lic', 'posicion': 'posic', 'altura': 'alt'}
+
     def __init__(self, **kwargs):
         self.posicion = None
         self.altura = None

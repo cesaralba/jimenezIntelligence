@@ -3,7 +3,6 @@
 
 import logging
 import sys
-from pprint import pp
 
 from CAPcore.Logging import prepareLogger
 from CAPcore.Web import createBrowser, extractGetParams
@@ -11,7 +10,8 @@ from configargparse import ArgumentParser, Namespace
 
 import SMACB.TemporadaACB as ACBTemp
 from SMACB.CalendarioACB import calendario_URLBASE
-from SMACB.DiferenciasTrasDescargaTemp import resumenNuevosPartidos, resumenCambiosCalendario
+from SMACB.DiferenciasTrasDescargaTemp import resumenNuevosPartidos, resumenCambiosCalendario, resumenCambioClubes, \
+    resumenCambioEntrenadores, resumenCambioJugadores
 from SMACB.TemporadaACB import TemporadaACB, CAMBIOSCLUB, CAMBIOSENTRENADORES, CAMBIOSJUGADORES
 from Utils.ManageArgs import createArgs
 
@@ -59,8 +59,8 @@ def main(args: Namespace):
         parCompeticion = args.competicion
     else:
         paramsURL = extractGetParams(sourceURL)
-        parCompeticion = paramsURL['cod_competicion']
-        parEdicion = paramsURL['cod_edicion']
+        parCompeticion = paramsURL.get('cod_competicion', None)
+        parEdicion = paramsURL.get('cod_edicion', None)
 
     temporada = TemporadaACB(competicion=parCompeticion, edicion=parEdicion, urlbase=sourceURL)
     finalArgs = procesaParamsTemporada(temporada, args)
@@ -78,16 +78,14 @@ def main(args: Namespace):
         print(f"Partidos descargados{limitStr}\n{resumenNuevosPartidos(nuevosPartidos, temporada)}", "\n" * 2)
 
     if CAMBIOSJUGADORES:
-        pp(CAMBIOSJUGADORES)
-        # print(f"Cambios en jugadores\n{resumenCambioJugadores(CAMBIOSJUGADORES, temporada=temporada)}", "\n" * 2)
+        print(f"Cambios en jugadores\n{resumenCambioJugadores(CAMBIOSJUGADORES, temporada=temporada)}", "\n" * 2)
 
     if CAMBIOSENTRENADORES:
-        pp(CAMBIOSENTRENADORES)
-        # print(f"Cambios en entrenadores\n{resumenCambioEntrenadores(CAMBIOSENTRENADORES, temporada=temporada)}",              "\n" * 2)
+        print(f"Cambios en entrenadores\n{resumenCambioEntrenadores(CAMBIOSENTRENADORES, temporada=temporada)}",
+              "\n" * 2)
 
     if CAMBIOSCLUB:
-        pp(CAMBIOSCLUB)
-        # print(f"Cambios en plantillas\n{resumenCambioClubes(CAMBIOSCLUB, temporada=temporada)}", "\n" * 2)
+        print(f"Cambios en plantillas\n{resumenCambioClubes(CAMBIOSCLUB, temporada=temporada)}", "\n" * 2)
 
     if ACBTemp.CAMBIOSCALENDARIO:
         print(f"Cambios en calendario\n{resumenCambiosCalendario(ACBTemp.CAMBIOSCALENDARIO, temporada=temporada)}",
