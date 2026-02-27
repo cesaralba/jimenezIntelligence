@@ -134,7 +134,7 @@ def textoTecnico(temporada: TemporadaACB, idTec: str):
 def resumenCambioClubes(cambiosClubes: Dict[str, CambiosPlantillaTipo], temporada: TemporadaACB):
     result = []
     for eqId in sorted(cambiosClubes.keys(), key=lambda s: temporada.plantillas[s].nombreClub()):
-        eqData = cambiosClubes[eqId]
+        eqData: dict = cambiosClubes[eqId]
         if not eqData:
             continue
 
@@ -292,9 +292,10 @@ def procesaCambiosClubJugadores(cambiosDict: Dict, eqId: str, temporada: Tempora
             datosLinea.append(datosEstancia)
             datosLinea.append(fichaPers.partsClub[eqId].partsClub2str(trads=temporada.tradEquipos))
             datosLinea.append(temporada.balanceVictorias(fichaPers, clubId=eqId))
-            datosLinea.append("-> Dest: Fuera ACB")
             if fichaPers.ultClub is not None:
                 datosLinea.append(f"-> Dest: {onlySetElement(temporada.tradEquipos['i2c'][fichaPers.ultClub])}")
+            else:
+                datosLinea.append("-> Dest: Fuera ACB")
 
             salidasClub.append("    * " + " ".join(datosLinea))
             continue

@@ -146,6 +146,10 @@ class TemporadaACB:
 
         partidosABajar = sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys())),
                                 key=lambda s: self.Calendario.Partidos[s]['fechaPartido'])
+        # Puesto en variable para poder permitir usar sólo un subconjunto de partidos para dev
+        partidosInteres = set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys()))
+
+        partidosABajar = sorted(partidosInteres, key=lambda s: self.Calendario.Partidos[s]['fechaPartido'])
         partidosABajar = limitaPartidosBajados(config, partidosABajar)
         partidosBajados: Set[str] = set()
 

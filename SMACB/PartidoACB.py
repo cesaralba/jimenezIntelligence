@@ -611,7 +611,7 @@ class PartidoACB:
         self.metadataEmb = zstd.compress(dumps(resultado))
 
     def generaPlantillaDummy(self, loc: str, plantillaActual: Optional[dict] = None) -> dict:
-        result = {'timestamp': self.timestamp, 'edicion': self.edicion}
+        result = {'timestamp': self.fechaPartido.to_pydatetime(), 'edicion': self.edicion}
 
         def generaPlantillaJugadores(idJugs: Iterable[str]) -> Dict[str, Dict[str, str]]:
             funcResult = {}
