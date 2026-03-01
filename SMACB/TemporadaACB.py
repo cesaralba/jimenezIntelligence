@@ -5,21 +5,25 @@ Created on Jan 4, 2018
 """
 import logging
 import sys
-from collections import defaultdict
+from argparse import Namespace
+from collections import defaultdict, Counter
 from copy import copy
+from datetime import datetime
 from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
-from sys import exc_info, setrecursionlimit
-from time import gmtime, strftime
-from traceback import print_exception
+from pprint import pp
+from sys import setrecursionlimit
 from typing import Any, Iterable, Dict, Tuple, List, Set
 from typing import Optional
 
 import numpy as np
 import pandas as pd
 from CAPcore.LoggedDict import LoggedDictDiff, LoggedDict
+from CAPcore.LoggedValue import extractValue
+from CAPcore.Misc import getUTC
 from CAPcore.Web import mergeURL
+from mechanicalsoup import StatefulBrowser
 from requests import HTTPError
 
 from Utils.FechaHora import fechaParametro2pddatetime
@@ -27,7 +31,8 @@ from Utils.Web import prepareDownloading, browserConfigData
 from .CalendarioACB import calendario_URLBASE, CalendarioACB
 from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEqCalendario, infoPartLV, infoSigPartido,
                         LocalVisitante, OtherLoc, OtherTeam, infoJornada, URL_BASE, )
-from .FichaJugador import FichaJugador, CAMBIOSJUGADORES
+from .FichaPersona import CAMBIOSENTRENADORES, FichaEntrenador, CAMBIOSJUGADORES, FichaJugador, FichaPersona, \
+    PartidosClub
 from .PartidoACB import PartidoACB
 from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB, CAMBIOSCLUB, CambiosPlantillaTipo
 from .TemporadaEstads import auxCalculaEstadsSubDataframe
@@ -41,7 +46,11 @@ DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 
                    ('Rival', 'utilizados', 'sum'): 0, }
 
 JUGADORESDESCARGADOS = set()
-AUXCAMBIOS = CAMBIOSJUGADORES  # For the sake of formatter
+TECNICOSDESGARGADOS = set()
+
+AUXCAMBIOSJUG = CAMBIOSJUGADORES  # For the sake of formatter
+AUXCAMBIOSENT = CAMBIOSENTRENADORES  # For the sake of formatter
+
 CAMBIOSCALENDARIO: Optional[LoggedDictDiff] = None
 
 
@@ -54,7 +63,7 @@ def auxJorFech2periodo(dfTemp: pd.DataFrame):
     jf2periodo = defaultdict(lambda: defaultdict(int))
 
     dfPairs: List[Tuple[Any, str]] = dfTemp.apply(lambda r: (r['fechaPartido'].date(), r['jornada']), axis=1).unique()
-    for p in sorted(list(dfPairs)):
+    for p in sorted(dfPairs):
         if curVal is None or curVal[1] != p[1]:
             if curVal:
                 periodoAct += 1
@@ -87,8 +96,6 @@ class TemporadaACB:
     """
     Calendario: CalendarioACB
 
-    # TODO: función __str__
-
     def __init__(self, **kwargs):
         """
 
@@ -105,7 +112,7 @@ class TemporadaACB:
         descargaFichas = kwargs.get('descargaFichas', False)
         descargaPlantillas = kwargs.get('descargaPlantillas', False)
 
-        self.timestamp = gmtime()
+        self.timestamp = getUTC()
         self.Calendario = CalendarioACB(competicion=self.competicion, edicion=self.edicion, urlbase=self.urlbase)
         self.Partidos: Dict[str, PartidoACB] = {}
         self.changed: bool = False
@@ -113,65 +120,85 @@ class TemporadaACB:
         self.descargaFichas: bool = descargaFichas
         self.descargaPlantillas: bool = descargaPlantillas
         self.fichaJugadores: Dict[str, FichaJugador] = {}
-        self.fichaEntrenadores = {}
+        self.fichaEntrenadores: Dict[str, FichaEntrenador] = {}
         self.plantillas: Dict[str, PlantillaACB] = {}
         self.calendarioDict: LoggedDict = LoggedDict(timestamp=self.timestamp)
 
     def __repr__(self):
-        tstampStr = strftime("%Y%m%d-%H:%M:%S", self.timestamp)
+        tstampStr = self.timestamp.strftime("%Y%m%d-%H:%M:%S")
         result = f"{self.competicion} Temporada: {self.edicion} Datos: {tstampStr}"
         return result
 
-    def actualizaTemporada(self, home=None, browser=None, config=None):
+    __str__ = __repr__
+
+    def getConfig(self) -> Namespace:
+        result = Namespace(**{'procesaBio': self.descargaFichas, 'procesaPlantilla': self.descargaPlantillas})
+        return result
+
+    def actualizaTemporada(self, browser=None, config=None):
+        interrupted = False
         changeOrig = self.changed
 
-        browser, config = prepareDownloading(browser, config, calendario_URLBASE)
+        browser, config = prepareDownloading(browser, config)
 
         self.Calendario.actualizaCalendario(browser=browser, config=config)
-        self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
-
-        partidosBajados: Set[str] = set()
-
-        for partido in sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys()))):
-            try:
-                nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
-                nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
-                if nuevoPartido.check():
-                    self.Partidos[partido] = nuevoPartido
-                    partidosBajados.add(partido)
-                    self.actualizaInfoAuxiliar(nuevoPartido, browser, config)
-            except KeyboardInterrupt:
-                print("actualizaTemporada: Ejecución terminada por el usuario")
-                break
-            except BaseException:
-                print(f"actualizaTemporada: problemas descargando  partido '{partido}': {exc_info()}")
-                print_exception(*exc_info())
-
-            if 'justone' in config and config.justone:  # Just downloads a game (for testing/dev purposes)
-                break
-
-        self.changed |= (len(partidosBajados) > 0)
+        self.Calendario.actualizaDatosPlayoffJornada()
         self.changed |= self.buscaCambiosCalendario()
 
-        if self.descargaPlantillas:
-            resPlant = self.actualizaPlantillasConDescarga(browser=browser, config=config)
-            self.changed |= resPlant
-            if resPlant:
-                self.changed |= self.actualizaFichaJugadoresFromCambiosPlant(CAMBIOSCLUB)
-        else:
-            resPlant = self.actualizaPlantillasSinDescarga()
-            self.changed |= resPlant
-            # if resPlant:
-            #     self.changed |= self.actualizaFichaJugadoresFromCambiosPlant(CAMBIOSCLUB)
+        # Puesto en variable para poder permitir usar sólo un subconjunto de partidos para dev
+        partidosInteres = set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys()))
+
+        partidosABajar = sorted(partidosInteres, key=lambda s: self.Calendario.Partidos[s]['fechaPartido'])
+        partidosABajar = limitaPartidosBajados(config, partidosABajar)
+        partidosBajados: Set[str] = set()
+
+        try:
+            for partido in partidosABajar:
+                try:
+                    partidoDescargado = PartidoACB(**(self.Calendario.Partidos[partido]))
+                    partidoDescargado.descargaPartido(browser=browser, config=config)
+                    if not partidoDescargado.check():
+                        continue
+                    self.actualizaInfoAuxiliar(nuevoPartido=partidoDescargado, browser=browser, config=config)
+                    self.Partidos[partido] = partidoDescargado
+                    partidosBajados.add(partido)
+
+                except KeyboardInterrupt as exc:
+                    logging.info("actualizaTemporada: interrumpida ejecución descargando  partido '%s'", partido)
+                    raise KeyboardInterrupt from exc
+                except BaseException:
+                    logging.exception("actualizaTemporada: problemas descargando  partido '%s'", partido)
+
+        except KeyboardInterrupt:
+            logging.info("actualizaTemporada: Ejecución terminada por el usuario")
+            interrupted = True
+
+        self.changed |= (len(partidosBajados) > 0)
+
+        if not interrupted:
+            if self.descargaPlantillas:
+                resPlant = self.actualizaPlantillasConDescarga(browser=browser, config=config)
+                self.changed |= resPlant
+                if resPlant:
+                    self.changed |= self.actualizaFichaJugadoresFromCambiosPlant(CAMBIOSCLUB)
+            else:
+                resPlant = self.actualizaPlantillasSinDescarga()
+                self.changed |= resPlant
 
         if self.changed != changeOrig:
-            self.timestamp = gmtime()
+            self.timestamp = getUTC()
 
         return partidosBajados
 
     def actualizaInfoAuxiliar(self, nuevoPartido: PartidoACB, browser, config):
         self.actualizaNombresEquipo(nuevoPartido)
-        self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
+        if not getattr(config, 'procesaPlantilla', False):
+            self.changed |= self.creaPlantillasDesdePartidoSinDesc(nuevoPartido=nuevoPartido)
+
+        self.changed |= self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
+        if not getattr(config, 'procesaPlantilla', False):
+            self.changed |= self.actualizaPlantillasDesdePartidoSinDesc(nuevoPartido=nuevoPartido)
+
         self.actualizaTraduccionesJugador(nuevoPartido)
         # Añade la información de equipos de partido a traducciones de equipo.
         # (el código de equipo ya no viene en el calendario)
@@ -179,7 +206,7 @@ class TemporadaACB:
             self.Calendario.nuevaTraduccionEquipo2Codigo(nombres=eqData['Nombre'], abrev=eqData['abrev'],
                                                          idEq=eqData['id'])
 
-    def actualizaNombresEquipo(self, partido: PartidoACB):
+    def actualizaNombresEquipo(self, partido):
         for loc in partido.Equipos:
             nombrePartido = partido.Equipos[loc]['Nombre']
             codigoParam = partido.Equipos[loc]['abrev']
@@ -238,63 +265,158 @@ class TemporadaACB:
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
         self.changed |= self.actualizaClase()
 
-    def actualizaFichasPartido(self, nuevoPartido: PartidoACB, browser=None, config=None):
+    def actualizaFichasPartido(self, nuevoPartido: PartidoACB, browser=None, config=None) -> bool:
+
+        changes = False
         if self.descargaFichas:
-            browser, config = prepareDownloading(browser, config, calendario_URLBASE)
+            changes |= self.actualizaFichasPartidoConDesc(nuevoPartido, browser, config)
+        else:
+            changes |= self.actualizaFichasPartidoSinDesc(partido=nuevoPartido)
 
-        refrescaFichas = False
+        return changes
 
-        if 'refresca' in config and config.refresca:
-            refrescaFichas = True
+    def actualizaFichasPartidoConDesc(self, nuevoPartido: PartidoACB, browser: Optional[StatefulBrowser] = None,
+                                      config: Optional[Namespace | Dict] = None) -> bool:
+
+        browser, config = prepareDownloading(browser, config)
+        refrescaFichas = getattr(config, 'refresca', False)
 
         for codJ, datosJug in nuevoPartido.Jugadores.items():
-            if (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None):
-                if self.descargaFichas:
-                    try:
-                        if codJ not in JUGADORESDESCARGADOS:
-                            urlJug = mergeURL(URL_BASE, datosJug['linkPersona'])
-                            nuevaFicha = FichaJugador.fromURL(urlJug, datosPartido=datosJug,
-                                                              home=browser.get_url(), browser=browser, config=config)
-                            self.fichaJugadores[codJ] = nuevaFicha
-                            JUGADORESDESCARGADOS.add(codJ)
-                            self.changed = True
-                    except HTTPError:
-                        logging.exception("Partido [%s]: something happened creating record for %s. Datos: %s",
-                                          nuevoPartido.url, codJ, datosJug)
-                        nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
-                                                              timestamp=nuevoPartido.timestamp)
-                        self.fichaJugadores[codJ] = nuevaFicha
-                        JUGADORESDESCARGADOS.add(codJ)
-                        self.changed = True
+            if codJ in JUGADORESDESCARGADOS:
+                self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
+                continue
 
-                else:  # Crear desde info de partido
-                    nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
-                                                          timestamp=nuevoPartido.timestamp)
+            if not self.fichaJugadores.get(codJ, None):
+                try:
+                    urlJug = mergeURL(URL_BASE, datosJug['linkPersona'])
+                    nuevaFicha = FichaJugador.fromURL(urlJug, datos=datosJug,
+                                                      home=browser.get_url(), browser=browser, config=config)
                     self.fichaJugadores[codJ] = nuevaFicha
+                    JUGADORESDESCARGADOS.add(codJ)
                     self.changed = True
+                except HTTPError:
+                    logging.exception("Partido [%s]: something happened creating record for %s. Datos: %s",
+                                      nuevoPartido.url, codJ, datosJug)
+                    nuevaFicha = FichaJugador.fromPartido(idPersona=codJ, datos=datosJug,
+                                                          timestamp=nuevoPartido.fechaPartido.to_pydatetime())
+                    self.fichaJugadores[codJ] = nuevaFicha
+                    JUGADORESDESCARGADOS.add(codJ)
+                    self.changed = True
+            elif refrescaFichas or getattr(self.fichaJugadores[codJ], 'sindatos', True):
+                try:
+                    self.changed |= self.fichaJugadores[codJ].actualizaFromWeb(datosPartido=datosJug,
+                                                                               browser=browser,
+                                                                               config=config)
+                    JUGADORESDESCARGADOS.add(codJ)
+                except HTTPError:
+                    logging.exception("Partido [%s]: something happened updating record for %s. Datos: %s",
+                                      nuevoPartido.url, codJ, datosJug)
 
-            elif self.descargaFichas and (refrescaFichas or (not hasattr(self.fichaJugadores[codJ], 'sinDatos')) or (
-                    self.fichaJugadores[codJ].sinDatos is None) or self.fichaJugadores[codJ].sinDatos):
-                if codJ not in JUGADORESDESCARGADOS:
-                    urlJugAux = mergeURL(URL_BASE, datosJug['linkPersona'])
-                    if urlJugAux != self.fichaJugadores[codJ].URL:
-                        self.fichaJugadores[codJ].URL = urlJugAux
-                        self.changed = True
-                    try:
-                        self.changed |= self.fichaJugadores[codJ].actualizaFromWeb(datosPartido=datosJug,
-                                                                                   browser=browser,
-                                                                                   config=config)
-                        JUGADORESDESCARGADOS.add(codJ)
-                    except HTTPError:
-                        logging.exception("Partido [%s]: something happened updating record for %s. Datos: %s",
-                                          nuevoPartido.url, codJ, datosJug)
+                self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
 
             self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
+
+    def actualizaFichasPartidoSinDesc(self, partido: PartidoACB):
+        changes: bool = False
+
+        for codJ, datosJug in partido.Jugadores.items():
+            if codJ in JUGADORESDESCARGADOS:
+                changes |= self.fichaJugadores[codJ].nuevoPartido(partido)
+                continue
+
+            if codJ not in self.fichaJugadores:
+                nuevaFicha = FichaJugador.fromPartido(idPersona=codJ, datosPartido=datosJug,
+                                                      timestamp=partido.fechaPartido.to_pydatetime())
+                self.fichaJugadores[codJ] = nuevaFicha
+                changes |= True
+                JUGADORESDESCARGADOS.add(codJ)
+
+            changes |= self.fichaJugadores[codJ].nuevoPartido(partido)
+
+        for codE, datosEnt in partido.Entrenadores.items():
+            if codE in TECNICOSDESGARGADOS:
+                changes |= self.fichaEntrenadores[codE].nuevoPartido(partido)
+                continue
+
+            if codE not in self.fichaJugadores:
+                if datosEnt['dorsal'] == 'E':
+                    datosEnt['dorsal'] = '1'
+
+                nuevaFicha = FichaEntrenador.fromPartido(idPersona=codE, datosPartido=datosEnt,
+                                                         timestamp=partido.fechaPartido.to_pydatetime())
+                self.fichaEntrenadores[codE] = nuevaFicha
+                changes |= True
+                TECNICOSDESGARGADOS.add(codE)
+
+            changes |= self.fichaEntrenadores[codE].nuevoPartido(partido)
+
+        return changes
+
+    def creaPlantillasDesdePartidoSinDesc(self, nuevoPartido: PartidoACB) -> bool:
+        """
+        Como no descargamos la plantilla (por configuración), hay que hacer operaciones como sí. En este caso se crea la
+        plantilla si no existe ya a partir de los datos que vienen en los partidos.
+        :param nuevoPartido:
+        :return:
+        """
+        auxChanged = False
+        for eq in nuevoPartido.Equipos.values():
+            eqId = eq['id']
+            if eqId in self.plantillas:
+                continue
+            timestamp = nuevoPartido.fechaPartido.to_pydatetime()
+            self.plantillas[eqId] = PlantillaACB(eqId, edicion=self.edicion, timestamp=timestamp)
+            auxChanged |= True
+            dataClub = {'club': {'nombreActual': eq['Nombre'], 'nombreOficial': eq['Nombre']}, 'timestamp': timestamp}
+            self.plantillas[eqId].actualizaPlantillaDescargada(dataClub)
+        return auxChanged
+
+    def actualizaPlantillasDesdePartidoSinDesc(self, nuevoPartido: PartidoACB) -> bool:
+        auxChanged = False
+        for loc, eq in nuevoPartido.Equipos.items():
+            eqId: str = eq['id']
+            timestamp: datetime = nuevoPartido.fechaPartido.to_pydatetime()
+
+            plantillaActual = self.plantillas[eqId].getCurrentDict(soloActivos=False)
+            plantillaActivos = self.plantillas[eqId].getCurrentDict(soloActivos=True)
+
+            for jugId, jugData in self.revisaTransfersEntreClubes(eqId, plantillaActivos=plantillaActivos).items():
+                plantillaActual['jugadores'][jugId] = jugData
+                auxChanged |= True
+                auxChanged |= self.fichaJugadores[jugId].bajaClub(eqId, timestamp=timestamp)
+
+            for entrId in entrenadorDestituido(entrenadorId=eq['Entrenador'], plantillaActivos=plantillaActivos):
+                plantillaActual['tecnicos'][entrId]['activo'] = False
+                auxChanged |= True
+                auxChanged |= self.fichaEntrenadores[entrId].bajaClub(eqId, timestamp=timestamp)
+
+            dataPlantAux = nuevoPartido.generaPlantillaDummy(loc, plantillaActual)
+            auxChanged |= self.plantillas[eqId].actualizaPlantillaDescargada(dataPlantAux)
+
+        return auxChanged
+
+    def revisaTransfersEntreClubes(self, idEq: str, plantillaActivos: Dict) -> Dict:
+        """
+        Forma eufemística de mirar si los jugadores de la plantilla estan en otro equipo (han jugado si no se descargan)
+        No captura jugs que se van a otra liga pero si los que van de A a B
+        :param idEq: Equipo (id) siendo considerado
+        :param plantillaActivos: (plantilla de personas activas)
+        :return: diccionario de id->data de jugadores que ya no están en el equipo (porque están en otro ACB)
+        """
+
+        jugadoresCambiados = {}
+        for jugId, dataJug in plantillaActivos.get('jugadores', {}).items():
+            fichaJug = self.fichaJugadores[jugId]
+            if extractValue(fichaJug.ultClub) != idEq:
+                dataJug['activo'] = False
+                jugadoresCambiados[jugId] = dataJug
+
+        return jugadoresCambiados
 
     def actualizaPlantillasConDescarga(self, browser=None, config=None) -> bool:
         result = False
 
-        browser, config = prepareDownloading(browser, config, calendario_URLBASE)
+        browser, config = prepareDownloading(browser, config)
         logger.info("%s Actualizando plantillas", self)
         datosPlantillas = descargaPlantillasCabecera(browser, config)
         for p_id in datosPlantillas:
@@ -309,18 +431,22 @@ class TemporadaACB:
         return result
 
     def actualizaPlantillasSinDescarga(self) -> bool:
+        """
+        Crea plantillas que no existan (no debería hacer nada pero...). Sin descarga, las plantillas se crean/actualizan
+        con la información de los partidos
+
+        :return: Si ha habido cambios o no
+        """
         result = False
 
         logger.info("%s Actualizando plantillas", self)
 
         for p_id in self.tradEquipos['i2n']:
             if p_id not in self.plantillas:
-                self.plantillas[p_id] = PlantillaACB(p_id, edicion=self.edicion)
+                nombresClub = sorted(self.tradEquipos['i2n'][p_id], key=len)
+                self.plantillas[p_id] = PlantillaACB(p_id, edicion=self.edicion, **{
+                    'club': {'nombreActual': nombresClub[0], 'nombreOficial': nombresClub[-1]}})
                 result = True
-            nombresClub = sorted(self.tradEquipos['i2n'][p_id], key=len)
-            dataClub = {'club': {'nombreActual': nombresClub[0], 'nombreOficial': nombresClub[-1]}}
-            resPlant = self.plantillas[p_id].actualizaPlantillaDescargada(dataClub)
-            result |= resPlant
 
         self.changed |= result
 
@@ -331,10 +457,10 @@ class TemporadaACB:
             if codJ in self.fichaJugadores:
                 ficha = self.fichaJugadores[codJ]
 
-                self.tradJugadores['nombre2ids'][ficha.nombre].add(ficha.id)
-                self.tradJugadores['nombre2ids'][ficha.alias].add(ficha.id)
-                self.tradJugadores['id2nombres'][ficha.id].add(ficha.nombre)
-                self.tradJugadores['id2nombres'][ficha.id].add(ficha.alias)
+                self.tradJugadores['nombre2ids'][extractValue(ficha.nombre)].add(ficha.persId)
+                self.tradJugadores['nombre2ids'][extractValue(ficha.alias)].add(ficha.persId)
+                self.tradJugadores['id2nombres'][ficha.persId].add(extractValue(ficha.nombre))
+                self.tradJugadores['id2nombres'][ficha.persId].add(extractValue(ficha.alias))
 
             self.tradJugadores['nombre2ids'][datosJug['nombre']].add(datosJug['codigo'])
             self.tradJugadores['id2nombres'][datosJug['codigo']].add(datosJug['nombre'])
@@ -397,7 +523,7 @@ class TemporadaACB:
         * Si la abrev objetivo es local (True) o visit (False)
         """
         juCal, peCal = self.Calendario.partidosEquipo(abrEq)
-        peOrd = sorted(list(peCal), key=itemgetter('fechaPartido'))
+        peOrd = sorted(peCal, key=itemgetter('fechaPartido'))
 
         juOrdTem = sorted([p['url'] for p in juCal], key=lambda u: self.Partidos[u].fechaPartido)
 
@@ -442,6 +568,8 @@ class TemporadaACB:
                 auxdict[jugId]['ultEquipoAbr'] = entradaJug['CODequipo']
 
         auxDF = pd.DataFrame.from_dict(auxdict, orient='index')
+        for col in ['fechaNac', 'primPartidoT', 'ultPartidoT']:
+            auxDF[col] = pd.to_datetime(auxDF[col])
 
         return auxDF
 
@@ -717,12 +845,14 @@ class TemporadaACB:
                                                 config=None
                                                 ) -> bool:
         result = False
+        pp(CAMBIOSCLUB)
         for idClub, cambios in cambiosClub.items():
             browserConfig = browserConfigData(browser=browser, config=config,
                                               timestamp=self.plantillas[idClub].timestamp)
             if not cambios.jugadores:
                 continue
             for jugQuitado, datos in cambios.jugadores.removed.items():
+                # TODO: Qué hacer con los eliminados?
                 print(f"Eliminación de jugadores no contemplada id:{jugQuitado} jugador"
                       f"{self.fichaJugadores[jugQuitado]} idClub: {idClub} {self.plantillas[idClub]} {datos}")
             result |= self.actualizaFichaJugadoresNuevos(cambios=cambios, idClub=idClub, brwCfg=browserConfig)
@@ -792,6 +922,24 @@ class TemporadaACB:
         CAMBIOSCALENDARIO = self.calendarioDict.diff(calActualDict)
 
         return self.calendarioDict.replace(calActualDict)
+
+    def balanceVictorias(self, pers: FichaPersona, clubId: Optional[str] = None) -> str:
+        data: PartidosClub
+        if clubId is None:
+            data = pers.partsTemporada
+        elif clubId not in pers.partsClub:
+            return "Sin info partidos"
+        else:
+            data = pers.partsClub[clubId]
+
+        if not data.partidos:
+            return "0-0"
+
+        balanceAux = Counter([self.Partidos[p].haGanado(pers) for p in data.partidos])
+
+        result = "-".join(str(balanceAux.get(r, 0)) for r in [True, False])
+
+        return result
 
 
 def cargaTemporada(fname: str) -> TemporadaACB:
@@ -871,33 +1019,54 @@ def limitaLineasEnTrayectoriaEquipos(limitRows, lineas):
     for revGame in reversed(lineas):
         data: filaMergeTrayectoria = revGame
         if data.pendiente or data.precedente:
-            if quedan > 0:
+            if quedan > 0:  # Hay sitio -> p'adentro
                 result.append(data)
                 quedan -= 1
                 continue
-            if quedan == 0:
+            if quedan == 0:  # No hay sitio, quitamos una fila que no sea ni precedente ni partido pendiente
                 for insrow in reversed(result):
                     if not (insrow.pendiente or insrow.precedente):
                         result.remove(insrow)
                         result.append(data)
                         break
-                else:
+                else:  # No hay nada que eliminar, se añade en cualquier caso y se pone un aviso
+                    # Como solo se produce cuando hay 0 el mensaje sólo se pone una vez
                     result.append(data)
                     quedan -= 1
                     mensajeAviso = ("La pagina no puede contener el número mínimo de resultados. "
                                     "El formato puede descuadrarse")
                     print(mensajeAviso)
                     continue
-            else:
+            else:  # No hay sitio pero se añada aunque se descaraje el formato
                 result.append(data)
                 quedan -= 1
 
             print(f"Pendiente: {quedan}")
             continue
-        if quedan > 0:
+        # Filas prescindibles.
+        if quedan > 0:  # Hay sitio -> p'adentro
             result.append(data)
             quedan -= 1
-        else:
+        else:  # No hay sitio, poner aviso en la tabla
             if mensajeAviso == "":
                 mensajeAviso = "Filas de trayectoria eliminadas por tamaño de página"
     return result, mensajeAviso
+
+
+def limitaPartidosBajados(config: Namespace, partidosABajar: List[str]) -> List[str]:
+    maxPartidosABajar = 1 if (config.justone and not config.limit) else config.limit
+    if maxPartidosABajar:
+        partidosABajar = partidosABajar[:maxPartidosABajar]
+    return partidosABajar
+
+
+def entrenadorDestituido(entrenadorId: str, plantillaActivos: Dict) -> List[str]:
+    changes = []
+    if not plantillaActivos.get('tecnicos', {}):
+        return changes
+
+    for entrActivo in plantillaActivos['tecnicos']:
+        if entrActivo != entrenadorId:
+            changes.append(entrActivo)
+
+    return changes

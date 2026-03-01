@@ -2,7 +2,8 @@
 # Librerias para el programa
 
 #git+https://github.com/cesaralba/CAPcore-python@develop
-git+https://github.com/cesaralba/CAPcore-python@202512
+#git+https://github.com/cesaralba/CAPcore-python@202512
+git+https://github.com/cesaralba/CAPcore-python@18_getUTC_et_all_ACB
 
 ConfigArgParse>=1.7.1
 
@@ -12,14 +13,14 @@ pandas>=2.3.3
 pytz==2025.2
 tzdata>=2025.2
 json5==0.13.0
-scipy>=1.16.3
-numpy>=2.4.0
+scipy>=1.17.0
+numpy>=2.4.1
 seaborn>=0.13.2
+matplotlib>=3.10.8
 pillow>=12.1.1
-matplotlib>=3.10.7
 contourpy>=1.3.3
 cycler==0.12.1
-pyparsing>=3.3.0
+pyparsing>=3.3.1
 kiwisolver>=1.4.9
 packaging>=25.0
 python-dateutil>=2.9.0.post0
@@ -27,7 +28,7 @@ python-dateutil>=2.9.0.post0
 XlsxWriter>=3.2.8
 
 reportlab>=4.4.3
-pillow>=12.0.0
+pillow>=12.1.0
 
 #Dependencias (añadidas por vulnerabilidades detectadas)
 fonttools>=4.61.1

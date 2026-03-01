@@ -111,7 +111,13 @@ def procesaCosasUtilesPlantilla(data: bs4.BeautifulSoup, urlRef: str):
     auxFoto = data.find('div', attrs={'class': 'foto'}).find('img')['src']
     if auxFoto not in URLIMG2IGNORE:
         result['urlFoto'] = mergeURL(urlRef, auxFoto)
-    result['alias'] = data.find('h1').get_text().strip()
+
+    aliasH1=data.find('h1')
+    result['alias'] = aliasH1.get_text().strip()
+
+    if aliasH1.find('a'):
+        result['audioURL'] = aliasH1.find('a')['href']
+
     for row in data.findAll('div', {'class': ['datos_basicos', 'datos_secundarios']}):
 
         valor = row.find("span", {'class': 'roboto_condensed_bold'}).get_text().strip()

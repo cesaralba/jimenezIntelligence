@@ -2,7 +2,7 @@ import ast
 import logging
 import re
 from collections import namedtuple
-from pprint import pprint
+from pprint import pformat
 from re import Pattern
 from typing import Optional, Dict, Any
 
@@ -11,6 +11,7 @@ import json5
 from CAPcore.Misc import listize
 from CAPcore.Web import createBrowser, mergeURL, DownloadedPage
 from configargparse import Namespace
+from mechanicalsoup import StatefulBrowser
 
 # https://effbot.org/zone/default-values.htm#what-to-do-instead
 sentinel = object()
@@ -32,49 +33,21 @@ def getObjID(objURL, clave='id', defaultresult=sentinel):
     return defaultresult
 
 
-def prepareDownloading(browser, config, urlRef: Optional[str] = None):
+def prepareDownloading(browser: Optional[StatefulBrowser] = None, config: Optional[Namespace | Dict] = None):
     """
     Prepara las variables para el BeautifulSoup si no está y descarga una página si se provee
     :param browser: variable de estado del bs4
     :param config: configuración global del programa (del argparse)
-    :param urlRef: página a descargar
     :return: browser,config (los mismos o creados según la situación)
     """
+
     if config is None:
         config = Namespace()
     else:
         config = Namespace(**config) if isinstance(config, dict) else config
     if browser is None:
         browser = createBrowser(config)
-        if urlRef:
-            browser.open(urlRef)
     return browser, config
-
-
-def generaURLPlantilla(plantilla, urlRef: str):
-    # https://www.acb.com/club/plantilla/id/6/temporada_id/2016
-    params = ['/club', 'plantilla', 'id', plantilla.id]
-    if plantilla.edicion is not None:
-        params += ['temporada_id', plantilla.edicion]
-
-    urlSTR = "/".join(params)
-
-    result = mergeURL(urlRef, urlSTR)
-
-    return result
-
-
-def generaURLClubes(edicion: Optional[str] = None, urlRef: str = None):
-    # https://www.acb.com/club/index/temporada_id/2015
-    params = ['/club', 'index']
-    if edicion is not None:
-        params += ['temporada_id', edicion]
-
-    urlSTR = "/".join(params)
-
-    result = mergeURL(urlRef, urlSTR)
-
-    return result
 
 
 def generaURLEstadsPartido(partidoId, urlRef: str = None):
@@ -87,8 +60,6 @@ def generaURLEstadsPartido(partidoId, urlRef: str = None):
 
     return result
 
-
-# TODO: Generar URL jugadores y URL entrenadores
 
 def tagAttrHasValue(tagData: bs4.element.Tag, attrName: str, value: str | Pattern, partial: bool = False) -> bool:
     if tagData is None:
@@ -157,7 +128,7 @@ def extractPagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dic
 
         if list(auxHash.keys())[0] in result:
             clave = list(auxHash.keys())[0]
-            logging.error("Clave #%s# ya existe en resultado:\n%s", clave, pprint(result[clave]))
+            logging.error("Clave #%s# ya existe en resultado:\n%s", clave, pformat(result[clave]))
             continue
         result.update(auxHash)
 

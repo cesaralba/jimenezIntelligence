@@ -133,9 +133,9 @@ def calculaEstadisticosPartidos(dfPartidos: pd.DataFrame, col2calc=None, campoFe
             raise TypeError("dfPartidos2serieFechas: tipo desconocido de index")
 
     if col2calc is None:
-        campos_STATS = COLSINFO4STATS + sorted(list(product(ABREVPAIRS[dfKeyPair], COLSSTATEQ4STATS)))
+        campos_STATS = COLSINFO4STATS + sorted(product(ABREVPAIRS[dfKeyPair], COLSSTATEQ4STATS))
     else:
-        campos_STATS = sorted(list(product(ABREVPAIRS[dfKeyPair], [col2calc])))
+        campos_STATS = sorted(product(ABREVPAIRS[dfKeyPair], [col2calc]))
 
     fechasWork = listafechas if (listafechas is not None) else dfPartidos2serieFechas(dfPartidos, colFecha=campoFecha)
 
