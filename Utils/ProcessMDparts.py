@@ -76,9 +76,9 @@ jugadaTag2Desc = {
     (413, None): "Rev - Ult jug tocar",
     (414, None): "Rev - Acción jugador",
     (415, None): "Rev - Cambios",
-
     (416, None): "Challenge Ent loc",
     (417, None): "Challenge Ent vis",
+
     (533, None): "Mate fallado",
     (537, None): "Falta técnica 1TL",
     (540, None): "Técnica entrenador",
