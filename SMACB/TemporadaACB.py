@@ -12,6 +12,7 @@ from datetime import datetime
 from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
+from pprint import pp
 from sys import setrecursionlimit
 from typing import Any, Iterable, Dict, Tuple, List, Set
 from typing import Optional
@@ -144,8 +145,6 @@ class TemporadaACB:
         self.Calendario.actualizaDatosPlayoffJornada()
         self.changed |= self.buscaCambiosCalendario()
 
-        partidosABajar = sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys())),
-                                key=lambda s: self.Calendario.Partidos[s]['fechaPartido'])
         # Puesto en variable para poder permitir usar sólo un subconjunto de partidos para dev
         partidosInteres = set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys()))
 
@@ -846,6 +845,7 @@ class TemporadaACB:
                                                 config=None
                                                 ) -> bool:
         result = False
+        pp(CAMBIOSCLUB)
         for idClub, cambios in cambiosClub.items():
             browserConfig = browserConfigData(browser=browser, config=config,
                                               timestamp=self.plantillas[idClub].timestamp)

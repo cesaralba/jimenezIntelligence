@@ -1,6 +1,7 @@
 import logging
 from collections import defaultdict
 from copy import copy
+from pprint import pp
 from typing import Dict, NamedTuple, Optional
 
 import bs4
@@ -97,8 +98,11 @@ class PlantillaACB(LoggedClassGenerator(DataChangesRaw)):
         browser, config = prepareDownloading(browser, config)
         try:
             auxURL = generaURLPlantilla(self, URL_BASE)
+            print(auxURL)
+            pp(self.__dict__)
+            print("==================")
             if auxURL != self.URL:
-                print(f"[{self.clubId}] '{self.club['nombreActual']}' {self.edicion} URL cambiada: '{self.URL}' -> '"
+                print(f"[{self.clubId}] '{self.club.get('nombreActual','Sin nombre conocido')}' {self.edicion} URL cambiada: '{self.URL}' -> '"
                       f"{auxURL}'")
                 self.URL = auxURL
                 result |= True
