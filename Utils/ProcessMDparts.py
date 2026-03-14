@@ -98,8 +98,8 @@ def procesaMDcalFl2calendarIDs(rawData: dict) -> Dict[str, Dict]:
     auxFilterData: dict = list(rawData.values())[0][3]['data']
 
     filterAv = auxFilterData['availableFilters']
-
-    name2comp = {'Liga Nacional': 'LACB', 'Copa de España': 'COPA', 'Supercopa': 'SCOPA'}
+    name2comp = {'Liga Nacional': 'LACB', 'Copa de España': 'COPA', 'Supercopa': 'SCOPA', 'Liga Endesa': 'LACB',
+                 'Copa del Rey': 'COPA', 'Supercopa Endesa': 'SCOPA'}
     for v in filterAv['competitions']:
         cName = v['name']
         cId = str(v['id'])
