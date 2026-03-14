@@ -180,7 +180,7 @@ class TemporadaACB:
                 resPlant = self.actualizaPlantillasConDescarga(browser=browser, config=config)
                 self.changed |= resPlant
                 if resPlant:
-                    self.changed |= self.actualizaFichaJugadoresFromCambiosPlant(CAMBIOSCLUB)
+                    self.changed |= self.actualizaFichaPersonasFromCambiosPlant(CAMBIOSCLUB)
             else:
                 resPlant = self.actualizaPlantillasSinDescarga()
                 self.changed |= resPlant
@@ -841,14 +841,19 @@ class TemporadaACB:
     def idEquipos(self):
         return list(self.tradEquipos['i2c'].keys())
 
-    def actualizaFichaJugadoresFromCambiosPlant(self, cambiosClub: Dict[str, CambiosPlantillaTipo], browser=None,
-                                                config=None
-                                                ) -> bool:
+    def actualizaFichaPersonasFromCambiosPlant(self, cambiosClub: Dict[str, CambiosPlantillaTipo], browser=None,
+                                               config=None
+                                               ) -> bool:
         result = False
-        pp(CAMBIOSCLUB)
-        for idClub, cambios in cambiosClub.items():
+
+        for idClub in cambiosClub.keys():
+            plant:PlantillaACB = self.plantillas[idClub]
             browserConfig = browserConfigData(browser=browser, config=config,
-                                              timestamp=self.plantillas[idClub].timestamp)
+                                              timestamp=plant.timestamp)
+
+            plantDict=plant.getCurrentDict(soloActivos=False)
+            pp(plantDict)
+            continue
             if not cambios.jugadores:
                 continue
             for jugQuitado, datos in cambios.jugadores.removed.items():

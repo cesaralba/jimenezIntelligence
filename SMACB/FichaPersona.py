@@ -399,6 +399,25 @@ class FichaPersona(DataLogger):
 
         return result
 
+    def actualizaFromPlantilla(self, datosFichaPlantilla: Optional[dict] = None, idClub: Optional[str] = None):
+        if datosFichaPlantilla is None:
+            return False
+        # datosFichaPlantilla = adaptaDatosFichaPlantilla(datosFichaPlantilla, idClub)
+
+        result = False
+        changeInfo = {}
+
+        result |= self.addAtributosQueFaltan()
+
+        result |= self.updateFichaJugadorFromDownloadedData(changeInfo, datosFichaPlantilla)
+
+        if result:
+            self.timestamp = datosFichaPlantilla.get('timestamp', getUTC())
+            if changeInfo:
+                CAMBIOSJUGADORES[self.id].update(changeInfo)
+
+        return result
+
 
 class FichaJugador(FichaPersona):
     FICHAPREF = "Jug"
@@ -509,26 +528,8 @@ class FichaJugador(FichaPersona):
     #             CAMBIOSJUGADORES[self.id].update(changeInfo)
     #
     #     return result
-    #
-    # def actualizaFromPlantilla(self, datosFichaPlantilla: Optional[dict] = None, idClub: Optional[str] = None):
-    #     if datosFichaPlantilla is None:
-    #         return False
-    #     datosFichaPlantilla = adaptaDatosFichaPlantilla(datosFichaPlantilla, idClub)
-    #
-    #     result = False
-    #     changeInfo = {}
-    #
-    #     result |= self.addAtributosQueFaltan()
-    #
-    #     result |= self.updateFichaJugadorFromDownloadedData(changeInfo, datosFichaPlantilla)
-    #
-    #     if result:
-    #         self.timestamp = datosFichaPlantilla.get('timestamp', getUTC())
-    #         if changeInfo:
-    #             CAMBIOSJUGADORES[self.id].update(changeInfo)
-    #
-    #     return result
-    #
+
+
     # def updateFichaJugadorFromDownloadedData(self, changeInfo, newData):
     #     result = False
     #     # No hay necesidad de poner la URL en el informe
