@@ -18,7 +18,7 @@ from Utils.ProcessMDparts import procesaMDcalFl2calendarIDs, procesaMDcalTeams2I
 from Utils.Web import prepareDownloading, tagAttrHasValue, generaURLEstadsPartido, logger, extractPagDataScripts
 from .Constants import REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada, infoJornada, LocalVisitante, OtherLoc, DEFTZ
 
-calendario_URLBASE = 'https://www.acb.com/es/calendario'
+calendario_URLBASE = 'https://www.acb.com/es/liga/calendario'
 
 # https://www.acb.com/calendario/index/temporada_id/2018
 # https://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
@@ -64,12 +64,13 @@ class CalendarioACB:
             self.url = content.source
         calendarioData: bs4.element.Tag = content.data
 
-        reRound = re.compile(r"^Round_round___")
-        reRoundTitle = re.compile(r"^RoundTitle_roundTitle__")
+        reRound = re.compile(r"^Round-module-scss-module__(.*)__round")
+        reRoundTitle = re.compile(r"^RoundTitle-module-scss-module__-(.*)__roundTitle")
         jornadasCurrCal = set()
 
         for divJ in calendarioData.find_all("div", {"class": reRound}):  # ,
-            datosCab = procesaCab(divJ.find("div", {'class': reRoundTitle}))
+            divCab = divJ.find("div", {'class': reRoundTitle})
+            datosCab = procesaCab(divCab)
             if datosCab is None:
                 continue
 
@@ -220,7 +221,7 @@ class CalendarioACB:
         resultado['cod_competicion'] = self.competicion
         resultado['cod_edicion'] = self.edicion
 
-        reHoraPart = re.compile('^RoundMatch_roundMatch__time__')
+        reHoraPart = re.compile('^RoundMatch-module-scss-module__(.*)__roundMatch__time')
         divHoraPart = divPartido.find('div', {'class': reHoraPart})
         if divHoraPart and not isSkeleton(divHoraPart):
             try:
@@ -231,7 +232,7 @@ class CalendarioACB:
                 traceback.print_tb(sys.exc_info()[2])
                 resultado['fechaPartido'] = datosJornada['fechaParts']
 
-        reDatosEquiposPartido = re.compile(r"^RoundMatch_roundMatch__teams__")
+        reDatosEquiposPartido = re.compile(r"^RoundMatch-module-scss-module__(.*)__roundMatch__teams")
         auxDatosEqs = divPartido.find('div', {'class': reDatosEquiposPartido})
         if not auxDatosEqs:
             raise ValueError(f"Partido sin equipos!\n{divPartido.prettify()}")
@@ -356,6 +357,7 @@ def procesaCab(cab: bs4.element.Tag) -> Optional[Dict]:
     :param cab: div que contiene la cabecera COMPLETA
     :return:  {'comp': 'Liga Endesa', 'yini': '2018', 'yfin': '2019', 'jor': '46'}
     """
+
     if isSkeleton(cab):
         return None
     nombreJornada = cab.getText()
@@ -506,16 +508,16 @@ def composeURLcalendario(currURL: str = calendario_URLBASE, targComp: str = None
     return result
 
 
-# Expresiones regulares de class (CSS) para parseo de páginas
-reDatosEq = re.compile(r'^RoundMatch_roundMatch__(home|away)Team__')
-reDatosEqLink = re.compile(r'^RoundMatch_roundMatch__teamLink___')
-reDatosEqLinkLogo = re.compile(r'^RoundMatch_roundMatch__teamLogoLink__')
+# Expresiones regulares de class (CSS) para parseo de páginas #RoundMatch-module-scss-module__q1UjKa__roundMatch__homeTeam
+reDatosEq = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__(home|away)Team')
+reDatosEqLink = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__teamLink')
+reDatosEqLinkLogo = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__teamLogo')
 
-reDatosEqLinkName = re.compile(r'^RoundMatch_roundMatch__teamName--fullName__')
-reDatosEqLinkAbrev = re.compile(r'^RoundMatch_roundMatch__teamName--shortName__')
-reDatosEqPScore = re.compile(r'^RoundMatch_roundMatch__teamScore__')
+reDatosEqLinkName = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__teamName--fullName')
+reDatosEqLinkAbrev = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__teamName--shortName')
+reDatosEqPScore = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__teamScore')
 
-rePartidoEnlaces = re.compile(r'^RoundMatch_roundMatch__links__')
+rePartidoEnlaces = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__links')
 
 CAMPOSDEEQUIPOAMOVER = ['nombcorto', 'id']
 
