@@ -113,6 +113,9 @@ def vuelcaListaParcial(url: str, data: dict, args: Namespace, salida: TextIO):
 
 def muestraDatos(datos: dict, args: Namespace, salida: TextIO):
     for url, data in datos.items():
+        if args.allGames:
+            vuelcaListaCompleta(url, data, salida)
+            continue
         if not hayJugadasDesc(data):
             continue
         if args.all:
@@ -163,6 +166,9 @@ def parse_arguments() -> Namespace:
 
     parser.add('-a', '--all', dest='all', action="store_true", required=False,
                help="Muestra todas las jugadas")
+    parser.add('-g', '--all-games', dest='allGames', action="store_true", required=False,
+               help="Muestra todas las jugadas")
+
     parser.add('-c', '--context', dest='context', type=int, action="store", required=False, default=4,
                help="Numero de líneas a mostrar rodeando a la de interés C lineas + LI + C lineas")
 
