@@ -489,7 +489,7 @@ def dictK2partStr(cal: CalendarioACB, partK: str) -> str:
 def composeURLcalendario(currURL: str = calendario_URLBASE, targComp: str = None, targTemp=None,
                          ) -> str:
     if embeddedDataTemporadas is None:
-        raise ValueError("composeURLcalendario: necesito informacion para filtros")
+        raise ValueError("composeURLcalendario: necesita informacion para filtros")
 
     if targTemp is None:
         targTemp = embeddedDataTemporadas['currFilters']['seaYear']
