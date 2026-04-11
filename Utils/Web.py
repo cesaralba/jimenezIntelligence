@@ -2,15 +2,18 @@ import ast
 import logging
 import re
 from collections import namedtuple
+from copy import copy
 from pprint import pprint
 from re import Pattern
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
+from urllib.parse import urlsplit, ParseResult, urlparse, parse_qs, urlunparse, urlencode
 
 import bs4.element
 import json5
 from CAPcore.Misc import listize
 from CAPcore.Web import createBrowser, mergeURL, DownloadedPage
 from configargparse import Namespace
+from unidecode import unidecode
 
 # https://effbot.org/zone/default-values.htm#what-to-do-instead
 sentinel = object()
@@ -32,6 +35,38 @@ def getObjID(objURL, clave='id', defaultresult=sentinel):
     return defaultresult
 
 
+def getIDfromEncURL(objURL, defaultresult=sentinel, suf2ignore=sentinel):
+    if suf2ignore is sentinel:
+        suf2ignore = {}
+    partsURLpath = urlsplit(url=objURL).path.split('/')
+
+    comp2treat = getLastUsefulComp(partsURLpath, suf2ignore)
+
+    if comp2treat:
+        result = comp2treat.split('-')[-1]
+        return result
+
+    if defaultresult is sentinel:
+        excStr = f" Excl: {','.join(sorted(map(lambda s: f"'{s}'", suf2ignore)))}" if suf2ignore else ""
+        raise ValueError(f"getObjID '{objURL}' no tiene path util.{excStr}")
+
+    return defaultresult
+
+
+def getLastUsefulComp(compList: List[str], suf2ignore=sentinel) -> Optional[str]:
+    if not compList:
+        return None
+
+    if suf2ignore is sentinel:
+        return compList[-1]
+
+    for comp in reversed(compList):
+        if comp not in suf2ignore:
+            return comp
+
+    return None
+
+
 def prepareDownloading(browser, config, urlRef: Optional[str] = None):
     """
     Prepara las variables para el BeautifulSoup si no está y descarga una página si se provee
@@ -49,32 +84,6 @@ def prepareDownloading(browser, config, urlRef: Optional[str] = None):
         if urlRef:
             browser.open(urlRef)
     return browser, config
-
-
-def generaURLPlantilla(plantilla, urlRef: str):
-    # https://www.acb.com/club/plantilla/id/6/temporada_id/2016
-    params = ['/club', 'plantilla', 'id', plantilla.id]
-    if plantilla.edicion is not None:
-        params += ['temporada_id', plantilla.edicion]
-
-    urlSTR = "/".join(params)
-
-    result = mergeURL(urlRef, urlSTR)
-
-    return result
-
-
-def generaURLClubes(edicion: Optional[str] = None, urlRef: str = None):
-    # https://www.acb.com/club/index/temporada_id/2015
-    params = ['/club', 'index']
-    if edicion is not None:
-        params += ['temporada_id', edicion]
-
-    urlSTR = "/".join(params)
-
-    result = mergeURL(urlRef, urlSTR)
-
-    return result
 
 
 def generaURLEstadsPartido(partidoId, urlRef: str = None):
@@ -131,7 +140,7 @@ def extractPagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dic
         try:
             firstEval = ast.literal_eval(reWrapper.group(1))
         except SyntaxError:
-            logging.exception("No scanea Eval: %s", scr.prettify())
+            logger.exception("No scanea Eval: %s", scr.prettify())
             continue
 
         patForcedict = r"^\s*([^:]+)\s*:\s*(.*)\s*$"
@@ -144,7 +153,7 @@ def extractPagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dic
         try:
             jsonParsed = json5.loads(dictForced)
         except Exception:
-            logging.exception("No scanea json: %s", scr.prettify())
+            logger.exception("No scanea json: %s", scr.prettify())
             continue
 
         auxList.append(jsonParsed)
@@ -160,5 +169,30 @@ def extractPagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dic
             logging.error("Clave #%s# ya existe en resultado:\n%s", clave, pprint(result[clave]))
             continue
         result.update(auxHash)
+
+    return result
+
+
+def generaCompParaURL(nombreEnt: str, idEnt: str):
+    auxList = re.split(r'\s+', nombreEnt.strip())
+    auxList.append(idEnt)
+    # https://stackoverflow.com/a/19769972
+    # https://pypi.org/project/Unidecode/
+    result = unidecode('-'.join(auxList)).lower()
+
+    return result
+
+
+def generaURLACB(urlComps: List[str], urlRef: str, urlParams: Optional[Dict[str, str]] = None):
+    auxParams: dict[Any, Any] = {} if (urlParams is None) else urlParams
+
+    urlPath = "/".join(urlComps)
+    compsCurr: ParseResult = urlparse(urlRef)
+    infoParams = parse_qs(compsCurr.query)
+    desiredParams = copy(infoParams)
+    desiredParams.update(auxParams)
+    result = urlunparse(
+        ParseResult(scheme=compsCurr.scheme, netloc=compsCurr.netloc, path=urlPath, params=compsCurr.params,
+                    query=urlencode(desiredParams), fragment=compsCurr.fragment))
 
     return result

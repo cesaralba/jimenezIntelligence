@@ -508,7 +508,7 @@ def composeURLcalendario(currURL: str = calendario_URLBASE, targComp: str = None
     return result
 
 
-# Expresiones regulares de class (CSS) para parseo de páginas #RoundMatch-module-scss-module__q1UjKa__roundMatch__homeTeam
+# Expresiones regulares de class (CSS) para parseo de páginas 
 reDatosEq = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__(home|away)Team')
 reDatosEqLink = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__teamLink')
 reDatosEqLinkLogo = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__teamLogo')
@@ -588,3 +588,11 @@ def procesaEnlacesPartido(divPartido: bs4.Tag) -> dict:
         result[clase] = dest
 
     return result
+
+
+def getURLparamTemporada(edicion: str | None) -> dict[str, Any] | dict[Any, Any]:
+    if embeddedDataTemporadas is None:
+        raise ValueError('SMACB.CalendarioACB.embeddedDataTemporadas no disponible')
+
+    urlParams = {'editionId': embeddedDataTemporadas['seaYear2seaId'][edicion]} if edicion is not None else {}
+    return urlParams

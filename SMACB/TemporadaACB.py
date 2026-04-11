@@ -23,13 +23,13 @@ from CAPcore.Web import mergeURL
 from requests import HTTPError
 
 from Utils.FechaHora import fechaParametro2pddatetime
-from Utils.Web import prepareDownloading, browserConfigData
+from Utils.Web import prepareDownloading, browserConfigData, generaCompParaURL
 from .CalendarioACB import calendario_URLBASE, CalendarioACB
 from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEqCalendario, infoPartLV, infoSigPartido,
                         LocalVisitante, OtherLoc, OtherTeam, infoJornada, URL_BASE, )
 from .FichaJugador import FichaJugador, CAMBIOSJUGADORES
 from .PartidoACB import PartidoACB
-from .PlantillaACB import descargaPlantillasCabecera, PlantillaACB, CAMBIOSCLUB, CambiosPlantillaTipo
+from .PlantillaACB import idPlantillasCabecera, PlantillaACB, CAMBIOSCLUB, CambiosPlantillaTipo
 from .TemporadaEstads import auxCalculaEstadsSubDataframe
 
 logger = logging.getLogger()
@@ -252,7 +252,7 @@ class TemporadaACB:
                 if self.descargaFichas:
                     try:
                         if codJ not in JUGADORESDESCARGADOS:
-                            urlJug = mergeURL(URL_BASE, datosJug['linkPersona'])
+                            urlJug = mergeURL(URL_BASE, generaCompParaURL(datosJug['nombre'], datosJug['codigo']))
                             nuevaFicha = FichaJugador.fromURL(urlJug, datosPartido=datosJug,
                                                               home=browser.get_url(), browser=browser, config=config)
                             self.fichaJugadores[codJ] = nuevaFicha
@@ -276,7 +276,7 @@ class TemporadaACB:
             elif self.descargaFichas and (refrescaFichas or (not hasattr(self.fichaJugadores[codJ], 'sinDatos')) or (
                     self.fichaJugadores[codJ].sinDatos is None) or self.fichaJugadores[codJ].sinDatos):
                 if codJ not in JUGADORESDESCARGADOS:
-                    urlJugAux = mergeURL(URL_BASE, datosJug['linkPersona'])
+                    urlJugAux = mergeURL(URL_BASE, generaCompParaURL(datosJug['nombre'], datosJug['codigo']))
                     if urlJugAux != self.fichaJugadores[codJ].URL:
                         self.fichaJugadores[codJ].URL = urlJugAux
                         self.changed = True
@@ -296,8 +296,8 @@ class TemporadaACB:
 
         browser, config = prepareDownloading(browser, config, calendario_URLBASE)
         logger.info("%s Actualizando plantillas", self)
-        datosPlantillas = descargaPlantillasCabecera(browser, config)
-        for p_id in datosPlantillas:
+
+        for p_id in idPlantillasCabecera():
             if p_id not in self.plantillas:
                 self.plantillas[p_id] = PlantillaACB(p_id, edicion=self.edicion)
 

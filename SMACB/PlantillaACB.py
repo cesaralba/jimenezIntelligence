@@ -1,7 +1,7 @@
 import logging
 from collections import defaultdict
 from time import gmtime
-from typing import Dict, NamedTuple
+from typing import Dict, NamedTuple, Optional
 
 import bs4
 from CAPcore.DictLoggedDict import DictOfLoggedDict, DictOfLoggedDictDiff
@@ -9,8 +9,10 @@ from CAPcore.LoggedDict import LoggedDict, LoggedDictDiff
 from CAPcore.Misc import onlySetElement
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
+import SMACB.CalendarioACB as SMACBcal
 from Utils.ParseoData import extractPlantillaInfoDiv
-from Utils.Web import getObjID, generaURLPlantilla, generaURLClubes, prepareDownloading
+from Utils.Web import getObjID, prepareDownloading, generaURLACB, generaCompParaURL
+from .CalendarioACB import getURLparamTemporada
 from .Constants import URL_BASE, URLIMG2IGNORE
 
 logger = logging.getLogger()
@@ -285,38 +287,38 @@ def encuentraUltEdicion(plantDesc: DownloadedPage):
     return result
 
 
-def descargaPlantillasCabecera(browser=None, config=None, edicion=None, listaIDs=None):
-    """
-    Descarga los contenidos de las plantillas y los procesa. Servirá para alimentar las plantillas de TemporadaACB
-    :param browser:
-    :param config:
-    :param edicion:
-    :param listaIDs: IDs to be considered
-    :return:
-    """
-    browser, config = prepareDownloading(browser, config)
+def idPlantillasCabecera():
 
-    if listaIDs is None:
-        listaIDs = []
+    if SMACBcal.embeddedDataEquipos is None:
+        raise ValueError('SMACB.CalendarioACB.embeddedDataEquipos no disponible')
 
-    result = set()
+    result = set(SMACBcal.embeddedDataEquipos['eqData'].keys())
+    return result
 
-    urlClubes = generaURLClubes(edicion, URL_BASE)
-    paginaRaiz = downloadPage(dest=urlClubes, browser=browser, config=config)
 
-    if paginaRaiz is None:
-        raise ConnectionError(f"Incapaz de descargar {urlClubes}")
+def generaURLPlantilla(plantilla: PlantillaACB, urlRef: Optional[str] = None):
+    # https://www.acb.com/es/liga/equipos/baxi-manresa-10?editionId=87
+    if urlRef is None:
+        urlRef = SMACBcal.calendario_URLBASE
 
-    raizData = paginaRaiz.data
-    divLogos = raizData.find('section', {'class': 'contenedora_clubes'})
+    urlPathItems = ['', 'es', 'liga', 'equipos']
+    infoEquipo = generaCompParaURL(nombreEnt=plantilla.club['nombreActual'], idEnt=plantilla.id)
+    urlPathItems.append(infoEquipo)
+    urlParamsEdic = getURLparamTemporada(plantilla.edicion)
 
-    for artLink in divLogos.find_all('article'):
-        eqLink = artLink.find('div').find('a')
-        urlLink = eqLink['href']
-        urlFull = mergeURL(browser.get_url(), urlLink)
+    result = generaURLACB(urlComps=urlPathItems, urlRef=urlRef, urlParams=urlParamsEdic)
 
-        idEq = getObjID(objURL=urlFull, clave='id')
+    return result
 
-        result.add(idEq)
+
+def generaURLClubesPortada(edicion: Optional[str] = None, urlRef: str = None):
+    # https://www.acb.com/es/liga/equipos?editionId=88
+
+    if urlRef is None:
+        urlRef = SMACBcal.calendario_URLBASE
+    urlComps = ['', 'es', 'liga', 'equipos']
+    urlParams = getURLparamTemporada(edicion)
+
+    result = generaURLACB(urlComps=urlComps, urlRef=urlRef, urlParams=urlParams)
 
     return result

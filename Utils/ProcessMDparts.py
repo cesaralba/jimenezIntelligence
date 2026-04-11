@@ -1,11 +1,11 @@
 import logging
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional, List, Tuple, Any
 
 import pandas as pd
 from CAPcore.Misc import copyDictWithTranslation
 
 from SMACB.Constants import LocalVisitante, OtherLoc, numPartidoPO2jornada, infoJornada
-from Utils.ParseoData import ProcesaTiempo
+from Utils.ParseoData import ProcesaTiempo, parseFecha, parseaAltura
 
 LV2HA = {'Local': 'home', 'Visitante': 'away'}
 HA2LV = {'home': 'Local', 'away': 'Visitante'}
@@ -552,3 +552,39 @@ def procesaMDresDatosPartido(rawData: dict) -> Optional[Dict[str, Dict]]:
         return resultado
 
     return None
+
+
+def procesaMDfichJugPlayData(rawData: dict) -> Dict[str, Any]:
+    result = {}
+    result['sinDatos'] = False
+
+    jugData = list(rawData.values())[0][3]['playerData']
+    scJugData: Dict[str, Any] = jugData['playerData']
+
+    CLASSROOT2KEYS = {'nationality': 'nacionalidad', 'licensing': 'licencia', 'pronunciationUrl': 'audioURL',
+                      'birthPlace': 'NacLugar', 'birthCountry': 'NacPais', }
+    CLASSROOTEXCL = {'player', 'birthDate', 'height', 'youtube', 'instagram', 'twitter', 'facebook', 'tiktok',
+                     'currentTeam', 'playerNumber', 'isLicenseActive'}
+    CLASSPLAYER2KEYS = {'firstInitialAndLastName': 'alias', 'nickname': 'nombre', 'gameRole': 'posicion',
+                        'shirtNumber': 'dorsal'}
+    CLASSPLAYEREXCL = {'id', 'headshotImageUrl', 'headshotImageNoBackgroundUrl', 'headshotImageAlt', 'fullBodyImageUrl',
+                       'fullBodyImageNoBackgroundUrl', 'isLicenseActive', 'editionId'}
+    dataFromRootClass = copyDictWithTranslation(scJugData, translation=CLASSROOT2KEYS, excludes=CLASSROOTEXCL)
+    dataFromRootClass['lugarNac'] = f"{scJugData['birthPlace']}, {scJugData['birthCountry']}"
+    dataFromRootClass['fechaNac'] = parseFecha(scJugData['birthDate'])
+    dataFromRootClass['altura'] = parseaAltura(scJugData['height'])
+
+    result.update(dataFromRootClass)
+
+    scPlayer: Dict[str, Any] = scJugData['player']
+    scPlayer['nombresConocidos'] = {scPlayer['firstInitialAndLastName'], scPlayer['nickname']}
+    scPlayer['fotos'] = {scPlayer['headshotImageUrl'], scPlayer['fullBodyImageUrl']}
+
+    dataFromPlayer = copyDictWithTranslation(scPlayer, translation=CLASSPLAYER2KEYS, excludes=CLASSPLAYEREXCL)
+
+    result.update(dataFromPlayer)
+
+    scClub: Dict[str, Any] = scJugData['currentTeam']
+    result['ultClub'] = str(scClub['clubId'])
+
+    return result

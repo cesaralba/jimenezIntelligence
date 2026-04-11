@@ -1,17 +1,16 @@
 import logging
 from collections import defaultdict
 from time import gmtime
-from typing import Optional
+from typing import Optional, Dict, Any
 
-import bs4
 from CAPcore.Misc import copyDictWithTranslation
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 from requests import HTTPError
 
 from SMACB.Constants import URLIMG2IGNORE, CLAVESFICHAJUGADOR, CLAVESDICT, TRADPOSICION, POSABREV2NOMBRE, URL_BASE
 from SMACB.PartidoACB import PartidoACB
-from Utils.ParseoData import findLocucionNombre, procesaCosasUtilesPlantilla
-from Utils.Web import getObjID, prepareDownloading
+from Utils.ProcessMDparts import procesaMDfichJugPlayData
+from Utils.Web import prepareDownloading, getIDfromEncURL, extractPagDataScripts, generaCompParaURL
 
 CAMBIOSJUGADORES = defaultdict(dict)
 
@@ -100,7 +99,7 @@ class FichaJugador:
 
         fichaJug = {'id': idJugador}
         if 'linkPersona' in datosPartido:
-            fichaJug['URL'] = mergeURL(URL_BASE, datosPartido['linkPersona'])
+            fichaJug['URL'] = mergeURL(URL_BASE, generaCompParaURL(datosPartido['nombre'], datosPartido['codigo']))
         fichaJug.update(kwargs)
 
         auxDatosPartido = copyDictWithTranslation(source=datosPartido, translation=TRFICHAJUG, excludes=EXFICHAJUG)
@@ -141,7 +140,6 @@ class FichaJugador:
         return FichaJugador(**newData)
 
     def actualizaFromWeb(self, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
-
         result = False
         changeInfo = {}
 
@@ -363,17 +361,11 @@ def descargaYparseaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=
 
         auxResult['URL'] = browser.get_url()
         auxResult['timestamp'] = fichaJug.timestamp
+        if 'id' not in auxResult:
+            auxResult['id'] = getIDfromEncURL(urlFicha, suf2ignore={'temporada', 'partidos'})
 
-        auxResult['id'] = getObjID(urlFicha, 'ver')
-
-        fichaData: bs4.BeautifulSoup = fichaJug.data
-
-        cosasUtiles: Optional[bs4.BeautifulSoup] = fichaData.find(name='div', attrs={'class': 'datos'})
-
-        if cosasUtiles is not None:
-            auxResult.update(procesaCosasUtilesPlantilla(data=cosasUtiles, urlRef=auxResult['URL']))
-
-        auxResult.update(findLocucionNombre(data=fichaData))
+        infoMetadata: Dict[str, Any] = procesaMDfichJugPlayData(extractPagDataScripts(fichaJug, 'playerData'))
+        auxResult.update(infoMetadata)
 
     except HTTPError:
         logging.exception("descargaYparseaURLficha: problemas descargando '%s'", urlFicha)
