@@ -14,7 +14,7 @@ from CAPcore.Misc import listize, onlySetElement
 from CAPcore.Web import downloadPage, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif, procesaFechaJornada
-from Utils.ProcessMDparts import procesaMDcalFl2calendarIDs, procesaMDcalTeams2InfoEqs, processMDcalFl2Info
+from Utils.ProcessMDparts import procesaMDcalFl2calendarIDs, procesaMDcalTeams2InfoEqs, procesaMDcalFl2Info
 from Utils.Web import prepareDownloading, tagAttrHasValue, generaURLEstadsPartido, logger, extractPagDataScripts
 from .Constants import REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada, infoJornada, LocalVisitante, OtherLoc, DEFTZ
 
@@ -150,7 +150,7 @@ class CalendarioACB:
             self.url = composeURLcalendario(self.urlbase, targComp=self.competicion, targTemp=self.edicion)
             if (self.edicion == currYear) and (self.competicion == currComp):
                 embeddedDataEquipos = procesaMDcalTeams2InfoEqs(avFilters)
-                embeddedDataCalendario = processMDcalFl2Info(avFilters, embeddedDataEquipos)
+                embeddedDataCalendario = procesaMDcalFl2Info(avFilters, embeddedDataEquipos)
                 for embData in embeddedDataEquipos['eqData'].values():
                     self.nuevaTraduccionEquipo2Codigo([embData['nomblargo'], embData['nombcorto']], embData['abrev'],
                                                       embData['id'])
@@ -166,7 +166,7 @@ class CalendarioACB:
         avFilters = extractPagDataScripts(result, 'availableFilters')
         embeddedDataTemporadas = procesaMDcalFl2calendarIDs(avFilters)
         embeddedDataEquipos = procesaMDcalTeams2InfoEqs(avFilters)
-        embeddedDataCalendario = processMDcalFl2Info(avFilters, embeddedDataEquipos)
+        embeddedDataCalendario = procesaMDcalFl2Info(avFilters, embeddedDataEquipos)
 
         for embData in embeddedDataEquipos['eqData'].values():
             self.nuevaTraduccionEquipo2Codigo([embData['nomblargo'], embData['nombcorto']], embData['abrev'],

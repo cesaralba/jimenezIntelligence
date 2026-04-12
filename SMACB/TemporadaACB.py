@@ -297,7 +297,7 @@ class TemporadaACB:
         browser, config = prepareDownloading(browser, config, calendario_URLBASE)
         logger.info("%s Actualizando plantillas", self)
 
-        for p_id in idPlantillasCabecera():
+        for p_id in sorted(idPlantillasCabecera(), key=int):
             if p_id not in self.plantillas:
                 self.plantillas[p_id] = PlantillaACB(p_id, edicion=self.edicion)
 

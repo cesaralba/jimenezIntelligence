@@ -5,7 +5,7 @@ from collections import namedtuple
 from copy import copy
 from pprint import pprint
 from re import Pattern
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, AnyStr
 from urllib.parse import urlsplit, ParseResult, urlparse, parse_qs, urlunparse, urlencode
 
 import bs4.element
@@ -194,5 +194,22 @@ def generaURLACB(urlComps: List[str], urlRef: str, urlParams: Optional[Dict[str,
     result = urlunparse(
         ParseResult(scheme=compsCurr.scheme, netloc=compsCurr.netloc, path=urlPath, params=compsCurr.params,
                     query=urlencode(desiredParams), fragment=compsCurr.fragment))
+
+    return result
+
+
+# Esto debe ir a CAPCORE
+def generaURLhijo(urlRef: str, cadHijo: AnyStr) -> AnyStr:
+    if cadHijo.startswith('/'):
+        return mergeURL(urlRef, cadHijo)
+
+    compsCurr: ParseResult = urlparse(urlRef)
+    currPath = compsCurr.path.split('/')
+    currPath.append(cadHijo)
+
+    urlPath = "/".join(currPath)
+    result = urlunparse(
+        ParseResult(scheme=compsCurr.scheme, netloc=compsCurr.netloc, path=urlPath, params=compsCurr.params,
+                    query=compsCurr.query, fragment=compsCurr.fragment))
 
     return result

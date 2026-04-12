@@ -148,7 +148,7 @@ def procesaMDcalTeams2InfoEqs(rawData: dict) -> Dict[str, Dict]:
     return result
 
 
-def processMDcalFl2Info(rawData: dict, infoMDequipos: dict) -> Dict[str, Dict]:
+def procesaMDcalFl2Info(rawData: dict, infoMDequipos: dict) -> Dict[str, Dict]:
     """
     Saca la información de calendario del script que lleva embebida la página del calendario
     :param rawData:
@@ -588,3 +588,18 @@ def procesaMDfichJugPlayData(rawData: dict) -> Dict[str, Any]:
     result['ultClub'] = str(scClub['clubId'])
 
     return result
+
+
+def procesaMDplantRaizClubData(rawData: dict) -> Dict[str, Any]:
+    result = {}
+
+    clubData = list(rawData.values())[0][3]['clubData']
+
+    clubInfo = copyDictWithTranslation(clubData['club'],
+                                       excludes={'team', 'stadiumPhotoUrl', 'stadiumAddress', 'contactPhone',
+                                                 'contactEmail', 'rosterPhotoUrl', 'webUrl', 'ticketingUrl',
+                                                 'merchanUrl', 'instagramUrl', 'twitterUrl', 'facebookUrl',
+                                                 'youtubeUrl', 'tikTokUrl', 'validated'})
+    result.update(clubInfo)
+
+    return clubInfo

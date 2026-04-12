@@ -11,7 +11,7 @@ from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 
 import SMACB.CalendarioACB as SMACBcal
 from Utils.ParseoData import extractPlantillaInfoDiv
-from Utils.Web import getObjID, prepareDownloading, generaURLACB, generaCompParaURL
+from Utils.Web import getObjID, prepareDownloading, generaURLACB, generaCompParaURL, extractPagDataScripts
 from .CalendarioACB import getURLparamTemporada
 from .Constants import URL_BASE, URLIMG2IGNORE
 
@@ -58,7 +58,7 @@ class PlantillaACB():
                 result |= True
             logger.info("descargaYactualizaPlantilla. [%s] '%s' (%s) URL %s", self.id,
                         self.club.get('nombreActual', 'Desconocido'), self.edicion, self.URL)
-            data = descargaURLplantilla(self.URL, home, browser, config)
+            data = descargaPlantilla(self.URL, home, browser, config)
         except Exception:
             logging.exception(
                 "Something happened updating record of '%s' ", self.club)
@@ -143,17 +143,17 @@ class PlantillaACB():
     __repr__ = __str__
 
 
-def descargaURLplantilla(urlPlantilla, home=None, browser=None, config=None):
+def descargaPlantilla(urlPlantilla, home=None, browser=None, config=None):
     browser, config = prepareDownloading(browser, config)
 
     try:
-        logging.debug("descargaURLplantilla: downloading %s", urlPlantilla)
+        logging.debug("descargaPlantilla: downloading %s", urlPlantilla)
         pagPlant = downloadPage(urlPlantilla, home=home, browser=browser, config=config)
-
-        result = procesaPlantillaDescargada(pagPlant)
+        result = {}
         result['URL'] = browser.get_url()
         result['timestamp'] = gmtime()
-        result['edicion'] = encuentraUltEdicion(pagPlant)
+        result.update(procesaPlantillaDescargada(pagPlant))
+
     except Exception as exc:
         print(f"descargaYparseaURLficha: problemas descargando '{urlPlantilla}': {exc}")
         raise exc
@@ -177,6 +177,8 @@ def procesaPlantillaDescargada(plantDesc: DownloadedPage):
     :param otrosNombres: diccionario ID->set de nombres
     :return:
     """
+
+    embData = extractPagDataScripts(plantDesc, keyword='clubData')
     class2clave = {'nombre_largo': 'nombre', 'nombre_corto': 'alias'}
     result = {'jugadores': {}, 'tecnicos': {}, 'club': extraeDatosClub(plantDesc)}
 
@@ -288,7 +290,6 @@ def encuentraUltEdicion(plantDesc: DownloadedPage):
 
 
 def idPlantillasCabecera():
-
     if SMACBcal.embeddedDataEquipos is None:
         raise ValueError('SMACB.CalendarioACB.embeddedDataEquipos no disponible')
 
