@@ -4,13 +4,12 @@ import sys
 import traceback
 from collections import defaultdict
 from copy import copy
-from time import gmtime
 from typing import Set, Optional, Dict, Any
 from urllib.parse import urlparse, urlunparse, parse_qs, ParseResult, urlencode
 
 import bs4.element
 import pandas as pd
-from CAPcore.Misc import listize, onlySetElement
+from CAPcore.Misc import listize, onlySetElement, getUTC
 from CAPcore.Web import downloadPage, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif, procesaFechaJornada
@@ -20,8 +19,6 @@ from .Constants import REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada, infoJorna
 
 calendario_URLBASE = 'https://www.acb.com/es/calendario'
 
-# https://www.acb.com/calendario/index/temporada_id/2018
-# https://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
 template_CALENDARIOYEAR = "https://www.acb.com/calendario/index/temporada_id/{year}"
 template_PARTIDOSEQUIPO = "https://www.acb.com/club/partidos/id/{idequipo}"
 
@@ -40,7 +37,7 @@ JORNADASCOMPLETAS: Optional[Set] = None
 class CalendarioACB:
 
     def __init__(self, urlbase=calendario_URLBASE, **kwargs):
-        self.timestamp = gmtime()
+        self.timestamp = getUTC()
         self.competicion = kwargs.get('competicion', "LACB")
         self.nombresCompeticion = defaultdict(int)
         self.edicion = kwargs.get('edicion')
@@ -204,9 +201,9 @@ class CalendarioACB:
                         if nuevaFecha:
                             datosPart['fechaPartido'] = nuevaFecha
                     result['pendientes'].append(datosPart)
-                else:
-                    self.Partidos[datosPart['url']] = datosPart
-                    result['partidos'].append(datosPart)
+                    continue
+                self.Partidos[datosPart['url']] = datosPart
+                result['partidos'].append(datosPart)
 
         result['numPartidos'] = len(result['partidos']) + len(result['pendientes'])
         return result
@@ -241,6 +238,7 @@ class CalendarioACB:
         resultado['loc2abrev'] = {loc: datosPartEqs[loc]['abrev'] for loc in LocalVisitante}
         resultado['abrev2loc'] = {datosPartEqs[loc]['abrev']: loc for loc in LocalVisitante}
         resultado['participantes'] = {datosPartEqs[loc]['abrev'] for loc in LocalVisitante}
+        resultado['participantesId'] = {datosPartEqs[loc]['id'] for loc in LocalVisitante}
         resultado['claveEmparejamiento'] = self.idGrupoEquiposNorm(resultado['participantes'])
 
         datosMD = embeddedDataCalendario[resultado['jornada']]['partidos'][resultado['claveEmparejamiento']]

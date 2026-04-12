@@ -10,9 +10,10 @@ from configargparse import ArgumentParser, Namespace
 
 import SMACB.TemporadaACB as ACBTemp
 from SMACB.CalendarioACB import calendario_URLBASE
-from SMACB.DiferenciasTrasDescargaTemp import resumenCambioJugadores, resumenNuevosPartidos, resumenCambioClubes, \
-    resumenCambiosCalendario
-from SMACB.TemporadaACB import TemporadaACB, CAMBIOSJUGADORES, CAMBIOSCLUB
+from SMACB.DiferenciasTrasDescargaTemp import resumenNuevosPartidos, resumenCambiosCalendario, resumenCambioClubes, \
+    resumenCambioEntrenadores, resumenCambioJugadores
+from SMACB.TemporadaACB import TemporadaACB, CAMBIOSCLUB, CAMBIOSENTRENADORES, CAMBIOSJUGADORES
+from Utils.ManageArgs import createArgs
 
 
 def parse_arguments() -> Namespace:
@@ -23,6 +24,8 @@ def parse_arguments() -> Namespace:
                default=False)
     parser.add('-j', dest='justone', action="store_true", env_var='SM_JUSTONE', required=False,
                help='Solo descarga un partido', default=False)
+    parser.add('-l', '--limit', dest='limit', action="store", env_var='SM_LIMIT', required=False, type=int,
+               help='Número máximo de partidos a descargar', default=0)
     parser.add('-f', dest='saveanyway', action="store_true", env_var='SM_SAVEANYWAY', required=False,
                help='Graba el fichero aunque no haya habido cambios', default=False)
     parser.add('-r', dest='refresh', action="store_true", env_var='SM_REFRESH', required=False,
@@ -56,23 +59,30 @@ def main(args: Namespace):
         parCompeticion = args.competicion
     else:
         paramsURL = extractGetParams(sourceURL)
-        parCompeticion = paramsURL['cod_competicion']
-        parEdicion = paramsURL['cod_edicion']
+        parCompeticion = paramsURL.get('cod_competicion', None)
+        parEdicion = paramsURL.get('cod_edicion', None)
 
     temporada = TemporadaACB(competicion=parCompeticion, edicion=parEdicion, urlbase=sourceURL)
-    ajustaInternalsTemporada(args, temporada)
+    finalArgs = procesaParamsTemporada(temporada, args)
 
-    nuevosPartidos = temporada.actualizaTemporada(browser=browser, config=args)
-    if nuevosPartidos or temporada.changed or args.saveanyway:
+    nuevosPartidos = temporada.actualizaTemporada(browser=browser, config=finalArgs)
+    if nuevosPartidos or temporada.changed or getattr(finalArgs, 'saveanyway'):
         sys.setrecursionlimit(50000)
-        if 'outfile' in args and args.outfile:
-            temporada.grabaTemporada(args.outfile)
+        if getattr(finalArgs, 'outfile'):
+            temporada.grabaTemporada(getattr(finalArgs, 'outfile'))
 
     if nuevosPartidos:
-        print(f"Partidos descargados\n{resumenNuevosPartidos(nuevosPartidos, temporada)}", "\n" * 2)
+        maxPartidosABajar = 1 if (args.justone and not args.limit) else args.limit
+        strNumPartidos = "s" if maxPartidosABajar > 1 else ""
+        limitStr = f" (limite: {maxPartidosABajar} partido{strNumPartidos})" if maxPartidosABajar else ""
+        print(f"Partidos descargados{limitStr}\n{resumenNuevosPartidos(nuevosPartidos, temporada)}", "\n" * 2)
 
     if CAMBIOSJUGADORES:
         print(f"Cambios en jugadores\n{resumenCambioJugadores(CAMBIOSJUGADORES, temporada=temporada)}", "\n" * 2)
+
+    if CAMBIOSENTRENADORES:
+        print(f"Cambios en entrenadores\n{resumenCambioEntrenadores(CAMBIOSENTRENADORES, temporada=temporada)}",
+              "\n" * 2)
 
     if CAMBIOSCLUB:
         print(f"Cambios en plantillas\n{resumenCambioClubes(CAMBIOSCLUB, temporada=temporada)}", "\n" * 2)
@@ -82,22 +92,26 @@ def main(args: Namespace):
               "\n" * 2)
 
 
-def ajustaInternalsTemporada(args, temporada):
-    if 'infile' in args and args.infile:
+def procesaParamsTemporada(temporada, args) -> Namespace:
+    if args.infile:
         temporada.cargaTemporada(args.infile)
-    if 'procesaBio' in args and args.procesaBio and not temporada.descargaFichas:
+    if args.procesaBio and not temporada.descargaFichas:
         temporada.descargaFichas = True
         temporada.changed = True
-    if 'procesaPlantilla' in args and args.procesaPlantilla and not temporada.descargaPlantillas:
+    if args.procesaPlantilla and not temporada.descargaPlantillas:
         temporada.descargaPlantillas = True
         temporada.changed = True
+
+    result = createArgs(args, temporada.getConfig())
+
+    return result
 
 
 def preparaLogs(args: Namespace):
     logger = logging.getLogger()
-    if args.debug:
+    if getattr(args, 'debug'):
         prepareLogger(logger=logger, level=logging.DEBUG)
-    elif args.verbose:
+    elif getattr(args, 'verbose'):
         prepareLogger(logger=logger, level=logging.INFO)
     else:
         prepareLogger(logger=logger)

@@ -1,19 +1,21 @@
 import logging
 import re
+from collections.abc import Iterable
 from compression import zstd
 from itertools import product
 from pickle import dumps
-from time import gmtime
 from traceback import print_exc
-from typing import Optional, Dict, Tuple, Union, List
+from typing import Optional, Dict, Tuple, Union, List, Any
 
 import numpy as np
 import pandas as pd
-from CAPcore.Misc import BadParameters, BadString, extractREGroups
+from CAPcore.Misc import BadParameters, BadString, extractREGroups, copyDictWithTranslation, getUTC, \
+    createDictFromGenerator, iterable2quotedString
 from CAPcore.Web import downloadPage, extractGetParams, DownloadedPage, mergeURL
 from babel.numbers import parse_number
 from bs4 import Tag
 
+import SMACB.FichaPersona as FP
 from Utils.BoWtraductor import RetocaNombreJugador
 from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
 from Utils.ParseoData import ProcesaTiempo
@@ -28,27 +30,31 @@ from .PlantillaACB import PlantillaACB
 templateURLficha = "https://www.acb.com/fichas/%s%i%03i.php"
 
 
-class PartidoACB():
+class PartidoACB:
 
     def __init__(self, **kwargs):
 
+        self.idPartido = kwargs.get('partido', None)
+        self.competicion = kwargs['cod_competicion']
+        self.edicion = kwargs['cod_edicion']
+
         self.jornada = None
         self.infoJornada: Optional[infoJornada] = None
-        self.fechaPartido = None
-        self.Pabellon = None
-        self.Asistencia = None
+        self.fechaPartido: Optional[pd.Timestamp] = None
+        self.Pabellon: Optional[str] = None
+        self.Asistencia: Optional[int] = None
         self.Arbitros = []
         self.ResultadosParciales = []
         self.prorrogas = 0
         self.timestamp = None
         self.esPlayoff: bool = False
 
-        self.Equipos = {x: {'Jugadores': []} for x in LocalVisitante}
+        self.Equipos = createDictFromGenerator(LocalVisitante, lambda: {'Jugadores': []})
 
         self.Jugadores = {}
         self.Entrenadores = {}
-        self.pendientes: Dict[str, List] = dict.fromkeys(LocalVisitante, [])
-        self.aprendidos: Dict[str, List] = dict.fromkeys(LocalVisitante, [])
+        self.pendientes: Dict[str, List] = createDictFromGenerator(LocalVisitante, list)
+        self.aprendidos: Dict[str, List] = createDictFromGenerator(LocalVisitante, list)
         self.metadataEnlaces: dict = kwargs.get('enlaces', {})
         self.availMD = {}
         self.metadataEmb = {}
@@ -62,10 +68,6 @@ class PartidoACB():
         self.DatosSuministrados = kwargs
 
         self.url = kwargs['url']
-
-        self.competicion = kwargs['cod_competicion']
-        self.temporada = kwargs['cod_edicion']
-        self.idPartido = kwargs.get('partido', None)
 
         for loc in LocalVisitante:
             self.Equipos[loc]['haGanado'] = self.ResultadoCalendario[loc] > self.ResultadoCalendario[OtherLoc(loc)]
@@ -83,11 +85,11 @@ class PartidoACB():
 
         self.procesaPartido(partidoPage)
 
-        self.descargaEmbMetadata(home=home, browser=browser, config=config)
+        # CAP: recuperar al final self.descargaEmbMetadata(home=home, browser=browser, config=config)
 
     def procesaPartido(self, content: DownloadedPage):
         raiser = False
-        self.timestamp = getattr(content, 'timestamp', gmtime())
+        self.timestamp = getattr(content, 'timestamp', getUTC())
 
         if 'source' in content:
             self.url = content.source
@@ -111,7 +113,7 @@ class PartidoACB():
         divParciales = tabDatosGenerales.find("div", {"class": "parciales_por_cuarto"})
         aux = divParciales.get_text().split("\xa0")
 
-        self.ResultadosParciales = [(int(x[0]), int(x[1])) for x in map(lambda x: x.split("|"), aux)]
+        self.ResultadosParciales = [(int(x) for x in r.split("|")) for r in aux]
 
         divCabecera = pagina.find("div", {"class": "contenedora_info_principal"})
         self.procesaDivCabecera(divCabecera)
@@ -139,7 +141,7 @@ class PartidoACB():
                         continue
 
                     if cachedTeam is None:
-                        cachedTeam = PlantillaACB(teamId=datosJug['IDequipo'], edicion=datosJug['temporada'])
+                        cachedTeam = PlantillaACB(teamId=datosJug['IDequipo'], edicion=datosJug['edicion'])
 
                     nombreRetoc = RetocaNombreJugador(datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug[
                         'nombre']
@@ -241,7 +243,7 @@ class PartidoACB():
             self.Equipos[loc]['abrev'] = abrev
 
     def procesaLineaTablaEstadistica(self, fila, headers, estado):
-        result = {'competicion': self.competicion, 'temporada': self.temporada, 'jornada': self.jornada,
+        result = {'competicion': self.competicion, 'edicion': self.edicion, 'jornada': self.jornada,
                   'equipo': self.Equipos[estado]['Nombre'], 'CODequipo': self.Equipos[estado]['abrev'],
                   'IDequipo': self.Equipos[estado]['id'], 'rival': self.Equipos[OtherLoc(estado)]['Nombre'],
                   'CODrival': self.Equipos[OtherLoc(estado)]['abrev'], 'IDrival': self.Equipos[OtherLoc(estado)]['id'],
@@ -291,6 +293,7 @@ class PartidoACB():
                 celNombre = mergedCells['Nombre']
                 result['nombre'] = celNombre.get_text()
                 result['linkPersona'] = (celdas[1].find("a"))['href']
+                result['urlPersona'] = mergeURL(self.url, result['linkPersona']).removesuffix('.html').replace(' ', '-')
                 result['codigo'] = getObjID(result['linkPersona'], 'ver', None)
         else:
             textoC0 = celdas[0].get_text()
@@ -302,6 +305,7 @@ class PartidoACB():
                 celNombre = celdas[1]
                 result['nombre'] = celNombre.get_text()
                 result['linkPersona'] = (celdas[1].find("a"))['href']
+                result['urlPersona'] = mergeURL(self.url, result['linkPersona']).removesuffix('.html').replace(' ', '-')
                 result['codigo'] = getObjID(result['linkPersona'], 'ver', None)
             else:  # 5f lista de 5 faltas
                 return None
@@ -366,7 +370,7 @@ class PartidoACB():
         return result
 
     def jugadoresAdataframe(self) -> pd.DataFrame:
-        typesDF = {'competicion': 'object', 'temporada': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
+        typesDF = {'competicion': 'object', 'edicion': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
                    'esTitular': 'bool', 'haJugado': 'bool', 'titular': 'category', 'haGanado': 'bool',
                    'enActa': 'bool', }
 
@@ -402,7 +406,7 @@ class PartidoACB():
 
     def partidoAdataframe(self) -> pd.DataFrame:
         infoCols = ['jornada', 'Pabellon', 'Asistencia', 'prorrogas', 'VictoriaLocal', 'url', 'competicion',
-                    'temporada', 'idPartido']
+                    'edicion', 'idPartido']
         equipoCols = ['id', 'Nombre', 'abrev']
 
         infoDict = {k: getattr(self, k) for k in infoCols}
@@ -462,6 +466,17 @@ class PartidoACB():
                 f"{self.EquiposCalendario['Local']['nomblargo']} ({self.CodigosCalendario['Local']}) "
                 f"{self.ResultadoCalendario['Local']:d} - {self.ResultadoCalendario['Visitante']:d} "
                 f"{self.EquiposCalendario['Visitante']['nomblargo']} ({self.CodigosCalendario['Visitante']})")
+
+    def haGanado(self, pers: FP.FichaPersona) -> bool:
+        persId: str = pers.persId
+        tipoPers: str = pers.tipoFicha
+
+        tablaAmirar = self.Jugadores if tipoPers == "jugador" else self.Entrenadores
+
+        if persId not in tablaAmirar:
+            raise KeyError(f"haGanado: {tipoPers} {pers.alias or pers.nombre} no ha jugado partido {self}")
+
+        return tablaAmirar[persId]['haGanado']
 
     def __str__(self):
         return self.resumenPartido()
@@ -595,23 +610,50 @@ class PartidoACB():
 
         self.metadataEmb = zstd.compress(dumps(resultado))
 
+    def generaPlantillaDummy(self, loc: str, plantillaActual: Optional[dict] = None) -> dict:
+        result = {'timestamp': self.fechaPartido.to_pydatetime(), 'edicion': self.edicion}
+
+        def generaPlantillaJugadores(idJugs: Iterable[str]) -> Dict[str, Dict[str, str]]:
+            funcResult = {}
+            for idJug in idJugs:
+                auxData: dict = persPartido2dictFicha(self.Jugadores[idJug])
+                auxData.update({'activo': True})
+                funcResult[idJug] = auxData
+
+            return funcResult
+
+        def generaPlantillaEntrenador(idEntr: str) -> Dict[str, Dict[str, str]]:
+            auxData: dict = persPartido2dictFicha(self.Entrenadores[idEntr])
+            auxData.update({'activo': True, 'dorsal': '1', 'nombre': self.Entrenadores[idEntr]['nombre']})
+            funcResult = {idEntr: auxData}
+
+            return funcResult
+
+        if loc not in LocalVisitante:
+            raise KeyError(f"Parametro 'loc' debe ser {iterable2quotedString(LocalVisitante)}. Actual: '{loc}'")
+
+        auxPlantilla = plantillaActual or createDictFromGenerator(['jugadores', 'tecnicos', 'club'], dict)
+        eqData = self.Equipos[loc]
+        result['jugadores'] = auxPlantilla['jugadores']
+        result['jugadores'].update(generaPlantillaJugadores(eqData['Jugadores']))
+        result['tecnicos'] = auxPlantilla['tecnicos']
+        result['tecnicos'].update(generaPlantillaEntrenador(eqData['Entrenador']))
+        result['club'] = auxPlantilla['club']
+        result['club'].update({'nombreActual': eqData['Nombre'], 'nombreOficial': eqData['Nombre']})
+
+        return result
+
 
 def auxJugador2dataframe(typesDF, jugador, fechaPartido):
-    dictJugador = {}
-    dictJugador['enActa'] = True
-    dictJugador['acta'] = 'S'
+    dictJugador = {'enActa': True, 'acta': 'S'}
 
     # Añade las estadísticas al resultado saltándose ciertas columnas no relevantes
-    for dato in jugador:
-        if dato in ['esJugador', 'entrenador', 'estads', 'estado']:
-            continue
-        dictJugador[dato] = jugador[dato]
+    dictJugador.update(copyDictWithTranslation(jugador, excludes=['esJugador', 'entrenador', 'estads', 'estado']))
 
     if jugador['haJugado']:
         # Añade campos sacados de la página ACB
-        for dato in jugador['estads']:
-            dictJugador[dato] = jugador['estads'][dato]
-            typesDF[dato] = 'float64'
+        dictJugador.update(jugador['estads'])
+        typesDF.update(dict.fromkeys(jugador['estads'], 'float64'))
 
         # Añade campos derivados
         dictJugador['TC-I'] = dictJugador['T2-I'] + dictJugador['T3-I']
@@ -761,3 +803,14 @@ def procesaBoxScore(urlBoxscore: Union[str, DownloadedPage], home=None, browser=
     resultado = {'boxscore': procesaMDboxscore(extractPagDataScripts(boxscorePage, 'initialStatistics')), }
 
     return resultado, boxscorePage
+
+
+def persPartido2dictFicha(dataPers: Dict[str, Any]) -> Dict[str, str]:
+    EXCLUDES = {'CODequipo', 'CODrival', 'IDequipo', 'IDrival', 'competicion', 'entrenador', 'equipo', 'esJugador',
+                'esLocal', 'esTitular', 'estado', 'estads', 'haGanado', 'haJugado', 'jornada', 'linkPersona', 'rival',
+                'edicion', 'url'}
+
+    TRCAMPOS = {'codigo': 'id', 'urlPersona': 'URL', 'nombre': 'alias', }
+
+    result = copyDictWithTranslation(dataPers, translation=TRCAMPOS, excludes=EXCLUDES)
+    return result

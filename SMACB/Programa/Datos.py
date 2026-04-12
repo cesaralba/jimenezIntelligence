@@ -390,7 +390,7 @@ def auxEquipoCalendario2InfoPartido(data) -> infoPartido:
 
 
 def extraeInfoTablaLiga(tempData: TemporadaACB):
-    resultado = {'jugados': [], 'pendientes': [], 'totales': {'Victoria': {loc: 0 for loc in LocalVisitante}}}
+    resultado = {'jugados': [], 'pendientes': [], 'totales': {'Victoria': dict.fromkeys(LocalVisitante,0) }}
 
     for data in tempData.Calendario.Jornadas.values():
         if data['esPlayoff']:

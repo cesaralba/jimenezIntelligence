@@ -1,7 +1,7 @@
 from itertools import product
-from time import strftime, gmtime
 from typing import List, Optional, Iterable, Any
 
+from CAPcore.Misc import getUTC
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT, TA_JUSTIFY
 from reportlab.lib.styles import ParagraphStyle
@@ -53,8 +53,8 @@ def cabeceraPortada(tempData: TemporadaACB, datosSig: infoSigPartido):
 
 def metadataPrograma(tempData: TemporadaACB):
     FORMATOfecha = "%Y-%m-%d %H:%M (%z)"
-    fechaGen = strftime(FORMATOfecha, gmtime())
-    tempDesc = strftime(FORMATOfecha, tempData.timestamp)
+    fechaGen = getUTC().strftime(FORMATOfecha)
+    tempDesc = tempData.timestamp.strftime(FORMATOfecha)
     mensaje = (f"Datos procedentes de https://www.acb.com y elaboración propia. Generado en {fechaGen}. Datos "
                f"descargados en {tempDesc}")
 
