@@ -10,9 +10,8 @@ from copy import copy
 from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
-from sys import exc_info, setrecursionlimit
+from sys import setrecursionlimit
 from time import gmtime, strftime
-from traceback import print_exception
 from typing import Any, Iterable, Dict, Tuple, List, Set
 from typing import Optional
 
@@ -29,7 +28,7 @@ from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEq
                         LocalVisitante, OtherLoc, OtherTeam, infoJornada, URL_BASE, )
 from .FichaJugador import FichaJugador, CAMBIOSJUGADORES
 from .PartidoACB import PartidoACB
-from .PlantillaACB import idPlantillasCabecera, PlantillaACB, CAMBIOSCLUB, CambiosPlantillaTipo
+from .PlantillaACB import PlantillaACB, CAMBIOSCLUB, CambiosPlantillaTipo, descargaPlantillasCabecera
 from .TemporadaEstads import auxCalculaEstadsSubDataframe
 
 logger = logging.getLogger()
@@ -132,26 +131,26 @@ class TemporadaACB:
 
         partidosBajados: Set[str] = set()
 
-        for partido in sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys()))):
-            try:
-                nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
-                nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
-                if nuevoPartido.check():
-                    self.Partidos[partido] = nuevoPartido
-                    partidosBajados.add(partido)
-                    self.actualizaInfoAuxiliar(nuevoPartido, browser, config)
-            except KeyboardInterrupt:
-                print("actualizaTemporada: Ejecución terminada por el usuario")
-                break
-            except BaseException:
-                print(f"actualizaTemporada: problemas descargando  partido '{partido}': {exc_info()}")
-                print_exception(*exc_info())
-
-            if 'justone' in config and config.justone:  # Just downloads a game (for testing/dev purposes)
-                break
-
-        self.changed |= (len(partidosBajados) > 0)
-        self.changed |= self.buscaCambiosCalendario()
+        # for partido in sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys()))):
+        #     try:
+        #         nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
+        #         nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
+        #         if nuevoPartido.check():
+        #             self.Partidos[partido] = nuevoPartido
+        #             partidosBajados.add(partido)
+        #             self.actualizaInfoAuxiliar(nuevoPartido, browser, config)
+        #     except KeyboardInterrupt:
+        #         print("actualizaTemporada: Ejecución terminada por el usuario")
+        #         break
+        #     except BaseException:
+        #         print(f"actualizaTemporada: problemas descargando  partido '{partido}': {exc_info()}")
+        #         print_exception(*exc_info())
+        #
+        #     if 'justone' in config and config.justone:  # Just downloads a game (for testing/dev purposes)
+        #         break
+        #
+        # self.changed |= (len(partidosBajados) > 0)
+        # self.changed |= self.buscaCambiosCalendario()
 
         if self.descargaPlantillas:
             resPlant = self.actualizaPlantillasConDescarga(browser=browser, config=config)
@@ -161,8 +160,6 @@ class TemporadaACB:
         else:
             resPlant = self.actualizaPlantillasSinDescarga()
             self.changed |= resPlant
-            # if resPlant:
-            #     self.changed |= self.actualizaFichaJugadoresFromCambiosPlant(CAMBIOSCLUB)
 
         if self.changed != changeOrig:
             self.timestamp = gmtime()
@@ -297,11 +294,12 @@ class TemporadaACB:
         browser, config = prepareDownloading(browser, config, calendario_URLBASE)
         logger.info("%s Actualizando plantillas", self)
 
-        for p_id in sorted(idPlantillasCabecera(), key=int):
-            if p_id not in self.plantillas:
-                self.plantillas[p_id] = PlantillaACB(p_id, edicion=self.edicion)
+        for plantData in sorted(descargaPlantillasCabecera(edicion=self.edicion,browser=browser, config=config),
+                                key=lambda p: int(p.idEq)):
+            if plantData.idEq not in self.plantillas:
+                self.plantillas[plantData.idEq] = PlantillaACB(plantData.idEq, edicion=self.edicion, url=plantData.url)
 
-            resPlant = self.plantillas[p_id].descargaYactualizaPlantilla(browser=None, config=config)
+            resPlant = self.plantillas[plantData.idEq].descargaYactualizaPlantilla(browser=None, config=config)
             result |= resPlant
 
             self.changed |= result

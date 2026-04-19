@@ -1,17 +1,20 @@
 import logging
+import re
 from collections import defaultdict
 from time import gmtime
-from typing import Dict, NamedTuple, Optional
+from typing import Dict, NamedTuple, Optional, List
 
 import bs4
 from CAPcore.DictLoggedDict import DictOfLoggedDict, DictOfLoggedDictDiff
 from CAPcore.LoggedDict import LoggedDict, LoggedDictDiff
 from CAPcore.Misc import onlySetElement
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
+from bs4 import Tag
 
 import SMACB.CalendarioACB as SMACBcal
 from Utils.ParseoData import extractPlantillaInfoDiv
-from Utils.Web import getObjID, prepareDownloading, generaURLACB, generaCompParaURL, extractPagDataScripts
+from Utils.Web import getObjID, prepareDownloading, generaURLACB, generaCompParaURL, extractPagDataScripts, \
+    getIDfromEncURL
 from .CalendarioACB import getURLparamTemporada
 from .Constants import URL_BASE, URLIMG2IGNORE
 
@@ -24,6 +27,13 @@ class CambiosPlantillaTipo(NamedTuple):
     tecnicos: DictOfLoggedDictDiff
 
 
+class InfoClubPortada(NamedTuple):
+    idEq: str
+    url: str
+    nombre: Optional[str]
+    abrev: Optional[str]
+
+
 CAMBIOSCLUB: Dict[str, CambiosPlantillaTipo] = {}
 
 
@@ -31,7 +41,7 @@ class PlantillaACB():
     def __init__(self, teamId, **kwargs):
         self.id = teamId
         self.edicion = kwargs.get('edicion', None)
-        self.URL = generaURLPlantilla(self, URL_BASE)
+        self.URL = kwargs.get('url', generaURLPlantilla(self, URL_BASE))
         self.timestamp = None
 
         self.club = LoggedDict()
@@ -285,6 +295,59 @@ def encuentraUltEdicion(plantDesc: DownloadedPage):
     fichaData = plantDesc.data
 
     result = fichaData.find("input", {"name": "select_temporada_id"}).attrs['value']
+
+    return result
+
+
+def descargaPlantillasCabecera(browser=None, config=None, edicion=None, listaIDs=None) -> List[InfoClubPortada]:
+    """
+    Descarga los contenidos de las plantillas y los procesa. Servirá para alimentar las plantillas de TemporadaACB
+    :param browser:
+    :param config:
+    :param edicion:
+    :param listaIDs: IDs to be considered
+    :return:
+    """
+    browser, config = prepareDownloading(browser, config)
+
+    if listaIDs is None:
+        listaIDs = []
+
+    result = []
+
+    urlClubes = generaURLClubesPortada(edicion, URL_BASE)
+    paginaRaiz = downloadPage(dest=urlClubes, browser=browser, config=config)
+
+    if paginaRaiz is None:
+        raise ConnectionError(f"Incapaz de descargar {urlClubes}")
+
+    raizData = paginaRaiz.data
+    # SectionTeams-module-scss-module__7n2dDW__sectionTeams
+    rePortDivMain = re.compile(r'SectionTeams-module-scss-module__.*__sectionTeams')
+    reInfoClub = re.compile(r'TeamCard-module-scss-module__.*__teamCard__info')
+    divLogos: Tag = None
+    for ent in raizData.find_all('div', {'class': rePortDivMain}):
+        if ent.find('a'):
+            divLogos = ent
+
+    if divLogos is None:
+        raise ValueError(f"Incapaz de encontrar equipos en '{urlClubes}'")
+
+    for artLink in divLogos.find_all('a'):
+        urlLink = artLink['href']
+        urlFull = mergeURL(urlClubes, urlLink)
+        idEq = getIDfromEncURL(objURL=urlFull)
+
+        if listaIDs and idEq not in listaIDs:
+            continue
+
+        infoClub = artLink.find('div', {'class': reInfoClub})
+        nombreClub = infoClub.find('h3').get_text() if infoClub else None
+        abrevClub = infoClub.find('p').get_text() if infoClub else None
+
+        entradaAux = InfoClubPortada(idEq=idEq, url=urlFull, nombre=nombreClub, abrev=abrevClub)
+
+        result.append(entradaAux)
 
     return result
 
