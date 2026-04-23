@@ -6,7 +6,7 @@ git+https://github.com/cesaralba/CAPcore-python@202512
 
 ConfigArgParse>=1.7.1
 
-lxml>=6.0.2
+lxml>=6.1.0
 babel==2.18.0
 requests>=2.33.0
 pandas>=3.0.2
