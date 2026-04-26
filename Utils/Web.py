@@ -125,7 +125,7 @@ def tagAttrHasValue(tagData: bs4.element.Tag, attrName: str, value: str | Patter
 logger = logging.getLogger()
 
 
-def extractPagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dict[str, Any]]:
+def extraePagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dict[str, Any]]:
     patWrapper = r'^self\.__next_f\.push\((.*)\)$'
 
     auxList = []

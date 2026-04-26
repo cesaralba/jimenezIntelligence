@@ -13,7 +13,7 @@ def resumenCambioJugadores(cambiosJugadores: dict, temporada: TemporadaACB):
         if not jugData:
             continue
         ultClub = temporada.fichaJugadores[jugCod].ultClub
-        clubStr = "" if ultClub is None else f"{temporada.plantillas[ultClub].nombreClub()}"
+        clubStr = "" if ultClub is None else f"{temporada.plantillas[str(ultClub)].nombreClub()}"
 
         jugadorStr = f"{temporada.fichaJugadores[jugCod].nombreFicha()}"
         if 'NuevoJugador' in jugData:
@@ -27,10 +27,10 @@ def resumenCambioJugadores(cambiosJugadores: dict, temporada: TemporadaACB):
                     continue
                 if k == 'ultClub':
                     if v[1] is None:
-                        cambioStr = f"Club: baja en {temporada.plantillas[v[0]].nombreClub()}"
+                        cambioStr = f"Club: baja en {temporada.plantillas[str(v[0])].nombreClub()}"
                     else:
-                        club1 = temporada.plantillas[v[1]].nombreClub()
-                        cambioStr = f"Club: {temporada.plantillas[v[0]].nombreClub()} -> {club1}"
+                        club1 = temporada.plantillas[str(v[1])].nombreClub()
+                        cambioStr = f"Club: {temporada.plantillas[str(v[0])].nombreClub()} -> {club1}"
                 else:
                     cambioStr = f"{tradClaves.get(k, k)}: '{v[0]}'->'{v[1]}'"
 

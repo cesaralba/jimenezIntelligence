@@ -15,7 +15,7 @@ from configargparse import ArgumentParser, Namespace
 from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import cargaTemporada
 from Utils.ProcessMDparts import procesaMDjugadas, play2key, jugadaTag2Desc, jugada2str, jugadaKey2sort, jugadaKey2str
-from Utils.Web import extractPagDataScripts, prepareDownloading
+from Utils.Web import extraePagDataScripts, prepareDownloading
 
 
 def sacaJugadoresPartido(part: PartidoACB) -> dict:
@@ -54,7 +54,7 @@ def procesaURL(args: Namespace) -> Dict[str, dict]:
     browser, config = prepareDownloading(None, None)
     pagJugadas = downloadPage(args.url, home=None, browser=browser, config=config)
 
-    r1 = procesaMDjugadas(extractPagDataScripts(pagJugadas, 'initialMatchPlayByPlay'))
+    r1 = procesaMDjugadas(extraePagDataScripts(pagJugadas, 'initialMatchPlayByPlay'))
 
     result = {args.url: {"playbyplay": r1["jugadas"], "infoJugadores": r1["infoJugadores"]}}
 

@@ -15,7 +15,7 @@ from CAPcore.Web import downloadPage, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif, procesaFechaJornada
 from Utils.ProcessMDparts import procesaMDcalFl2calendarIDs, procesaMDcalTeams2InfoEqs, procesaMDcalFl2Info
-from Utils.Web import prepareDownloading, tagAttrHasValue, generaURLEstadsPartido, logger, extractPagDataScripts
+from Utils.Web import prepareDownloading, tagAttrHasValue, generaURLEstadsPartido, logger, extraePagDataScripts
 from .Constants import REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada, infoJornada, LocalVisitante, OtherLoc, DEFTZ
 
 calendario_URLBASE = 'https://www.acb.com/es/liga/calendario'
@@ -138,7 +138,7 @@ class CalendarioACB:
                         self.competicion)
             pagCalendario = downloadPage(self.urlbase, home=home, browser=browser, config=config)
 
-            avFilters = extractPagDataScripts(pagCalendario, 'availableFilters')
+            avFilters = extraePagDataScripts(pagCalendario, 'availableFilters')
             embeddedDataTemporadas = procesaMDcalFl2calendarIDs(avFilters)
 
             currYear = embeddedDataTemporadas['currFilters']['seaYear']
@@ -163,7 +163,7 @@ class CalendarioACB:
             logger.info("DescargaCalendario. URL %s", self.url)
             result = downloadPage(self.url, browser=browser, home=None, config=config)
 
-        avFilters = extractPagDataScripts(result, 'availableFilters')
+        avFilters = extraePagDataScripts(result, 'availableFilters')
         embeddedDataTemporadas = procesaMDcalFl2calendarIDs(avFilters)
         embeddedDataEquipos = procesaMDcalTeams2InfoEqs(avFilters)
         embeddedDataCalendario = procesaMDcalFl2Info(avFilters, embeddedDataEquipos)
@@ -508,7 +508,7 @@ def composeURLcalendario(currURL: str = calendario_URLBASE, targComp: str = None
     return result
 
 
-# Expresiones regulares de class (CSS) para parseo de páginas 
+# Expresiones regulares de class (CSS) para parseo de páginas
 reDatosEq = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__(home|away)Team')
 reDatosEqLink = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__teamLink')
 reDatosEqLinkLogo = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__teamLogo')

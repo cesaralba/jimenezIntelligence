@@ -14,7 +14,7 @@ from bs4 import Tag
 from Utils.ProcessMDparts import procesaMDresInfoPeriodos, procesaMDresEstadsCompar, procesaMDresInfoRachas, \
     procesaMDresCartaTiro, procesaMDjugadas, jugadaSort, jugada2str, jugadaKey2sort, jugadaTag2Desc, jugadaKey2str, \
     procesaMDboxscore, procesaMDavailableContent, procesaMDresDatosPartido
-from Utils.Web import prepareDownloading, extractPagDataScripts
+from Utils.Web import prepareDownloading, extraePagDataScripts
 from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp, infoJornada,
                         POLABEL2FASE, DEFTZ)
 
@@ -337,7 +337,7 @@ class PartidoACB():
             existURL = self.metadataEnlaces[clave]
 
         for pag in pagsDescargadas.values():
-            auxAvail = procesaMDavailableContent(extractPagDataScripts(pag, 'availableContent'))
+            auxAvail = procesaMDavailableContent(extraePagDataScripts(pag, 'availableContent'))
             if auxAvail is not None:
                 resultado['infoDisponible'] = auxAvail
                 break
@@ -355,7 +355,7 @@ class PartidoACB():
             if 'resultsParciales' in resultado:
                 completion.append(True)
             else:
-                auxResParciales = procesaMDresInfoPeriodos(extractPagDataScripts(pag, 'initialMatchHeader'))
+                auxResParciales = procesaMDresInfoPeriodos(extraePagDataScripts(pag, 'initialMatchHeader'))
                 if auxResParciales is not None:
                     resultado['resultsParciales'] = auxResParciales
                     completion.append(True)
@@ -365,7 +365,7 @@ class PartidoACB():
             if 'datosPartido' in resultado:
                 completion.append(True)
             else:
-                auxDatosPartido = procesaMDresDatosPartido(extractPagDataScripts(pag, 'initialMatchHeader'))
+                auxDatosPartido = procesaMDresDatosPartido(extraePagDataScripts(pag, 'initialMatchHeader'))
                 if auxDatosPartido is not None:
                     resultado['datosPartido'] = auxDatosPartido
                     completion.append(True)
@@ -471,9 +471,9 @@ def procesaPaginaResumen(urlResumen: Union[str, DownloadedPage], home=None, brow
         resumenPage = downloadPage(urlResumen, home=home, browser=browser, config=config)
 
     resultado = {'comparativaEstads': procesaMDresEstadsCompar(
-        extractPagDataScripts(resumenPage, 'initialMatchStatsComparative')),
-        'infoRachas': procesaMDresInfoRachas(extractPagDataScripts(resumenPage, 'initialLeadTracker')),
-        'cartaTiro': procesaMDresCartaTiro(extractPagDataScripts(resumenPage, 'initialShotmap')), }
+        extraePagDataScripts(resumenPage, 'initialMatchStatsComparative')),
+        'infoRachas': procesaMDresInfoRachas(extraePagDataScripts(resumenPage, 'initialLeadTracker')),
+        'cartaTiro': procesaMDresCartaTiro(extraePagDataScripts(resumenPage, 'initialShotmap')), }
 
     return resultado, resumenPage
 
@@ -486,7 +486,7 @@ def procesaPlayByPlay(urlJugadas: Union[str, DownloadedPage], home=None, browser
         browser, config = prepareDownloading(browser, config)
         jugadasPage = downloadPage(urlJugadas, home=home, browser=browser, config=config)
 
-    auxResult = procesaMDjugadas(extractPagDataScripts(jugadasPage, 'initialMatchPlayByPlay'))
+    auxResult = procesaMDjugadas(extraePagDataScripts(jugadasPage, 'initialMatchPlayByPlay'))
 
     if len(auxResult['clavesDesconocidas']) > 0:
         logging.warning("Jugadas desconocidas en partido '%s'", urlJugadas)
@@ -515,6 +515,6 @@ def procesaBoxScore(urlBoxscore: Union[str, DownloadedPage], home=None, browser=
         browser, config = prepareDownloading(browser, config)
         boxscorePage = downloadPage(urlBoxscore, home=home, browser=browser, config=config)
 
-    resultado = {'boxscore': procesaMDboxscore(extractPagDataScripts(boxscorePage, 'initialStatistics')), }
+    resultado = {'boxscore': procesaMDboxscore(extraePagDataScripts(boxscorePage, 'initialStatistics')), }
 
     return resultado, boxscorePage

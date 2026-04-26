@@ -1,11 +1,13 @@
 import logging
-from typing import Dict, Optional, List, Tuple, Any
+from pprint import pformat
+from typing import Dict, Optional, List, Tuple, Any, Set
 
 import pandas as pd
 from CAPcore.Misc import copyDictWithTranslation
 
-from SMACB.Constants import LocalVisitante, OtherLoc, numPartidoPO2jornada, infoJornada
+from SMACB.Constants import LocalVisitante, OtherLoc, numPartidoPO2jornada, infoJornada, TRADPOSICION
 from Utils.ParseoData import ProcesaTiempo, parseFecha, parseaAltura
+from Utils.Web import sentinel
 
 LV2HA = {'Local': 'home', 'Visitante': 'away'}
 HA2LV = {'home': 'Local', 'away': 'Visitante'}
@@ -593,7 +595,8 @@ def procesaMDfichJugPlayData(rawData: dict) -> Dict[str, Any]:
 def procesaMDplantRaizClubData(rawData: dict) -> Dict[str, Any]:
     result = {}
 
-    clubData = list(rawData.values())[0][3]['clubData']
+    auxData = extraeDatosRelevantesMD(rawData, claveDeInteres='clubData')
+    clubData = auxData['clubData']
 
     clubInfo = copyDictWithTranslation(clubData['club'],
                                        excludes={'team', 'stadiumPhotoUrl', 'stadiumAddress', 'contactPhone',
@@ -601,5 +604,116 @@ def procesaMDplantRaizClubData(rawData: dict) -> Dict[str, Any]:
                                                  'merchanUrl', 'instagramUrl', 'twitterUrl', 'facebookUrl',
                                                  'youtubeUrl', 'tikTokUrl', 'validated'})
     result.update(clubInfo)
+    teamInfo = copyDictWithTranslation(clubData['club']['team'],
+                                       excludes=['id', 'clubId', 'primaryColorHex', 'textColorHex', 'logoAlt',
+                                                 'secondaryLogo', 'displayColor', 'displayTextColor'])
+    teamInfo['clubId'] = str(clubData['club']['team']['clubId'])
+    result.update(teamInfo)
 
-    return clubInfo
+    result['estanciaACB'] = extractAvFiltersPlantillaPortada(clubData)
+
+    return result
+
+
+def procesaMDplantJugs(rawData: Dict[str, Any], dataURLs: Dict[str, str] = sentinel) -> Dict[str, Dict[str, Any]]:
+    if dataURLs is sentinel:
+        dataURLs = {}
+    result = {'jugadores': {}, 'tecnicos': {}}
+
+    auxDataRoster = extraeDatosRelevantesMD(rawData, claveDeInteres='currentRoster')
+
+    if auxDataRoster is None:
+        raise ValueError(f"procesaMDplantJugs: incapaz de encontrar datos\n{pformat(rawData)}")
+
+    dataRoster = auxDataRoster['currentRoster']
+
+    exclBase = {'age', 'coach', 'isLicenseActive', 'player'}
+    tradsBase = {'nationalityCountry': 'nacionalidad', 'height': 'altura', 'licensing': 'licencia'}
+    exclSubReg = {'editionId', 'firstName', 'fullBodyImageNoBackgroundUrl', 'fullBodyImageUrl', 'headshotImageAlt',
+                  'headshotImageNoBackgroundUrl', 'isLicenseActive', 'lastName', 'nickname', 'nicknameFirstName',
+                  'nicknameLastName', 'gameRole'}
+    tradsSubReg = {'shirtNumber': 'dorsal', 'nickname': 'nombre', 'firstInitialAndLastName': 'alias',
+                   'headshotImageUrl': 'urlFoto'}
+
+    for clave, listaPers in dataRoster.items():
+        esJugador = 'player' in clave
+        esTecnico = 'staff' in clave
+        esActivo = 'Absences' not in clave
+        claveInterna, destClave = ('player', 'jugadores') if esJugador else ('coach', 'tecnicos')
+
+        for numOrd, pers in enumerate(listaPers, start=1):
+            regPersona = {}
+
+            idPers = str(pers[claveInterna]['id'])
+
+            regPersona.update(copyDictWithTranslation(pers, excludes=exclBase, translation=tradsBase))
+            regPersona.update(copyDictWithTranslation(pers[claveInterna], excludes=exclSubReg, translation=tradsSubReg))
+            regPersona['activo'] = esActivo
+            regPersona['nombre'] = pers[claveInterna].get('nickname',
+                                                          f"{pers[claveInterna]['firstName']} "
+                                                          f"{pers[claveInterna]['lastName']}")
+
+            regPersona['pos'] = TRADPOSICION.get(pers[claveInterna]['gameRole'], '??') if esJugador else \
+                pers[claveInterna]['gameRole']
+            if esTecnico and esActivo:
+                regPersona['dorsal'] = str(numOrd)
+            regPersona['imgsConocidas'] = {pers[claveInterna]['headshotImageUrl'],
+                                           pers[claveInterna]['fullBodyImageUrl']}
+            regPersona['URL'] = dataURLs.get(idPers, None)
+
+            result[destClave][idPers] = regPersona
+
+    return result
+
+
+def extractAvFiltersPlantillaPortada(embData: Dict) -> Dict[int, Set[str]]:
+    excludeCompos = {'Minicopa Endesa'}
+
+    result: Dict[int, Set[str]] = {}
+
+    avFilters = embData.get('availableFilters', {}).get('competitions', [])
+    for compoFilter in avFilters:
+        compoName = compoFilter['name']
+        if compoName in excludeCompos:
+            continue
+        for edition in compoFilter['editions']:
+            edYear = edition['startYear']
+            currFiltro = result.get(edYear, set())
+            currFiltro.add(compoName)
+            result[edYear] = currFiltro
+
+    return result
+
+
+def auxEsDato(data):
+    return (isinstance(data, list) and len(data) == 4 and isinstance(data[3], dict))
+
+
+def auxProcesaDatosReales(datoAmirar: List, parClave: str) -> Dict[str, Any] | None:
+    if not auxEsDato(datoAmirar):
+        return None
+
+    dictDato: Dict = datoAmirar[3]
+    if 'children' in dictDato:
+        listaHijos = [dictDato['children']] if auxEsDato(dictDato['children']) else dictDato['children']
+        for child in listaHijos:
+            res = auxProcesaDatosReales(child, parClave=parClave)
+            if res is not None:
+                return res
+    elif parClave in dictDato:
+        return dictDato
+
+    return None
+
+
+def extraeDatosRelevantesMD(embData: Dict, claveDeInteres: str) -> Optional[Dict]:
+    result = None
+
+    dataToProcess = [list(embData.values())[0]]
+
+    for val in dataToProcess:
+        res = auxProcesaDatosReales(val, parClave=claveDeInteres)
+        if res is not None:
+            return res
+
+    return result

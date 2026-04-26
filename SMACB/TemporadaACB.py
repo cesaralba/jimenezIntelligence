@@ -10,6 +10,7 @@ from copy import copy
 from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
+from pprint import pp
 from sys import setrecursionlimit
 from time import gmtime, strftime
 from typing import Any, Iterable, Dict, Tuple, List, Set
@@ -294,8 +295,9 @@ class TemporadaACB:
         browser, config = prepareDownloading(browser, config, calendario_URLBASE)
         logger.info("%s Actualizando plantillas", self)
 
-        for plantData in sorted(descargaPlantillasCabecera(edicion=self.edicion,browser=browser, config=config),
+        for plantData in sorted(descargaPlantillasCabecera(edicion=self.edicion, browser=browser, config=config),
                                 key=lambda p: int(p.idEq)):
+            pp(plantData)
             if plantData.idEq not in self.plantillas:
                 self.plantillas[plantData.idEq] = PlantillaACB(plantData.idEq, edicion=self.edicion, url=plantData.url)
 

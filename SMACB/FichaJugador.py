@@ -10,7 +10,7 @@ from requests import HTTPError
 from SMACB.Constants import URLIMG2IGNORE, CLAVESFICHAJUGADOR, CLAVESDICT, TRADPOSICION, POSABREV2NOMBRE, URL_BASE
 from SMACB.PartidoACB import PartidoACB
 from Utils.ProcessMDparts import procesaMDfichJugPlayData
-from Utils.Web import prepareDownloading, getIDfromEncURL, extractPagDataScripts, generaCompParaURL
+from Utils.Web import prepareDownloading, getIDfromEncURL, extraePagDataScripts, generaCompParaURL
 
 CAMBIOSJUGADORES = defaultdict(dict)
 
@@ -364,7 +364,7 @@ def descargaYparseaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=
         if 'id' not in auxResult:
             auxResult['id'] = getIDfromEncURL(urlFicha, suf2ignore={'temporada', 'partidos'})
 
-        infoMetadata: Dict[str, Any] = procesaMDfichJugPlayData(extractPagDataScripts(fichaJug, 'playerData'))
+        infoMetadata: Dict[str, Any] = procesaMDfichJugPlayData(extraePagDataScripts(fichaJug, 'playerData'))
         auxResult.update(infoMetadata)
 
     except HTTPError:
