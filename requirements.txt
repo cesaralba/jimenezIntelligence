@@ -24,7 +24,7 @@ kiwisolver>=1.5.0
 packaging>=26.2
 python-dateutil>=2.9.0.post0
 
-XlsxWriter>=3.2.8
+XlsxWriter>=3.2.9
 
 reportlab>=4.4.3
 pillow>=12.0.0
