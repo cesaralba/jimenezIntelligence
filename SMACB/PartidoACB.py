@@ -8,8 +8,7 @@ from typing import Optional, Dict, Tuple, Union, List
 import numpy as np
 import pandas as pd
 from CAPcore.Misc import BadParameters
-from CAPcore.Web import downloadPage, extractGetParams, DownloadedPage, mergeURL
-from bs4 import Tag
+from CAPcore.Web import downloadPage, DownloadedPage, mergeURL
 
 from Utils.ProcessMDparts import procesaMDresInfoPeriodos, procesaMDresEstadsCompar, procesaMDresInfoRachas, \
     procesaMDresCartaTiro, procesaMDjugadas, jugadaSort, jugada2str, jugadaKey2sort, jugadaTag2Desc, jugadaKey2str, \
@@ -17,8 +16,6 @@ from Utils.ProcessMDparts import procesaMDresInfoPeriodos, procesaMDresEstadsCom
 from Utils.Web import prepareDownloading, extraePagDataScripts
 from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp, infoJornada,
                         POLABEL2FASE, DEFTZ)
-
-templateURLficha = "https://www.acb.com/fichas/%s%i%03i.php"
 
 
 class PartidoACB():
@@ -57,7 +54,7 @@ class PartidoACB():
 
         self.competicion = kwargs['cod_competicion']
         self.temporada = kwargs['cod_edicion']
-        self.idPartido = kwargs.get('partido', None)
+        self.idPartido: str = kwargs.get('partido', None)
 
         for loc in LocalVisitante:
             self.Equipos[loc]['haGanado'] = self.ResultadoCalendario[loc] > self.ResultadoCalendario[OtherLoc(loc)]
@@ -430,36 +427,6 @@ def auxJugador2dataframe(typesDF, jugador, fechaPartido):
     dfresult['jugado'] = dfresult['haJugado'].map(bool2esp)
 
     return dfresult
-
-
-def GeneraURLpartido(link):
-    def CheckParameters(dictParams):
-        requiredParamList = ('cod_competicion', 'cod_edicion', 'partido')
-        errores = False
-        missingParameters = set()
-
-        for par in requiredParamList:
-            if par not in dictParams:
-                errores = True
-                missingParameters.add(par)
-
-        if errores:
-            raise BadParameters(f"GeneraURLpartido: falta informacion en parámetro: {missingParameters}.")
-
-    if isinstance(link, Tag):  # Enlace a sacado con BeautifulSoup
-        link2process = link['href']
-    elif isinstance(link, str):  # Cadena URL
-        link2process = link
-    elif isinstance(link, dict):  # Diccionario con los parametros necesarios s(sacados de la URL, se supone)
-        CheckParameters(link)
-        return templateURLficha % (link['cod_competicion'], int(link['cod_edicion']), int(link['partido']))
-    else:
-        raise TypeError(f"GeneraURLpartido: incapaz de procesar {link} ({type(link)})")
-
-    liurlcomps = extractGetParams(link2process)
-    CheckParameters(liurlcomps)
-    return templateURLficha % (liurlcomps['cod_competicion'], int(liurlcomps['cod_edicion']),
-                               int(liurlcomps['partido']))
 
 
 def procesaPaginaResumen(urlResumen: Union[str, DownloadedPage], home=None, browser=None,

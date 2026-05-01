@@ -170,7 +170,7 @@ def procesaMDcalFl2Info(rawData: dict, infoMDequipos: dict) -> Dict[str, Dict]:
             partPendiente: bool = g['matchStatus'] != 'FINALIZED'
             datosPart = {'fechaPartido': pd.to_datetime(g['startDateTime']),
                          'pendiente': partPendiente, 'equipos': {}, 'resultado': {}}
-            datosPart['partido'] = g['id']
+            datosPart['partido'] = str(g['id'])
 
             for loc in LocalVisitante:
                 datosEq = {}
@@ -625,8 +625,6 @@ def procesaMDplantJugs(rawData: Dict[str, Any], dataURLs: Dict[str, str] = senti
     if auxDataRoster is None:
         raise ValueError(f"procesaMDplantJugs: incapaz de encontrar datos\n{pformat(rawData)}")
 
-    dataRoster = auxDataRoster['currentRoster']
-
     exclBase = {'age', 'coach', 'isLicenseActive', 'player'}
     tradsBase = {'nationalityCountry': 'nacionalidad', 'height': 'altura', 'licensing': 'licencia'}
     exclSubReg = {'editionId', 'firstName', 'fullBodyImageNoBackgroundUrl', 'fullBodyImageUrl', 'headshotImageAlt',
@@ -635,7 +633,7 @@ def procesaMDplantJugs(rawData: Dict[str, Any], dataURLs: Dict[str, str] = senti
     tradsSubReg = {'shirtNumber': 'dorsal', 'nickname': 'nombre', 'firstInitialAndLastName': 'alias',
                    'headshotImageUrl': 'urlFoto'}
 
-    for clave, listaPers in dataRoster.items():
+    for clave, listaPers in auxDataRoster['currentRoster'].items():
         esJugador = 'player' in clave
         esTecnico = 'staff' in clave
         esActivo = 'Absences' not in clave

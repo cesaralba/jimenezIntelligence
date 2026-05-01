@@ -15,7 +15,7 @@ from CAPcore.Web import downloadPage, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif, procesaFechaJornada
 from Utils.ProcessMDparts import procesaMDcalFl2calendarIDs, procesaMDcalTeams2InfoEqs, procesaMDcalFl2Info
-from Utils.Web import prepareDownloading, tagAttrHasValue, generaURLEstadsPartido, logger, extraePagDataScripts
+from Utils.Web import prepareDownloading, tagAttrHasValue, logger, extraePagDataScripts
 from .Constants import REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada, infoJornada, LocalVisitante, OtherLoc, DEFTZ
 
 calendario_URLBASE = 'https://www.acb.com/es/liga/calendario'
@@ -79,7 +79,7 @@ class CalendarioACB:
 
         jor2del: set = set(self.Jornadas.keys()).difference(jornadasCurrCal)
         for j in jor2del:
-            print(f"Eliminando jornada desaparecida '{j}'")
+            logger.info("Eliminando jornada desaparecida '%s'", j)
             self.Jornadas.pop(j)
 
     def esJornadaPlayOff(self, currJ: int):
@@ -251,9 +251,8 @@ class CalendarioACB:
         if all('puntos' in eq for eq in datosPartEqs.values()):
             resultado['pendiente'] = False
             resultado['resultado'] = {loc: datosPartEqs[loc]['puntos'] for loc in LocalVisitante}
-            resultado['url'] = generaURLEstadsPartido(resultado['partido'], urlRef=self.url)
             resultado['enlaces'] = procesaEnlacesPartido(divPartido)
-
+            resultado['url'] = resultado['enlaces']['resumen']
         return resultado
 
     def recuperaFechaAmbigua(self, infoPart, **kwargs):
@@ -338,6 +337,12 @@ class CalendarioACB:
                 pendK = p2DictK(self, jug)
                 if pendK:
                     result['jugados'][pendK] = fecha2fechaCalDif(jug['fechaPartido'])
+
+        return result
+
+    def idPartidosJugados(self) -> Dict[str, str]:
+
+        result = {str(p['partido']): k for k, p in self.Partidos.items()}
 
         return result
 

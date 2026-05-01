@@ -10,7 +10,6 @@ from copy import copy
 from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
-from pprint import pp
 from sys import setrecursionlimit
 from time import gmtime, strftime
 from typing import Any, Iterable, Dict, Tuple, List, Set
@@ -19,14 +18,12 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from CAPcore.LoggedDict import LoggedDictDiff, LoggedDict
-from CAPcore.Web import mergeURL
-from requests import HTTPError
 
 from Utils.FechaHora import fechaParametro2pddatetime
-from Utils.Web import prepareDownloading, browserConfigData, generaCompParaURL
+from Utils.Web import prepareDownloading, browserConfigData
 from .CalendarioACB import calendario_URLBASE, CalendarioACB
 from .Constants import (EqRival, filaMergeTrayectoria, filaTrayectoriaEq, infoEqCalendario, infoPartLV, infoSigPartido,
-                        LocalVisitante, OtherLoc, OtherTeam, infoJornada, URL_BASE, )
+                        LocalVisitante, OtherLoc, OtherTeam, infoJornada, )
 from .FichaJugador import FichaJugador, CAMBIOSJUGADORES
 from .PartidoACB import PartidoACB
 from .PlantillaACB import PlantillaACB, CAMBIOSCLUB, CambiosPlantillaTipo, descargaPlantillasCabecera
@@ -43,42 +40,7 @@ DEFAULTNAVALUES = {('Eq', 'convocados', 'sum'): 0, ('Eq', 'utilizados', 'sum'): 
 JUGADORESDESCARGADOS = set()
 AUXCAMBIOS = CAMBIOSJUGADORES  # For the sake of formatter
 CAMBIOSCALENDARIO: Optional[LoggedDictDiff] = None
-
-
-def auxJorFech2periodo(dfTemp: pd.DataFrame):
-    periodoAct: int = 0
-    jornada = {}
-    claveMin = {}
-    claveMax = {}
-    curVal: Optional[Tuple[Any, str]] = None
-    jf2periodo = defaultdict(lambda: defaultdict(int))
-
-    dfPairs: List[Tuple[Any, str]] = dfTemp.apply(lambda r: (r['fechaPartido'].date(), r['jornada']), axis=1).unique()
-    for p in sorted(list(dfPairs)):
-        if curVal is None or curVal[1] != p[1]:
-            if curVal:
-                periodoAct += 1
-
-            curVal = p
-            jornada[periodoAct] = p[1]
-            claveMin[periodoAct] = p[0]
-            claveMax[periodoAct] = p[0]
-
-        else:
-            claveMax[periodoAct] = p[0]
-        jf2periodo[p[1]][p[0]] = periodoAct
-
-    p2k = {jId: f"{claveMin[jId]}" + (
-        f"\na {claveMax[jId]}" if (claveMin[jId] != claveMax[jId]) else "") + f"\n(J:{jData:2})" for jId, jData in
-           jornada.items()}
-
-    result = {}
-    for j in jf2periodo:
-        result[j] = {}
-        for d in jf2periodo[j]:
-            result[j][d] = p2k[jf2periodo[j][d]]
-
-    return result
+JUGADORESCREADOS: Set[str] = set()
 
 
 class TemporadaACB:
@@ -130,28 +92,31 @@ class TemporadaACB:
         self.Calendario.actualizaCalendario(browser=browser, config=config)
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
 
+        partsCalendarioI2U = self.Calendario.idPartidosJugados()
+        idNuevosPartidos: Set[str] = set(partsCalendarioI2U.keys()).difference(set(self.idPartsDescargados().keys()))
+        nuevosPartidos: Set[str] = {partsCalendarioI2U[k] for k in idNuevosPartidos}
+
         partidosBajados: Set[str] = set()
 
-        # for partido in sorted(set(self.Calendario.Partidos.keys()).difference(set(self.Partidos.keys()))):
-        #     try:
-        #         nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
-        #         nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
-        #         if nuevoPartido.check():
-        #             self.Partidos[partido] = nuevoPartido
-        #             partidosBajados.add(partido)
-        #             self.actualizaInfoAuxiliar(nuevoPartido, browser, config)
-        #     except KeyboardInterrupt:
-        #         print("actualizaTemporada: Ejecución terminada por el usuario")
-        #         break
-        #     except BaseException:
-        #         print(f"actualizaTemporada: problemas descargando  partido '{partido}': {exc_info()}")
-        #         print_exception(*exc_info())
-        #
-        #     if 'justone' in config and config.justone:  # Just downloads a game (for testing/dev purposes)
-        #         break
-        #
-        # self.changed |= (len(partidosBajados) > 0)
-        # self.changed |= self.buscaCambiosCalendario()
+        for partido in sorted(nuevosPartidos, key=lambda s: self.Calendario.Partidos[s]['fechaPartido']):
+            try:
+                nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
+                nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
+                if nuevoPartido.check():
+                    self.Partidos[partido] = nuevoPartido
+                    partidosBajados.add(partido)
+                    self.actualizaInfoAuxiliar(nuevoPartido, browser, config)
+            except KeyboardInterrupt:
+                print("actualizaTemporada: Ejecución terminada por el usuario")
+                break
+            except BaseException:
+                logger.exception("actualizaTemporada: problemas descargando  partido '%s'", partido)
+
+            if 'justone' in config and config.justone:  # Just downloads a game (for testing/dev purposes)
+                break
+
+        self.changed |= (len(partidosBajados) > 0)
+        self.changed |= self.buscaCambiosCalendario()
 
         if self.descargaPlantillas:
             resPlant = self.actualizaPlantillasConDescarga(browser=browser, config=config)
@@ -237,55 +202,57 @@ class TemporadaACB:
         self.changed |= self.actualizaClase()
 
     def actualizaFichasPartido(self, nuevoPartido: PartidoACB, browser=None, config=None):
-        if self.descargaFichas:
-            browser, config = prepareDownloading(browser, config, calendario_URLBASE)
-
-        refrescaFichas = False
-
-        if 'refresca' in config and config.refresca:
-            refrescaFichas = True
+        # if self.descargaFichas:
+        #     browser, config = prepareDownloading(browser, config, calendario_URLBASE)
+        #
+        # refrescaFichas = False
+        #
+        # if 'refresca' in config and config.refresca:
+        #     refrescaFichas = True
 
         for codJ, datosJug in nuevoPartido.Jugadores.items():
             if (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None):
-                if self.descargaFichas:
-                    try:
-                        if codJ not in JUGADORESDESCARGADOS:
-                            urlJug = mergeURL(URL_BASE, generaCompParaURL(datosJug['nombre'], datosJug['codigo']))
-                            nuevaFicha = FichaJugador.fromURL(urlJug, datosPartido=datosJug,
-                                                              home=browser.get_url(), browser=browser, config=config)
-                            self.fichaJugadores[codJ] = nuevaFicha
-                            JUGADORESDESCARGADOS.add(codJ)
-                            self.changed = True
-                    except HTTPError:
-                        logging.exception("Partido [%s]: something happened creating record for %s. Datos: %s",
-                                          nuevoPartido.url, codJ, datosJug)
-                        nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
-                                                              timestamp=nuevoPartido.timestamp)
-                        self.fichaJugadores[codJ] = nuevaFicha
-                        JUGADORESDESCARGADOS.add(codJ)
-                        self.changed = True
+                nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
+                                                      timestamp=nuevoPartido.timestamp)
+                self.fichaJugadores[codJ] = nuevaFicha
+                JUGADORESCREADOS.add(codJ)
+                self.changed = True
 
-                else:  # Crear desde info de partido
-                    nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
-                                                          timestamp=nuevoPartido.timestamp)
-                    self.fichaJugadores[codJ] = nuevaFicha
-                    self.changed = True
-
-            elif self.descargaFichas and (refrescaFichas or (not hasattr(self.fichaJugadores[codJ], 'sinDatos')) or (
-                    self.fichaJugadores[codJ].sinDatos is None) or self.fichaJugadores[codJ].sinDatos):
-                if codJ not in JUGADORESDESCARGADOS:
-                    urlJugAux = mergeURL(URL_BASE, generaCompParaURL(datosJug['nombre'], datosJug['codigo']))
-                    if urlJugAux != self.fichaJugadores[codJ].URL:
-                        self.fichaJugadores[codJ].URL = urlJugAux
-                        self.changed = True
-                    try:
-                        self.changed |= self.fichaJugadores[codJ].actualizaFromWeb(datosPartido=datosJug,
-                                                                                   browser=browser,
-                                                                                   config=config)
-                        JUGADORESDESCARGADOS.add(codJ)
-                    except HTTPError:
-                        logging.exception("Partido [%s]: something happened updating record for %s. Datos: %s",
-                                          nuevoPartido.url, codJ, datosJug)
+            #     if self.descargaFichas:
+            #         try:
+            #             if codJ not in JUGADORESDESCARGADOS:
+            #                 urlJug = mergeURL(URL_BASE, generaCompParaURL(datosJug['nombre'], datosJug['codigo']))
+            #                 nuevaFicha = FichaJugador.fromURL(urlJug, datosPartido=datosJug,
+            #                                                   home=browser.get_url(), browser=browser, config=config)
+            #                 self.fichaJugadores[codJ] = nuevaFicha
+            #                 JUGADORESDESCARGADOS.add(codJ)
+            #                 self.changed = True
+            #         except HTTPError:
+            #             logging.exception("Partido [%s]: something happened creating record for %s. Datos: %s",
+            #                               nuevoPartido.url, codJ, datosJug)
+            #             nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
+            #                                                   timestamp=nuevoPartido.timestamp)
+            #             self.fichaJugadores[codJ] = nuevaFicha
+            #             JUGADORESDESCARGADOS.add(codJ)
+            #             self.changed = True
+            #
+            #     else:  # Crear desde info de partido
+            #
+            # elif self.descargaFichas and (refrescaFichas or (not hasattr(self.fichaJugadores[codJ], 'sinDatos')) or (
+            #         self.fichaJugadores[codJ].sinDatos is None) or self.fichaJugadores[codJ].sinDatos):
+            #     if codJ not in JUGADORESDESCARGADOS:
+            #         urlJugAux = mergeURL(URL_BASE, generaCompParaURL(datosJug['nombre'], datosJug['codigo']))
+            #         if urlJugAux != self.fichaJugadores[codJ].URL:
+            #             self.fichaJugadores[codJ].URL = urlJugAux
+            #             self.changed = True
+            #         try:
+            #             self.changed |= self.fichaJugadores[codJ].actualizaFromWeb(datosPartido=datosJug,
+            #                                                                        browser=browser,
+            #                                                                        config=config)
+            #             JUGADORESDESCARGADOS.add(codJ)
+            #         except HTTPError:
+            #             logging.exception("Partido [%s]: something happened updating record for %s. Datos: %s",
+            #                               nuevoPartido.url, codJ, datosJug)
 
             self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
 
@@ -297,7 +264,6 @@ class TemporadaACB:
 
         for plantData in sorted(descargaPlantillasCabecera(edicion=self.edicion, browser=browser, config=config),
                                 key=lambda p: int(p.idEq)):
-            pp(plantData)
             if plantData.idEq not in self.plantillas:
                 self.plantillas[plantData.idEq] = PlantillaACB(plantData.idEq, edicion=self.edicion, url=plantData.url)
 
@@ -641,7 +607,7 @@ class TemporadaACB:
             loc = p['abrev2loc'][abrevAUsar]
             auxEntry = {}
             auxEntry['fechaPartido'] = p['fechaPartido'] if p['pendiente'] else self.Partidos[p['url']].fechaPartido
-            auxEntry['infoJornada'] = p['infoJornada'] if p['pendiente'] else Partido2InfoJornada(
+            auxEntry['infoJornada'] = p['infoJornada'] if p['pendiente'] else partido2InfoJornada(
                 self.Partidos[p['url']], self)
             auxEntry['jornada'] = p['jornada']
             auxEntry['cod_edicion'] = p['cod_edicion']
@@ -793,6 +759,47 @@ class TemporadaACB:
 
         return self.calendarioDict.replace(calActualDict)
 
+    def idPartsDescargados(self) -> Dict[str, str]:
+        resultado = {str(p.idPartido): k for k, p in self.Partidos.items()}
+
+        return resultado
+
+
+def auxJorFech2periodo(dfTemp: pd.DataFrame):
+    periodoAct: int = 0
+    jornada = {}
+    claveMin = {}
+    claveMax = {}
+    curVal: Optional[Tuple[Any, str]] = None
+    jf2periodo = defaultdict(lambda: defaultdict(int))
+
+    dfPairs: List[Tuple[Any, str]] = dfTemp.apply(lambda r: (r['fechaPartido'].date(), r['jornada']), axis=1).unique()
+    for p in sorted(list(dfPairs)):
+        if curVal is None or curVal[1] != p[1]:
+            if curVal:
+                periodoAct += 1
+
+            curVal = p
+            jornada[periodoAct] = p[1]
+            claveMin[periodoAct] = p[0]
+            claveMax[periodoAct] = p[0]
+
+        else:
+            claveMax[periodoAct] = p[0]
+        jf2periodo[p[1]][p[0]] = periodoAct
+
+    p2k = {jId: f"{claveMin[jId]}" + (
+        f"\na {claveMax[jId]}" if (claveMin[jId] != claveMax[jId]) else "") + f"\n(J:{jData:2})" for jId, jData in
+           jornada.items()}
+
+    result = {}
+    for j in jf2periodo:
+        result[j] = {}
+        for d in jf2periodo[j]:
+            result[j][d] = p2k[jf2periodo[j][d]]
+
+    return result
+
 
 def cargaTemporada(fname: str) -> TemporadaACB:
     result = TemporadaACB()
@@ -801,7 +808,7 @@ def cargaTemporada(fname: str) -> TemporadaACB:
     return result
 
 
-def Partido2InfoJornada(part: PartidoACB, temp: TemporadaACB) -> infoJornada:
+def partido2InfoJornada(part: PartidoACB, temp: TemporadaACB) -> infoJornada:
     if hasattr(part, 'infoJornada') and part.infoJornada is not None:
         return part.infoJornada
     return temp.Calendario.Jornadas[part.jornada]['infoJornada']

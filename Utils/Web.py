@@ -86,17 +86,6 @@ def prepareDownloading(browser, config, urlRef: Optional[str] = None):
     return browser, config
 
 
-def generaURLEstadsPartido(partidoId, urlRef: str = None):
-    # https://www.acb.com/partido/estadisticas/id/104476
-    params = ['/partido', 'estadisticas', 'id', str(partidoId)]
-
-    urlSTR = "/".join(params)
-
-    result = mergeURL(urlRef, urlSTR)
-
-    return result
-
-
 # TODO: Generar URL jugadores y URL entrenadores
 
 def tagAttrHasValue(tagData: bs4.element.Tag, attrName: str, value: str | Pattern, partial: bool = False) -> bool:
