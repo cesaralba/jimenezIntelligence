@@ -4,7 +4,7 @@
 #git+https://github.com/cesaralba/CAPcore-python@develop
 git+https://github.com/cesaralba/CAPcore-python@202512
 
-ConfigArgParse>=1.7.1
+ConfigArgParse>=1.7.5
 
 lxml>=6.1.0
 babel==2.18.0
