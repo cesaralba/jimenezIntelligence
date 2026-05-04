@@ -9,7 +9,7 @@ ConfigArgParse>=1.7.5
 lxml>=6.1.0
 babel==2.18.0
 pandas>=3.0.2
-pytz==2026.1.post1
+pytz==2026.2
 tzdata>=2025.2
 json5==0.14.0
 scipy>=1.17.1
