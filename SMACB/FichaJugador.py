@@ -94,7 +94,7 @@ class FichaJugador:
         EXFICHAJUG = {'competicion', 'temporada', 'jornada', 'equipo', 'CODequipo', 'rival', 'CODrival', 'IDrival',
                       'url', 'estado', 'esLocal', 'haGanado', 'estads', 'esJugador', 'entrenador', 'haJugado', 'dorsal',
                       'esTitular', 'linkPersona', }
-        print(f"Jugador fromPartido {idJugador} {datosPartido}")
+
         if datosPartido is None:
             datosPartido = {}
 
@@ -108,7 +108,6 @@ class FichaJugador:
         auxDatosPartido = copyDictWithTranslation(source=datosPartido, translation=TRFICHAJUG, excludes=EXFICHAJUG)
         fichaJug.update(auxDatosPartido)
 
-        print(f"Jugador fromPartido {idJugador} {fichaJug}")
         return FichaJugador(**fichaJug)
 
     @staticmethod

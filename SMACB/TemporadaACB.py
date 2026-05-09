@@ -219,14 +219,6 @@ class TemporadaACB:
         self.changed |= self.actualizaClase()
 
     def actualizaFichasPartido(self, nuevoPartido: PartidoACB, browser=None, config=None):
-        # if self.descargaFichas:
-        #     browser, config = prepareDownloading(browser, config, calendario_URLBASE)
-        #
-        # refrescaFichas = False
-        #
-        # if 'refresca' in config and config.refresca:
-        #     refrescaFichas = True
-
         for codJ, datosJug in nuevoPartido.Jugadores.items():
             if (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None):
                 nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
@@ -234,42 +226,6 @@ class TemporadaACB:
                 self.fichaJugadores[codJ] = nuevaFicha
                 JUGADORESCREADOS.add(codJ)
                 self.changed = True
-
-            #     if self.descargaFichas:
-            #         try:
-            #             if codJ not in JUGADORESDESCARGADOS:
-            #                 urlJug = mergeURL(URL_BASE, generaCompParaURL(datosJug['nombre'], datosJug['codigo']))
-            #                 nuevaFicha = FichaJugador.fromURL(urlJug, datosPartido=datosJug,
-            #                                                   home=browser.get_url(), browser=browser, config=config)
-            #                 self.fichaJugadores[codJ] = nuevaFicha
-            #                 JUGADORESDESCARGADOS.add(codJ)
-            #                 self.changed = True
-            #         except HTTPError:
-            #             logging.exception("Partido [%s]: something happened creating record for %s. Datos: %s",
-            #                               nuevoPartido.url, codJ, datosJug)
-            #             nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,
-            #                                                   timestamp=nuevoPartido.timestamp)
-            #             self.fichaJugadores[codJ] = nuevaFicha
-            #             JUGADORESDESCARGADOS.add(codJ)
-            #             self.changed = True
-            #
-            #     else:  # Crear desde info de partido
-            #
-            # elif self.descargaFichas and (refrescaFichas or (not hasattr(self.fichaJugadores[codJ], 'sinDatos')) or (
-            #         self.fichaJugadores[codJ].sinDatos is None) or self.fichaJugadores[codJ].sinDatos):
-            #     if codJ not in JUGADORESDESCARGADOS:
-            #         urlJugAux = mergeURL(URL_BASE, generaCompParaURL(datosJug['nombre'], datosJug['codigo']))
-            #         if urlJugAux != self.fichaJugadores[codJ].URL:
-            #             self.fichaJugadores[codJ].URL = urlJugAux
-            #             self.changed = True
-            #         try:
-            #             self.changed |= self.fichaJugadores[codJ].actualizaFromWeb(datosPartido=datosJug,
-            #                                                                        browser=browser,
-            #                                                                        config=config)
-            #             JUGADORESDESCARGADOS.add(codJ)
-            #         except HTTPError:
-            #             logging.exception("Partido [%s]: something happened updating record for %s. Datos: %s",
-            #                               nuevoPartido.url, codJ, datosJug)
 
             self.changed |= self.fichaJugadores[codJ].nuevoPartido(nuevoPartido)
 
