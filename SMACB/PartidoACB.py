@@ -1,4 +1,5 @@
 import logging
+import re
 from compression import zstd
 from itertools import product
 from pickle import dumps, loads
@@ -9,13 +10,14 @@ import numpy as np
 import pandas as pd
 from CAPcore.Misc import BadParameters
 from CAPcore.Web import downloadPage, DownloadedPage, mergeURL
+from bs4 import Tag
 
 from Utils.ProcessMDparts import procesaMDresInfoPeriodos, procesaMDresEstadsCompar, procesaMDresInfoRachas, \
     procesaMDresCartaTiro, procesaMDjugadas, jugadaSort, jugada2str, jugadaKey2sort, jugadaTag2Desc, jugadaKey2str, \
     procesaMDboxscore, procesaMDavailableContent, procesaMDresDatosPartido
-from Utils.Web import prepareDownloading, extraePagDataScripts
+from Utils.Web import prepareDownloading, extraePagDataScripts, getIDfromEncURL
 from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp, infoJornada,
-                        POLABEL2FASE, DEFTZ)
+                        POLABEL2FASE, DEFTZ, URL_BASE)
 
 
 class PartidoACB():
@@ -153,7 +155,7 @@ class PartidoACB():
                     'entrenador': False,
                     'estads': dataEmb['boxscore']['jugadores'][idJug],
                     'haJugado': dataEmb['boxscore']['jugadores'][idJug]['Segs'] > 0,
-                    # 'linkPersona': ya no aparece
+                    'linkPersona': infoJug['linkPersona']
                 }
                 resJug.update(datosComunes)
                 resJug.update(datosGlobPart)
@@ -480,8 +482,28 @@ def procesaBoxScore(urlBoxscore: Union[str, DownloadedPage], home=None, browser=
         boxscorePage = urlBoxscore
     else:
         browser, config = prepareDownloading(browser, config)
-        boxscorePage = downloadPage(urlBoxscore, home=home, browser=browser, config=config)
+        boxscorePage: DownloadedPage = downloadPage(urlBoxscore, home=home, browser=browser, config=config)
 
-    resultado = {'boxscore': procesaMDboxscore(extraePagDataScripts(boxscorePage, 'initialStatistics')), }
+    linksJugs = extraeLinksPersonasPtBSc(boxscorePage, urlBase=boxscorePage.source)
+    resultado = {
+        'boxscore': procesaMDboxscore(extraePagDataScripts(boxscorePage, 'initialStatistics'), linksPers=linksJugs), }
 
     return resultado, boxscorePage
+
+
+def extraeLinksPersonasPtBSc(pag: DownloadedPage, urlBase: str = URL_BASE) -> Dict[str, str]:
+    result = {}
+
+    reTablaBsc = re.compile(r'MatchTeamStatisticsTable_matchTeamStatisticsTable__table__.*_')
+    tablaBsc: Tag
+    for tablaBsc in pag.data.find_all('table', {'class': reTablaBsc}):
+        for a in tablaBsc.find_all('a'):
+            destURL = mergeURL(urlBase, a['href'])
+            idPers = getIDfromEncURL(destURL)
+
+            result[idPers] = destURL
+
+    if len(result) == 0:
+        raise ValueError(f"extraeLinksPersonasPtBSc: no se han encontrado enlaces en '{pag.source}'")
+
+    return result

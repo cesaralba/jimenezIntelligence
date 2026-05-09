@@ -92,6 +92,10 @@ class TemporadaACB:
         self.Calendario.actualizaCalendario(browser=browser, config=config)
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
 
+        refrescaFichas = False
+        if 'refresca' in config and config.refresca:
+            refrescaFichas = True
+
         partsCalendarioI2U = self.Calendario.idPartidosJugados()
         idNuevosPartidos: Set[str] = set(partsCalendarioI2U.keys()).difference(set(self.idPartsDescargados().keys()))
         nuevosPartidos: Set[str] = {partsCalendarioI2U[k] for k in idNuevosPartidos}
@@ -126,6 +130,19 @@ class TemporadaACB:
         else:
             resPlant = self.actualizaPlantillasSinDescarga()
             self.changed |= resPlant
+
+        if self.descargaFichas:
+            for idJug in JUGADORESCREADOS:
+                self.changed |= self.fichaJugadores[idJug].actualizaFromWeb(browser=browser, config=config)
+                JUGADORESDESCARGADOS.add(idJug)
+
+            for idJug, fichaJug in self.fichaJugadores.items():
+                if idJug in JUGADORESDESCARGADOS:
+                    continue
+                if refrescaFichas or (
+                        not hasattr(fichaJug, 'sinDatos') or (fichaJug.sinDatos is None) or fichaJug.sinDatos):
+                    self.changed |= self.fichaJugadores[idJug].actualizaFromWeb(browser=browser, config=config)
+                    JUGADORESDESCARGADOS.add(idJug)
 
         if self.changed != changeOrig:
             self.timestamp = gmtime()
@@ -703,6 +720,7 @@ class TemporadaACB:
             datos['timestamp'] = brwCfg.timestamp
             if jugCambiado not in self.fichaJugadores:
                 infoJug = FichaJugador.fromDatosPlantilla(datos, idClub, browser=brwCfg.browser, config=brwCfg.config)
+                JUGADORESCREADOS.add(jugCambiado)
                 if infoJug is not None:
                     self.fichaJugadores[jugCambiado] = infoJug
                     result = True
@@ -718,6 +736,7 @@ class TemporadaACB:
             datos['timestamp'] = brwCfg.timestamp
             if jugNuevo not in self.fichaJugadores:
                 infoJug = FichaJugador.fromDatosPlantilla(datos, idClub, browser=brwCfg.browser, config=brwCfg.config)
+                JUGADORESCREADOS.add(jugNuevo)
                 if infoJug is not None:
                     self.fichaJugadores[jugNuevo] = infoJug
                     result = True

@@ -432,11 +432,14 @@ def extraeEstadsPeriodo(data: dict):
     return result
 
 
-def procesaMDboxscore(rawData: dict):
+def procesaMDboxscore(rawData: dict, linksPers: Optional[Dict[str, str]] = None):
     EXCLUDEPLAYSTATS = {'id', 'headshotImageAlt', 'firstName'}
 
     resultado = {'equipos': {}, 'totales': {}, 'noAsig': {},
                  'infoJugs': dict.fromkeys(LocalVisitante, {})}
+
+    if linksPers is None:
+        linksPers = {}
 
     if len(rawData) > 1:
         return None
@@ -464,20 +467,22 @@ def procesaMDboxscore(rawData: dict):
                 playerData = copyDictWithTranslation(dataJug['player'], PLYSTATS2KEYS, EXCLUDEPLAYSTATS)
                 playerData['esLocal'] = loc == "Local"
 
-                playerId = str(dataJug['player']['id'])
-                playerData['codigo'] = playerId
-                resultado['equipos'][loc]['jugadores'].add(playerId)
+                playerData['codigo'] = str(dataJug['player']['id'])
+                resultado['equipos'][loc]['jugadores'].add(playerData['codigo'])
 
                 dJug = extraeEstadsPeriodo(dataJug)
                 datosTotal['Segs'] += dJug['Segs']
 
                 if periodo == 0:
                     playerData['titular'] = dataJug['isStarted']
-                    resultado['infoJugs'][loc][playerId] = playerData
+                    if playerData['codigo'] in linksPers:
+                        playerData['linkPersona'] = linksPers[playerData['codigo']]
 
-                    resultado['jugadores'][playerId] = dJug
+                    resultado['infoJugs'][loc][playerData['codigo']] = playerData
+
+                    resultado['jugadores'][playerData['codigo']] = dJug
                 else:
-                    resultado['porCuarto'][periodo]['jugadores'][playerId] = dJug
+                    resultado['porCuarto'][periodo]['jugadores'][playerData['codigo']] = dJug
 
             if periodo == 0:
                 resultado['totales'][loc] = datosTotal
@@ -642,10 +647,9 @@ def procesaMDplantJugs(rawData: Dict[str, Any], dataURLs: Dict[str, str] = senti
         for numOrd, pers in enumerate(listaPers, start=1):
             regPersona = {}
 
-            idPers = str(pers[claveInterna]['id'])
-
             regPersona.update(copyDictWithTranslation(pers, excludes=exclBase, translation=tradsBase))
             regPersona.update(copyDictWithTranslation(pers[claveInterna], excludes=exclSubReg, translation=tradsSubReg))
+            regPersona['id'] = str(pers[claveInterna]['id'])
             regPersona['activo'] = esActivo
             regPersona['nombre'] = pers[claveInterna].get('nickname',
                                                           f"{pers[claveInterna]['firstName']} "
@@ -657,9 +661,9 @@ def procesaMDplantJugs(rawData: Dict[str, Any], dataURLs: Dict[str, str] = senti
                 regPersona['dorsal'] = str(numOrd)
             regPersona['imgsConocidas'] = {pers[claveInterna]['headshotImageUrl'],
                                            pers[claveInterna]['fullBodyImageUrl']}
-            regPersona['URL'] = dataURLs.get(idPers, None)
+            regPersona['URL'] = dataURLs.get(regPersona['id'], None)
 
-            result[destClave][idPers] = regPersona
+            result[destClave][regPersona['id']] = regPersona
 
     return result
 

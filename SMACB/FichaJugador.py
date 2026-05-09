@@ -1,5 +1,6 @@
 import logging
 from collections import defaultdict
+from pprint import pformat
 from time import gmtime
 from typing import Optional, Dict, Any
 
@@ -20,7 +21,7 @@ class FichaJugador:
         changesInfo = {'NuevoJugador': True}
         if 'id' not in kwargs:
             raise ValueError(f"Jugador nuevo sin 'id': {kwargs}")
-        self.id = kwargs.get('id', None)
+        self.id: Optional[str] = kwargs.get('id', None)
         self.URL = kwargs.get('URL', None)
         self.sinDatos: Optional[bool] = None
 
@@ -93,18 +94,21 @@ class FichaJugador:
         EXFICHAJUG = {'competicion', 'temporada', 'jornada', 'equipo', 'CODequipo', 'rival', 'CODrival', 'IDrival',
                       'url', 'estado', 'esLocal', 'haGanado', 'estads', 'esJugador', 'entrenador', 'haJugado', 'dorsal',
                       'esTitular', 'linkPersona', }
-
+        print(f"Jugador fromPartido {idJugador} {datosPartido}")
         if datosPartido is None:
             datosPartido = {}
 
         fichaJug = {'id': idJugador}
         if 'linkPersona' in datosPartido:
+            fichaJug['URL'] = datosPartido['linkPersona']
+        else:
             fichaJug['URL'] = mergeURL(URL_BASE, generaCompParaURL(datosPartido['nombre'], datosPartido['codigo']))
         fichaJug.update(kwargs)
 
         auxDatosPartido = copyDictWithTranslation(source=datosPartido, translation=TRFICHAJUG, excludes=EXFICHAJUG)
         fichaJug.update(auxDatosPartido)
 
+        print(f"Jugador fromPartido {idJugador} {fichaJug}")
         return FichaJugador(**fichaJug)
 
     @staticmethod
@@ -124,6 +128,7 @@ class FichaJugador:
     def fromDatosPlantilla(datosFichaPlantilla: Optional[dict] = None, idClub: Optional[str] = None, home=None,
                            browser=None, config=None
                            ):
+
         if datosFichaPlantilla is None:
             return None
         datosFichaPlantilla = adaptaDatosFichaPlantilla(datosFichaPlantilla, idClub)
@@ -144,6 +149,10 @@ class FichaJugador:
         changeInfo = {}
 
         result |= self.addAtributosQueFaltan()
+
+        if self.URL is None:
+            logging.info("actualizaFromWeb: %s no tiene URL. %s", self, pformat(self.__dict__))
+            return result
 
         browser, config = prepareDownloading(browser, config)
         newData = descargaYparseaURLficha(self.URL, datosPartido=datosPartido, home=home, browser=browser,
@@ -363,8 +372,11 @@ def descargaYparseaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=
         auxResult['timestamp'] = fichaJug.timestamp
         if 'id' not in auxResult:
             auxResult['id'] = getIDfromEncURL(urlFicha, suf2ignore={'temporada', 'partidos'})
-
-        infoMetadata: Dict[str, Any] = procesaMDfichJugPlayData(extraePagDataScripts(fichaJug, 'playerData'))
+        metadataJug = extraePagDataScripts(fichaJug, 'playerData')
+        if not metadataJug:
+            logging.info("Imposible sacar metadata. URL: '%s'", urlFicha)
+            return auxResult
+        infoMetadata: Dict[str, Any] = procesaMDfichJugPlayData(metadataJug)
         auxResult.update(infoMetadata)
 
     except HTTPError:

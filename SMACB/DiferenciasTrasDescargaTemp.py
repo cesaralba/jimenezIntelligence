@@ -1,4 +1,4 @@
-from typing import Set, Dict
+from typing import Set, Dict, Optional, List, Callable, Tuple
 
 from CAPcore.LoggedDict import LoggedDictDiff
 
@@ -7,39 +7,43 @@ from SMACB.PlantillaACB import CambiosPlantillaTipo
 from SMACB.TemporadaACB import TemporadaACB
 
 
+def trataDiffUltClub(clave: str, cambio: Tuple[str, str], temp: TemporadaACB) -> str:
+    _ = clave
+    if cambio[1] is None:
+        cambioStr = f"club: baja en {temp.plantillas[str(cambio[0])].nombreClub()}"
+    else:
+        club1 = temp.plantillas[str(cambio[1])].nombreClub()
+        cambioStr = f"club: {temp.plantillas[str(cambio[0])].nombreClub()} -> {club1}"
+
+    return cambioStr
+
+
+tradReduc = {'URL': 'nueva URL', 'urlFoto': 'nueva foto', 'ultClub': trataDiffUltClub}
+tradNombreClaves: Dict[str, str] = {'licencia': 'cupo', 'nacionalidad': 'pais', 'lugarNac': 'origen'}
+
+
 def resumenCambioJugadores(cambiosJugadores: dict, temporada: TemporadaACB):
     jugList = []
     for jugCod, jugData in cambiosJugadores.items():
         if not jugData:
             continue
+
         ultClub = temporada.fichaJugadores[jugCod].ultClub
         clubStr = "" if ultClub is None else f"{temporada.plantillas[str(ultClub)].nombreClub()}"
 
         jugadorStr = f"{temporada.fichaJugadores[jugCod].nombreFicha()}"
-        if 'NuevoJugador' in jugData:
-            jugList.append(f"* Nuevo fichaje de {clubStr}: {jugadorStr}")
-        else:
-            claves2skip = {'urlFoto'}
-            tradClaves = {'licencia': 'Cupo', 'nacionalidad': 'Pais', 'lugarNac': 'Origen', 'nombre': 'Nombre'}
-            cambiosJug = []
-            for k, v in jugData.items():
-                if (k in claves2skip) or (v[0] is None):
-                    continue
-                if k == 'ultClub':
-                    if v[1] is None:
-                        cambioStr = f"Club: baja en {temporada.plantillas[str(v[0])].nombreClub()}"
-                    else:
-                        club1 = temporada.plantillas[str(v[1])].nombreClub()
-                        cambioStr = f"Club: {temporada.plantillas[str(v[0])].nombreClub()} -> {club1}"
-                else:
-                    cambioStr = f"{tradClaves.get(k, k)}: '{v[0]}'->'{v[1]}'"
 
-                cambiosJug.append(cambioStr)
-            if 'urlFoto' in jugData:
-                cambiosJug.append("Nueva foto")
-            if len(cambiosJug) == 0:
+        if 'NuevoJugador' not in jugData:
+            cambioStr = formateaResumenDiffs(jugData, temp=temporada, tradSimplifs=tradReduc,
+                                             tradClaves=tradNombreClaves)
+            if cambioStr == "":
                 continue
-            jugList.append(f"* {jugadorStr} Cambios: {','.join(sorted(cambiosJug))}")
+            newLine = f"* {jugadorStr} Cambios: {cambioStr}"
+
+            jugList.append(newLine)
+        else:
+            jugList.append(f"* {jugadorStr}: NUEVO FICHAJE de {clubStr}")
+            # TODO: Poner datos de jugadores
 
     return '\n'.join(sorted(jugList))
 
@@ -81,14 +85,14 @@ def resumenCambioClubes(cambiosClubes: Dict[str, CambiosPlantillaTipo], temporad
             cambiosClubList.append(f"Cambio en datos del club: {cambios.club.show(compact=True)}")
 
         if cambios.jugadores:
-            cambioJugsList = preparaResumenPlantillasJugadores(cambios, cl, temporada)
+            cambioJugsList = preparaResumenPlantillasJugadores(cambios, cl, temporada, tradReducDict=tradReduc)
 
             if cambioJugsList:
                 lineaJugadores = "Cambio en jugadores:\n" + "\n".join(sorted(cambioJugsList))
                 cambiosClubList.append(lineaJugadores)
 
         if cambios.tecnicos:
-            cambioTecList = preparaResumenPlantillasTecnicos(cambios, cl, temporada)
+            cambioTecList = preparaResumenPlantillasTecnicos(cambios, cl, temporada, tradReducDict=tradReduc)
 
             if cambioTecList:
                 lineaTecnicos = "Cambio en técnicos:\n" + "\n".join(sorted(cambioTecList))
@@ -104,7 +108,10 @@ def resumenCambioClubes(cambiosClubes: Dict[str, CambiosPlantillaTipo], temporad
     return ""
 
 
-def preparaResumenPlantillasTecnicos(cambios, cl, temporada: TemporadaACB):
+def preparaResumenPlantillasTecnicos(cambios, cl, temporada: TemporadaACB,
+                                     tradReducDict: Optional[Dict[str, str]] = None):
+    if tradReducDict is None:
+        tradReducDict = {}
     cambioTecList = []
 
     for idJug in cambios.tecnicos.added:
@@ -117,8 +124,8 @@ def preparaResumenPlantillasTecnicos(cambios, cl, temporada: TemporadaACB):
         if ('activo' in auxDiffchanged) and (not auxDiffchanged['activo'][1]):
             cambioTecList.append(f"  * Baja: {textoTecnico(temporada, idJug, cl)}")
         else:
-            changeStr = ",".join(
-                [f"{k}: '{auxDiffchanged[k][0]}'->'{auxDiffchanged[k][1]}'" for k in sorted(auxDiffchanged.keys())])
+            changeStr = formateaResumenDiffs(auxDiffchanged, temp=temporada, tradSimplifs=tradReducDict,
+                                             tradClaves=tradNombreClaves)
             cambioTecList.append(f"  * Cambios: {textoTecnico(temporada, idJug, cl)}: {changeStr}")
 
     for idJug, dataJug in cambios.tecnicos.removed.items():
@@ -126,7 +133,10 @@ def preparaResumenPlantillasTecnicos(cambios, cl, temporada: TemporadaACB):
     return cambioTecList
 
 
-def preparaResumenPlantillasJugadores(cambios, cl, temporada: TemporadaACB):
+def preparaResumenPlantillasJugadores(cambios, cl, temporada: TemporadaACB,
+                                      tradReducDict: Optional[Dict[str, str]] = None):
+    if tradReducDict is None:
+        tradReducDict = {}
     cambioJugsList = []
     for idJug in cambios.jugadores.added:
         dorsal = dataPlantJug(temporada, idJug, cl)['dorsal']
@@ -137,12 +147,12 @@ def preparaResumenPlantillasJugadores(cambios, cl, temporada: TemporadaACB):
         auxDiffchanged = dataJug.changed
         if not auxDiffchanged:
             continue
-        if ('activo' in auxDiffchanged) and (not auxDiffchanged['activo'][1]):
-            cambioJugsList.append(f"  * Baja: Dorsal: {dorsal}. {textoJugador(temporada, idJug)}")
-        else:
-            changeStr = ",".join(
-                [f"{k}: '{auxDiffchanged[k][0]}'->'{auxDiffchanged[k][1]}'" for k in sorted(auxDiffchanged.keys())])
+        if 'activo' not in auxDiffchanged or auxDiffchanged['activo'][1]:
+            changeStr = formateaResumenDiffs(auxDiffchanged, temp=temporada, tradSimplifs=tradReducDict,
+                                             tradClaves=tradNombreClaves)
             cambioJugsList.append(f"  * Cambios: Dorsal: {dorsal}. {textoJugador(temporada, idJug)}: {changeStr}")
+        else:
+            cambioJugsList.append(f"  * Baja: Dorsal: {dorsal}. {textoJugador(temporada, idJug)}")
 
     for idJug, dataJug in cambios.jugadores.removed.items():
         auxJug = dataPlantJug(temporada, idJug, cl)
@@ -150,6 +160,39 @@ def preparaResumenPlantillasJugadores(cambios, cl, temporada: TemporadaACB):
         cambioJugsList.append(f"  * BORRADO: {textoJugador(temporada, idJug)} Dorsal: {dorsal}")
 
     return cambioJugsList
+
+
+def formateaResumenDiffs(colDiffs: Dict[str, Tuple[str, str]], temp: TemporadaACB, tradSimplifs: Optional[
+    Dict[str, str | Callable[[str, Tuple[str, str], TemporadaACB], str]]] = None,
+                         tradClaves: Dict[str, str] = None) -> str:
+    result = ""
+    if tradSimplifs is None:
+        tradSimplifs = {}
+    if tradClaves is None:
+        tradClaves = {}
+
+    auxList: List[str] = []
+    for k in colDiffs.keys():
+        if k in tradSimplifs:
+            trad = tradSimplifs[k]
+            newVal = trad(k, colDiffs[k], temp) if callable(trad) else trad
+            auxList.append(newVal)
+            continue
+        if str(colDiffs[k][0]) == str(colDiffs[k][1]):
+            continue
+
+        nombreClave = tradClaves.get(k, k)
+        if colDiffs[k][0] in {None, ""}:
+            auxList.append(f"{nombreClave}: '{colDiffs[k][1]}'")
+        else:
+            auxList.append(f"{nombreClave}: '{colDiffs[k][0]}'->'{colDiffs[k][1]}'")
+
+    if len(auxList) == 0:
+        return result
+
+    result = ", ".join(sorted(auxList))
+
+    return result
 
 
 def resumenCambiosCalendario(cambios: LoggedDictDiff, temporada: TemporadaACB):
