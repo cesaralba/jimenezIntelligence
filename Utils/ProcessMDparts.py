@@ -140,7 +140,7 @@ def procesaMDcalTeams2InfoEqs(rawData: dict) -> Dict[str, Dict]:
 
     for seq, eq in enumerate(auxTeamsData):
         eqAbrev = eq['abbreviatedName']
-        eqId = str(eq['clubId'])
+        eqId = eq['clubId'] = str(eq['clubId'])
         result['seq2eqId'][str(seq)] = eqId
         result['seq2eqAbrev'][str(seq)] = eqAbrev
         result['eqAbrev2eqId'][eqAbrev] = eqId
@@ -454,6 +454,7 @@ def procesaMDboxscore(rawData: dict, linksPers: Optional[Dict[str, str]] = None)
 
     for loc, datosEq in zip(LocalVisitante, boxScoreData['teamBoxscores']):
         resultado['equipos'][loc] = {k: datosEq['team'][k] for k in EQKEYS2ADD}
+        resultado['equipos'][loc]['clubId'] = str(resultado['equipos'][loc]['clubId'])
         resultado['equipos'][loc]['jugadores']: set = set()
         resultado['equipos'][loc]['entrenador'] = datosEq['headCoach']
         resultado['equipos'][loc]['ayudantes'] = set(datosEq['assistantCoaches'])
@@ -610,7 +611,8 @@ def procesaMDplantRaizClubData(rawData: dict) -> Dict[str, Any]:
                                                  'youtubeUrl', 'tikTokUrl', 'validated'})
     result.update(clubInfo)
     teamInfo = copyDictWithTranslation(clubData['club']['team'],
-                                       excludes=['id', 'clubId', 'primaryColorHex', 'textColorHex', 'logoAlt',
+                                       excludes=['id', 'clubId', 'competitionId', 'editionId', 'primaryColorHex',
+                                                 'textColorHex', 'logoAlt',
                                                  'secondaryLogo', 'displayColor', 'displayTextColor'])
     teamInfo['clubId'] = str(clubData['club']['team']['clubId'])
     result.update(teamInfo)

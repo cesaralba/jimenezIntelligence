@@ -109,7 +109,7 @@ class TemporadaACB:
                 if nuevoPartido.check():
                     self.Partidos[partido] = nuevoPartido
                     partidosBajados.add(partido)
-                    self.actualizaInfoAuxiliar(nuevoPartido, browser, config)
+                    self.actualizaInfoAuxiliar(nuevoPartido)
             except KeyboardInterrupt:
                 print("actualizaTemporada: Ejecución terminada por el usuario")
                 break
@@ -141,7 +141,7 @@ class TemporadaACB:
                     continue
                 if refrescaFichas or (
                         not hasattr(fichaJug, 'sinDatos') or (fichaJug.sinDatos is None) or fichaJug.sinDatos):
-                    self.changed |= self.fichaJugadores[idJug].actualizaFromWeb(browser=browser, config=config)
+                    self.changed |= fichaJug.actualizaFromWeb(browser=browser, config=config)
                     JUGADORESDESCARGADOS.add(idJug)
 
         if self.changed != changeOrig:
@@ -149,9 +149,9 @@ class TemporadaACB:
 
         return partidosBajados
 
-    def actualizaInfoAuxiliar(self, nuevoPartido: PartidoACB, browser, config):
+    def actualizaInfoAuxiliar(self, nuevoPartido: PartidoACB):
         self.actualizaNombresEquipo(nuevoPartido)
-        self.actualizaFichasPartido(nuevoPartido, browser=browser, config=config)
+        self.actualizaFichasPartido(nuevoPartido)
         self.actualizaTraduccionesJugador(nuevoPartido)
         # Añade la información de equipos de partido a traducciones de equipo.
         # (el código de equipo ya no viene en el calendario)
@@ -218,7 +218,7 @@ class TemporadaACB:
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
         self.changed |= self.actualizaClase()
 
-    def actualizaFichasPartido(self, nuevoPartido: PartidoACB, browser=None, config=None):
+    def actualizaFichasPartido(self, nuevoPartido: PartidoACB):
         for codJ, datosJug in nuevoPartido.Jugadores.items():
             if (codJ not in self.fichaJugadores) or (self.fichaJugadores[codJ] is None):
                 nuevaFicha = FichaJugador.fromPartido(idJugador=codJ, datosPartido=datosJug,

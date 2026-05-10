@@ -253,6 +253,7 @@ class CalendarioACB:
             resultado['resultado'] = {loc: datosPartEqs[loc]['puntos'] for loc in LocalVisitante}
             resultado['enlaces'] = procesaEnlacesPartido(divPartido)
             resultado['url'] = resultado['enlaces']['resumen']
+
         return resultado
 
     def recuperaFechaAmbigua(self, infoPart, **kwargs):
