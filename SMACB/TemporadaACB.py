@@ -280,7 +280,7 @@ class TemporadaACB:
 
     def extraeDataframeJugadores(self, listaURLPartidos=None):
 
-        listaURLs: List[str] = listaURLPartidos or self.Partidos.keys()
+        listaURLs: List[str] = listaURLPartidos or list(self.Partidos.keys())
 
         dfPartidos: List[pd.DataFrame] = [self.Partidos[pURL].jugadoresAdataframe() for pURL in listaURLs]
 
