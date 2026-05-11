@@ -206,7 +206,6 @@ class CalendarioACB:
                             datosPart['fechaPartido'] = nuevaFecha
                     result['pendientes'].append(datosPart)
                 else:
-                    self.Partidos[datosPart['url']] = datosPart
                     result['partidos'].append(datosPart)
 
         result['numPartidos'] = len(result['partidos']) + len(result['pendientes'])
@@ -274,13 +273,15 @@ class CalendarioACB:
     def partidosEquipo(self, abrEq):
         targAbrevs = self.abrevsEquipo(abrEq)
 
-        jugados = [p for p in self.Partidos.values() if
-                   targAbrevs.intersection(p['participantes']) and not p['pendiente']]
+        jugados = []
         pendientes = []
         for dataJor in self.Jornadas.values():
+            auxJugados = [p for p in dataJor['partidos'] if
+                          targAbrevs.intersection(p['participantes']) and not p['pendiente']]
             auxPendientes = [p for p in dataJor['pendientes'] if
                              targAbrevs.intersection(p['participantes']) and p['pendiente']]
             pendientes.extend(auxPendientes)
+            jugados.extend(auxJugados)
         for p in jugados:
             for _, e in p['equipos'].items():
                 if 'idEq' not in e:
@@ -343,7 +344,11 @@ class CalendarioACB:
 
     def idPartidosJugados(self) -> Dict[str, str]:
 
-        result = {str(p['partido']): k for k, p in self.Partidos.items()}
+        # result = {str(p['partido']): k for k, p in self.Partidos.items()}
+        result = {}
+        for j in self.Jornadas.items():
+            for p in j['partidos']:
+                result[str(p['partido'])] = p
 
         return result
 

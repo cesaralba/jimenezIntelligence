@@ -102,9 +102,9 @@ class TemporadaACB:
 
         partidosBajados: Set[str] = set()
 
-        for partido in sorted(nuevosPartidos, key=lambda s: self.Calendario.Partidos[s]['fechaPartido']):
+        for partido in sorted(nuevosPartidos, key=lambda s: partsCalendarioI2U[s]['fechaPartido']):
             try:
-                nuevoPartido = PartidoACB(**(self.Calendario.Partidos[partido]))
+                nuevoPartido = PartidoACB(**(partsCalendarioI2U[partido]))
                 nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
                 if nuevoPartido.check():
                     self.Partidos[partido] = nuevoPartido
@@ -335,18 +335,14 @@ class TemporadaACB:
         * Partidos futuros del eq visitante
         * Si la abrev objetivo es local (True) o visit (False)
         """
-        juCal, peCal = self.Calendario.partidosEquipo(abrEq)
-        peOrd = sorted(list(peCal), key=itemgetter('fechaPartido'))
-
-        juOrdTem = sorted([p['url'] for p in juCal], key=lambda u: self.Partidos[u].fechaPartido)
+        juOrdTem, peOrd = self.partidosEquipoOrd(abrEq)
 
         sigPart = peOrd.pop(0)
         abrevsEq = self.Calendario.abrevsEquipo(abrEq)
-        abrRival = sigPart['participantes'].difference(abrevsEq).pop()
-        juRivCal, peRivCal = self.Calendario.partidosEquipo(abrRival)
 
-        peRivOrd = sorted([p for p in peRivCal if p['jornada'] != sigPart['jornada']], key=itemgetter('fechaPartido'))
-        juRivTem = sorted([p['url'] for p in juRivCal], key=lambda u: self.Partidos[u].fechaPartido)
+        abrRival = sigPart['participantes'].difference(abrevsEq).pop()
+
+        juRivTem, peRivOrd = self.partidosEquipoOrd(abrRival)
 
         eqIsLocal = sigPart['loc2abrev']['Local'] in abrevsEq
         juIzda, peIzda, juDcha, peDcha = (juOrdTem, peOrd, juRivTem, peRivOrd) if eqIsLocal else (
@@ -356,6 +352,17 @@ class TemporadaACB:
         result = infoSigPartido(sigPartido=sigPart, abrevLV=resAbrevs, eqIsLocal=eqIsLocal, jugLocal=juIzda,
                                 pendLocal=peIzda, jugVis=juDcha, pendVis=peDcha, )
         return result
+
+    def partidosEquipoOrd(self, abrEq: str) -> tuple[list[Any], list[Any]]:
+        jugadosCal, pendCal = self.Calendario.partidosEquipo(abrEq)
+
+        peOrd = sorted(pendCal, key=itemgetter('fechaPartido'))
+
+        auxURL2ID = self.idPartsDescargados()
+        juOrdTem = sorted((auxURL2ID[str(p['partido'])] for p in jugadosCal),
+                          key=lambda u: self.Partidos[u].fechaPartido)
+
+        return juOrdTem, peOrd
 
     def dataFrameFichasJugadores(self, abrEq: Optional[str] = None):
         jugsIter = self.fichaJugadores.keys()
@@ -575,23 +582,22 @@ class TemporadaACB:
             result = infoEqCalendario(**auxDict)
             return result
 
+        partID2URL: Dict[str, str] = self.idPartsDescargados()
         for p in juCal + peCal:
             abrevAUsar = (p['participantes'].intersection(targetAbrevs)).pop()
             loc = p['abrev2loc'][abrevAUsar]
-            auxEntry = {}
-            auxEntry['fechaPartido'] = p['fechaPartido'] if p['pendiente'] else self.Partidos[p['url']].fechaPartido
-            auxEntry['infoJornada'] = p['infoJornada'] if p['pendiente'] else partido2InfoJornada(
-                self.Partidos[p['url']], self)
-            auxEntry['jornada'] = p['jornada']
-            auxEntry['cod_edicion'] = p['cod_edicion']
-            auxEntry['cod_competicion'] = p['cod_competicion']
-            auxEntry['pendiente'] = p['pendiente']
+            codigoPart = p['partido']
+            partURL = partID2URL[str(codigoPart)] if not p['pendiente'] else None
+            auxEntry = {'fechaPartido': p['fechaPartido'] if p['pendiente'] else self.Partidos[partURL].fechaPartido,
+                        'infoJornada': p['infoJornada'] if p['pendiente'] else partido2InfoJornada(
+                            self.Partidos[partURL], self),
+                        'jornada': p['jornada'], 'cod_edicion': p['cod_edicion'],
+                        'cod_competicion': p['cod_competicion'], 'pendiente': p['pendiente'], 'esLocal': loc == 'Local'}
 
-            auxEntry['esLocal'] = loc == 'Local'
             if not p['pendiente']:
                 auxEntry['haGanado'] = p['resultado'][loc] > p['resultado'][OtherLoc(loc)]
                 auxEntry['resultado'] = infoPartLV(**p['resultado'])
-                auxEntry['url'] = p['url']
+                auxEntry['url'] = partURL
             auxEntry['abrevEqs'] = infoPartLV(**p['loc2abrev'])
 
             auxEntry['equipoMe'] = EqCalendario2NT(p['equipos'][loc])
@@ -599,6 +605,7 @@ class TemporadaACB:
             auxResultado.append(filaTrayectoriaEq(**auxEntry))
 
         result = sorted(auxResultado, key=lambda x: x.fechaPartido)
+
         return result
 
     def mergeTrayectoriaEquipos(self, abrevIzda: str, abrevDcha: str,
