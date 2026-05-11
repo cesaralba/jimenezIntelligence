@@ -346,7 +346,7 @@ class CalendarioACB:
 
         # result = {str(p['partido']): k for k, p in self.Partidos.items()}
         result = {}
-        for j in self.Jornadas.items():
+        for j in self.Jornadas.values():
             for p in j['partidos']:
                 result[str(p['partido'])] = p
 
