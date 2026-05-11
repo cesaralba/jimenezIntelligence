@@ -98,11 +98,10 @@ class TemporadaACB:
 
         partsCalendarioI2U = self.Calendario.idPartidosJugados()
         idNuevosPartidos: Set[str] = set(partsCalendarioI2U.keys()).difference(set(self.idPartsDescargados().keys()))
-        nuevosPartidos: Set[str] = {partsCalendarioI2U[k] for k in idNuevosPartidos}
 
         partidosBajados: Set[str] = set()
 
-        for partido in sorted(nuevosPartidos, key=lambda s: partsCalendarioI2U[s]['fechaPartido']):
+        for partido in sorted(idNuevosPartidos, key=lambda s: partsCalendarioI2U[s]['fechaPartido']):
             try:
                 nuevoPartido = PartidoACB(**(partsCalendarioI2U[partido]))
                 nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
