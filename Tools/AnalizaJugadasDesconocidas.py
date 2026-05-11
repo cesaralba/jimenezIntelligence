@@ -15,7 +15,7 @@ from configargparse import ArgumentParser, Namespace
 from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import cargaTemporada
 from Utils.ProcessMDparts import procesaMDjugadas, play2key, jugadaTag2Desc, jugada2str, jugadaKey2sort, jugadaKey2str
-from Utils.Web import extractPagDataScripts, prepareDownloading
+from Utils.Web import extraePagDataScripts, prepareDownloading
 
 
 def sacaJugadoresPartido(part: PartidoACB) -> dict:
@@ -54,7 +54,7 @@ def procesaURL(args: Namespace) -> Dict[str, dict]:
     browser, config = prepareDownloading(None, None)
     pagJugadas = downloadPage(args.url, home=None, browser=browser, config=config)
 
-    r1 = procesaMDjugadas(extractPagDataScripts(pagJugadas, 'initialMatchPlayByPlay'))
+    r1 = procesaMDjugadas(extraePagDataScripts(pagJugadas, 'initialMatchPlayByPlay'))
 
     result = {args.url: {"playbyplay": r1["jugadas"], "infoJugadores": r1["infoJugadores"]}}
 
@@ -113,6 +113,9 @@ def vuelcaListaParcial(url: str, data: dict, args: Namespace, salida: TextIO):
 
 def muestraDatos(datos: dict, args: Namespace, salida: TextIO):
     for url, data in datos.items():
+        if args.allGames:
+            vuelcaListaCompleta(url, data, salida)
+            continue
         if not hayJugadasDesc(data):
             continue
         if args.all:
@@ -163,6 +166,9 @@ def parse_arguments() -> Namespace:
 
     parser.add('-a', '--all', dest='all', action="store_true", required=False,
                help="Muestra todas las jugadas")
+    parser.add('-g', '--all-games', dest='allGames', action="store_true", required=False,
+               help="Muestra todas las jugadas")
+
     parser.add('-c', '--context', dest='context', type=int, action="store", required=False, default=4,
                help="Numero de líneas a mostrar rodeando a la de interés C lineas + LI + C lineas")
 

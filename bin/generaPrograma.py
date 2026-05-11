@@ -1,3 +1,4 @@
+import logging
 import sys
 from locale import LC_ALL, setlocale
 
@@ -85,11 +86,11 @@ def main(args):
         sys.exit(1)
     try:
         datosSig: infoSigPartido = tempData.sigPartido(args.equipo)
-    except KeyError as exc:
-        print(f"Equipo desconocido '{args.equipo}': {exc}")
+    except KeyError:
+        logging.exception("Equipo desconocido '%s'", args.equipo)
         sys.exit(1)
     except IndexError:
-        print(f"Equipo '{args.equipo}': no tiene más partidos conocidos")
+        logging.exception("Equipo '%s': no tiene más partidos conocidos", args.equipo)
         sys.exit(1)
 
     preparaLibro(args, tempData, datosSig)
