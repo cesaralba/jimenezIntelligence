@@ -14,11 +14,11 @@ from CAPcore.Misc import listize, onlySetElement
 from CAPcore.Web import downloadPage, DownloadedPage
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif, procesaFechaJornada
-from Utils.ProcessMDparts import procesaMDcalFl2calendarIDs, procesaMDcalTeams2InfoEqs, processMDcalFl2Info
-from Utils.Web import prepareDownloading, tagAttrHasValue, generaURLEstadsPartido, logger, extractPagDataScripts
+from Utils.ProcessMDparts import procesaMDcalFl2calendarIDs, procesaMDcalTeams2InfoEqs, procesaMDcalFl2Info
+from Utils.Web import prepareDownloading, tagAttrHasValue, logger, extraePagDataScripts
 from .Constants import REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada, infoJornada, LocalVisitante, OtherLoc, DEFTZ
 
-calendario_URLBASE = 'https://www.acb.com/es/calendario'
+calendario_URLBASE = 'https://www.acb.com/es/liga/calendario'
 
 # https://www.acb.com/calendario/index/temporada_id/2018
 # https://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
@@ -64,12 +64,13 @@ class CalendarioACB:
             self.url = content.source
         calendarioData: bs4.element.Tag = content.data
 
-        reRound = re.compile(r"^Round_round___")
-        reRoundTitle = re.compile(r"^RoundTitle_roundTitle__")
+        reRound = re.compile(r"^Round-module-scss-module__(.*)__round")
+        reRoundTitle = re.compile(r"^RoundTitle-module-scss-module__-(.*)__roundTitle")
         jornadasCurrCal = set()
 
         for divJ in calendarioData.find_all("div", {"class": reRound}):  # ,
-            datosCab = procesaCab(divJ.find("div", {'class': reRoundTitle}))
+            divCab = divJ.find("div", {'class': reRoundTitle})
+            datosCab = procesaCab(divCab)
             if datosCab is None:
                 continue
 
@@ -78,7 +79,7 @@ class CalendarioACB:
 
         jor2del: set = set(self.Jornadas.keys()).difference(jornadasCurrCal)
         for j in jor2del:
-            print(f"Eliminando jornada desaparecida '{j}'")
+            logger.info("Eliminando jornada desaparecida '%s'", j)
             self.Jornadas.pop(j)
 
     def esJornadaPlayOff(self, currJ: int):
@@ -137,7 +138,7 @@ class CalendarioACB:
                         self.competicion)
             pagCalendario = downloadPage(self.urlbase, home=home, browser=browser, config=config)
 
-            avFilters = extractPagDataScripts(pagCalendario, 'availableFilters')
+            avFilters = extraePagDataScripts(pagCalendario, 'availableFilters')
             embeddedDataTemporadas = procesaMDcalFl2calendarIDs(avFilters)
 
             currYear = embeddedDataTemporadas['currFilters']['seaYear']
@@ -149,7 +150,7 @@ class CalendarioACB:
             self.url = composeURLcalendario(self.urlbase, targComp=self.competicion, targTemp=self.edicion)
             if (self.edicion == currYear) and (self.competicion == currComp):
                 embeddedDataEquipos = procesaMDcalTeams2InfoEqs(avFilters)
-                embeddedDataCalendario = processMDcalFl2Info(avFilters, embeddedDataEquipos)
+                embeddedDataCalendario = procesaMDcalFl2Info(avFilters, embeddedDataEquipos)
                 for embData in embeddedDataEquipos['eqData'].values():
                     self.nuevaTraduccionEquipo2Codigo([embData['nomblargo'], embData['nombcorto']], embData['abrev'],
                                                       embData['id'])
@@ -162,10 +163,10 @@ class CalendarioACB:
             logger.info("DescargaCalendario. URL %s", self.url)
             result = downloadPage(self.url, browser=browser, home=None, config=config)
 
-        avFilters = extractPagDataScripts(result, 'availableFilters')
+        avFilters = extraePagDataScripts(result, 'availableFilters')
         embeddedDataTemporadas = procesaMDcalFl2calendarIDs(avFilters)
         embeddedDataEquipos = procesaMDcalTeams2InfoEqs(avFilters)
-        embeddedDataCalendario = processMDcalFl2Info(avFilters, embeddedDataEquipos)
+        embeddedDataCalendario = procesaMDcalFl2Info(avFilters, embeddedDataEquipos)
 
         for embData in embeddedDataEquipos['eqData'].values():
             self.nuevaTraduccionEquipo2Codigo([embData['nomblargo'], embData['nombcorto']], embData['abrev'],
@@ -205,7 +206,6 @@ class CalendarioACB:
                             datosPart['fechaPartido'] = nuevaFecha
                     result['pendientes'].append(datosPart)
                 else:
-                    self.Partidos[datosPart['url']] = datosPart
                     result['partidos'].append(datosPart)
 
         result['numPartidos'] = len(result['partidos']) + len(result['pendientes'])
@@ -220,7 +220,7 @@ class CalendarioACB:
         resultado['cod_competicion'] = self.competicion
         resultado['cod_edicion'] = self.edicion
 
-        reHoraPart = re.compile('^RoundMatch_roundMatch__time__')
+        reHoraPart = re.compile('^RoundMatch-module-scss-module__(.*)__roundMatch__time')
         divHoraPart = divPartido.find('div', {'class': reHoraPart})
         if divHoraPart and not isSkeleton(divHoraPart):
             try:
@@ -231,7 +231,7 @@ class CalendarioACB:
                 traceback.print_tb(sys.exc_info()[2])
                 resultado['fechaPartido'] = datosJornada['fechaParts']
 
-        reDatosEquiposPartido = re.compile(r"^RoundMatch_roundMatch__teams__")
+        reDatosEquiposPartido = re.compile(r"^RoundMatch-module-scss-module__(.*)__roundMatch__teams")
         auxDatosEqs = divPartido.find('div', {'class': reDatosEquiposPartido})
         if not auxDatosEqs:
             raise ValueError(f"Partido sin equipos!\n{divPartido.prettify()}")
@@ -250,8 +250,8 @@ class CalendarioACB:
         if all('puntos' in eq for eq in datosPartEqs.values()):
             resultado['pendiente'] = False
             resultado['resultado'] = {loc: datosPartEqs[loc]['puntos'] for loc in LocalVisitante}
-            resultado['url'] = generaURLEstadsPartido(resultado['partido'], urlRef=self.url)
             resultado['enlaces'] = procesaEnlacesPartido(divPartido)
+            resultado['url'] = resultado['enlaces']['resumen']
 
         return resultado
 
@@ -273,13 +273,15 @@ class CalendarioACB:
     def partidosEquipo(self, abrEq):
         targAbrevs = self.abrevsEquipo(abrEq)
 
-        jugados = [p for p in self.Partidos.values() if
-                   targAbrevs.intersection(p['participantes']) and not p['pendiente']]
+        jugados = []
         pendientes = []
         for dataJor in self.Jornadas.values():
+            auxJugados = [p for p in dataJor['partidos'] if
+                          targAbrevs.intersection(p['participantes']) and not p['pendiente']]
             auxPendientes = [p for p in dataJor['pendientes'] if
                              targAbrevs.intersection(p['participantes']) and p['pendiente']]
             pendientes.extend(auxPendientes)
+            jugados.extend(auxJugados)
         for p in jugados:
             for _, e in p['equipos'].items():
                 if 'idEq' not in e:
@@ -340,6 +342,16 @@ class CalendarioACB:
 
         return result
 
+    def idPartidosJugados(self) -> Dict[str, str]:
+
+        # result = {str(p['partido']): k for k, p in self.Partidos.items()}
+        result = {}
+        for j in self.Jornadas.items():
+            for p in j['partidos']:
+                result[str(p['partido'])] = p
+
+        return result
+
 
 def isSkeleton(tagElem: bs4.element.Tag, tag2search: str = "span") -> bool:
     if tagElem is None:
@@ -356,6 +368,7 @@ def procesaCab(cab: bs4.element.Tag) -> Optional[Dict]:
     :param cab: div que contiene la cabecera COMPLETA
     :return:  {'comp': 'Liga Endesa', 'yini': '2018', 'yfin': '2019', 'jor': '46'}
     """
+
     if isSkeleton(cab):
         return None
     nombreJornada = cab.getText()
@@ -487,7 +500,7 @@ def dictK2partStr(cal: CalendarioACB, partK: str) -> str:
 def composeURLcalendario(currURL: str = calendario_URLBASE, targComp: str = None, targTemp=None,
                          ) -> str:
     if embeddedDataTemporadas is None:
-        raise ValueError("composeURLcalendario: necesito informacion para filtros")
+        raise ValueError("composeURLcalendario: necesita informacion para filtros")
 
     if targTemp is None:
         targTemp = embeddedDataTemporadas['currFilters']['seaYear']
@@ -507,15 +520,15 @@ def composeURLcalendario(currURL: str = calendario_URLBASE, targComp: str = None
 
 
 # Expresiones regulares de class (CSS) para parseo de páginas
-reDatosEq = re.compile(r'^RoundMatch_roundMatch__(home|away)Team__')
-reDatosEqLink = re.compile(r'^RoundMatch_roundMatch__teamLink___')
-reDatosEqLinkLogo = re.compile(r'^RoundMatch_roundMatch__teamLogoLink__')
+reDatosEq = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__(home|away)Team')
+reDatosEqLink = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__teamLink')
+reDatosEqLinkLogo = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__teamLogo')
 
-reDatosEqLinkName = re.compile(r'^RoundMatch_roundMatch__teamName--fullName__')
-reDatosEqLinkAbrev = re.compile(r'^RoundMatch_roundMatch__teamName--shortName__')
-reDatosEqPScore = re.compile(r'^RoundMatch_roundMatch__teamScore__')
+reDatosEqLinkName = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__teamName--fullName')
+reDatosEqLinkAbrev = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__teamName--shortName')
+reDatosEqPScore = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__teamScore')
 
-rePartidoEnlaces = re.compile(r'^RoundMatch_roundMatch__links__')
+rePartidoEnlaces = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__links')
 
 CAMPOSDEEQUIPOAMOVER = ['nombcorto', 'id']
 
@@ -586,3 +599,11 @@ def procesaEnlacesPartido(divPartido: bs4.Tag) -> dict:
         result[clase] = dest
 
     return result
+
+
+def getURLparamTemporada(edicion: str | None) -> dict[str, Any] | dict[Any, Any]:
+    if embeddedDataTemporadas is None:
+        raise ValueError('SMACB.CalendarioACB.embeddedDataTemporadas no disponible')
+
+    urlParams = {'editionId': embeddedDataTemporadas['seaYear2seaId'][edicion]} if edicion is not None else {}
+    return urlParams
