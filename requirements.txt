@@ -10,7 +10,7 @@ lxml>=6.1.0
 babel==2.18.0
 pandas>=3.0.2
 pytz==2026.2
-tzdata>=2025.2
+tzdata>=2026.2
 json5==0.14.0
 scipy>=1.17.1
 numpy>=2.4.0
@@ -31,4 +31,4 @@ pillow>=12.0.0
 
 #Dependencias (añadidas por vulnerabilidades detectadas)
 fonttools>=4.62.1
-urllib3>=2.6.3
+urllib3>=2.7.0

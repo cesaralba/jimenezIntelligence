@@ -1,11 +1,13 @@
 import logging
-from typing import Dict, Optional, List, Tuple
+from pprint import pformat
+from typing import Dict, Optional, List, Tuple, Any, Set
 
 import pandas as pd
 from CAPcore.Misc import copyDictWithTranslation
 
-from SMACB.Constants import LocalVisitante, OtherLoc, numPartidoPO2jornada, infoJornada
-from Utils.ParseoData import ProcesaTiempo
+from SMACB.Constants import LocalVisitante, OtherLoc, numPartidoPO2jornada, infoJornada, TRADPOSICION
+from Utils.ParseoData import ProcesaTiempo, parseFecha, parseaAltura
+from Utils.Web import sentinel
 
 LV2HA = {'Local': 'home', 'Visitante': 'away'}
 HA2LV = {'home': 'Local', 'away': 'Visitante'}
@@ -138,7 +140,7 @@ def procesaMDcalTeams2InfoEqs(rawData: dict) -> Dict[str, Dict]:
 
     for seq, eq in enumerate(auxTeamsData):
         eqAbrev = eq['abbreviatedName']
-        eqId = str(eq['clubId'])
+        eqId = eq['clubId'] = str(eq['clubId'])
         result['seq2eqId'][str(seq)] = eqId
         result['seq2eqAbrev'][str(seq)] = eqAbrev
         result['eqAbrev2eqId'][eqAbrev] = eqId
@@ -148,7 +150,7 @@ def procesaMDcalTeams2InfoEqs(rawData: dict) -> Dict[str, Dict]:
     return result
 
 
-def processMDcalFl2Info(rawData: dict, infoMDequipos: dict) -> Dict[str, Dict]:
+def procesaMDcalFl2Info(rawData: dict, infoMDequipos: dict) -> Dict[str, Dict]:
     """
     Saca la información de calendario del script que lleva embebida la página del calendario
     :param rawData:
@@ -168,7 +170,7 @@ def processMDcalFl2Info(rawData: dict, infoMDequipos: dict) -> Dict[str, Dict]:
             partPendiente: bool = g['matchStatus'] != 'FINALIZED'
             datosPart = {'fechaPartido': pd.to_datetime(g['startDateTime']),
                          'pendiente': partPendiente, 'equipos': {}, 'resultado': {}}
-            datosPart['partido'] = g['id']
+            datosPart['partido'] = str(g['id'])
 
             for loc in LocalVisitante:
                 datosEq = {}
@@ -430,11 +432,14 @@ def extraeEstadsPeriodo(data: dict):
     return result
 
 
-def procesaMDboxscore(rawData: dict):
+def procesaMDboxscore(rawData: dict, linksPers: Optional[Dict[str, str]] = None):
     EXCLUDEPLAYSTATS = {'id', 'headshotImageAlt', 'firstName'}
 
     resultado = {'equipos': {}, 'totales': {}, 'noAsig': {},
                  'infoJugs': dict.fromkeys(LocalVisitante, {})}
+
+    if linksPers is None:
+        linksPers = {}
 
     if len(rawData) > 1:
         return None
@@ -449,6 +454,7 @@ def procesaMDboxscore(rawData: dict):
 
     for loc, datosEq in zip(LocalVisitante, boxScoreData['teamBoxscores']):
         resultado['equipos'][loc] = {k: datosEq['team'][k] for k in EQKEYS2ADD}
+        resultado['equipos'][loc]['clubId'] = str(resultado['equipos'][loc]['clubId'])
         resultado['equipos'][loc]['jugadores']: set = set()
         resultado['equipos'][loc]['entrenador'] = datosEq['headCoach']
         resultado['equipos'][loc]['ayudantes'] = set(datosEq['assistantCoaches'])
@@ -462,20 +468,22 @@ def procesaMDboxscore(rawData: dict):
                 playerData = copyDictWithTranslation(dataJug['player'], PLYSTATS2KEYS, EXCLUDEPLAYSTATS)
                 playerData['esLocal'] = loc == "Local"
 
-                playerId = str(dataJug['player']['id'])
-                playerData['codigo'] = playerId
-                resultado['equipos'][loc]['jugadores'].add(playerId)
+                playerData['codigo'] = str(dataJug['player']['id'])
+                resultado['equipos'][loc]['jugadores'].add(playerData['codigo'])
 
                 dJug = extraeEstadsPeriodo(dataJug)
                 datosTotal['Segs'] += dJug['Segs']
 
                 if periodo == 0:
                     playerData['titular'] = dataJug['isStarted']
-                    resultado['infoJugs'][loc][playerId] = playerData
+                    if playerData['codigo'] in linksPers:
+                        playerData['linkPersona'] = linksPers[playerData['codigo']]
 
-                    resultado['jugadores'][playerId] = dJug
+                    resultado['infoJugs'][loc][playerData['codigo']] = playerData
+
+                    resultado['jugadores'][playerData['codigo']] = dJug
                 else:
-                    resultado['porCuarto'][periodo]['jugadores'][playerId] = dJug
+                    resultado['porCuarto'][periodo]['jugadores'][playerData['codigo']] = dJug
 
             if periodo == 0:
                 resultado['totales'][loc] = datosTotal
@@ -552,3 +560,164 @@ def procesaMDresDatosPartido(rawData: dict) -> Optional[Dict[str, Dict]]:
         return resultado
 
     return None
+
+
+def procesaMDfichJugPlayData(rawData: dict) -> Dict[str, Any]:
+    result = {}
+    result['sinDatos'] = False
+
+    jugData = list(rawData.values())[0][3]['playerData']
+    scJugData: Dict[str, Any] = jugData['playerData']
+
+    CLASSROOT2KEYS = {'nationality': 'nacionalidad', 'licensing': 'licencia', 'pronunciationUrl': 'audioURL',
+                      'birthPlace': 'NacLugar', 'birthCountry': 'NacPais', }
+    CLASSROOTEXCL = {'player', 'birthDate', 'height', 'youtube', 'instagram', 'twitter', 'facebook', 'tiktok',
+                     'currentTeam', 'playerNumber', 'isLicenseActive'}
+    CLASSPLAYER2KEYS = {'firstInitialAndLastName': 'alias', 'nickname': 'nombre', 'gameRole': 'posicion',
+                        'shirtNumber': 'dorsal'}
+    CLASSPLAYEREXCL = {'id', 'headshotImageUrl', 'headshotImageNoBackgroundUrl', 'headshotImageAlt', 'fullBodyImageUrl',
+                       'fullBodyImageNoBackgroundUrl', 'isLicenseActive', 'editionId'}
+    dataFromRootClass = copyDictWithTranslation(scJugData, translation=CLASSROOT2KEYS, excludes=CLASSROOTEXCL)
+    dataFromRootClass['lugarNac'] = f"{scJugData['birthPlace']}, {scJugData['birthCountry']}"
+    dataFromRootClass['fechaNac'] = parseFecha(scJugData['birthDate'])
+    dataFromRootClass['altura'] = parseaAltura(scJugData['height'])
+
+    result.update(dataFromRootClass)
+
+    scPlayer: Dict[str, Any] = scJugData['player']
+    scPlayer['nombresConocidos'] = {scPlayer['firstInitialAndLastName'], scPlayer['nickname']}
+    scPlayer['fotos'] = {scPlayer['headshotImageUrl'], scPlayer['fullBodyImageUrl']}
+
+    dataFromPlayer = copyDictWithTranslation(scPlayer, translation=CLASSPLAYER2KEYS, excludes=CLASSPLAYEREXCL)
+
+    result.update(dataFromPlayer)
+
+    scClub: Dict[str, Any] = scJugData['currentTeam']
+    result['ultClub'] = str(scClub['clubId'])
+
+    return result
+
+
+def procesaMDplantRaizClubData(rawData: dict) -> Dict[str, Any]:
+    result = {}
+
+    auxData = extraeDatosRelevantesMD(rawData, claveDeInteres='clubData')
+    clubData = auxData['clubData']
+
+    clubInfo = copyDictWithTranslation(clubData['club'],
+                                       excludes={'team', 'stadiumPhotoUrl', 'stadiumAddress', 'contactPhone',
+                                                 'contactEmail', 'rosterPhotoUrl', 'webUrl', 'ticketingUrl',
+                                                 'merchanUrl', 'instagramUrl', 'twitterUrl', 'facebookUrl',
+                                                 'youtubeUrl', 'tikTokUrl', 'validated'})
+    result.update(clubInfo)
+    teamInfo = copyDictWithTranslation(clubData['club']['team'],
+                                       excludes=['id', 'clubId', 'competitionId', 'editionId', 'primaryColorHex',
+                                                 'textColorHex', 'logoAlt',
+                                                 'secondaryLogo', 'displayColor', 'displayTextColor'])
+    teamInfo['clubId'] = str(clubData['club']['team']['clubId'])
+    result.update(teamInfo)
+
+    result['estanciaACB'] = extractAvFiltersPlantillaPortada(clubData)
+
+    return result
+
+
+def procesaMDplantJugs(rawData: Dict[str, Any], dataURLs: Dict[str, str] = sentinel) -> Dict[str, Dict[str, Any]]:
+    if dataURLs is sentinel:
+        dataURLs = {}
+    result = {'jugadores': {}, 'tecnicos': {}}
+
+    auxDataRoster = extraeDatosRelevantesMD(rawData, claveDeInteres='currentRoster')
+
+    if auxDataRoster is None:
+        raise ValueError(f"procesaMDplantJugs: incapaz de encontrar datos\n{pformat(rawData)}")
+
+    exclBase = {'age', 'coach', 'isLicenseActive', 'player'}
+    tradsBase = {'nationalityCountry': 'nacionalidad', 'height': 'altura', 'licensing': 'licencia'}
+    exclSubReg = {'editionId', 'firstName', 'fullBodyImageNoBackgroundUrl', 'fullBodyImageUrl', 'headshotImageAlt',
+                  'headshotImageNoBackgroundUrl', 'isLicenseActive', 'lastName', 'nickname', 'nicknameFirstName',
+                  'nicknameLastName', 'gameRole'}
+    tradsSubReg = {'shirtNumber': 'dorsal', 'nickname': 'nombre', 'firstInitialAndLastName': 'alias',
+                   'headshotImageUrl': 'urlFoto'}
+
+    for clave, listaPers in auxDataRoster['currentRoster'].items():
+        esJugador = 'player' in clave
+        esTecnico = 'staff' in clave
+        esActivo = 'Absences' not in clave
+        claveInterna, destClave = ('player', 'jugadores') if esJugador else ('coach', 'tecnicos')
+
+        for numOrd, pers in enumerate(listaPers, start=1):
+            regPersona = {}
+
+            regPersona.update(copyDictWithTranslation(pers, excludes=exclBase, translation=tradsBase))
+            regPersona.update(copyDictWithTranslation(pers[claveInterna], excludes=exclSubReg, translation=tradsSubReg))
+            regPersona['id'] = str(pers[claveInterna]['id'])
+            regPersona['activo'] = esActivo
+            regPersona['nombre'] = pers[claveInterna].get('nickname',
+                                                          f"{pers[claveInterna]['firstName']} "
+                                                          f"{pers[claveInterna]['lastName']}")
+
+            regPersona['pos'] = TRADPOSICION.get(pers[claveInterna]['gameRole'], '??') if esJugador else \
+                pers[claveInterna]['gameRole']
+            if esTecnico and esActivo:
+                regPersona['dorsal'] = str(numOrd)
+            regPersona['imgsConocidas'] = {pers[claveInterna]['headshotImageUrl'],
+                                           pers[claveInterna]['fullBodyImageUrl']}
+            regPersona['URL'] = dataURLs.get(regPersona['id'], None)
+
+            result[destClave][regPersona['id']] = regPersona
+
+    return result
+
+
+def extractAvFiltersPlantillaPortada(embData: Dict) -> Dict[int, Set[str]]:
+    excludeCompos = {'Minicopa Endesa'}
+
+    result: Dict[int, Set[str]] = {}
+
+    avFilters = embData.get('availableFilters', {}).get('competitions', [])
+    for compoFilter in avFilters:
+        compoName = compoFilter['name']
+        if compoName in excludeCompos:
+            continue
+        for edition in compoFilter['editions']:
+            edYear = edition['startYear']
+            currFiltro = result.get(edYear, set())
+            currFiltro.add(compoName)
+            result[edYear] = currFiltro
+
+    return result
+
+
+def auxEsDato(data):
+    return (isinstance(data, list) and len(data) == 4 and isinstance(data[3], dict))
+
+
+def auxProcesaDatosReales(datoAmirar: List, parClave: str) -> Dict[str, Any] | None:
+    if not auxEsDato(datoAmirar):
+        return None
+
+    dictDato: Dict = datoAmirar[3]
+    if 'children' in dictDato:
+        listaHijos = [dictDato['children']] if auxEsDato(dictDato['children']) else dictDato['children']
+        for child in listaHijos:
+            res = auxProcesaDatosReales(child, parClave=parClave)
+            if res is not None:
+                return res
+    elif parClave in dictDato:
+        return dictDato
+
+    return None
+
+
+def extraeDatosRelevantesMD(embData: Dict, claveDeInteres: str) -> Optional[Dict]:
+    result = None
+
+    dataToProcess = [list(embData.values())[0]]
+
+    for val in dataToProcess:
+        res = auxProcesaDatosReales(val, parClave=claveDeInteres)
+        if res is not None:
+            return res
+
+    return result

@@ -11,6 +11,7 @@ from SMACB.Constants import DEFTZ
 
 PATRONFECHAHORA = "%d/%m/%Y %H:%M"
 PATRONFECHA = "%d/%m/%Y"
+PATRONFECHAGUI = "%d-%m-%Y"
 NEVER = pd.to_datetime("2040-12-31 00:00")
 
 Age = namedtuple('Age', ['delta', 'years', 'meses', 'dias', 'doys'])

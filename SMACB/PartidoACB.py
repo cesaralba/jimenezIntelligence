@@ -2,36 +2,27 @@ import logging
 import re
 from compression import zstd
 from itertools import product
-from pickle import dumps
+from pickle import dumps, loads
 from time import gmtime
-from traceback import print_exc
 from typing import Optional, Dict, Tuple, Union, List
 
 import numpy as np
 import pandas as pd
-from CAPcore.Misc import BadParameters, BadString, extractREGroups
-from CAPcore.Web import downloadPage, extractGetParams, DownloadedPage, mergeURL
-from babel.numbers import parse_number
+from CAPcore.Misc import BadParameters
+from CAPcore.Web import downloadPage, DownloadedPage, mergeURL
 from bs4 import Tag
 
-from Utils.BoWtraductor import RetocaNombreJugador
-from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
-from Utils.ParseoData import ProcesaTiempo
 from Utils.ProcessMDparts import procesaMDresInfoPeriodos, procesaMDresEstadsCompar, procesaMDresInfoRachas, \
     procesaMDresCartaTiro, procesaMDjugadas, jugadaSort, jugada2str, jugadaKey2sort, jugadaTag2Desc, jugadaKey2str, \
     procesaMDboxscore, procesaMDavailableContent, procesaMDresDatosPartido
-from Utils.Web import getObjID, prepareDownloading, extractPagDataScripts
-from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp, REGEX_JLR,
-                        REGEX_PLAYOFF, infoJornada, numPartidoPO2jornada, POLABEL2FASE, DEFTZ)
-from .PlantillaACB import PlantillaACB
-
-templateURLficha = "https://www.acb.com/fichas/%s%i%03i.php"
+from Utils.Web import prepareDownloading, extraePagDataScripts, getIDfromEncURL
+from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp, infoJornada,
+                        POLABEL2FASE, DEFTZ, URL_BASE)
 
 
 class PartidoACB():
 
     def __init__(self, **kwargs):
-
         self.jornada = None
         self.infoJornada: Optional[infoJornada] = None
         self.fechaPartido = None
@@ -51,7 +42,7 @@ class PartidoACB():
         self.aprendidos: Dict[str, List] = dict.fromkeys(LocalVisitante, [])
         self.metadataEnlaces: dict = kwargs.get('enlaces', {})
         self.availMD = {}
-        self.metadataEmb = {}
+        self.metadataEmb: Optional[bytes] = None
 
         self.EquiposCalendario = kwargs['equipos']
         self.ResultadoCalendario = kwargs['resultado']
@@ -65,7 +56,7 @@ class PartidoACB():
 
         self.competicion = kwargs['cod_competicion']
         self.temporada = kwargs['cod_edicion']
-        self.idPartido = kwargs.get('partido', None)
+        self.idPartido: str = kwargs.get('partido', None)
 
         for loc in LocalVisitante:
             self.Equipos[loc]['haGanado'] = self.ResultadoCalendario[loc] > self.ResultadoCalendario[OtherLoc(loc)]
@@ -81,95 +72,30 @@ class PartidoACB():
 
         partidoPage = downloadPage(urlPartido, home=home, browser=browser, config=config)
 
-        self.procesaPartido(partidoPage)
-
         self.descargaEmbMetadata(home=home, browser=browser, config=config)
 
+        self.procesaPartido(partidoPage)
+
     def procesaPartido(self, content: DownloadedPage):
-        raiser = False
         self.timestamp = getattr(content, 'timestamp', gmtime())
 
         if 'source' in content:
             self.url = content.source
 
-        pagina = content.data
-        tablasPartido = pagina.find("section", {"class": "contenedora_estadisticas"})
-        if not tablasPartido:
-            print(f"procesaPartido (W): {self.url} tablasPartidoNone", tablasPartido, pagina)
+        dataEmb: Dict = loads(zstd.decompress(self.metadataEmb))
 
-        # Encabezado de Tabla
-        tabDatosGenerales = tablasPartido.find("header")
+        self.infoJornada = self.DatosSuministrados['infoJornada']
+        self.esPlayoff = self.infoJornada.esPlayOff
+        self.jornada = self.infoJornada.jornada
+        self.fechaPartido = dataEmb['datosPartido']['fechaHora']
+        self.Pabellon = dataEmb['boxscore']['cancha']
+        self.Asistencia = dataEmb['boxscore']['asistencia']
+        self.Arbitros = dataEmb['boxscore']['arbitros']
+        self.ResultadosParciales = dataEmb['resultsParciales']['parciales']
+        self.prorrogas = len(self.ResultadosParciales) - 4
 
-        divFecha = tabDatosGenerales.find("div", {"class": "datos_fecha"})
-        self.procesaDivFechas(divFecha)
-
-        # No merece la pena sacarlo a un método
-        divArbitros = tabDatosGenerales.find("div", {"class": "datos_arbitros"})
-        self.Arbitros = [(x.get_text(), x['href']) for x in divArbitros.find_all("a")]
-
-        # No merece la pena sacarlo a un método
-        divParciales = tabDatosGenerales.find("div", {"class": "parciales_por_cuarto"})
-        aux = divParciales.get_text().split("\xa0")
-
-        self.ResultadosParciales = [(int(x[0]), int(x[1])) for x in map(lambda x: x.split("|"), aux)]
-
-        divCabecera = pagina.find("div", {"class": "contenedora_info_principal"})
-        self.procesaDivCabecera(divCabecera)
-
-        for loc, tRes in zip(LocalVisitante, tablasPartido.find_all("section", {"class": "partido"})):
-            colHeaders = extractPrefijosTablaEstads(tRes)
-            self.extraeEstadsJugadores(tRes, loc, colHeaders)
-
-            cachedTeam: Optional[PlantillaACB] = None
-            newPendientes = []
-            if self.pendientes[loc]:
-                for datosJug in self.pendientes[loc]:
-                    if datosJug['nombre'] == '':
-                        localidad = ("Local" if datosJug['esLocal'] else "Visit")
-                        equipo = datosJug['equipo']
-                        dorsal = datosJug['dorsal']
-                        posicion = ("Jugador" if datosJug['esJugador'] else "Entrenador")
-                        datosJugTxt = f"{localidad} Eq: '{equipo}' Dorsal: {dorsal} {posicion}"
-                        print(f"(W) Partido: {self} -> {datosJugTxt}: Datos insuficientes para encontrar ID.")
-                        newPendientes.append(datosJug)
-                        if datosJug['esJugador']:
-                            # Admitimos la pifia para entrenador pero no para jugadores
-                            raiser = True
-
-                        continue
-
-                    if cachedTeam is None:
-                        cachedTeam = PlantillaACB(teamId=datosJug['IDequipo'], edicion=datosJug['temporada'])
-
-                    nombreRetoc = RetocaNombreJugador(datosJug['nombre']) if ',' in datosJug['nombre'] else datosJug[
-                        'nombre']
-
-                    newCode = cachedTeam.getCode(nombre=nombreRetoc, dorsal=datosJug['dorsal'],
-                                                 esTecnico=datosJug['entrenador'], esJugador=datosJug['esJugador'],
-                                                 umbral=1)
-                    if newCode is not None:
-                        datosJug['codigo'] = newCode
-
-                        if datosJug['esJugador']:
-                            self.Jugadores[datosJug['codigo']] = datosJug
-                            (self.Equipos[loc]['Jugadores']).append(datosJug['codigo'])
-                        elif datosJug.get('entrenador', False):
-                            self.Entrenadores[datosJug['codigo']] = datosJug
-                            self.Equipos[loc]['Entrenador'] = datosJug['codigo']
-                        self.aprendidos[loc].append(newCode)
-                    else:
-                        print(f"Imposible encontrar ID. Partido: {self}. {datosJug}")
-                        newPendientes.append(datosJug)
-                        raiser = True
-
-                self.pendientes[loc] = newPendientes
-            if raiser:
-                raise ValueError(
-                    f"procesaPartido: Imposible encontrar ({len(newPendientes)}) código(s) para ({loc}) en "
-                    f"partido '"
-                    f"{self.url}': {newPendientes}")
-
-        return divCabecera
+        self.procesaDatosEquipos(dataEmb)
+        self.procesaPersonas(dataEmb)
 
     def check(self):
         result = True
@@ -181,189 +107,70 @@ class PartidoACB():
 
         return result
 
-    def procesaDivFechas(self, divFecha):
-        espTiempo = list(map(lambda x: x.strip(), divFecha.next.split("|")))
+    def procesaDatosEquipos(self, dataEmb: Dict):
+        for loc in LocalVisitante:
+            resEq = {}
+            dataEq = dataEmb['boxscore']['equipos'][loc]
 
-        reJornada = re.match(REGEX_JLR, espTiempo[0], re.IGNORECASE)
-        if reJornada:
-            self.esPlayoff = False
-            self.jornada = int(reJornada.group('jornada'))
-            self.infoJornada = infoJornada(jornada=self.jornada, esPlayOff=False)
-        else:
-            rePlayOff = re.match(REGEX_PLAYOFF, espTiempo[0], re.IGNORECASE)
-            if rePlayOff:
-                self.esPlayoff = True
-                self.jornada = numPartidoPO2jornada(rePlayOff.group('etiqFasePOff'),
-                                                    (rePlayOff.group('numPartPoff') or 1))
-                self.infoJornada = infoJornada(jornada=self.jornada, esPlayOff=self.esPlayoff,
-                                               fasePlayOff=rePlayOff.group('etiqFasePOff'),
-                                               partRonda=int(rePlayOff.group('numPartPoff') or 1))
-            else:
-                raise ValueError(
-                    f"Problemas sacando jornada de cabecera. RE:|{REGEX_JLR}|{REGEX_PLAYOFF}| Cadena:[{espTiempo[0]}|")
+            resEq['abrev'] = dataEq['abbreviatedName']
+            resEq['id'] = dataEq['clubId']
+            resEq['Jugadores'] = dataEq['jugadores']
+            resEq['Nombre'] = dataEq['shortName']
+            resEq['estads'] = dataEmb['boxscore']['totales'][loc]
+            resEq['NoAsignado'] = dataEmb['boxscore']['noAsig'][loc]
+            resEq['Puntos'] = resEq['estads']['P']
+            resEq['Entrenador'] = dataEq['entrenador']  # TODO: Matchear con ID de entrenador (ya no está en las pags)
+            self.Equipos[loc].update(resEq)
 
-        cadTiempo = f"{espTiempo[1]} {espTiempo[2]}"
-        PATRONdmyhm = r'^\s*(\d{2}/\d{2}/\d{4})\s+(\d{2}:\d{2})?$'
-        REhora = re.match(PATRONdmyhm, cadTiempo)
-        patronH = PATRONFECHAHORA if REhora.group(2) else PATRONFECHA
-        self.fechaPartido = pd.to_datetime(cadTiempo, format=patronH).tz_localize(DEFTZ)
+        for loc in LocalVisitante:
+            self.Equipos[loc]['haGanado']: bool = self.Equipos[loc]['Puntos'] > self.Equipos[OtherLoc(loc)]['Puntos']
 
-        spanPabellon = divFecha.find("span", {"class": "clase_mostrar1280"})
-        self.Pabellon = spanPabellon.get_text().strip()
-
-        textAsistencia = spanPabellon.next_sibling.strip()
-
-        rePublico = r".*ico:\s*(\d+\.(\d{3})*)"
-        grpsAsist = extractREGroups(cadena=textAsistencia, regex=rePublico)
-        self.Asistencia = parse_number(grpsAsist[0], locale='de_DE') if grpsAsist else None
-
-    def procesaDivCabecera(self, divATratar):
-        equipos = [(x.find("a")['href'], x.find("img")['title'].strip()) for x in
-                   divATratar.find_all("div", {"class": "logo_equipo"})]
-        puntos = [int(x.get_text()) for x in divATratar.find_all("div", {"class": "resultado"})]
-
-        divParciales = divATratar.find("tbody")
-        auxParciales = [[int(p.get_text()) for p in r.find_all("td", {"class": "parcial"})] for r in
-                        divParciales.find_all("tr")]
-        parciales = list(zip(*auxParciales))
-        abrevs = [p.get_text() for p in divParciales.find_all("td", {"class": "equipo"})]
-
-        for loc, pts in zip(LocalVisitante, puntos):
-            self.Equipos[loc]['Puntos'] = pts
-        self.ResultadosParciales = parciales
         self.VictoriaLocal = self.Equipos['Local']['Puntos'] > self.Equipos['Visitante']['Puntos']
 
-        for loc, eq in zip(LocalVisitante, equipos):
-            self.Equipos[loc]['id'] = getObjID(eq[0])
-            self.Equipos[loc]['Nombre'] = eq[1]
+    def procesaPersonas(self, dataEmb: Dict):
+        datosComunes = {'competicion': self.competicion, 'temporada': self.temporada, 'jornada': self.jornada}
+        for loc in LocalVisitante:
+            datosEq = self.Equipos[loc]
+            datosRiv = self.Equipos[OtherLoc(loc)]
+            datosGlobPart = {
+                'equipo': datosEq['Nombre'],
+                'CODequipo': datosEq['abrev'],
+                'IDequipo': datosEq['id'],
+                'rival': datosRiv['Nombre'],
+                'CODrival': datosRiv['abrev'],
+                'IDrival': datosRiv['id'],
+                'url': self.url,
+                'haGanado': datosEq['haGanado'],
+                'estado': loc,
+                'esLocal': loc == "Local",
+            }
+            for idJug in datosEq['Jugadores']:
+                infoJug = dataEmb['boxscore']['infoJugs'][loc][idJug]
+                resJug = {
+                    'codigo': idJug,
+                    'dorsal': infoJug['dorsal'],
+                    'esTitular': infoJug['titular'],
+                    'nombre': infoJug['nombre'],
+                    'esJugador': True,
+                    'entrenador': False,
+                    'estads': dataEmb['boxscore']['jugadores'][idJug],
+                    'haJugado': dataEmb['boxscore']['jugadores'][idJug]['Segs'] > 0,
+                    'linkPersona': infoJug['linkPersona']
+                }
+                resJug.update(datosComunes)
+                resJug.update(datosGlobPart)
+                self.Jugadores[idJug] = resJug
 
-        for loc, abrev in zip(LocalVisitante, abrevs):
-            self.Equipos[loc]['abrev'] = abrev
-
-    def procesaLineaTablaEstadistica(self, fila, headers, estado):
-        result = {'competicion': self.competicion, 'temporada': self.temporada, 'jornada': self.jornada,
-                  'equipo': self.Equipos[estado]['Nombre'], 'CODequipo': self.Equipos[estado]['abrev'],
-                  'IDequipo': self.Equipos[estado]['id'], 'rival': self.Equipos[OtherLoc(estado)]['Nombre'],
-                  'CODrival': self.Equipos[OtherLoc(estado)]['abrev'], 'IDrival': self.Equipos[OtherLoc(estado)]['id'],
-                  'url': self.url, 'estado': estado, 'esLocal': (estado == "Local"),
-                  'haGanado': (self.ResultadoCalendario[estado] > self.ResultadoCalendario[OtherLoc(estado)])}
-
-        filaClass = fila.attrs.get('class', '')
-
-        celdas = list(fila.find_all("td"))
-        textos = [x.get_text().strip() for x in celdas]
-
-        if len(textos) == len(headers):
-            mergedTextos = dict(zip(headers[2:], textos[2:]))
-            result['estads'] = self.procesaEstadisticas(mergedTextos)
-
-            if 'equipo' in filaClass or 'totales' in filaClass:
-                result['esJugador'] = False
-                result['entrenador'] = False
-                result['noAsignado'] = 'equipo' in filaClass
-                result['totalEquipo'] = 'totales' in filaClass
-
-                if result['totalEquipo']:
-                    result['prorrogas'] = int(((result['estads']['Segs'] / (5 * 60)) - 40) // 5)
-
-                    if result['estads']['P'] != self.Equipos[estado]['Puntos']:
-                        print(result['estads'], self.Equipos[estado])
-                        raise ValueError(f"ProcesaLineaTablaEstadistica: TOTAL '{estado}' "
-                                         f"puntos '{result['estads']['P']}' "
-                                         f"no casan con encabezado '{self.Equipos[estado]['Puntos']}'")
-            else:  # Jugadores
-                result['esJugador'] = True
-                result['entrenador'] = False
-                result['haJugado'] = mergedTextos['Min'] != ""
-
-                mergedCells = dict(zip(headers, celdas))
-
-                textoDorsal = mergedCells['D'].get_text()
-                PATdorsal = r'(?P<titular>\*)?(?P<dorsal>\d+)'
-                REdorsal = re.match(PATdorsal, textoDorsal)
-
-                if REdorsal:
-                    result['dorsal'] = REdorsal['dorsal']
-                    result['esTitular'] = REdorsal['titular'] == '*'
-                else:
-                    raise ValueError(f"Texto dorsal '{textoDorsal}' no casa RE '{PATdorsal}'")
-
-                celNombre = mergedCells['Nombre']
-                result['nombre'] = celNombre.get_text()
-                result['linkPersona'] = (celdas[1].find("a"))['href']
-                result['codigo'] = getObjID(result['linkPersona'], 'ver', None)
-        else:
-            textoC0 = celdas[0].get_text()
-            if textoC0 == 'E':
-                result['esJugador'] = False
-                result['entrenador'] = True
-                result['dorsal'] = textoC0
-
-                celNombre = celdas[1]
-                result['nombre'] = celNombre.get_text()
-                result['linkPersona'] = (celdas[1].find("a"))['href']
-                result['codigo'] = getObjID(result['linkPersona'], 'ver', None)
-            else:  # 5f lista de 5 faltas
-                return None
-
-        return result
-
-    def procesaEstadisticas(self, contadores):
-
-        result = {}
-
-        reTiros = r"^\s*(\d+)/(\d+)\s*$"
-        reRebotes = r"^\s*(\d+)\+(\d+)\s*$"
-        rePorcentaje = r"^\s*(\d+)%\s*$"
-
-        def ProcesaTiros(cadena):
-            auxTemp = extractREGroups(cadena=cadena, regex=reTiros)
-            if auxTemp:
-                return int(auxTemp[0]), int(auxTemp[1])
-
-            raise BadString(f"ProcesaEstadisticas:ProcesaTiros '{cadena}' no casa RE '{reTiros}'")
-
-        def ProcesaRebotes(cadena):
-            auxTemp = extractREGroups(cadena=cadena, regex=reRebotes)
-            if auxTemp:
-                return int(auxTemp[0]), int(auxTemp[1])
-
-            raise BadString(f"ProcesaEstadisticas:ProcesaRebotes '{cadena}' no casa RE '{reRebotes}'")
-
-        def ProcesaPorcentajes(cadena):
-            auxTemp = extractREGroups(cadena=cadena, regex=rePorcentaje)
-            if auxTemp:
-                return int(auxTemp[0])
-
-            raise BadString(f"ProcesaEstadisticas:ProcesaPorcentajes '{cadena}' no casa RE '{rePorcentaje}'")
-
-        for key in contadores.keys():
-            val = contadores[key]
-            if val == "":
-                continue
-
-            if key in ['Min']:
-                result['Segs'] = ProcesaTiempo(val)
-            elif key in ['T2', 'T3', 'T1']:
-                aux = ProcesaTiros(val)
-                result[key + "-C"] = aux[0]
-                result[key + "-I"] = aux[1]
-            elif key in ['T2 %', 'T3 %', 'T1 %']:
-                result[key.replace(" ", "")] = ProcesaPorcentajes(val)
-            elif key == 'REB-D+O':
-                aux = ProcesaRebotes(val)
-                result["R-D"] = aux[0]
-                result["R-O"] = aux[1]
-            else:
-                try:
-                    result[key] = int(val)
-                except ValueError:
-                    result[key] = None
-                    print_exc()
-                    print(f"ProcesaEstadisticas: Error: '{key}'='{val}' converting to INT. "
-                          f"URL Partido: {self.url} -> {contadores}")
-
-        return result
+            resEnt = {
+                # 'codigo': No ha parece en los datos embedded de la página
+                'nombre': datosEq['Entrenador'],
+                'esJugador': False,
+                'entrenador': True,
+                # 'linkPersona': ya no aparece en los datos
+            }
+            resEnt.update(datosComunes)
+            resEnt.update(datosGlobPart)
+            self.Entrenadores[datosEq['Entrenador']] = resEnt
 
     def jugadoresAdataframe(self) -> pd.DataFrame:
         typesDF = {'competicion': 'object', 'temporada': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
@@ -373,32 +180,6 @@ class PartidoACB():
         dfJugs = [auxJugador2dataframe(typesDF, x, self.fechaPartido) for x in self.Jugadores.values()]
         dfResult = pd.concat(dfJugs, axis=0, ignore_index=True, sort=True).astype(typesDF)
         return dfResult
-
-    def extraeEstadsJugadores(self, divTabla, estado, headers):
-        filas = divTabla.find("tbody").find_all("tr")
-
-        for f in filas:
-            datos = self.procesaLineaTablaEstadistica(fila=f, headers=headers, estado=estado)
-            if datos is None:
-                continue
-
-            if (datos.get('codigo', None) is None) and (datos['esJugador'] or datos['entrenador']):
-                self.pendientes[estado].append(datos)
-
-            if datos['esJugador']:
-                self.Jugadores[datos['codigo']] = datos
-                (self.Equipos[estado]['Jugadores']).append(datos['codigo'])
-            elif datos.get('noAsignado', False):
-                self.Equipos[estado]['NoAsignado'] = datos['estads']
-            elif datos.get('totalEquipo', False):
-                self.prorrogas = datos['prorrogas']
-                if '+/-' in datos['estads'] and datos['estads']['+/-'] is None:
-                    datos['estads']['+/-'] = (
-                            self.ResultadoCalendario[estado] - self.ResultadoCalendario[OtherLoc(estado)])
-                self.Equipos[estado]['estads'] = datos['estads']
-            elif datos.get('entrenador', False):
-                self.Entrenadores[datos['codigo']] = datos
-                self.Equipos[estado]['Entrenador'] = datos['codigo']
 
     def partidoAdataframe(self) -> pd.DataFrame:
         infoCols = ['jornada', 'Pabellon', 'Asistencia', 'prorrogas', 'VictoriaLocal', 'url', 'competicion',
@@ -555,7 +336,7 @@ class PartidoACB():
             existURL = self.metadataEnlaces[clave]
 
         for pag in pagsDescargadas.values():
-            auxAvail = procesaMDavailableContent(extractPagDataScripts(pag, 'availableContent'))
+            auxAvail = procesaMDavailableContent(extraePagDataScripts(pag, 'availableContent'))
             if auxAvail is not None:
                 resultado['infoDisponible'] = auxAvail
                 break
@@ -573,7 +354,7 @@ class PartidoACB():
             if 'resultsParciales' in resultado:
                 completion.append(True)
             else:
-                auxResParciales = procesaMDresInfoPeriodos(extractPagDataScripts(pag, 'initialMatchHeader'))
+                auxResParciales = procesaMDresInfoPeriodos(extraePagDataScripts(pag, 'initialMatchHeader'))
                 if auxResParciales is not None:
                     resultado['resultsParciales'] = auxResParciales
                     completion.append(True)
@@ -583,7 +364,7 @@ class PartidoACB():
             if 'datosPartido' in resultado:
                 completion.append(True)
             else:
-                auxDatosPartido = procesaMDresDatosPartido(extractPagDataScripts(pag, 'initialMatchHeader'))
+                auxDatosPartido = procesaMDresDatosPartido(extraePagDataScripts(pag, 'initialMatchHeader'))
                 if auxDatosPartido is not None:
                     resultado['datosPartido'] = auxDatosPartido
                     completion.append(True)
@@ -650,61 +431,6 @@ def auxJugador2dataframe(typesDF, jugador, fechaPartido):
     return dfresult
 
 
-def GeneraURLpartido(link):
-    def CheckParameters(dictParams):
-        requiredParamList = ('cod_competicion', 'cod_edicion', 'partido')
-        errores = False
-        missingParameters = set()
-
-        for par in requiredParamList:
-            if par not in dictParams:
-                errores = True
-                missingParameters.add(par)
-
-        if errores:
-            raise BadParameters(f"GeneraURLpartido: falta informacion en parámetro: {missingParameters}.")
-
-    if isinstance(link, Tag):  # Enlace a sacado con BeautifulSoup
-        link2process = link['href']
-    elif isinstance(link, str):  # Cadena URL
-        link2process = link
-    elif isinstance(link, dict):  # Diccionario con los parametros necesarios s(sacados de la URL, se supone)
-        CheckParameters(link)
-        return templateURLficha % (link['cod_competicion'], int(link['cod_edicion']), int(link['partido']))
-    else:
-        raise TypeError(f"GeneraURLpartido: incapaz de procesar {link} ({type(link)})")
-
-    liurlcomps = extractGetParams(link2process)
-    CheckParameters(liurlcomps)
-    return templateURLficha % (liurlcomps['cod_competicion'], int(liurlcomps['cod_edicion']),
-                               int(liurlcomps['partido']))
-
-
-def extractPrefijosTablaEstads(tablaEstads):
-    """ Devuelve un array con las cabeceras de cada columna (con matices como los rebotes) y tiros
-        Podría ser genérica pero Una de las celdas contiene información y no prefijo
-    """
-
-    cabTabla = tablaEstads.find("thead")
-    filasCab = cabTabla.find_all("tr")
-
-    colspans = [int(x.get('colspan', 1)) for x in filasCab[0].find_all("th")]
-    coltexts = [x.get_text().strip() for x in filasCab[0].find_all("th")]
-
-    coltexts[0] = ""  # La primera celda es el resultado del equipo. No un prefijo
-    prefixes = []
-
-    for i, v in enumerate(colspans):
-        prefixes += ([coltexts[i]] * v)
-
-    estheaders = [x.get_text().strip() for x in filasCab[1].find_all("th")]
-
-    headers = [((x[0] + "-") if x[0] else "") + x[1] for x in zip(prefixes, estheaders)]
-    assert (len(set(headers)) == len(headers))
-
-    return headers
-
-
 def procesaPaginaResumen(urlResumen: Union[str, DownloadedPage], home=None, browser=None,
                          config=None) -> Tuple[dict, DownloadedPage]:
     if isinstance(urlResumen, DownloadedPage):
@@ -714,9 +440,9 @@ def procesaPaginaResumen(urlResumen: Union[str, DownloadedPage], home=None, brow
         resumenPage = downloadPage(urlResumen, home=home, browser=browser, config=config)
 
     resultado = {'comparativaEstads': procesaMDresEstadsCompar(
-        extractPagDataScripts(resumenPage, 'initialMatchStatsComparative')),
-        'infoRachas': procesaMDresInfoRachas(extractPagDataScripts(resumenPage, 'initialLeadTracker')),
-        'cartaTiro': procesaMDresCartaTiro(extractPagDataScripts(resumenPage, 'initialShotmap')), }
+        extraePagDataScripts(resumenPage, 'initialMatchStatsComparative')),
+        'infoRachas': procesaMDresInfoRachas(extraePagDataScripts(resumenPage, 'initialLeadTracker')),
+        'cartaTiro': procesaMDresCartaTiro(extraePagDataScripts(resumenPage, 'initialShotmap')), }
 
     return resultado, resumenPage
 
@@ -729,7 +455,7 @@ def procesaPlayByPlay(urlJugadas: Union[str, DownloadedPage], home=None, browser
         browser, config = prepareDownloading(browser, config)
         jugadasPage = downloadPage(urlJugadas, home=home, browser=browser, config=config)
 
-    auxResult = procesaMDjugadas(extractPagDataScripts(jugadasPage, 'initialMatchPlayByPlay'))
+    auxResult = procesaMDjugadas(extraePagDataScripts(jugadasPage, 'initialMatchPlayByPlay'))
 
     if len(auxResult['clavesDesconocidas']) > 0:
         logging.warning("Jugadas desconocidas en partido '%s'", urlJugadas)
@@ -756,8 +482,28 @@ def procesaBoxScore(urlBoxscore: Union[str, DownloadedPage], home=None, browser=
         boxscorePage = urlBoxscore
     else:
         browser, config = prepareDownloading(browser, config)
-        boxscorePage = downloadPage(urlBoxscore, home=home, browser=browser, config=config)
+        boxscorePage: DownloadedPage = downloadPage(urlBoxscore, home=home, browser=browser, config=config)
 
-    resultado = {'boxscore': procesaMDboxscore(extractPagDataScripts(boxscorePage, 'initialStatistics')), }
+    linksJugs = extraeLinksPersonasPtBSc(boxscorePage, urlBase=boxscorePage.source)
+    resultado = {
+        'boxscore': procesaMDboxscore(extraePagDataScripts(boxscorePage, 'initialStatistics'), linksPers=linksJugs), }
 
     return resultado, boxscorePage
+
+
+def extraeLinksPersonasPtBSc(pag: DownloadedPage, urlBase: str = URL_BASE) -> Dict[str, str]:
+    result = {}
+
+    reTablaBsc = re.compile(r'MatchTeamStatisticsTable_matchTeamStatisticsTable__table__.*_')
+    tablaBsc: Tag
+    for tablaBsc in pag.data.find_all('table', {'class': reTablaBsc}):
+        for a in tablaBsc.find_all('a'):
+            destURL = mergeURL(urlBase, a['href'])
+            idPers = getIDfromEncURL(destURL)
+
+            result[idPers] = destURL
+
+    if len(result) == 0:
+        raise ValueError(f"extraeLinksPersonasPtBSc: no se han encontrado enlaces en '{pag.source}'")
+
+    return result
