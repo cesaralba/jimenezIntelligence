@@ -141,10 +141,11 @@ def datosRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     sigPartido = datosSig.sigPartido
     jornada = sigPartido['jornada']
     calJornada = tempData.Calendario.Jornadas[jornada]
+    urlPart2K = tempData.idPartsDescargados()[1]
 
     for p in calJornada['partidos']:
         urlPart = p['url']
-        part = tempData.Partidos[urlPart]
+        part = tempData.Partidos[urlPart2K[urlPart]]
         data = copy(p)
         data['fechaPartido'] = part.fechaPartido
         result.append(data)
