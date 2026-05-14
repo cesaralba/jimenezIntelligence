@@ -280,11 +280,11 @@ class TemporadaACB:
             self.tradJugadores['nombre2ids'][datosJug['nombre']].add(datosJug['codigo'])
             self.tradJugadores['id2nombres'][datosJug['codigo']].add(datosJug['nombre'])
 
-    def extraeDataframeJugadores(self, listaURLPartidos=None):
+    def extraeDataframeJugadores(self, listaClavePartidos=None):
 
-        listaURLs: List[str] = listaURLPartidos or list(self.Partidos.keys())
+        listaClaves: List[str] = listaClavePartidos or list(self.Partidos.keys())
 
-        dfPartidos: List[pd.DataFrame] = [self.Partidos[pURL].jugadoresAdataframe() for pURL in listaURLs]
+        dfPartidos: List[pd.DataFrame] = [self.Partidos[pClave].jugadoresAdataframe() for pClave in listaClaves]
 
         dfResult: pd.DataFrame = pd.concat(dfPartidos, axis=0, ignore_index=True, sort=True)
 

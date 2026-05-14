@@ -169,7 +169,7 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
 
     abrevsEq = tempData.Calendario.abrevsEquipo(abrEq)
 
-    auxDF = tempData.extraeDataframeJugadores(listaURLPartidos=partJug)
+    auxDF = tempData.extraeDataframeJugadores(listaClavePartidos=partJug)
 
     jugDF = auxDF.loc[auxDF['CODequipo'].isin(abrevsEq)]
 
