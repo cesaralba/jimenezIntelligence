@@ -97,13 +97,16 @@ class TemporadaACB:
             refrescaFichas = True
 
         partsCalendarioI2U = self.Calendario.idPartidosJugados()
-        idNuevosPartidos: Set[str] = set(partsCalendarioI2U.keys()).difference(set(self.idPartsDescargados().keys()))
+        idNuevosPartidos: Set[str] = set(partsCalendarioI2U.keys()).difference(set(self.idPartsDescargados()[0].keys()))
 
         partidosBajados: Set[str] = set()
 
-        for partido in sorted(idNuevosPartidos, key=lambda s: partsCalendarioI2U[s]['fechaPartido']):
+        for partidoK in sorted(idNuevosPartidos, key=lambda s: partsCalendarioI2U[s]['fechaPartido']):
             try:
-                nuevoPartido = PartidoACB(**(partsCalendarioI2U[partido]))
+                partidoInfo = partsCalendarioI2U[partidoK]
+                partido = partidoInfo['url']
+
+                nuevoPartido = PartidoACB(**partidoInfo)
                 nuevoPartido.descargaPartido(home=home, browser=browser, config=config)
                 if nuevoPartido.check():
                     self.Partidos[partido] = nuevoPartido
@@ -277,11 +280,11 @@ class TemporadaACB:
             self.tradJugadores['nombre2ids'][datosJug['nombre']].add(datosJug['codigo'])
             self.tradJugadores['id2nombres'][datosJug['codigo']].add(datosJug['nombre'])
 
-    def extraeDataframeJugadores(self, listaURLPartidos=None):
+    def extraeDataframeJugadores(self, listaClavePartidos=None):
 
-        listaURLs: List[str] = listaURLPartidos or list(self.Partidos.keys())
+        listaClaves: List[str] = listaClavePartidos or list(self.Partidos.keys())
 
-        dfPartidos: List[pd.DataFrame] = [self.Partidos[pURL].jugadoresAdataframe() for pURL in listaURLs]
+        dfPartidos: List[pd.DataFrame] = [self.Partidos[pClave].jugadoresAdataframe() for pClave in listaClaves]
 
         dfResult: pd.DataFrame = pd.concat(dfPartidos, axis=0, ignore_index=True, sort=True)
 
@@ -357,7 +360,7 @@ class TemporadaACB:
 
         peOrd = sorted(pendCal, key=itemgetter('fechaPartido'))
 
-        auxURL2ID = self.idPartsDescargados()
+        auxURL2ID = self.idPartsDescargados()[0]
         juOrdTem = sorted((auxURL2ID[str(p['partido'])] for p in jugadosCal),
                           key=lambda u: self.Partidos[u].fechaPartido)
 
@@ -373,6 +376,7 @@ class TemporadaACB:
             activos = self.plantillas[codEq].jugadores.extractKey('activo', False)
         auxdict = {j_id: self.fichaJugadores[j_id].dictDatosJugador() for j_id in jugsIter}
 
+        auxUrlPart2K = self.idPartsDescargados()[1]
         for jugId, ficha in auxdict.items():
             if self.descargaPlantillas:
                 auxdict[jugId]['dorsal'] = dorsales[jugId]
@@ -381,7 +385,8 @@ class TemporadaACB:
                 auxdict[jugId]['Activo'] = True
 
             if ficha['ultPartidoP'] is not None:
-                partido = self.Partidos[ficha['ultPartidoP']]
+                ultPartK = auxUrlPart2K[ficha['ultPartidoP']]
+                partido = self.Partidos[ultPartK]
                 entradaJug = partido.Jugadores[jugId]
                 auxdict[jugId]['ultEquipo'] = entradaJug['equipo']
                 auxdict[jugId]['ultEquipoAbr'] = entradaJug['CODequipo']
@@ -429,27 +434,28 @@ class TemporadaACB:
 
         result_url: set[str] = set(self.Partidos.keys())
 
-        if fecha is None and abrevEquipos is None and playOffStatus is None:  # No filter
+        if abrevEquipos is None:
+            abrevEquipos = set()
+        if fecha is None and len(set(abrevEquipos)) == 0 and playOffStatus is None:  # No filter
             return result_url
 
         # Genera la lista de partidos a incluir
-        if abrevEquipos is not None:
-            # Recupera la lista de abreviaturas que de los equipos que puede cambiar (la abrev del equipo)
-            # a lo largo de la temporada
-            colAbrevList = [self.Calendario.abrevsEquipo(ab) for ab in abrevEquipos]
-            colAbrevSet = set()
-            for abrSet in colAbrevList:
-                colAbrevSet.update(abrSet)
+        # Recupera la lista de abreviaturas que de los equipos que puede cambiar (la abrev del equipo)
+        # a lo largo de la temporada
+        colAbrevList = [self.Calendario.abrevsEquipo(ab) for ab in abrevEquipos]
+        colAbrevSet = set()
+        for abrSet in colAbrevList:
+            colAbrevSet.update(abrSet)
 
-            result_url: set[str] = set()
-            # Crea la lista de partidos de aquellos en los que están las abreviaturas
-            for pURL, pData in self.Partidos.items():
-                if len(abrevEquipos) == 1:
-                    if colAbrevSet.intersection(pData.DatosSuministrados['participantes']):
-                        result_url.add(pURL)
-                else:
-                    if len(colAbrevSet.intersection(pData.DatosSuministrados['participantes'])) == 2:
-                        result_url.add(pURL)
+        result_url: set[str] = set()
+        # Crea la lista de partidos de aquellos en los que están las abreviaturas
+        for pURL, pData in self.Partidos.items():
+            if len(set(abrevEquipos)) == 1:
+                if colAbrevSet.intersection(pData.DatosSuministrados['participantes']):
+                    result_url.add(pURL)
+            else:
+                if len(colAbrevSet.intersection(pData.DatosSuministrados['participantes'])) == 2:
+                    result_url.add(pURL)
 
         result_fecha: set[str] = result_url
         if fecha:
@@ -581,7 +587,7 @@ class TemporadaACB:
             result = infoEqCalendario(**auxDict)
             return result
 
-        partID2URL: Dict[str, str] = self.idPartsDescargados()
+        partID2URL: Dict[str, str] = self.idPartsDescargados()[0]
         for p in juCal + peCal:
             abrevAUsar = (p['participantes'].intersection(targetAbrevs)).pop()
             loc = p['abrev2loc'][abrevAUsar]
@@ -740,10 +746,11 @@ class TemporadaACB:
 
         return self.calendarioDict.replace(calActualDict)
 
-    def idPartsDescargados(self) -> Dict[str, str]:
-        resultado = {str(p.idPartido): k for k, p in self.Partidos.items()}
+    def idPartsDescargados(self) -> Tuple[Dict[str, str], Dict[str, str]]:
+        resultadoI2K = {str(p.idPartido): k for k, p in self.Partidos.items()}
+        resultadoU2K = {p.url: k for k, p in self.Partidos.items()}
 
-        return resultado
+        return resultadoI2K, resultadoU2K
 
 
 def auxJorFech2periodo(dfTemp: pd.DataFrame):
