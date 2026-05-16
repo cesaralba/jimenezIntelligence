@@ -395,15 +395,18 @@ class TemporadaACB:
 
         return auxDF
 
-    def dataFramePartidosLV(self, listaAbrevEquipos: Iterable[str] = None, fecha: Optional[Any] = None,
+    def dataFramePartidosLV(self, listaAbrevEquipos: Optional[Iterable[str]] = None, fecha: Optional[Any] = None,
                             playOffStatus: Optional[bool] = None
                             ):
         """
         Genera un dataframe LV con los partidos de uno o más equipos hasta determinada fecha
-        :param listaAbrevEquipos: si None, son todos los partidos
+        :param listaAbrevEquipos: si None, son todos los partidos. Si cadena, solo datos de un equipo
         :param fecha: si None son todos los partidos (límite duro < )
+        :param playOffStatus: si se quiere filtrar por LR (False), PO (True) o todos (None)
         :return:
         """
+        if isinstance(listaAbrevEquipos,str):
+            listaAbrevEquipos=[listaAbrevEquipos]
         if listaAbrevEquipos is None:
             lista_urls = self.extractGameList(fecha=fecha, abrevEquipos=None, playOffStatus=playOffStatus)
         else:
@@ -851,9 +854,8 @@ def mezclaTrayectoriaEquipos(dataTemp: TemporadaACB, abrevDcha, abrevIzda, **kwa
             else:
                 dato = partsDchaAux.pop(0)
                 bloque.update(
-                    {'jornada': priPartDcha.jornada, 'infoJornada': priPartDcha.infoJornada, 'izda': dato})
+                    {'jornada': priPartDcha.jornada, 'infoJornada': priPartDcha.infoJornada, 'dcha': dato})
                 bloque['pendiente'] |= priPartDcha.pendiente
-                bloque['dcha'] = dato
 
         lineas.append(filaMergeTrayectoria(**bloque))
     return lineas
