@@ -13,7 +13,7 @@ pytz==2026.2
 tzdata>=2026.2
 json5==0.14.0
 scipy>=1.17.1
-numpy>=2.4.4
+numpy>=2.4.5
 seaborn>=0.13.2
 pillow>=12.2.0
 matplotlib>=3.10.9
