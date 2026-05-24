@@ -4,7 +4,7 @@ from compression import zstd
 from itertools import product
 from pickle import dumps, loads
 from time import gmtime
-from typing import Optional, Dict, Tuple, Union, List
+from typing import Optional, Dict, Tuple, Union, List, Any
 
 import numpy as np
 import pandas as pd
@@ -102,8 +102,13 @@ class PartidoACB():
 
         for loc in LocalVisitante:
             if not self.Equipos[loc].get('estads', {}):
-                logging.error("Partido: '{}' no se han encontrado estadisticas para {}.")
+                logging.error("Partido: '%s' no se han encontrado estadisticas para %s.", self, loc)
                 result &= False
+                continue
+
+            if self.Equipos[loc]['estads']['Segs'] % 500 != 0:
+                logging.error("Partido: '%s' tiempo parseado para equipo %s. T: %s", self, loc,
+                              self.Equipos[loc]['estads']['Segs'])
 
         return result
 
@@ -318,23 +323,9 @@ class PartidoACB():
         return result
 
     def descargaEmbMetadata(self, home=None, browser=None, config=None):
-        statusMeta = dict.fromkeys(['resumen', 'estadisticas', 'jugadas'], False)
-        descargadores = [('resumen', procesaPaginaResumen), ('estadisticas', procesaBoxScore)]
         resultado = {}
-        pagsDescargadas = {}
 
-        existURL = None
-
-        for clave, func in descargadores:
-            if clave not in self.metadataEnlaces:
-                logging.warning("Clave desconocida '%s' en enlaces de partido '%s'", clave, self.url)
-                continue
-
-            datos, pagsDescargadas[clave] = func(self.metadataEnlaces[clave], home=home, browser=browser, config=config)
-            resultado.update(datos)
-            statusMeta[clave] = True
-
-            existURL = self.metadataEnlaces[clave]
+        existURL, pagsDescargadas = self.descargaPaginasMetadata(browser, config, home, resultado)
 
         for pag in pagsDescargadas.values():
             auxAvail = procesaMDavailableContent(extraePagDataScripts(pag, 'availableContent'))
@@ -376,6 +367,27 @@ class PartidoACB():
                 break
 
         self.metadataEmb = zstd.compress(dumps(resultado))
+
+    def descargaPaginasMetadata(self, browser, config, home, resultado: dict[Any, Any]) -> (
+            tuple)[str | None, dict[Any, Any]]:
+        statusMeta = dict.fromkeys(['resumen', 'estadisticas', 'jugadas'], False)
+        descargadores = [('resumen', procesaPaginaResumen), ('estadisticas', procesaBoxScore)]
+
+        pagsDescargadas = {}
+
+        existURL = None
+
+        for clave, func in descargadores:
+            if clave not in self.metadataEnlaces:
+                logging.warning("Clave desconocida '%s' en enlaces de partido '%s'", clave, self.url)
+                continue
+
+            datos, pagsDescargadas[clave] = func(self.metadataEnlaces[clave], home=home, browser=browser, config=config)
+            resultado.update(datos)
+            statusMeta[clave] = True
+
+            existURL = self.metadataEnlaces[clave]
+        return existURL, pagsDescargadas
 
 
 def auxJugador2dataframe(typesDF, jugador, fechaPartido):
