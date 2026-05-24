@@ -294,7 +294,7 @@ class PartidoACB():
             avanzadas['t2/tc-C'] = estads['T2-C'] / avanzadas['TC-C'] * 100.0
             avanzadas['t3/tc-C'] = estads['T3-C'] / avanzadas['TC-C'] * 100.0
 
-            auxEqPuntCanastas = estads['T2-C'] * 2 + estads['T3-C'] * 3
+            avanzadas['PTC'] = auxEqPuntCanastas = estads['T2-C'] * 2 + estads['T3-C'] * 3
             avanzadas['eff-t1'] = estads['T1-C'] * 1 / estads['P'] * 100.0
             avanzadas['eff-t2'] = estads['T2-C'] * 2 / estads['P'] * 100.0
             avanzadas['eff-t3'] = estads['T3-C'] * 3 / estads['P'] * 100.0
@@ -309,6 +309,7 @@ class PartidoACB():
             # Estadisticas de pase
             avanzadas['A/TC-C'] = estads['A'] / avanzadas['TC-C'] * 100.0
             avanzadas['A/BP'] = estads['A'] / estads['BP']
+            avanzadas['A/TC-I'] = estads['A'] / avanzadas['TC-I']
             avanzadas['PNR'] = estads['BP'] - other['BR']
 
             estads.update(avanzadas)
@@ -399,13 +400,13 @@ def auxJugador2dataframe(typesDF, jugador, fechaPartido):
         dictJugador['TC-C'] = dictJugador['T2-C'] + dictJugador['T3-C']
         dictJugador['PTC'] = 2 * dictJugador['T2-C'] + 3 * dictJugador['T3-C']
         dictJugador['ppTC'] = dictJugador['PTC'] / dictJugador['TC-I'] if dictJugador['TC-I'] else np.nan
-        dictJugador['A-BP'] = dictJugador['A'] / dictJugador['BP'] if dictJugador['BP'] else np.nan
-        dictJugador['A-TCI'] = dictJugador['A'] / dictJugador['TC-I'] if dictJugador['TC-I'] else np.nan
+        dictJugador['A/BP'] = dictJugador['A'] / dictJugador['BP'] if dictJugador['BP'] else np.nan
+        dictJugador['A/TC-I'] = dictJugador['A'] / dictJugador['TC-I'] if dictJugador['TC-I'] else np.nan
 
         typesDF['ppTC'] = 'float64'
         typesDF['PTC'] = 'float64'
-        typesDF['A-BP'] = 'float64'
-        typesDF['A-TCI'] = 'float64'
+        typesDF['A/BP'] = 'float64'
+        typesDF['A/TC-I'] = 'float64'
 
         for k in '123C':
             kI = f'T{k}-I'

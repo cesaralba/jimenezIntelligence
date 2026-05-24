@@ -315,8 +315,8 @@ class TemporadaACB:
             kRes = f'T{k}%'
             auxEstadisticosDF[kRes, 'sum'] = auxEstadisticosDF[kC, 'sum'] / auxEstadisticosDF[kI, 'sum'] * 100.0
         auxEstadisticosDF['ppTC', 'sum'] = auxEstadisticosDF['PTC', 'sum'] / auxEstadisticosDF['TC-I', 'sum']
-        auxEstadisticosDF['A-BP', 'sum'] = auxEstadisticosDF['A', 'sum'] / auxEstadisticosDF['BP', 'sum']
-        auxEstadisticosDF['A-TCI', 'sum'] = auxEstadisticosDF['A', 'sum'] / auxEstadisticosDF['TC-I', 'sum']
+        auxEstadisticosDF['A/BP', 'sum'] = auxEstadisticosDF['A', 'sum'] / auxEstadisticosDF['BP', 'sum']
+        auxEstadisticosDF['A/TC-I', 'sum'] = auxEstadisticosDF['A', 'sum'] / auxEstadisticosDF['TC-I', 'sum']
 
         auxIdentsDF = estadsJugadoresEq[COLSIDENT].groupby('codigo').tail(n=1).set_index('codigo', drop=False)
         auxIdentsDF.columns = pd.MultiIndex.from_tuples([('Jugador', col) for col in auxIdentsDF.columns])
@@ -405,8 +405,8 @@ class TemporadaACB:
         :param playOffStatus: si se quiere filtrar por LR (False), PO (True) o todos (None)
         :return:
         """
-        if isinstance(listaAbrevEquipos,str):
-            listaAbrevEquipos=[listaAbrevEquipos]
+        if isinstance(listaAbrevEquipos, str):
+            listaAbrevEquipos = [listaAbrevEquipos]
         if listaAbrevEquipos is None:
             lista_urls = self.extractGameList(fecha=fecha, abrevEquipos=None, playOffStatus=playOffStatus)
         else:
@@ -544,6 +544,7 @@ class TemporadaACB:
                 result[(eq, f'eff-t{k}', 'sum')] = result[(eq, f'T{k}-C', 'sum')] * int(k) / (
                         result[(eq, 'T2-C', 'sum')] * 2 + result[(eq, 'T3-C', 'sum')] * 3) * 100.0
             result[(eq, 'A/TC-C', 'sum')] = result[(eq, 'A', 'sum')] / result[(eq, 'TC-C', 'sum')] * 100.0
+            result[(eq, 'A/TC-I', 'sum')] = result[(eq, 'A', 'sum')] / result[(eq, 'TC-I', 'sum')]
             result[(eq, 'A/BP', 'sum')] = result[(eq, 'A', 'sum')] / result[(eq, 'BP', 'sum')]
             result[(eq, 'RO/TC-F', 'sum')] = result[(eq, 'R-O', 'sum')] / (
                     result[(eq, 'TC-I', 'sum')] - result[(eq, 'TC-C', 'sum')]) * 100.0
