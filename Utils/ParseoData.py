@@ -22,7 +22,7 @@ def parseaAltura(data: str) -> Optional[int]:
 
     if data is None:
         return result
-        
+
     reProc = re.match(REaltura, data)
     if reProc:
         result = 100 * int(reProc.group(1)) + int(reProc.group(2))
