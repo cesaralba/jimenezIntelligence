@@ -55,7 +55,7 @@ DESTSMFILEDATED="${ROOTDATA}/temporada/${COMPO}${CLAVEYEAR}.${TODAY}.p"
 
 export PYTHONPATH=${PYTHONPATH:-""}:${WRKDIR}
 
-python ${WRKDIR}/Tools/EliminaPartidosDescargados.py ${ORIGPARAM} -o ${DESTSMFILE} $*
+python ${WRKDIR}/Tools/EliminaPartidosDescargados.py -i ${ORIGSMFILE} -o ${DESTSMFILE} $*
 
 if [ $? = 0 ]
 then
