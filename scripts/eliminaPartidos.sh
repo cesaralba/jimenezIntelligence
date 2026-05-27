@@ -24,6 +24,11 @@ TODAY=$(date '+%Y%m%d%H%M')
 CLAVEYEAR=${FILEKEY:-2025}
 COMPO=${SM_COMPETICION:-LACB}
 
+ME="$(readlink -e $0)"
+HEREDIR=$(cd "$(dirname ${ME})" && pwd )
+BASEDIR=$(cd "${HEREDIR}/../" && pwd )
+TODAY=$(date '+%Y%m%d%H%M')
+
 if [ -n "${SM_DATADIR}" ] ; then
   ROOTDATA=${SM_DATADIR}
 else
@@ -48,16 +53,9 @@ ORIGSMFILE="${ROOTDATA}/temporada/${COMPO}${CLAVEYEAR}.latest.p"
 DESTSMFILE="${ROOTDATA}/temporada/${COMPO}${CLAVEYEAR}.newest.p"
 DESTSMFILEDATED="${ROOTDATA}/temporada/${COMPO}${CLAVEYEAR}.${TODAY}.p"
 
-if [ -f ${ORIGSMFILE} ]
-then
-  ORIGPARAM="-i ${ORIGSMFILE}"
-else
-  ORIGPARAM="-f"
-fi
+export PYTHONPATH=${PYTHONPATH:-""}:${WRKDIR}
 
-export PYTHONPATH=${PYTHONPATH:-}:${WRKDIR}
-
-python ${WRKDIR}/bin/DescargaTemporada.py ${ORIGPARAM} -o ${DESTSMFILE} -b
+python ${WRKDIR}/Tools/EliminaPartidosDescargados.py ${ORIGPARAM} -o ${DESTSMFILE} $*
 
 if [ $? = 0 ]
 then

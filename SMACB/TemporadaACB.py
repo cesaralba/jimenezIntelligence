@@ -113,7 +113,7 @@ class TemporadaACB:
                     partidosBajados.add(partido)
                     self.actualizaInfoAuxiliar(nuevoPartido)
             except KeyboardInterrupt:
-                print("actualizaTemporada: Ejecución terminada por el usuario")
+                logger.info("actualizaTemporada: Ejecución terminada por el usuario")
                 break
             except BaseException:
                 logger.exception("actualizaTemporada: problemas descargando  partido '%s'", partido)
@@ -346,12 +346,15 @@ class TemporadaACB:
 
         juRivTem, peRivOrd = self.partidosEquipoOrd(abrRival)
 
-        eqIsLocal = sigPart['loc2abrev']['Local'] in abrevsEq
-        juIzda, peIzda, juDcha, peDcha = (juOrdTem, peOrd, juRivTem, peRivOrd) if eqIsLocal else (
-            juRivTem, peRivOrd, juOrdTem, peOrd)
-        resAbrevs = (abrEq, abrRival) if eqIsLocal else (abrRival, abrEq)
+        if sigPart['loc2abrev']['Local'] in abrevsEq:
+            juIzda, peIzda, juDcha, peDcha = (juOrdTem, peOrd, juRivTem, peRivOrd)
+            resAbrevs = (abrEq, abrRival)
+        else:
+            juIzda, peIzda, juDcha, peDcha = (juRivTem, peRivOrd, juOrdTem, peOrd)
+            resAbrevs = (abrRival, abrEq)
 
-        result = infoSigPartido(sigPartido=sigPart, abrevLV=resAbrevs, eqIsLocal=eqIsLocal, jugLocal=juIzda,
+        result = infoSigPartido(sigPartido=sigPart, abrevLV=resAbrevs,
+                                eqIsLocal=(sigPart['loc2abrev']['Local'] in abrevsEq), jugLocal=juIzda,
                                 pendLocal=peIzda, jugVis=juDcha, pendVis=peDcha, )
         return result
 
@@ -755,6 +758,32 @@ class TemporadaACB:
         resultadoU2K = {p.url: k for k, p in self.Partidos.items()}
 
         return resultadoI2K, resultadoU2K
+
+    def eliminaPartidos(self, listaPartidos: Optional[List[str]] = None) -> List[PartidoACB]:
+        result = []
+        if listaPartidos is None:
+            return result
+        partI2K, partU2K = self.idPartsDescargados()
+
+        clavesAquitar: Set[str] = set()
+
+        # Filtra datos
+        for p in listaPartidos:
+            if p in partU2K:
+                clavesAquitar.add(partU2K[p])
+            elif p in partI2K:
+                clavesAquitar.add(partI2K[p])
+            else:
+                logger.warning("Imposible encontrar clave '%s' en '%s'", p, self)
+
+        for k in clavesAquitar:
+            pQuitado: PartidoACB = self.Partidos.pop(k)
+            for jug in pQuitado.Jugadores:
+                self.fichaJugadores[jug].quitaPartido(pQuitado)
+
+            result.append(pQuitado)
+
+        return result
 
 
 def auxJorFech2periodo(dfTemp: pd.DataFrame):
