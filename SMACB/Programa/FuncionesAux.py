@@ -373,7 +373,8 @@ def auxLeyendaRepartoVictPorLoc(data):
 
 def jor2StrCab(data: infoJornada):
     if data.esPlayOff:
-        rondaStr = {'final': 'Fin', 'semifinales': 'Sem', '1/4 de final': 'Cua', '1/8 de final': 'Oct'}[
+        rondaStr = {'final': 'Fin', 'semifinales': 'Sem', '1/4 de final': 'Cua', '1/8 de final': 'Oct',
+                    'cuartos de final': 'Cua', }[
             data.fasePlayOff.lower()]
         return f"{rondaStr} <b>{data.partRonda:1}</b>"
 
