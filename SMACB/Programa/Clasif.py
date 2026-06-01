@@ -212,24 +212,42 @@ def calculaEstadoLigaPO(dataTemp: TemporadaACB, fecha=None) -> Dict[str, infoEqu
 
     gameList = dataTemp.extractGameList(fecha=fecha, abrevEquipos=teamList, playOffStatus=True)
 
-    for p in sorted(gameList, key=lambda p: dataTemp.Partidos[p].fechaPartido):
-        partido = dataTemp.Partidos[p]
-        fase = (partido.infoJornada if hasattr(partido, 'infoJornada') else dataTemp.Calendario[partido.jornada][
-            'infoJornada']).fasePlayOff.lower()
+    if gameList:
+        for p in sorted(gameList, key=lambda p: dataTemp.Partidos[p].fechaPartido):
+            partido = dataTemp.Partidos[p]
+            fase = (partido.infoJornada if hasattr(partido, 'infoJornada') else dataTemp.Calendario[partido.jornada][
+                'infoJornada']).fasePlayOff.lower()
 
-        for eq, data in partido.Equipos.items():
-            dataOther = partido.Equipos[OtherLoc(eq)]
-            idEq = data['id']
-            auxResult[idEq]['idEq'] = idEq
-            auxResult[idEq]['fases'][fase]['Fase'] = fase
-            auxResult[idEq]['fases'][fase]['idRival'] = dataOther['id']
-            auxResult[idEq]['fases'][fase]['Jug'] += 1
-            auxResult[idEq]['fases'][fase]['V'] += (1 if data['haGanado'] else 0)
-            auxResult[idEq]['fases'][fase]['D'] += (1 if dataOther['haGanado'] else 0)
-            auxResult[idEq]['fases'][fase]['Pfav'] += data['Puntos']
-            auxResult[idEq]['fases'][fase]['Pcon'] += dataOther['Puntos']
-            auxResult[idEq]['fases'][fase]['victoria'].append(data['haGanado'])
-            auxResult[idEq]['fases'][fase]['localia'].append(eq == "Local")
+            for eq, data in partido.Equipos.items():
+                dataOther = partido.Equipos[OtherLoc(eq)]
+                idEq = data['id']
+                auxResult[idEq]['idEq'] = idEq
+                auxResult[idEq]['fases'][fase]['Fase'] = fase
+                auxResult[idEq]['fases'][fase]['idRival'] = dataOther['id']
+                auxResult[idEq]['fases'][fase]['Jug'] += 1
+                auxResult[idEq]['fases'][fase]['V'] += (1 if data['haGanado'] else 0)
+                auxResult[idEq]['fases'][fase]['D'] += (1 if dataOther['haGanado'] else 0)
+                auxResult[idEq]['fases'][fase]['Pfav'] += data['Puntos']
+                auxResult[idEq]['fases'][fase]['Pcon'] += dataOther['Puntos']
+                auxResult[idEq]['fases'][fase]['victoria'].append(data['haGanado'])
+                auxResult[idEq]['fases'][fase]['localia'].append(eq == "Local")
+
+    else:
+        for dataJor in dataTemp.Calendario.Jornadas.values():
+            if not dataJor['esPlayoff']:
+                continue
+            fase = dataJor['infoJornada'].fasePlayOff.lower()
+
+            for dataPart in dataJor['pendientes']:
+                for loc in LocalVisitante:
+                    data = dataPart['equipos'][loc]
+                    dataOther = dataPart['equipos'][OtherLoc(loc)]
+
+                    idEq = data['id']
+                    auxResult[idEq]['idEq'] = idEq
+                    auxResult[idEq]['fases'][fase]['Fase'] = fase
+                    auxResult[idEq]['fases'][fase]['idRival'] = dataOther['id']
+                    auxResult[idEq]['fases'][fase]['localia'].append(loc == "Local")
 
     result = {}
     for idEq, estadoEq in auxResult.items():

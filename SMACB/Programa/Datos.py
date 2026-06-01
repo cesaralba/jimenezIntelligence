@@ -7,8 +7,8 @@ import pandas as pd
 
 import SMACB.Programa.Globals as GlobACB
 from SMACB.Constants import infoSigPartido, LocalVisitante, DEFAULTNUMFORMAT, TRADPOSICION, OtherLoc, infoJornada
-from SMACB.Programa.Clasif import calculaClasifLigaLR, entradaClas2kEmpatePareja, infoGanadorEmparej, \
-    infoClasifComplPareja
+from SMACB.Programa.Clasif import entradaClas2kEmpatePareja, infoGanadorEmparej, \
+    infoClasifComplPareja, calculaClasifEquipoLR
 from SMACB.Programa.Constantes import ESTADISTICOEQ, REPORTLEYENDAS, ESTADISTICOJUG, COLS_IDENTIFIC_JUG
 from SMACB.Programa.FuncionesAux import auxCalculaBalanceStrSuf, GENERADORETTIRO, GENERADORETREBOTE, \
     etiquetasClasificacion, auxCalculaFirstBalNeg, FMTECHACORTA, auxEtiqPartido, esEstCreciente
@@ -322,7 +322,9 @@ def extraeDatosCruces(tempData: TemporadaACB):
         if acumulador[clave]['pendientes'] == 0:
             acumulador[clave].pop('prec')
 
-            l1 = calculaClasifLigaLR(tempData, abrevList=set(clave))
+            auxGameList = tempData.extractGameList(abrevEquipos=set(clave), playOffStatus=False)
+            l1 = [calculaClasifEquipoLR(dataTemp=tempData, abrEq=eq, gameList=auxGameList) for eq in clave]
+
             sortkeys = sorted([(infoClas.abrevAusar, entradaClas2kEmpatePareja(infoClas, datosLR)) for infoClas in l1],
                               key=itemgetter(1), reverse=True)
             acumulador[clave]['ganador'] = infoGanadorEmparej(sortkeys)
