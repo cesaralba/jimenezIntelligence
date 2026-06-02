@@ -208,48 +208,49 @@ def calculaEstadoLigaPO(dataTemp: TemporadaACB, fecha=None) -> Dict[str, infoEqu
     auxResult = defaultdict(lambda: {
         'fases': defaultdict(lambda: {'Jug': 0, 'V': 0, 'D': 0, 'Pfav': 0, 'Pcon': 0, 'victoria': [], 'localia': []})})
 
-    teamList = {onlySetElement(codSet) for codSet in dataTemp.Calendario.tradEquipos['i2c'].values()}
+    result = {}
 
-    gameList = dataTemp.extractGameList(fecha=fecha, abrevEquipos=teamList, playOffStatus=True)
+    for dataJor in dataTemp.Calendario.Jornadas.values():
+        if not dataJor['esPlayoff']:
+            continue
+        fase = dataJor['infoJornada'].fasePlayOff.lower()
 
-    if gameList:
-        for p in sorted(gameList, key=lambda p: dataTemp.Partidos[p].fechaPartido):
-            partido = dataTemp.Partidos[p]
-            fase = (partido.infoJornada if hasattr(partido, 'infoJornada') else dataTemp.Calendario[partido.jornada][
-                'infoJornada']).fasePlayOff.lower()
+        for dataPart in dataJor['pendientes']:
+            for loc in LocalVisitante:
+                data = dataPart['equipos'][loc]
+                dataOther = dataPart['equipos'][OtherLoc(loc)]
 
-            for eq, data in partido.Equipos.items():
-                dataOther = partido.Equipos[OtherLoc(eq)]
                 idEq = data['id']
                 auxResult[idEq]['idEq'] = idEq
                 auxResult[idEq]['fases'][fase]['Fase'] = fase
                 auxResult[idEq]['fases'][fase]['idRival'] = dataOther['id']
-                auxResult[idEq]['fases'][fase]['Jug'] += 1
-                auxResult[idEq]['fases'][fase]['V'] += (1 if data['haGanado'] else 0)
-                auxResult[idEq]['fases'][fase]['D'] += (1 if dataOther['haGanado'] else 0)
-                auxResult[idEq]['fases'][fase]['Pfav'] += data['Puntos']
-                auxResult[idEq]['fases'][fase]['Pcon'] += dataOther['Puntos']
-                auxResult[idEq]['fases'][fase]['victoria'].append(data['haGanado'])
-                auxResult[idEq]['fases'][fase]['localia'].append(eq == "Local")
+                auxResult[idEq]['fases'][fase]['localia'].append(loc == "Local")
 
-    else:
-        for dataJor in dataTemp.Calendario.Jornadas.values():
-            if not dataJor['esPlayoff']:
-                continue
-            fase = dataJor['infoJornada'].fasePlayOff.lower()
+    if not auxResult:
+        return result
 
-            for dataPart in dataJor['pendientes']:
-                for loc in LocalVisitante:
-                    data = dataPart['equipos'][loc]
-                    dataOther = dataPart['equipos'][OtherLoc(loc)]
+    teamList = {onlySetElement(codSet) for codSet in dataTemp.Calendario.tradEquipos['i2c'].values()}
+    gameList = dataTemp.extractGameList(fecha=fecha, abrevEquipos=teamList, playOffStatus=True)
 
-                    idEq = data['id']
-                    auxResult[idEq]['idEq'] = idEq
-                    auxResult[idEq]['fases'][fase]['Fase'] = fase
-                    auxResult[idEq]['fases'][fase]['idRival'] = dataOther['id']
-                    auxResult[idEq]['fases'][fase]['localia'].append(loc == "Local")
+    for p in sorted(gameList, key=lambda p: dataTemp.Partidos[p].fechaPartido):
+        partido = dataTemp.Partidos[p]
+        fase = (partido.infoJornada if hasattr(partido, 'infoJornada') else dataTemp.Calendario[partido.jornada][
+            'infoJornada']).fasePlayOff.lower()
 
-    result = {}
+        for eq, data in partido.Equipos.items():
+            dataOther = partido.Equipos[OtherLoc(eq)]
+            idEq = data['id']
+            auxResult[idEq]['idEq'] = idEq
+            auxResult[idEq]['fases'][fase]['Fase'] = fase
+            auxResult[idEq]['fases'][fase]['idRival'] = dataOther['id']
+            auxResult[idEq]['fases'][fase]['Jug'] += 1
+            auxResult[idEq]['fases'][fase]['V'] += int(data['haGanado'])
+            auxResult[idEq]['fases'][fase]['D'] += int(dataOther['haGanado'])
+            auxResult[idEq]['fases'][fase]['Pfav'] += data['Puntos']
+            auxResult[idEq]['fases'][fase]['Pcon'] += dataOther['Puntos']
+            auxResult[idEq]['fases'][fase]['victoria'].append(data['haGanado'])
+            auxResult[idEq]['fases'][fase]['localia'].append(eq == "Local")
+
     for idEq, estadoEq in auxResult.items():
         series = {k: infoSerieEquipoPO(**v) for k, v in estadoEq['fases'].items()}
         result[idEq] = infoEquipoPO(idEq=idEq, fases=series)
