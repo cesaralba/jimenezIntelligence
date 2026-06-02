@@ -6,14 +6,9 @@ import sys
 from operator import attrgetter
 
 from CAPcore.Logging import prepareLogger
-from CAPcore.Web import createBrowser, extractGetParams
 from configargparse import ArgumentParser, Namespace
 
-import SMACB.TemporadaACB as ACBTemp
-from SMACB.CalendarioACB import calendario_URLBASE
-from SMACB.DiferenciasTrasDescargaTemp import resumenCambioJugadores, resumenNuevosPartidos, resumenCambioClubes, \
-    resumenCambiosCalendario
-from SMACB.TemporadaACB import TemporadaACB, CAMBIOSJUGADORES, CAMBIOSCLUB
+from SMACB.TemporadaACB import TemporadaACB
 
 
 def parse_arguments() -> Namespace:
@@ -37,8 +32,6 @@ def parse_arguments() -> Namespace:
 def main(args: Namespace):
     preparaLogs(args)
 
-
-
     temporada = TemporadaACB()
     ajustaInternalsTemporada(args, temporada)
 
@@ -49,9 +42,8 @@ def main(args: Namespace):
         if 'outfile' in args and args.outfile:
             temporada.grabaTemporada(args.outfile)
 
-    for part in sorted(partidosEliminados,key=attrgetter('fechaPartido')):
-        print(f"Eliminado partido: {part}. [Descargado: {part.timestamp}]")
-
+    for part in sorted(partidosEliminados, key=attrgetter('fechaPartido')):
+        logging.info("Eliminado partido: %s. [Descargado: %s]", part, part.timestamp)
 
 
 def ajustaInternalsTemporada(args, temporada):
@@ -63,10 +55,8 @@ def preparaLogs(args: Namespace):
     logger = logging.getLogger()
     if args.debug:
         prepareLogger(logger=logger, level=logging.DEBUG)
-    elif args.verbose:
-        prepareLogger(logger=logger, level=logging.INFO)
     else:
-        prepareLogger(logger=logger)
+        prepareLogger(logger=logger,level=logging.INFO)
 
 
 if __name__ == '__main__':
