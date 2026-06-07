@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 import pandas as pd
 
@@ -69,3 +69,10 @@ def clasifLiga2dict(tempData: TemporadaACB, fecha=None) -> Dict[str, infoClasifE
     result = {eq.abrevAusar: eq for eq in clasifLigaLR}
 
     return result
+
+
+def listaCompletaAbrevs() -> Set[str]:
+    if tradEquipos is None:
+        raise ValueError("Deberías haber llamado antes a recuperaClasifLigaLR")
+
+    return set(tradEquipos['a2n'].keys())

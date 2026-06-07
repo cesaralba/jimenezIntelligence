@@ -19,9 +19,11 @@ LOCALNAMES = {'Local', 'L', 'local'}
 VISITNAMES = {'Visitante', 'V', 'visitante'}
 
 POLABELLIST = ['1/8 de final', '1/4 de final', 'semifinales', 'final']
-POLABEL2FASE = {'final': 'Final', 'semifinales': 'Semis', '1/4 de final': 'Cuartos', 'cuartos de final': 'Cuartos',
+POLABEL2FASE = {'final': 'Final', 'semifinales': 'Semis', 'semifinal': 'Semis', '1/4 de final': 'Cuartos',
+                'cuartos de final': 'Cuartos',
                 '1/8 de final': 'Octavos'}
-POLABEL2ABREV = {'final': 'F', 'semifinales': 'S', '1/4 de final': 'C', 'cuartos de final': 'C', '1/8 de final': 'O'}
+POLABEL2ABREV = {'final': 'F', 'semifinales': 'S', 'semifinal': 'S', '1/4 de final': 'C', 'cuartos de final': 'C',
+                 '1/8 de final': 'O'}
 
 PLAYOFFFASE = {1: 'Final', 2: 'Semis', 4: 'Cuartos', 8: 'Octavos'}
 PLAYOFFABREV = {'Final': 'F', 'Semis': 'S', 'Cuartos': 'C', 'Octavos': 'O'}
@@ -66,13 +68,13 @@ infoJornada = namedtuple('infoJornada', field_names=['jornada', 'esPlayOff', 'fa
                          defaults=[False, None, None])
 
 infoSigPartido = namedtuple(typename='infoSigPartido',
-                            field_names=['sigPartido', 'abrevLV', 'jugLocal', 'pendLocal', 'jugVis', 'pendVis',
-                                         'eqIsLocal'], defaults=[None, None, None, None, None, None, None, ])
+                            field_names=['sigPartido', 'abrevLV', 'idLV', 'jugLocal', 'pendLocal', 'jugVis', 'pendVis',
+                                         'eqIsLocal'], defaults=[None, None, None, None, None, None, None, None])
 
 infoPartLV = namedtuple(typename='infoPartLV', field_names=['Local', 'Visitante'], defaults=[None, None])
 infoEqCalendario = namedtuple(typename='infoEqCalendario',
-                              field_names=['icono', 'imageTit', 'haGanado', 'abrev', 'nomblargo', 'nombcorto',
-                                           'puntos'], defaults=[None, None, None, None, None, None, None])
+                              field_names=['haGanado', 'abrev', 'idEq', 'nomblargo', 'nombcorto', 'puntos'],
+                              defaults=[None, None, None, None, None, None])
 
 filaTrayectoriaEq = namedtuple(typename='filaTrayectoriaEq',
                                field_names=['fechaPartido', 'jornada', 'cod_edicion', 'cod_competicion', 'equipoMe',

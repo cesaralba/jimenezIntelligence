@@ -95,7 +95,7 @@ def partidoTrayectoria(partido: TempACB.filaTrayectoriaEq, datosTemp: TemporadaA
             # TODO: estado de la serie
             strRival = f"{strFecha}: {textRival}"
         else:
-            clasifAux = calculaClasifEquipoLR(datosTemp, partido.equipoRival.abrev, partido.fechaPartido)
+            clasifAux = calculaClasifEquipoLR(datosTemp, partido.equipoRival.idEq, partido.fechaPartido)
             clasifStr = auxCalculaBalanceStr(clasifAux, addPendientes=True, currJornada=int(partido.jornada),
                                              addPendJornada=False)
             strRival = f"{strFecha}: {textRival} ({clasifStr})"
@@ -262,7 +262,7 @@ def etiquetasClasificacion(clasif: List[infoClasifEquipoLR]) -> List[nombresClas
     result = []
 
     for i, eq in enumerate(clasif, start=1):
-        aux = {'pos': i, 'abrev': eq.abrevAusar, 'nombre': eq.nombreCorto}
+        aux = {'pos': i, 'abrev': eq.abrevAusar, 'nombre': eq.nombreCorto, 'idEq': eq.idEq}
         result.append(nombresClasif(**aux))
 
     return result
@@ -374,7 +374,7 @@ def auxLeyendaRepartoVictPorLoc(data):
 def jor2StrCab(data: infoJornada):
     if data.esPlayOff:
         rondaStr = {'final': 'Fin', 'semifinales': 'Sem', '1/4 de final': 'Cua', '1/8 de final': 'Oct',
-                    'cuartos de final': 'Cua', }[
+                    'cuartos de final': 'Cua', 'semifinal': 'Sem', }[
             data.fasePlayOff.lower()]
         return f"{rondaStr} <b>{data.partRonda:1}</b>"
 
