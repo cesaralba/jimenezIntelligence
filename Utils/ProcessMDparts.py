@@ -189,7 +189,11 @@ def procesaMDcalFl2Info(rawData: dict, infoMDequipos: dict) -> Dict[str, Dict]:
 
             datosPart['loc2abrev'] = {k: v['abrev'] for k, v in datosPart['equipos'].items()}
             datosPart['abrev2loc'] = {v['abrev']: k for k, v in datosPart['equipos'].items()}
+            datosPart['loc2id'] = {k: v['id'] for k, v in datosPart['equipos'].items()}
+            datosPart['id2loc'] = {v['id']: k for k, v in datosPart['equipos'].items()}
+
             datosPart['participantes'] = {v['abrev'] for v in datosPart['equipos'].values()}
+            datosPart['idParticipantes'] = {v['id'] for v in datosPart['equipos'].values()}
             datosPart['claveEmparejamiento'] = ",".join(sorted([str(v['id']) for v in datosPart['equipos'].values()]))
 
             infoRound['idEmparej'].add(datosPart['claveEmparejamiento'])

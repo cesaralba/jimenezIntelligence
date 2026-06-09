@@ -1,4 +1,5 @@
 from itertools import product
+from pprint import pp
 from time import strftime, gmtime
 from typing import List, Optional, Iterable, Any
 
@@ -11,7 +12,7 @@ from reportlab.platypus import Paragraph, TableStyle, Table, NextPageTemplate, P
 import SMACB.Programa.Globals as GlobACB
 from SMACB.Constants import infoSigPartido, MARCADORESCLASIF, filaTrayectoriaEq, infoJornada, POLABEL2ABREV
 from SMACB.Programa.Constantes import estiloNegBal, estiloPosMarker, colEq
-from SMACB.Programa.Datos import datosTablaClasif, datosJugadores, auxFindTargetAbrevs, datosAnalisisEstadisticos, \
+from SMACB.Programa.Datos import datosTablaClasif, datosJugadores, datosAnalisisEstadisticos, \
     preparaInfoCruces, preparaInfoLigaReg
 from SMACB.Programa.FuncionesAux import auxCalculaFirstBalNeg, partidoTrayectoria, auxBold, auxLeyendaCrucesResueltos, \
     auxLeyendaCrucesTotalResueltosEq, auxLeyendaCrucesTotalResueltos, auxLeyendaCrucesTotalPendientes, \
@@ -315,7 +316,7 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     catsAscending = {} if magnsCrecientes is None else set(magnsCrecientes)
 
     recuperaEstadsGlobales(tempData)
-    targetAbrevs = auxFindTargetAbrevs(tempData, datosSig)
+    targetAbrevs = datosSig.sigPartido['loc2abrev']
 
     clavesEq, clavesRiv = GlobACB.allMagnsInEstads, GlobACB.allMagnsInEstads
     if isinstance(magns2incl, list):

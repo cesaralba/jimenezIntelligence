@@ -33,8 +33,10 @@ def preparaLibro(args: Namespace, tempData: TemporadaACB, datosSig: infoSigParti
 
     # Pagina 5
     story.extend(paginaEstadsEquipos(tempData, datosSig))
-    #
+
+    # Página 6
     story.extend(paginaCruces(tempData))
+
     # Fin del doc
     doc.build(story)
 
