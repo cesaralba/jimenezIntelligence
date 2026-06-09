@@ -68,7 +68,7 @@ def recuperaEstadoLigaPO(tempData: TemporadaACB, fecha=None):
 
 def clasifLiga2dict(tempData: TemporadaACB, fecha=None) -> Dict[str, infoClasifEquipoLR]:
     recuperaClasifLigaLR(tempData=tempData, fecha=fecha)
-    result = {eq.abrevAusar: eq for eq in clasifLigaLR}
+    result = {eq.idEq: eq for eq in clasifLigaLR}
 
     return result
 

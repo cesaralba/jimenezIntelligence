@@ -1,6 +1,6 @@
 from collections import defaultdict
 from math import isnan
-from typing import Set, List, Optional, Iterable, Any
+from typing import Set, List, Optional, Iterable, Any, Dict
 
 import pandas as pd
 from CAPcore.Misc import onlySetElement
@@ -296,18 +296,26 @@ def auxCruceTotalResuelto(conts, clavesAmostrar: List[str]):
     return f"{conts['G']}-{conts['P']} {strCrits}"
 
 
-def auxCruceResuelto(data):
+def auxCruceResuelto(data, trads: Dict[str, str] = None):
+    if trads is None:
+        trads = {}
+
     auxStr = ""
     if data[1] != 'EmpV':  # EmpV es que ha ganado los 2 partidos
         auxStr = f" {criterioDesempateCruces[data[1]]['Clave']}+{data[2]}"
+    tradName = trads.get(data[0], data[0])
 
-    return f"<b>{data[0]}</b><br/>{auxStr}"
+    return f"<b>{tradName}</b><br/>{auxStr}"
 
 
-def auxCrucePendiente(data):
+def auxCrucePendiente(data, trads: Dict[str, str] = None):
+    if trads is None:
+        trads = {}
+
     auxStr = f" {data[1]}+{data[2]}"
+    tradName = trads.get(data[0], data[0])
 
-    return f"<b>{data[0]}</b><br/>{auxStr}"
+    return f"<b>{tradName}</b><br/>{auxStr}"
 
 
 def auxCruceTotales(data):  # , clavesAmostrar: List[str]

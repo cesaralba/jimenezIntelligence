@@ -281,18 +281,19 @@ def extraeDatosCruces(tempData: TemporadaACB):
     for p in tempData.Partidos.values():
         if tempData.Calendario.Jornadas[p.jornada]['esPlayoff']:
             continue
-        clave = tuple(sorted(p.CodigosCalendario.values()))
+
+        clave = tuple(sorted([str(p.EquiposCalendario[loc]['id']) for loc in LocalVisitante]))
         acumulador[clave]['pendientes'] -= 1
 
         datosPart = p.DatosSuministrados['equipos']
         for loc in LocalVisitante:
             datos = datosPart[loc]
             datosOtro = datosPart[OtherLoc(loc)]
-            abrev = datos['abrev']
+            idEq = datos['id']
             diffP = datos['puntos'] - datosOtro['puntos']
             if datos['haGanado']:
                 sufLoc = "L" if loc == "Local" else "V"
-                acumulador[clave]['prec'] = (abrev, sufLoc, diffP)
+                acumulador[clave]['prec'] = (idEq, sufLoc, diffP)
 
         if acumulador[clave]['pendientes'] == 0:
             acumulador[clave].pop('prec')
@@ -300,7 +301,7 @@ def extraeDatosCruces(tempData: TemporadaACB):
             auxGameList = tempData.extractGameList(idEquipos=set(clave), playOffStatus=False)
             l1 = [calculaClasifEquipoLR(dataTemp=tempData, idEq=eq, gameList=auxGameList) for eq in clave]
 
-            sortkeys = sorted([(infoClas.abrevAusar, entradaClas2kEmpatePareja(infoClas, datosLR)) for infoClas in l1],
+            sortkeys = sorted([(infoClas.idEq, entradaClas2kEmpatePareja(infoClas, datosLR)) for infoClas in l1],
                               key=itemgetter(1), reverse=True)
             acumulador[clave]['ganador'] = infoGanadorEmparej(sortkeys)
 
@@ -333,18 +334,18 @@ def preparaInfoCruces(tempData: TemporadaACB):
             abrGan, locGan, _ = estado['prec']
             result['datosTotales']['criterios']['pend'][locGan] += 1
             result['pendientes'].append(infoCruce(eq1=clave[0], eq2=clave[1], info=estado['prec']))
-            for abr in clave:
-                result['datosContadores'][abr]['Pdte'] += 1
-                result['datosContadores'][abr]['PendV' if (abr == abrGan) else 'PendD'] += 1
+            for idEq in clave:
+                result['datosContadores'][idEq]['Pdte'] += 1
+                result['datosContadores'][idEq]['PendV' if (idEq == abrGan) else 'PendD'] += 1
         elif 'ganador' in estado:
             result['datosTotales']['Resueltos'] += 1
             abrGan, critGan, _ = estado['ganador']
             result['datosTotales']['criterios']['res'][critGan] += 1
             result['resueltos'].append(infoCruce(eq1=clave[0], eq2=clave[1], info=estado['ganador']))
-            for abr in clave:
-                result['datosContadores'][abr]['G' if (abr == abrGan) else 'P'] += 1
-                if abr == abrGan:
-                    result['datosContadores'][abr]['crit'][critGan] += 1
+            for idEq in clave:
+                result['datosContadores'][idEq]['G' if (idEq == abrGan) else 'P'] += 1
+                if idEq == abrGan:
+                    result['datosContadores'][idEq]['crit'][critGan] += 1
         else:
             raise ValueError(f"No se tratar Cruce: {clave}:{estado}")
 

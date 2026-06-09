@@ -599,20 +599,23 @@ def presTablaCruces(data, FONTSIZE=9, CELLPAD=3 * mm):
     datosCont = data['datosContadores']
     for eq in data['equipos']:
         pos = eq.pos
+        idEq = eq.idEq
         abrev = eq.abrev
 
         result[pos][0] = Paragraph(auxLabelEqTabla(eq.nombre, abrev), style=estCelda)
         result[0][pos] = Paragraph(auxBold(abrev), style=estCelda)
-        result[pos][pos] = Paragraph(auxCruceDiag(datosDiag[abrev], ponBal=True, ponDif=True), style=estCelda)
-        result[-1][pos] = Paragraph(auxCruceTotalPend(datosCont[abrev]), style=estCelda)
-        result[pos][-1] = Paragraph(auxCruceTotalResuelto(datosCont[abrev], data['clavesAmostrar']), style=estCelda)
+        result[pos][pos] = Paragraph(auxCruceDiag(datosDiag[idEq], ponBal=True, ponDif=True), style=estCelda)
+        result[-1][pos] = Paragraph(auxCruceTotalPend(datosCont[idEq]), style=estCelda)
+        result[pos][-1] = Paragraph(auxCruceTotalResuelto(datosCont[idEq], data['clavesAmostrar']), style=estCelda)
 
     for crucePend in data['resueltos']:
-        coords = sorted([datosDiag[abr]['pos'] for abr in [crucePend[0], crucePend[1]]], reverse=False)
-        result[coords[0]][coords[1]] = Paragraph(auxCruceResuelto(crucePend[2]), style=estCelda)
+        coords = sorted([datosDiag[idEq]['pos'] for idEq in [crucePend[0], crucePend[1]]], reverse=False)
+        result[coords[0]][coords[1]] = Paragraph(auxCruceResuelto(crucePend[2], trads=GlobACB.tradEquipos['i2a']),
+                                                 style=estCelda)
     for crucePend in data['pendientes']:
-        coords = sorted([datosDiag[abr]['pos'] for abr in [crucePend[0], crucePend[1]]], reverse=True)
-        result[coords[0]][coords[1]] = Paragraph(auxCrucePendiente(crucePend[2]), style=estCelda)
+        coords = sorted([datosDiag[idEq]['pos'] for idEq in [crucePend[0], crucePend[1]]], reverse=True)
+        result[coords[0]][coords[1]] = Paragraph(auxCrucePendiente(crucePend[2], trads=GlobACB.tradEquipos['i2a']),
+                                                 style=estCelda)
 
     return result
 
