@@ -303,7 +303,7 @@ def auxCruceResuelto(data, trads: Dict[str, str] = None):
     auxStr = ""
     if data[1] != 'EmpV':  # EmpV es que ha ganado los 2 partidos
         auxStr = f" {criterioDesempateCruces[data[1]]['Clave']}+{data[2]}"
-    tradName = trads.get(data[0], data[0])
+    tradName = trads.get(str(data[0]), str(data[0]))
 
     return f"<b>{tradName}</b><br/>{auxStr}"
 
@@ -313,7 +313,7 @@ def auxCrucePendiente(data, trads: Dict[str, str] = None):
         trads = {}
 
     auxStr = f" {data[1]}+{data[2]}"
-    tradName = trads.get(data[0], data[0])
+    tradName = trads.get(str(data[0]), str(data[0]))
 
     return f"<b>{tradName}</b><br/>{auxStr}"
 
