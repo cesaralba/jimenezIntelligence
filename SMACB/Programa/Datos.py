@@ -47,9 +47,11 @@ def calculaMaxMinMagn(ser: pd.Series, ser_orden: pd.Series):
         valTarg = serie[serie_orden == targ_orden].iloc[0]
         return valTarg, etiqTarg, abrevs
 
+    auxSer = ser.rename(axis=0, index=GlobACB.tradEquipos['i2a'], inplace=False)
+    auxSerOrden = ser_orden.rename(axis=0, index=GlobACB.tradEquipos['i2a'], inplace=False)
     # Mejor cuanto el orden sea menor: 1 mejor > 18 peor
-    maxVal, maxEtq, maxAbrevs = getValYEtq(ser, ser_orden, ser_orden.min())
-    minVal, minEtq, minAbrevs = getValYEtq(ser, ser_orden, ser_orden.max())
+    maxVal, maxEtq, maxAbrevs = getValYEtq(auxSer, auxSerOrden, auxSerOrden.min())
+    minVal, minEtq, minAbrevs = getValYEtq(auxSer, auxSerOrden, auxSerOrden.max())
 
     return tuplaMaxMinMagn(minVal=minVal, minEtq=minEtq, minAbrevs=minAbrevs, maxVal=maxVal, maxEtq=maxEtq,
                            maxAbrevs=maxAbrevs, abrevs2add=maxAbrevs.union(minAbrevs))
@@ -65,14 +67,14 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     auxEtiqLeyenda = infoCampos if infoCampos else {}
 
     recuperaEstadsGlobales(tempData)
-
-    targetAbrevs = auxFindTargetAbrevs(tempData, datosSig)
+    targetAbrevs = dict(zip(LocalVisitante, datosSig.abrevLV))
+    targetIds = dict(zip(LocalVisitante, datosSig.idLV))
 
     result = {}
 
     estadsInexistentes = set()
     abrevs2leyenda = set()
-    clavesEnEstads = set(sorted(GlobACB.estadGlobales.columns))
+    clavesEnEstads = set(GlobACB.estadGlobales.columns)
 
     for claveEst in magn2include:
 
@@ -97,11 +99,13 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
 
         serMagn: pd.Series = GlobACB.estadGlobales[clave2use]
         serMagnOrden: pd.Series = GlobACB.estadGlobalesOrden[clave2use]
+        serMagn.rename(index=GlobACB.tradEquipos['i2a'])
+        serMagnOrden.rename(index=GlobACB.tradEquipos['i2a'])
+
         magnMed = serMagn.mean()
         magnStd = serMagn.std()
-
-        datosEqs = {k: serMagn[targetAbrevs[k]] for k in LocalVisitante}
-        datosEqsOrd = {k: int(serMagnOrden[targetAbrevs[k]]) for k in LocalVisitante}
+        datosEqs = {k: serMagn[targetIds[k]] for k in LocalVisitante}
+        datosEqsOrd = {k: int(serMagnOrden[targetIds[k]]) for k in LocalVisitante}
 
         infoMaxMinMagn = calculaMaxMinMagn(serMagn, serMagnOrden)
         abrevs2leyenda = abrevs2leyenda.union(infoMaxMinMagn.abrevs2add)
