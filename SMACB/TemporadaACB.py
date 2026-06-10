@@ -346,15 +346,17 @@ class TemporadaACB:
 
         juRivTem, peRivOrd = self.partidosEquipoOrd(abrRival)
 
-        if sigPart['loc2abrev']['Local'] in abrevsEq:
-            juIzda, peIzda, juDcha, peDcha = (juOrdTem, peOrd, juRivTem, peRivOrd)
-            resAbrevs = (abrEq, abrRival)
-        else:
-            juIzda, peIzda, juDcha, peDcha = (juRivTem, peRivOrd, juOrdTem, peOrd)
-            resAbrevs = (abrRival, abrEq)
+        eqIsLocal = sigPart['loc2abrev']['Local'] in abrevsEq
+        juIzda, peIzda, juDcha, peDcha = (juOrdTem, peOrd, juRivTem, peRivOrd) if eqIsLocal else (
+            juRivTem, peRivOrd, juOrdTem, peOrd)
+        listaAbrevs = [sigPart['equipos'][loc]['abrev'] for loc in LocalVisitante]
+        listaIds = [sigPart['equipos'][loc]['idEq'] for loc in LocalVisitante]
 
-        result = infoSigPartido(sigPartido=sigPart, abrevLV=resAbrevs,
-                                eqIsLocal=(sigPart['loc2abrev']['Local'] in abrevsEq), jugLocal=juIzda,
+        resAbrevs = tuple(listaAbrevs) if eqIsLocal else tuple(reversed(listaAbrevs))
+        resIds = tuple(listaIds) if eqIsLocal else tuple(reversed(listaIds))
+
+        result = infoSigPartido(sigPartido=sigPart, abrevLV=resAbrevs, idLV=resIds, eqIsLocal=eqIsLocal,
+                                jugLocal=juIzda,
                                 pendLocal=peIzda, jugVis=juDcha, pendVis=peDcha, )
         return result
 
@@ -398,30 +400,28 @@ class TemporadaACB:
 
         return auxDF
 
-    def dataFramePartidosLV(self, listaAbrevEquipos: Optional[Iterable[str]] = None, fecha: Optional[Any] = None,
+    def dataFramePartidosLV(self, listaIdEquipos: Iterable[str] = None, fecha: Optional[Any] = None,
                             playOffStatus: Optional[bool] = None
                             ):
         """
         Genera un dataframe LV con los partidos de uno o más equipos hasta determinada fecha
-        :param listaAbrevEquipos: si None, son todos los partidos. Si cadena, solo datos de un equipo
+        :param listaAbrevEquipos: si None, son todos los partidos
         :param fecha: si None son todos los partidos (límite duro < )
         :param playOffStatus: si se quiere filtrar por LR (False), PO (True) o todos (None)
         :return:
         """
-        if isinstance(listaAbrevEquipos, str):
-            listaAbrevEquipos = [listaAbrevEquipos]
-        if listaAbrevEquipos is None:
-            lista_urls = self.extractGameList(fecha=fecha, abrevEquipos=None, playOffStatus=playOffStatus)
+        if listaIdEquipos is None:
+            lista_urls = self.extractGameList(fecha=fecha, idEquipos=None, playOffStatus=playOffStatus)
         else:
             lista_urls = set(chain(
-                *[self.extractGameList(fecha=fecha, abrevEquipos={eq}, playOffStatus=playOffStatus) for eq in
-                  listaAbrevEquipos]))
+                *[self.extractGameList(fecha=fecha, idEquipos={eq}, playOffStatus=playOffStatus) for eq in
+                  listaIdEquipos]))
 
         partidos_DFlist = [self.Partidos[pURL].partidoAdataframe() for pURL in lista_urls]
         result = pd.concat(partidos_DFlist)
         return result
 
-    def extractGameList(self, fecha=None, abrevEquipos: Optional[Iterable[str]] = None,
+    def extractGameList(self, fecha=None, idEquipos: Optional[Iterable[str]] = None,
                         playOffStatus: Optional[bool] = None
                         ) -> set[str]:
         """
@@ -440,27 +440,22 @@ class TemporadaACB:
 
         result_url: set[str] = set(self.Partidos.keys())
 
-        if abrevEquipos is None:
-            abrevEquipos = set()
-        if fecha is None and len(set(abrevEquipos)) == 0 and playOffStatus is None:  # No filter
+        if idEquipos is None:
+            idEquipos = set()
+        if fecha is None and len(set(idEquipos)) == 0 and playOffStatus is None:  # No filter
             return result_url
-
-        # Genera la lista de partidos a incluir
-        # Recupera la lista de abreviaturas que de los equipos que puede cambiar (la abrev del equipo)
-        # a lo largo de la temporada
-        colAbrevList = [self.Calendario.abrevsEquipo(ab) for ab in abrevEquipos]
-        colAbrevSet = set()
-        for abrSet in colAbrevList:
-            colAbrevSet.update(abrSet)
 
         result_url: set[str] = set()
         # Crea la lista de partidos de aquellos en los que están las abreviaturas
         for pURL, pData in self.Partidos.items():
-            if len(set(abrevEquipos)) == 1:
-                if colAbrevSet.intersection(pData.DatosSuministrados['participantes']):
+            idsINt = pData.DatosSuministrados.get('idParticipantes',
+                                                  {str(pData.DatosSuministrados['equipos'][loc]['id']) for loc in
+                                                   LocalVisitante})
+            if len(set(idEquipos)) == 1:
+                if idEquipos.intersection(idsINt):
                     result_url.add(pURL)
             else:
-                if len(colAbrevSet.intersection(pData.DatosSuministrados['participantes'])) == 2:
+                if len(idEquipos.intersection(idsINt)) == 2:
                     result_url.add(pURL)
 
         result_fecha: set[str] = result_url
@@ -480,12 +475,11 @@ class TemporadaACB:
 
         return result
 
-    def dfPartidosLV2ER(self, partidos: pd.DataFrame, abrEq: str = None):
+    def dfPartidosLV2ER(self, partidos: pd.DataFrame, idEq: Optional[str] = None):
 
         finalDFlist = []
 
-        if abrEq:
-            idEq = self.tradEqAbrev2Id(abrEq)
+        if idEq:
             partidosEq = partidos.loc[(partidos['Local', 'id'] == idEq) | (partidos['Visitante', 'id'] == idEq)]
 
             for esLocal in [True, False]:
@@ -509,14 +503,12 @@ class TemporadaACB:
 
         return result.sort_values(by=('Info', 'fechaPartido'))
 
-    def dfEstadsEquipo(self, dfEstadsPartidosEq: pd.DataFrame, abrEq: str = None):
+    def dfEstadsEquipo(self, dfEstadsPartidosEq: pd.DataFrame, idEq: Optional[str] = None):
         colProrrogas = ('Info', 'prorrogas')
         COLDROPPER = [('Info', 'jornada')]
 
-        if abrEq:
-            abrevsEq = self.Calendario.abrevsEquipo(abrEq)
-
-            estadPartidos = dfEstadsPartidosEq.loc[dfEstadsPartidosEq[('Eq', 'abrev')].isin(abrevsEq)]
+        if idEq:
+            estadPartidos = dfEstadsPartidosEq.loc[dfEstadsPartidosEq[('Eq', 'id')] == idEq]
         else:
             estadPartidos = dfEstadsPartidosEq
 
@@ -569,12 +561,10 @@ class TemporadaACB:
         # Todos los partidos de la liga hasta fecha
         dfTodosPartidos = self.dataFramePartidosLV(fecha)
 
-        for idEq in self.Calendario.tradEquipos['i2c'].values():  # Se usa idEq porque la abr puede cambiar durante temp
-            abrevEq = next(iter(idEq))  # Coge una abr cualquiera que corresponda al id. (se usa
-            # abrev porque esas son fáciles de asociar a equipos)
-            dfPartidosEq = self.dfPartidosLV2ER(dfTodosPartidos, abrevEq)
-            dfEstadsAgrEq = self.dfEstadsEquipo(dfPartidosEq, abrEq=abrevEq)
-            resultDict[abrevEq] = dfEstadsAgrEq
+        for idEq in self.Calendario.tradEquipos['i2c'].keys():
+            dfPartidosEq = self.dfPartidosLV2ER(dfTodosPartidos, idEq=idEq)
+            dfEstadsAgrEq = self.dfEstadsEquipo(dfPartidosEq, idEq=idEq)
+            resultDict[idEq] = dfEstadsAgrEq
         result = pd.DataFrame.from_dict(data=resultDict, orient='index').sort_index()
 
         return result

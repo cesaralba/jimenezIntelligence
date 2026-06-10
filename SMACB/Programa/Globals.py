@@ -1,5 +1,5 @@
 from collections import defaultdict
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 import pandas as pd
 
@@ -19,7 +19,8 @@ estadoLigaPO: Optional[Dict[str, infoEquipoPO]] = None
 
 numEqs: Optional[int] = None
 mitadEqs: Optional[int] = None
-tradEquipos: Optional[dict] = {'a2n': defaultdict(str), 'n2a': defaultdict(str), 'i2a': defaultdict(str)}
+tradEquipos: Optional[dict] = {'a2n': defaultdict(str), 'n2a': defaultdict(str), 'i2a': defaultdict(str),
+                               'i2n': defaultdict(str), 'a2i': defaultdict(str)}
 
 
 def recuperaEstadsGlobales(tempData: TemporadaACB):
@@ -41,7 +42,6 @@ def recuperaClasifLigaLR(tempData: TemporadaACB, fecha=None):
     global clasifLigaLR
     global numEqs
     global mitadEqs
-    global tradEquipos
     # pylint: enable=global-statement
 
     if clasifLigaLR is None:
@@ -52,7 +52,9 @@ def recuperaClasifLigaLR(tempData: TemporadaACB, fecha=None):
         for eq in clasifLigaLR:
             tradEquipos['a2n'][eq.abrevAusar] = eq.nombreCorto
             tradEquipos['n2a'][eq.nombreCorto] = eq.abrevAusar
-            tradEquipos['i2a'][list(eq.idEq)[0]] = eq.abrevAusar
+            tradEquipos['i2a'][eq.idEq] = eq.abrevAusar
+            tradEquipos['i2n'][eq.idEq] = eq.nombreCorto
+            tradEquipos['a2i'][eq.abrevAusar] = eq.idEq
 
 
 def recuperaEstadoLigaPO(tempData: TemporadaACB, fecha=None):
@@ -66,6 +68,13 @@ def recuperaEstadoLigaPO(tempData: TemporadaACB, fecha=None):
 
 def clasifLiga2dict(tempData: TemporadaACB, fecha=None) -> Dict[str, infoClasifEquipoLR]:
     recuperaClasifLigaLR(tempData=tempData, fecha=fecha)
-    result = {eq.abrevAusar: eq for eq in clasifLigaLR}
+    result = {eq.idEq: eq for eq in clasifLigaLR}
 
     return result
+
+
+def listaCompletaAbrevs() -> Set[str]:
+    if tradEquipos is None:
+        raise ValueError("Deberías haber llamado antes a recuperaClasifLigaLR")
+
+    return set(tradEquipos['a2n'].keys())

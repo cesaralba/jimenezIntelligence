@@ -35,16 +35,12 @@ sentinel = object()
 def datosEstadsBasicas(tempData: TemporadaACB, infoEq: dict):
     recuperaEstadsGlobales(tempData)
 
+    idEq = infoEq['idEq']
     abrev = infoEq['abrev']
-    nombreCorto = infoEq.get('nombcorto', abrev)
+    nombreCorto = infoEq.get('nombcorto', infoEq['abrev'])
 
-    targAbrev = list(tempData.Calendario.abrevsEquipo(abrev).intersection(GlobACB.estadGlobales.index))[0]
-    if not targAbrev:
-        valCorrectos = ", ".join(sorted(GlobACB.estadGlobales.index))
-        raise KeyError(f"extraeCampoYorden: equipo (abr) '{abrev}' desconocido. Equipos validos: {valCorrectos}")
-
-    estadsEq = GlobACB.estadGlobales.loc[targAbrev]
-    estadsEqOrden = GlobACB.estadGlobalesOrden.loc[targAbrev]
+    estadsEq = GlobACB.estadGlobales.loc[idEq]
+    estadsEqOrden = GlobACB.estadGlobalesOrden.loc[idEq]
 
     pFav, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Eq', 'P', ESTADISTICOEQ)
     pCon, _ = extraeCampoYorden(estadsEq, estadsEqOrden, 'Rival', 'P', ESTADISTICOEQ)
@@ -616,20 +612,23 @@ def presTablaCruces(data, FONTSIZE=9, CELLPAD=3 * mm):
     datosCont = data['datosContadores']
     for eq in data['equipos']:
         pos = eq.pos
+        idEq = eq.idEq
         abrev = eq.abrev
 
         result[pos][0] = Paragraph(auxLabelEqTabla(eq.nombre, abrev), style=estCelda)
         result[0][pos] = Paragraph(auxBold(abrev), style=estCelda)
-        result[pos][pos] = Paragraph(auxCruceDiag(datosDiag[abrev], ponBal=True, ponDif=True), style=estCelda)
-        result[-1][pos] = Paragraph(auxCruceTotalPend(datosCont[abrev]), style=estCelda)
-        result[pos][-1] = Paragraph(auxCruceTotalResuelto(datosCont[abrev], data['clavesAmostrar']), style=estCelda)
+        result[pos][pos] = Paragraph(auxCruceDiag(datosDiag[idEq], ponBal=True, ponDif=True), style=estCelda)
+        result[-1][pos] = Paragraph(auxCruceTotalPend(datosCont[idEq]), style=estCelda)
+        result[pos][-1] = Paragraph(auxCruceTotalResuelto(datosCont[idEq], data['clavesAmostrar']), style=estCelda)
 
     for crucePend in data['resueltos']:
-        coords = sorted([datosDiag[abr]['pos'] for abr in [crucePend[0], crucePend[1]]], reverse=False)
-        result[coords[0]][coords[1]] = Paragraph(auxCruceResuelto(crucePend[2]), style=estCelda)
+        coords = sorted([datosDiag[idEq]['pos'] for idEq in [crucePend[0], crucePend[1]]], reverse=False)
+        result[coords[0]][coords[1]] = Paragraph(auxCruceResuelto(crucePend[2], trads=GlobACB.tradEquipos['i2a']),
+                                                 style=estCelda)
     for crucePend in data['pendientes']:
-        coords = sorted([datosDiag[abr]['pos'] for abr in [crucePend[0], crucePend[1]]], reverse=True)
-        result[coords[0]][coords[1]] = Paragraph(auxCrucePendiente(crucePend[2]), style=estCelda)
+        coords = sorted([datosDiag[idEq]['pos'] for idEq in [crucePend[0], crucePend[1]]], reverse=True)
+        result[coords[0]][coords[1]] = Paragraph(auxCrucePendiente(crucePend[2], trads=GlobACB.tradEquipos['i2a']),
+                                                 style=estCelda)
 
     return result
 
@@ -707,12 +706,13 @@ def presTablaPartidosLigaReg(data, FONTSIZE=9, CELLPAD=3 * mm):
     for eq in data['equipos']:
         pos = eq.pos
         abrev = eq.abrev
+        idEq = eq.idEq
 
         result[pos][0] = Paragraph(auxLabelEqTabla(eq.nombre, abrev), style=estCelda)
         result[0][pos] = Paragraph(auxBold(abrev), style=estCelda)
-        result[pos][pos] = Paragraph(auxBold(auxLigaDiag(datosDiag[abrev], ponBal=True, ponSuf=True)), style=estCelda)
-        result[-1][pos] = Paragraph((datosDiag[abrev]['balanceVisitante']), style=estCelda)
-        result[pos][-1] = Paragraph((datosDiag[abrev]['balanceLocal']), style=estCelda)
+        result[pos][pos] = Paragraph(auxBold(auxLigaDiag(datosDiag[idEq], ponBal=True, ponSuf=True)), style=estCelda)
+        result[-1][pos] = Paragraph((datosDiag[idEq]['balanceVisitante']), style=estCelda)
+        result[pos][-1] = Paragraph((datosDiag[idEq]['balanceLocal']), style=estCelda)
 
     for part in data['jugados']:
         coords = [datosDiag[abr]['pos'] for abr in [part[0], part[1]]]
@@ -752,7 +752,7 @@ def presTablaPartidosLigaRegEstilos(data, equiposAmarcar: Optional[Iterable[str]
         listaEstilos.append([commV, (pos + incr, posIni), (pos + incr, posFin), ANCHOMARCAPOS] + resto)
 
     if equiposAmarcar is not None:
-        for pos in [data['datosDiagonal'][abrev]['pos'] for abrev in equiposAmarcar]:
+        for pos in [data['datosDiagonal'][idEq]['pos'] for idEq in equiposAmarcar]:
             listaEstilos.append(("BACKGROUND", (pos, 0), (pos, 0), colEq))
             listaEstilos.append(("BACKGROUND", (0, pos), (0, pos), colEq))
 

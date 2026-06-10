@@ -47,9 +47,11 @@ def calculaMaxMinMagn(ser: pd.Series, ser_orden: pd.Series):
         valTarg = serie[serie_orden == targ_orden].iloc[0]
         return valTarg, etiqTarg, abrevs
 
+    auxSer = ser.rename(axis=0, index=GlobACB.tradEquipos['i2a'], inplace=False)
+    auxSerOrden = ser_orden.rename(axis=0, index=GlobACB.tradEquipos['i2a'], inplace=False)
     # Mejor cuanto el orden sea menor: 1 mejor > 18 peor
-    maxVal, maxEtq, maxAbrevs = getValYEtq(ser, ser_orden, ser_orden.min())
-    minVal, minEtq, minAbrevs = getValYEtq(ser, ser_orden, ser_orden.max())
+    maxVal, maxEtq, maxAbrevs = getValYEtq(auxSer, auxSerOrden, auxSerOrden.min())
+    minVal, minEtq, minAbrevs = getValYEtq(auxSer, auxSerOrden, auxSerOrden.max())
 
     return tuplaMaxMinMagn(minVal=minVal, minEtq=minEtq, minAbrevs=minAbrevs, maxVal=maxVal, maxEtq=maxEtq,
                            maxAbrevs=maxAbrevs, abrevs2add=maxAbrevs.union(minAbrevs))
@@ -65,14 +67,14 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     auxEtiqLeyenda = infoCampos if infoCampos else {}
 
     recuperaEstadsGlobales(tempData)
-
-    targetAbrevs = auxFindTargetAbrevs(tempData, datosSig)
+    targetAbrevs = dict(zip(LocalVisitante, datosSig.abrevLV))
+    targetIds = dict(zip(LocalVisitante, datosSig.idLV))
 
     result = {}
 
     estadsInexistentes = set()
     abrevs2leyenda = set()
-    clavesEnEstads = set(sorted(GlobACB.estadGlobales.columns))
+    clavesEnEstads = set(GlobACB.estadGlobales.columns)
 
     for claveEst in magn2include:
 
@@ -97,11 +99,13 @@ def datosAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
 
         serMagn: pd.Series = GlobACB.estadGlobales[clave2use]
         serMagnOrden: pd.Series = GlobACB.estadGlobalesOrden[clave2use]
+        serMagn.rename(index=GlobACB.tradEquipos['i2a'])
+        serMagnOrden.rename(index=GlobACB.tradEquipos['i2a'])
+
         magnMed = serMagn.mean()
         magnStd = serMagn.std()
-
-        datosEqs = {k: serMagn[targetAbrevs[k]] for k in LocalVisitante}
-        datosEqsOrd = {k: int(serMagnOrden[targetAbrevs[k]]) for k in LocalVisitante}
+        datosEqs = {k: serMagn[targetIds[k]] for k in LocalVisitante}
+        datosEqsOrd = {k: int(serMagnOrden[targetIds[k]]) for k in LocalVisitante}
 
         infoMaxMinMagn = calculaMaxMinMagn(serMagn, serMagnOrden)
         abrevs2leyenda = abrevs2leyenda.union(infoMaxMinMagn.abrevs2add)
@@ -306,26 +310,27 @@ def extraeDatosCruces(tempData: TemporadaACB):
     for p in tempData.Partidos.values():
         if tempData.Calendario.Jornadas[p.jornada]['esPlayoff']:
             continue
-        clave = tuple(sorted(p.CodigosCalendario.values()))
+
+        clave = tuple(sorted([str(p.EquiposCalendario[loc]['id']) for loc in LocalVisitante]))
         acumulador[clave]['pendientes'] -= 1
 
         datosPart = p.DatosSuministrados['equipos']
         for loc in LocalVisitante:
             datos = datosPart[loc]
             datosOtro = datosPart[OtherLoc(loc)]
-            abrev = datos['abrev']
+            idEq = datos['id']
             diffP = datos['puntos'] - datosOtro['puntos']
             if datos['haGanado']:
                 sufLoc = "L" if loc == "Local" else "V"
-                acumulador[clave]['prec'] = (abrev, sufLoc, diffP)
+                acumulador[clave]['prec'] = (idEq, sufLoc, diffP)
 
         if acumulador[clave]['pendientes'] == 0:
             acumulador[clave].pop('prec')
 
-            auxGameList = tempData.extractGameList(abrevEquipos=set(clave), playOffStatus=False)
-            l1 = [calculaClasifEquipoLR(dataTemp=tempData, abrEq=eq, gameList=auxGameList) for eq in clave]
+            auxGameList = tempData.extractGameList(idEquipos=set(clave), playOffStatus=False)
+            l1 = [calculaClasifEquipoLR(dataTemp=tempData, idEq=eq, gameList=auxGameList) for eq in clave]
 
-            sortkeys = sorted([(infoClas.abrevAusar, entradaClas2kEmpatePareja(infoClas, datosLR)) for infoClas in l1],
+            sortkeys = sorted([(infoClas.idEq, entradaClas2kEmpatePareja(infoClas, datosLR)) for infoClas in l1],
                               key=itemgetter(1), reverse=True)
             acumulador[clave]['ganador'] = infoGanadorEmparej(sortkeys)
 
@@ -358,18 +363,18 @@ def preparaInfoCruces(tempData: TemporadaACB):
             abrGan, locGan, _ = estado['prec']
             result['datosTotales']['criterios']['pend'][locGan] += 1
             result['pendientes'].append(infoCruce(eq1=clave[0], eq2=clave[1], info=estado['prec']))
-            for abr in clave:
-                result['datosContadores'][abr]['Pdte'] += 1
-                result['datosContadores'][abr]['PendV' if (abr == abrGan) else 'PendD'] += 1
+            for idEq in clave:
+                result['datosContadores'][idEq]['Pdte'] += 1
+                result['datosContadores'][idEq]['PendV' if (idEq == abrGan) else 'PendD'] += 1
         elif 'ganador' in estado:
             result['datosTotales']['Resueltos'] += 1
             abrGan, critGan, _ = estado['ganador']
             result['datosTotales']['criterios']['res'][critGan] += 1
             result['resueltos'].append(infoCruce(eq1=clave[0], eq2=clave[1], info=estado['ganador']))
-            for abr in clave:
-                result['datosContadores'][abr]['G' if (abr == abrGan) else 'P'] += 1
-                if abr == abrGan:
-                    result['datosContadores'][abr]['crit'][critGan] += 1
+            for idEq in clave:
+                result['datosContadores'][idEq]['G' if (idEq == abrGan) else 'P'] += 1
+                if idEq == abrGan:
+                    result['datosContadores'][idEq]['crit'][critGan] += 1
         else:
             raise ValueError(f"No se tratar Cruce: {clave}:{estado}")
 
@@ -386,21 +391,22 @@ def preparaDatosDiagonalYMargenes(tempData: TemporadaACB, currJornada: Optional[
     result = {}
 
     for pos, eq in enumerate(GlobACB.clasifLigaLR, start=1):
-        auxResult = {'pos': pos, 'diffP': (eq.Pfav - eq.Pcon)}
-        auxResult['balanceTotal'] = f"{eq.V}-{eq.D}"
-        auxResult['balanceLocal'] = f"{eq.CasaFuera['Local'].V}-{eq.CasaFuera['Local'].D}"
-        auxResult['balanceVisitante'] = f"{eq.CasaFuera['Visitante'].V}-{eq.CasaFuera['Visitante'].D}"
+        auxResult = {'pos': pos, 'diffP': (eq.Pfav - eq.Pcon), 'balanceTotal': f"{eq.V}-{eq.D}",
+                     'balanceLocal': f"{eq.CasaFuera['Local'].V}-{eq.CasaFuera['Local'].D}",
+                     'balanceVisitante': f"{eq.CasaFuera['Visitante'].V}-{eq.CasaFuera['Visitante'].D}",
+                     'abrev': eq.abrevAusar, 'idEq': eq.idEq}
+
         if (currJornada is not None) and (jornadasCompletas is not None):
             auxResult['sufParts'] = auxCalculaBalanceStrSuf(eq, addPendientes=True, currJornada=currJornada,
                                                             addPendJornada=muestraJornada,
                                                             jornadasCompletas=jornadasCompletas)
 
-        result[eq.abrevAusar] = auxResult
+        result[eq.idEq] = auxResult
 
     return result
 
 
-infoEquipoPartido = namedtuple('infoEquipoPartido', field_names=['loc', 'abrev', 'puntos', 'haGanado'],
+infoEquipoPartido = namedtuple('infoEquipoPartido', field_names=['loc', 'abrev', 'idEq', 'puntos', 'haGanado'],
                                defaults=[None, None])
 infoPartido = namedtuple('infoPartido', field_names=['jornada', 'fechaPartido', 'pendiente', 'Local', 'Visitante'])
 
@@ -409,6 +415,8 @@ def auxEquipoCalendario2InfoEqPartido(data, loc) -> infoEquipoPartido:
     auxResult = {'loc': loc}
     for k in ['abrev', 'puntos', 'haGanado']:
         auxResult[k] = data.get(k, None)
+    # TODO: 26-27 asegurarse que sólo haya idEq
+    auxResult['idEq'] = data.get('idEq', data.get('id', None))
     return infoEquipoPartido(**auxResult)
 
 
@@ -454,11 +462,13 @@ def preparaInfoLigaReg(tempData: TemporadaACB, currJornada: int = None):
 
     for pJug in datosLiga['jugados']:
         resultadoStr = f"{pJug.Local.puntos}-{pJug.Visitante.puntos}"
-        auxResult = (pJug.Local.abrev, pJug.Visitante.abrev, pJug.jornada, resultadoStr)
+        auxResult = (pJug.Local.idEq, pJug.Visitante.idEq, pJug.jornada, resultadoStr, pJug.Local.abrev,
+                     pJug.Visitante.abrev)
         result['jugados'].append(auxResult)
     for pPend in datosLiga['pendientes']:
         fechaStr = 'TBD' if (pPend.fechaPartido is None) else pPend.fechaPartido.strftime(FMTECHACORTA)
-        auxResult = (pPend.Local.abrev, pPend.Visitante.abrev, pPend.jornada, fechaStr)
+        auxResult = (pPend.Local.idEq, pPend.Visitante.idEq, pPend.jornada, fechaStr, pPend.Local.abrev,
+                     pPend.Visitante.abrev)
         result['pendientes'].append(auxResult)
 
     return result

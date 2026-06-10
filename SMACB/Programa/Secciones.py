@@ -326,7 +326,7 @@ def tablaAnalisisEstadisticos(tempData: TemporadaACB, datosSig: infoSigPartido, 
     catsAscending = {} if magnsCrecientes is None else set(magnsCrecientes)
 
     recuperaEstadsGlobales(tempData)
-    targetAbrevs = auxFindTargetAbrevs(tempData, datosSig)
+    targetAbrevs = datosSig.sigPartido['loc2abrev']
 
     clavesEq, clavesRiv = GlobACB.allMagnsInEstads, GlobACB.allMagnsInEstads
     if isinstance(magns2incl, list):

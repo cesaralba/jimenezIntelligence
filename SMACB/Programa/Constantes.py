@@ -103,7 +103,7 @@ CANTGREYBAL = .70
 ANCHOMARCAPOS = 2
 colorTablaDiagonal = colors.rgb2cmyk(CANTGREYBAL, CANTGREYBAL, CANTGREYBAL)
 
-nombresClasif = namedtuple('nombresClasif', field_names=('pos', 'abrev', 'nombre'))
+nombresClasif = namedtuple('nombresClasif', field_names=('pos', 'abrev', 'nombre', 'idEq'))
 
 criterioDesempateCruces = {'EmpV': {'Leyenda': 'Victorias', 'Clave': ''},
                            'EmpRatV': {'Leyenda': 'Ratio de victorias', 'Clave': 'R'},
