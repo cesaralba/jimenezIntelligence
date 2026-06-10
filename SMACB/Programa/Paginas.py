@@ -77,7 +77,7 @@ def paginaPartidosLiga(tempData: TemporadaACB, datosSig: infoSigPartido):
     result.append(NextPageTemplate('apaisada'))
     result.append(PageBreak())
     result.extend(
-        tablaPartidosLigaReg(tempData, equiposAmarcar=datosSig.abrevLV, datosJornada=datosSig.sigPartido['infoJornada'],
+        tablaPartidosLigaReg(tempData, equiposAmarcar=datosSig.idLV, datosJornada=datosSig.sigPartido['infoJornada'],
                              FONTSIZE=8.5))
 
     return result

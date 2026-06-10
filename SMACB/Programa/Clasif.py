@@ -2,10 +2,11 @@ from collections import namedtuple, defaultdict
 from decimal import Decimal
 from typing import Optional, Any, Set, List, Tuple, Dict
 
-from CAPcore.Misc import onlySetElement, cmp
+from CAPcore.Misc import cmp
 
 from SMACB.Constants import LocalVisitante, OtherLoc
 from SMACB.TemporadaACB import TemporadaACB
+from Utils.Misc import anyElement
 
 infoClasifEquipoLR = namedtuple('infoClasifEquipoLR',
                                 ['Jug', 'V', 'D', 'Pfav', 'Pcon', 'Jjug', 'CasaFuera', 'idEq', 'nombresEq', 'abrevsEq',
@@ -70,7 +71,7 @@ def entradaClas2kEmpatePareja(ent: infoClasifEquipoLR, datosLR: dict) -> infoCla
     :param ent: lista de equipos (resultado de Temporada.getClasifEquipo)
     :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
     """
-    auxLR = datosLR[ent.abrevAusar]
+    auxLR = datosLR[ent.idEq]
     aux = {'EmpV': ent.V, 'EmpRatV': ent.ratioVict, 'EmpDifP': ent.Pfav - ent.Pcon, 'LRDifP': auxLR.Pfav - auxLR.Pcon,
            'LRPfav': auxLR.Pfav, 'LRSumCoc': auxLR.sumaCoc}
     result = infoClasifComplPareja(**aux)
@@ -85,7 +86,7 @@ def entradaClas2kEmpateMasD2(ent: infoClasifEquipoLR, datosLR: dict) -> infoClas
     :param ent: lista de equipos (resultado de Temporada.getClasifEquipo)
     :return: tupla (Vict, ratio Vict/Jugados,  Pfavor - Pcontra, Pfavor)
     """
-    auxLR = datosLR[ent.abrevAusar]
+    auxLR = datosLR[ent.idEq]
     aux = {'EmpV': ent.V, 'EmpRatV': ent.ratioVict, 'EmpDifP': ent.Pfav - ent.Pcon, 'EmpPfav': ent.Pfav,
            'LRDifP': auxLR.Pfav - auxLR.Pcon, 'LRPfav': auxLR.Pfav, 'LRSumCoc': auxLR.sumaCoc}
     result = infoClasifComplMasD2(**aux)
@@ -93,7 +94,7 @@ def entradaClas2kEmpateMasD2(ent: infoClasifEquipoLR, datosLR: dict) -> infoClas
     return result
 
 
-def calculaClasifEquipoLR(dataTemp: TemporadaACB, abrEq: str, fecha: Optional[Any] = None,
+def calculaClasifEquipoLR(dataTemp: TemporadaACB, idEq: str, fecha: Optional[Any] = None,
                           gameList: Optional[set[str]] = None
                           ) -> infoClasifEquipoLR:
     """
@@ -103,22 +104,23 @@ def calculaClasifEquipoLR(dataTemp: TemporadaACB, abrEq: str, fecha: Optional[An
     :param fecha: usar solo los partidos ANTERIORES a la fecha
     :return: diccionario con los datos calculados
     """
-    abrevsEq = dataTemp.Calendario.abrevsEquipo(abrEq)
+    # abrevsEq = dataTemp.Calendario.abrevsEquipo(idEq)
     auxResult = defaultdict(int)
     auxResult['Jjug'] = set()
     auxResult['auxCasaFuera'] = {'Local': defaultdict(int), 'Visitante': defaultdict(int)}
     auxResult['CasaFuera'] = {}
     auxResult['sumaCoc'] = Decimal(0)
 
-    urlGamesFull = dataTemp.extractGameList(fecha=fecha, abrevEquipos={abrEq}, playOffStatus=False)
+    urlGamesFull = dataTemp.extractGameList(fecha=fecha, idEquipos={idEq}, playOffStatus=False)
     urlGames = urlGamesFull if gameList is None else urlGamesFull.intersection(gameList)
     partidosAcontar = [dataTemp.Partidos[pURL].DatosSuministrados for pURL in urlGames]
 
     for datosCal in partidosAcontar:
         auxResult['Jjug'].add(int(datosCal['jornada']))
 
-        abrevUsada = abrevsEq.intersection(datosCal['participantes']).pop()
-        locEq = datosCal['abrev2loc'][abrevUsada]
+        id2loc = datosCal.get('id2loc', {str(datosCal['equipos'][loc]['id']): loc for loc in LocalVisitante})
+
+        locEq = id2loc[idEq]
         locRival = OtherLoc(locEq)
 
         datosEq = datosCal['equipos'][locEq]
@@ -133,11 +135,11 @@ def calculaClasifEquipoLR(dataTemp: TemporadaACB, abrEq: str, fecha: Optional[An
         auxResult['Pcon'] += datosRival['puntos']
         auxResult['sumaCoc'] += (Decimal(datosEq['puntos']) / Decimal(datosRival['puntos'])).quantize(Decimal('.001'))
 
-    auxResult['idEq'] = dataTemp.Calendario.tradEquipos['c2i'][abrEq]
-    auxResult['nombresEq'] = dataTemp.Calendario.tradEquipos['c2n'][abrEq]
-    auxResult['abrevsEq'] = abrevsEq
+    auxResult['idEq'] = idEq
+    auxResult['nombresEq'] = dataTemp.Calendario.tradEquipos['i2n'][idEq]
+    auxResult['abrevsEq'] = dataTemp.Calendario.tradEquipos['i2c'][idEq]
     auxResult['nombreCorto'] = sorted(auxResult['nombresEq'], key=len)[0]
-    auxResult['abrevAusar'] = abrEq
+    auxResult['abrevAusar'] = anyElement(auxResult['abrevsEq'])
 
     for k in ['Jug', 'V', 'D', 'Pfav', 'Pcon']:
         if k not in auxResult:
@@ -150,32 +152,32 @@ def calculaClasifEquipoLR(dataTemp: TemporadaACB, abrEq: str, fecha: Optional[An
     return result
 
 
-def calculaClasifLigaLR(dataTemp: TemporadaACB, fecha=None, abrevList: Optional[Set[str]] = None, parcial: bool = False,
+def calculaClasifLigaLR(dataTemp: TemporadaACB, fecha=None, idList: Optional[Set[str]] = None, parcial: bool = False,
                         datosLR=None
                         ) -> List[infoClasifEquipoLR]:
-    teamList = abrevList
-    if abrevList is None:
-        teamList = {onlySetElement(codSet) for codSet in dataTemp.Calendario.tradEquipos['i2c'].values()}
+    teamIdList = idList
+    if idList is None:
+        teamIdList = set(dataTemp.Calendario.tradEquipos['i2c'].keys())
 
     funcKey = entradaClas2kBasic
 
-    gameList = dataTemp.extractGameList(fecha=fecha, abrevEquipos=teamList, playOffStatus=False)
+    gameList = dataTemp.extractGameList(fecha=fecha, idEquipos=teamIdList, playOffStatus=False)
 
     datosClasifEquipos: List[infoClasifEquipoLR] = [
-        calculaClasifEquipoLR(dataTemp, abrEq=eq, fecha=fecha, gameList=gameList) for eq in teamList]
+        calculaClasifEquipoLR(dataTemp, idEq=eq, fecha=fecha, gameList=gameList) for eq in teamIdList]
 
     if datosLR is None:
-        datosLR = {x.abrevAusar: x for x in datosClasifEquipos}
+        datosLR = {x.idEq: x for x in datosClasifEquipos}
 
     if parcial:  # Grupo de empatados
-        numEqs = len(teamList)
+        numEqs = len(idList)
         if len(gameList) != numEqs * (numEqs - 1):  # No han jugado todos contra todos I-V
             # Estadistica básica con los partidos de LR
             funcKey = entradaClas2kBasic
-            datosClasifEquipos = [datosLR[abrev] for abrev in abrevList]
+            datosClasifEquipos = [datosLR[idEq] for idEq in idList]
 
         else:  # Han jugado todos contra todos I-V
-            funcKey = entradaClas2kEmpatePareja if len(teamList) == 2 else entradaClas2kEmpateMasD2
+            funcKey = entradaClas2kEmpatePareja if len(idList) == 2 else entradaClas2kEmpateMasD2
     else:  # Todos los equipos
         partsJug = {i.Jug for i in datosClasifEquipos}
         funcKey = entradaClas2kVict if len(partsJug) == 1 else entradaClas2kRatioVict
@@ -185,20 +187,20 @@ def calculaClasifLigaLR(dataTemp: TemporadaACB, fecha=None, abrevList: Optional[
     resultFinal = []
     agrupClasif = defaultdict(set)
     for datosEq in resultInicial:
-        abrev = datosEq.abrevAusar
+        idEq = datosEq.idEq
         kClasif = funcKey(datosEq, datosLR)
-        agrupClasif[kClasif].add(abrev)
+        agrupClasif[kClasif].add(idEq)
 
     for k in sorted(agrupClasif, reverse=True):
-        abrevK = agrupClasif[k]
-        if len(abrevK) == 1:
-            for abrev in abrevK:
-                resultFinal.append(datosLR[abrev])
+        idK = agrupClasif[k]
+        if len(idK) == 1:
+            for idEq in idK:
+                resultFinal.append(datosLR[idEq])
         else:
-            desempate = calculaClasifLigaLR(dataTemp=dataTemp, fecha=fecha, abrevList=abrevK, parcial=True,
+            desempate = calculaClasifLigaLR(dataTemp=dataTemp, fecha=fecha, idList=idK, parcial=True,
                                             datosLR=datosLR)
             for sc in desempate:
-                resultFinal.append(datosLR[sc.abrevAusar])
+                resultFinal.append(datosLR[sc.idEq])
 
     result = resultFinal
     return result
@@ -208,9 +210,9 @@ def calculaEstadoLigaPO(dataTemp: TemporadaACB, fecha=None) -> Dict[str, infoEqu
     auxResult = defaultdict(lambda: {
         'fases': defaultdict(lambda: {'Jug': 0, 'V': 0, 'D': 0, 'Pfav': 0, 'Pcon': 0, 'victoria': [], 'localia': []})})
 
-    teamList = {onlySetElement(codSet) for codSet in dataTemp.Calendario.tradEquipos['i2c'].values()}
+    idList = set(dataTemp.Calendario.tradEquipos['i2c'].keys())
 
-    gameList = dataTemp.extractGameList(fecha=fecha, abrevEquipos=teamList, playOffStatus=True)
+    gameList = dataTemp.extractGameList(fecha=fecha, idEquipos=idList, playOffStatus=True)
 
     if gameList:
         for p in sorted(gameList, key=lambda p: dataTemp.Partidos[p].fechaPartido):
