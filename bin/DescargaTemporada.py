@@ -12,7 +12,7 @@ import SMACB.TemporadaACB as ACBTemp
 from SMACB.CalendarioACB import calendario_URLBASE
 from SMACB.DiferenciasTrasDescargaTemp import resumenCambioJugadores, resumenNuevosPartidos, resumenCambioClubes, \
     resumenCambiosCalendario
-from SMACB.TemporadaACB import TemporadaACB, CAMBIOSJUGADORES, CAMBIOSCLUB
+from SMACB.TemporadaACB import TemporadaACB, CAMBIOSJUGADORES, CAMBIOSCLUB, INFOJORNADAS
 
 
 def parse_arguments() -> Namespace:
@@ -78,7 +78,8 @@ def main(args: Namespace):
         print(f"Cambios en plantillas\n{resumenCambioClubes(CAMBIOSCLUB, temporada=temporada)}", "\n" * 2)
 
     if ACBTemp.CAMBIOSCALENDARIO:
-        print(f"Cambios en calendario\n{resumenCambiosCalendario(ACBTemp.CAMBIOSCALENDARIO, temporada=temporada)}",
+        print(f"Cambios en calendario\n{
+            resumenCambiosCalendario(ACBTemp.CAMBIOSCALENDARIO, temporada=temporada, datosJornadas=INFOJORNADAS)}",
               "\n" * 2)
 
 
