@@ -3,6 +3,7 @@ from typing import Set, Dict, Optional, List, Callable, Tuple
 from CAPcore.LoggedDict import LoggedDictDiff
 
 from SMACB.CalendarioACB import dictK2partStr
+from SMACB.Constants import infoJornada
 from SMACB.PlantillaACB import CambiosPlantillaTipo
 from SMACB.TemporadaACB import TemporadaACB
 
@@ -195,9 +196,14 @@ def formateaResumenDiffs(colDiffs: Dict[str, Tuple[str, str]], temp: TemporadaAC
     return result
 
 
-def resumenCambiosCalendario(cambios: LoggedDictDiff, temporada: TemporadaACB):
+def resumenCambiosCalendario(cambios: LoggedDictDiff, temporada: TemporadaACB,
+                             datosJornadas: Optional[Dict[int, infoJornada]] = None):
     if not cambios:
         return ""
+
+    if datosJornadas is None:
+        datosJornadas = {}
+
     cambiosCalendario = []
 
     for pk, fh in cambios.added.items():
@@ -205,7 +211,7 @@ def resumenCambiosCalendario(cambios: LoggedDictDiff, temporada: TemporadaACB):
         cambiosCalendario.append(f"* {claveP} Nuevo partido @{fh}")
 
     for pk in cambios.removed.keys():
-        claveP = dictK2partStr(temporada.Calendario, pk)
+        claveP = dictK2partStr(temporada.Calendario, pk, datosJornadas)
         cambiosCalendario.append(f"* {claveP} Partido eliminado")
 
     for pk, fhs in cambios.changed.items():
