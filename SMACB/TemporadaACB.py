@@ -41,6 +41,7 @@ JUGADORESDESCARGADOS = set()
 AUXCAMBIOS = CAMBIOSJUGADORES  # For the sake of formatter
 CAMBIOSCALENDARIO: Optional[LoggedDictDiff] = None
 JUGADORESCREADOS: Set[str] = set()
+INFOJORNADAS: Dict[int, infoJornada] = {}
 
 
 class TemporadaACB:
@@ -88,6 +89,8 @@ class TemporadaACB:
         changeOrig = self.changed
 
         browser, config = prepareDownloading(browser, config, calendario_URLBASE)
+
+        INFOJORNADAS.update(self.Calendario.getInfoJornadas())
 
         self.Calendario.actualizaCalendario(browser=browser, config=config)
         self.Calendario.actualizaDatosPlayoffJornada()  # Para compatibilidad hacia atrás
