@@ -79,7 +79,7 @@ class CalendarioACB:
 
         jor2del: set = set(self.Jornadas.keys()).difference(jornadasCurrCal)
         for j in jor2del:
-            logger.info("Eliminando jornada desaparecida '%s'", j)
+            logger.warning("Eliminando jornada desaparecida '%s'", j)
             self.Jornadas.pop(j)
 
     def esJornadaPlayOff(self, currJ: int):
@@ -352,6 +352,11 @@ class CalendarioACB:
 
         return result
 
+    def getInfoJornadas(self) -> Dict[int, infoJornada]:
+        result = {j: v['infoJornada'] for j, v in self.Jornadas.items()}
+
+        return result
+
 
 def isSkeleton(tagElem: bs4.element.Tag, tag2search: str = "span") -> bool:
     if tagElem is None:
@@ -479,7 +484,9 @@ def p2DictK(cal: CalendarioACB, datosPart: dict) -> str:
     return result
 
 
-def dictK2partStr(cal: CalendarioACB, partK: str) -> str:
+def dictK2partStr(cal: CalendarioACB, partK: str, datosJornada=Optional[Dict[int, infoJornada]]) -> str:
+    if datosJornada is None:
+        datosJornada = {}
     jor, idLoc, idVis = partK.split('#')
 
     abrLoc = list(cal.tradEquipos['i2c'][idLoc])[-1]
@@ -488,10 +495,15 @@ def dictK2partStr(cal: CalendarioACB, partK: str) -> str:
     jorAux = int(jor)
     jorStr = f"J{jorAux:02}"
 
-    datosJor = cal.Jornadas[jorAux]
-    infoJor: infoJornada = datosJor['infoJornada']
-    if infoJor.esPlayOff:
-        jorStr = f"{infoJor.fasePlayOff.capitalize()}[{infoJor.partRonda}]"
+    if jorAux in cal.Jornadas:
+        datosJor = cal.Jornadas[jorAux]
+        infoJor: infoJornada = datosJor['infoJornada']
+        if infoJor.esPlayOff:
+            jorStr = f"{infoJor.fasePlayOff.capitalize()}[{infoJor.partRonda}]"
+    else:
+        infoJ = datosJornada.get(jorAux, None)
+        jorStr = f"{infoJ.fasePlayOff.capitalize()}[{infoJ.partRonda}] [Eliminada]" \
+            if infoJ else f"J{jorAux:02} [Eliminada]"
 
     result = f"{jorStr}: {abrLoc}-{abrVis}"
     return result
