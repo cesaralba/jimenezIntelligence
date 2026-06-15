@@ -12,7 +12,7 @@ from reportlab.platypus import Paragraph, TableStyle, Table, NextPageTemplate, P
 import SMACB.Programa.Globals as GlobACB
 from SMACB.Constants import infoSigPartido, MARCADORESCLASIF, filaTrayectoriaEq, infoJornada, POLABEL2ABREV
 from SMACB.Programa.Constantes import estiloNegBal, estiloPosMarker, colEq
-from SMACB.Programa.Datos import datosTablaClasif, datosJugadores, auxFindTargetAbrevs, datosAnalisisEstadisticos, \
+from SMACB.Programa.Datos import datosTablaClasif, datosJugadores, datosAnalisisEstadisticos, \
     preparaInfoCruces, preparaInfoLigaReg, datosTotalEquipo
 from SMACB.Programa.FuncionesAux import auxCalculaFirstBalNeg, partidoTrayectoria, auxBold, auxLeyendaCrucesResueltos, \
     auxLeyendaCrucesTotalResueltosEq, auxLeyendaCrucesTotalResueltos, auxLeyendaCrucesTotalPendientes, \
@@ -268,7 +268,7 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
 
 def paginasJugadores(tempData: TemporadaACB, datosSig: infoSigPartido, tablas: List[str]):
     result = []
-    abrEqs = datosSig.abrevLV
+    idEqs = datosSig.idLV
     juLocal = datosSig.jugLocal
     juVisit = datosSig.jugVis
 
@@ -277,14 +277,12 @@ def paginasJugadores(tempData: TemporadaACB, datosSig: infoSigPartido, tablas: L
         return result
 
     if len(juLocal):
-        jugsLocal: pd.DataFrame = datosJugadores(tempData, abrEqs[0], juLocal)
-        totalesLocal: pd.DataFrame = datosTotalEquipo(tempData, abrEqs[0])
+        jugsLocal: pd.DataFrame = datosJugadores(tempData, idEqs[0], juLocal)
+        totalesLocal: pd.DataFrame = datosTotalEquipo(tempData, idEqs[0])
         datosLocal: pd.DataFrame = pd.concat([jugsLocal, totalesLocal], axis=0)
-        print(datosLocal.T.to_json(f"/tmp/kk1.{abrEqs[0]}.json"))
+        tablasJugadLocal = tablasJugadoresEquipo(datosLocal, abrev=datosSig.abrevLV[0], tablasIncluidas=tablas)
 
-        tablasJugadLocal = tablasJugadoresEquipo(datosLocal, abrev=abrEqs[0], tablasIncluidas=tablas)
-
-        encabJugsLocal = encabezadoPagEstadsJugs(datosTemp=tempData, datosSig=datosSig, abrevEq=abrEqs[0])
+        encabJugsLocal = encabezadoPagEstadsJugs(datosTemp=tempData, datosSig=datosSig, abrevEq=datosSig.abrevLV[0])
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
         result.append(encabJugsLocal)
@@ -296,16 +294,12 @@ def paginasJugadores(tempData: TemporadaACB, datosSig: infoSigPartido, tablas: L
             result.append(NextPageTemplate('apaisada'))
 
     if len(juVisit):
-        jugsVisit: pd.DataFrame = datosJugadores(tempData, abrEqs[1], juVisit)
-        totalesVisit: pd.DataFrame = datosTotalEquipo(tempData, abrEqs[1])
+        jugsVisit: pd.DataFrame = datosJugadores(tempData, idEq=idEqs[1], partJug=juVisit)
+        totalesVisit: pd.DataFrame = datosTotalEquipo(tempData, idEq=idEqs[1])
         datosVisit: pd.DataFrame = pd.concat([jugsVisit, totalesVisit], axis=0)
-        print(datosVisit.T.to_json(f"/tmp/kk1.{abrEqs[1]}.json"))
-        tablasJugadVisit = tablasJugadoresEquipo(datosVisit, abrev=abrEqs[1], tablasIncluidas=tablas)
+        tablasJugadVisit = tablasJugadoresEquipo(datosVisit, abrev=datosSig.abrevLV[1], tablasIncluidas=tablas)
 
-        # datosVisit = datosJugadores(tempData, abrEqs[1], juVisit)
-        # tablasJugadVisit = tablasJugadoresEquipo(datosVisit, abrev=abrEqs[1], tablasIncluidas=tablas)
-
-        encabJugsVis = encabezadoPagEstadsJugs(datosTemp=tempData, datosSig=datosSig, abrevEq=abrEqs[1])
+        encabJugsVis = encabezadoPagEstadsJugs(datosTemp=tempData, datosSig=datosSig, abrevEq=datosSig.abrevLV[1])
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())

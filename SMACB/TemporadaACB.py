@@ -7,7 +7,6 @@ import logging
 import sys
 from collections import defaultdict
 from copy import copy
-from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
 from sys import setrecursionlimit
@@ -18,6 +17,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from CAPcore.LoggedDict import LoggedDictDiff, LoggedDict
+from CAPcore.Misc import listize
 
 from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Web import prepareDownloading, browserConfigData
@@ -284,9 +284,10 @@ class TemporadaACB:
 
         listaClaves: List[str] = listaClavePartidos or list(self.Partidos.keys())
 
-        dfPartidos: List[pd.DataFrame] = [self.Partidos[pClave].jugadoresAdataframe() for pClave in listaClaves]
-
-        dfResult: pd.DataFrame = pd.concat(dfPartidos, axis=0, ignore_index=True, sort=True)
+        listaDFPartidos: List[pd.DataFrame] = [self.Partidos[pClave].jugadoresAdataframe() for pClave in listaClaves]
+        print("SMACB.TemporadaACB.TemporadaACB.extraeDataframeJugadores",len(listaDFPartidos))
+        print(sum(len(df) for df in listaDFPartidos),"Suma lens")
+        dfResult: pd.DataFrame = pd.concat(listaDFPartidos, axis=0, ignore_index=True, sort=True)
 
         periodos = auxJorFech2periodo(dfResult)
 
@@ -294,16 +295,13 @@ class TemporadaACB:
 
         return dfResult
 
-    def dfEstadsJugadores(self, dfDatosPartidos: pd.DataFrame, abrEq: str = None):
+    def dfEstadsJugadores(self, dfDatosPartidos: pd.DataFrame, idEq: Optional[str] = None):
         COLDROPPER = ['jornada', 'temporada']
         COLSIDENT = ['competicion', 'temporada', 'codigo', 'dorsal', 'nombre', 'CODequipo', 'IDequipo']
 
-        if abrEq:
-            abrevsEq = self.Calendario.abrevsEquipo(abrEq)
-
-            estadsJugadoresEq = dfDatosPartidos.loc[dfDatosPartidos['CODequipo'].isin(abrevsEq)]
-        else:
-            estadsJugadoresEq = dfDatosPartidos
+        estadsJugadoresEq = dfDatosPartidos
+        if idEq:
+            estadsJugadoresEq = dfDatosPartidos.loc[dfDatosPartidos['IDequipo'] == idEq]
 
         auxEstadisticosDF = estadsJugadoresEq.drop(columns=COLDROPPER).groupby('codigo').apply(
             auxCalculaEstadsSubDataframe, include_groups=False)
@@ -371,14 +369,13 @@ class TemporadaACB:
 
         return juOrdTem, peOrd
 
-    def dataFrameFichasJugadores(self, abrEq: Optional[str] = None):
+    def dfFichasJugadores(self, idEq: Optional[str] = None):
         jugsIter = self.fichaJugadores.keys()
         activos = dorsales = {}
-        if (abrEq is not None) and self.descargaPlantillas:
-            codEq = self.tradEqAbrev2Id(abrEq)
-            jugsIter = self.plantillas[codEq].jugadores.keys()
-            dorsales = self.plantillas[codEq].jugadores.extractKey('dorsal', 100)
-            activos = self.plantillas[codEq].jugadores.extractKey('activo', False)
+        if (idEq is not None) and self.descargaPlantillas:
+            jugsIter = self.plantillas[idEq].jugadores.keys()
+            dorsales = self.plantillas[idEq].jugadores.extractKey('dorsal', 100)
+            activos = self.plantillas[idEq].jugadores.extractKey('activo', False)
         auxdict = {j_id: self.fichaJugadores[j_id].dictDatosJugador() for j_id in jugsIter}
 
         auxUrlPart2K = self.idPartsDescargados()[1]
@@ -400,7 +397,7 @@ class TemporadaACB:
 
         return auxDF
 
-    def dataFramePartidosLV(self, listaIdEquipos: Iterable[str] = None, fecha: Optional[Any] = None,
+    def dataFramePartidosLV(self, listaIdEquipos: Optional[Iterable[str]] = None, fecha: Optional[Any] = None,
                             playOffStatus: Optional[bool] = None
                             ):
         """
@@ -413,9 +410,10 @@ class TemporadaACB:
         if listaIdEquipos is None:
             lista_urls = self.extractGameList(fecha=fecha, idEquipos=None, playOffStatus=playOffStatus)
         else:
-            lista_urls = set(chain(
-                *[self.extractGameList(fecha=fecha, idEquipos={eq}, playOffStatus=playOffStatus) for eq in
-                  listaIdEquipos]))
+            lista_urls = set()
+            for eq in listize(listaIdEquipos):
+                lista_urls = lista_urls.union(
+                    self.extractGameList(fecha=fecha, idEquipos={eq}, playOffStatus=playOffStatus))
 
         partidos_DFlist = [self.Partidos[pURL].partidoAdataframe() for pURL in lista_urls]
         result = pd.concat(partidos_DFlist)

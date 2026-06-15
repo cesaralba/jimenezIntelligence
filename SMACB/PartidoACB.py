@@ -182,8 +182,8 @@ class PartidoACB():
                    'esTitular': 'bool', 'haJugado': 'bool', 'titular': 'category', 'haGanado': 'bool',
                    'enActa': 'bool', }
 
-        dfJugs = [auxJugador2dataframe(typesDF, x, self.fechaPartido) for x in self.Jugadores.values()]
-        dfResult = pd.concat(dfJugs, axis=0, ignore_index=True, sort=True).astype(typesDF)
+        listaDfJugs = [auxJugador2dataframe(typesDF, x, self.fechaPartido) for x in self.Jugadores.values()]
+        dfResult = pd.concat(listaDfJugs, axis=0, ignore_index=True, sort=True).astype(typesDF)
         return dfResult
 
     def partidoAdataframe(self) -> pd.DataFrame:

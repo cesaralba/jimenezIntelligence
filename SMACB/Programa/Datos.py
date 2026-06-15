@@ -171,16 +171,34 @@ COLS_ESTAD_PROM = [(col, ESTADISTICOJUG) for col in VALS_ESTAD_JUGADOR]
 COLS_ESTAD_TOTAL = [(col, 'sum') for col in VALS_ESTAD_JUGADOR]
 
 
-def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
-    abrevsEq = tempData.Calendario.abrevsEquipo(abrEq)
+def datosJugadores(tempData: TemporadaACB, idEq: str, partJug):
+    # abrevsEq = tempData.Calendario.abrevsEquipo(abrEq)
 
+    print(idEq,len(partJug),"len partJug")
+    print("Intersec",len(set(partJug).intersection(set(tempData.Partidos.keys()))))
     auxDF = tempData.extraeDataframeJugadores(listaClavePartidos=partJug)
 
-    jugDF = auxDF.loc[auxDF['CODequipo'].isin(abrevsEq)]
+    print("SMACB.Programa.Datos.datosJugadores auxDF")
+    print(len(auxDF))
+    print('IDequipo', dict(auxDF['IDequipo'].value_counts()))
 
-    estadsJugDF = tempData.dfEstadsJugadores(jugDF, abrEq=abrEq)
-    fichasJugadores = tempData.dataFrameFichasJugadores(abrEq=abrEq)
+    jugDF = auxDF.loc[auxDF['IDequipo'] == str(idEq)]
+
+    print("SMACB.Programa.Datos.datosJugadores jugDF")
+    print(len(jugDF))
+    print('IDequipo',dict(jugDF['IDequipo'].value_counts()))
+    print('codigo',dict(jugDF['codigo'].value_counts()))
+    print('nombre',dict(jugDF['nombre'].value_counts()))
+    print(len(jugDF['url'].value_counts().to_dict()),'partidos')
+
+    estadsJugDF = tempData.dfEstadsJugadores(jugDF, idEq=idEq)
+    fichasJugadores = tempData.dfFichasJugadores(idEq=idEq)
     fichasJugadores.posicion = fichasJugadores.posicion.map(TRADPOSICION)
+
+    print("SMACB.Programa.Datos.datosJugadores")
+    print(estadsJugDF)
+    print(fichasJugadores)
+
 
     COLS_IDENTIFIC_JUG_aux = COLS_IDENTIFIC_JUG.copy()
     COLS_FICHA_aux = COLS_FICHA.copy()
@@ -208,10 +226,10 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
     return result
 
 
-def datosTotalEquipo(tempData: TemporadaACB, abrEq: str) -> pd.DataFrame:
+def datosTotalEquipo(tempData: TemporadaACB, idEq: str) -> pd.DataFrame:
     # TODO: T2026 incluir la fila de entrenadores aqui?
     partsEq: pd.Series = tempData.dfEstadsEquipo(
-        tempData.dfPartidosLV2ER(tempData.dataFramePartidosLV(abrEq), abrEq=abrEq), abrEq=abrEq)
+        tempData.dfPartidosLV2ER(tempData.dataFramePartidosLV(listaIdEquipos=idEq), idEq=idEq), idEq=idEq)
     auxDF = pd.DataFrame(partsEq).T
 
     colsDeInteres = [c for c in auxDF.columns if c[0] == 'Eq']
@@ -219,7 +237,7 @@ def datosTotalEquipo(tempData: TemporadaACB, abrEq: str) -> pd.DataFrame:
     datosParts = auxDF[colsDeInteres]
     datosParts.columns = colsRenomb
 
-    datosIdent = pd.DataFrame([["TOTAL", 'Total', 'Dorsal']], columns=pd.Index(data=['nombre', 'Activo', '999']))
+    datosIdent = pd.DataFrame([['Total','Total', 'Total', '999']], columns=pd.Index(data=['nombre','alias', 'Activo', 'dorsal']))
 
     datosTrayect = auxDF[[('Eq', 'Vict', 'count'), ('Eq', 'Vict', 'sum')]]
     datosTrayect.columns = pd.Index(data=['Jugados', 'Vict'])

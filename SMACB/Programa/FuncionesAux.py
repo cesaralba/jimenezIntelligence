@@ -138,6 +138,10 @@ def GENERADORCLAVEDORSAL(*kargs, **kwargs):
     return lambda f: auxKeyDorsal(f, *kargs, **kwargs)
 
 
+def GENERADORCLAVEACTIVO(*kargs, **kwargs):
+    return lambda f: auxKeyActivo(f, *kargs, **kwargs)
+
+
 def auxEtiqRebotes(df, entero: bool = True) -> str:
     if isnan(df['R-D']):
         return "-"
@@ -195,6 +199,18 @@ def auxMapDict(f, col, lookup):
 
     dato = f[col]
     result = lookup.get(dato, "-")
+
+    return result
+
+
+def auxKeyActivo(f, col):
+    if f is None:
+        return "-"
+
+    activo2k: Dict[Any, int] = {True: 1, False: 2, 'Tecnico': 10, 'Total': 20}
+    dato = f[col]
+
+    result = activo2k[dato]
 
     return result
 

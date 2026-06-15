@@ -1,5 +1,6 @@
 from itertools import product
 from operator import itemgetter
+from pprint import pformat
 from typing import Set, Optional, List, Iterable
 
 import pandas as pd
@@ -21,7 +22,7 @@ from SMACB.Programa.FuncionesAux import auxCalculaBalanceStr, auxJugsBajaTablaJu
     GENERADORFECHA, GENMAPDICT, GENERADORTIEMPO, GENERADORETTIRO, GENERADORETREBOTE, auxBold, equipo2clasif, \
     auxLabelEqTabla, auxCruceDiag, auxCruceTotalPend, auxCruceTotalResuelto, auxCruceResuelto, auxCrucePendiente, \
     auxCruceTotales, auxLigaDiag, auxTablaLigaPartJugado, auxTablaLigaPartPendiente, auxCalculaInfoPO, \
-    presTrayectoriaPlayOff, muestraDifPuntos
+    presTrayectoriaPlayOff, muestraDifPuntos, GENERADORCLAVEACTIVO
 from SMACB.Programa.Globals import recuperaClasifLigaLR, recuperaEstadsGlobales, recuperaEstadoLigaPO
 from SMACB.TemporadaACB import TemporadaACB
 from SMACB.TemporadaEstads import extraeCampoYorden
@@ -251,32 +252,36 @@ def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSp
     listaEstilo = estiloTablaBaseOps.copy()
 
     dfDatos[('Global', 'Leyenda')] = ""
+    dfWrk=dfDatos.copy()
 
     for col in infoTabla.get('extraCols', []):
         level, colkey = col
         colSpec = colSpecs.get(col, {})
-        newCol = dfDatos[level].apply(colSpec['generador'], axis=1) if 'generador' in colSpec else dfDatos[[col]]
-        dfDatos[col] = newCol
+        newCol = dfWrk[level].apply(colSpec['generador'], axis=1) if 'generador' in colSpec else dfWrk[[col]]
+        dfWrk[col] = newCol
 
-    print("Pre")
-    print(dfDatos)
     for col, value in infoTabla.get('filtro', []):
+        print("SMACB.Programa.Presentacion.auxGeneraTablaJugs Filtro",col,pformat(value))
+        print("Antes")
+        print(dfWrk[[col, ('Jugador', 'alias')]])
         if isinstance(value, (list, set, tuple)):
-            print("Filtro buscable")
-            print(dfDatos[col])
-            dfDatos = dfDatos[dfDatos[col].isin(value)]
+            dfWrk = dfWrk[dfWrk[col].isin(value)]
         else:
-            print("Filtro value")
-            print(dfDatos[col])
-            dfDatos = dfDatos.loc[dfDatos[col] == value]
-        print(f"Filtro {col} -> {value}")
-        print(dfDatos)
+            dfWrk = dfWrk.loc[dfWrk[col] == value]
+        print("Despues")
+        print(dfWrk[[col, ('Jugador', 'alias')]])
+
 
     sortOrder = infoTabla.get('ordena', [])
-    byList = [c for c, _ in sortOrder if c in dfDatos.columns]
-    ascList = [a for c, a in sortOrder if c in dfDatos.columns]
 
-    dfDatos = dfDatos.sort_values(by=byList, ascending=ascList)
+    byList = [c for c, _ in sortOrder if c in dfWrk.columns]
+    ascList = [a for c, a in sortOrder if c in dfWrk.columns]
+
+    if byList:
+        print("CAP: SMACB.Programa.Presentacion.auxGeneraTablaJugs BYLIST", pformat(byList), pformat(ascList))
+        print(dfWrk[byList])
+        print(dfWrk[byList].sort_values(by=byList, ascending=ascList))
+    dfWrk = dfWrk.sort_values(by=byList, ascending=ascList)
 
     collist = infoTabla['columnas']
 
@@ -292,7 +297,7 @@ def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSp
     for i, colkey in enumerate([('Global', 'Leyenda')] + collist, start=0):
         level, etiq = colkey
         colSpec = colSpecs.get(colkey, {})
-        newCol = dfDatos[level].apply(colSpec['generador'], axis=1) if 'generador' in colSpec else dfDatos[[colkey]]
+        newCol = dfWrk[level].apply(colSpec['generador'], axis=1) if 'generador' in colSpec else dfWrk[[colkey]]
 
         defValue = colSpec.get('default', DEFTABVALUE)
         nullValues = newCol.isnull()
@@ -332,7 +337,7 @@ def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSp
                           ('ALIGN', (0, 0), (0, -1), 'CENTER')]
     listaEstilo.extend(estiloCeldaLeyenda)
 
-    for fila in auxJugsBajaTablaJugs(dfDatos):
+    for fila in auxJugsBajaTablaJugs(dfWrk):
         estilo = ('FONT', (1, fila + 1), (-1, fila + 1), 'Helvetica-Oblique')
         listaEstilo.append(estilo)
 
@@ -373,6 +378,7 @@ def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None, tablasIncluidas: L
     FONTSIZE = 8
     ANCHOLETRA = FONTSIZE * 0.5
     COLACTIVO = ('Jugador', 'Activo')
+    COLACTIVO_IDX = ('Jugador', 'Kactivo')
     COLDORSAL_IDX = ('Jugador', 'Kdorsal')
     COLSIDENT_PROM = [('Jugador', 'dorsal'), ('Jugador', 'pos'), ('Jugador', 'nombre'), ('Trayectoria', 'Acta'),
                       ('Trayectoria', 'Jugados'), ('Trayectoria', 'Titular'), ('Trayectoria', 'Vict')]
@@ -408,15 +414,15 @@ def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None, tablasIncluidas: L
                             'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, (True, 'Total', 'Tecnico'))],
                             'ordena': [(COLDORSAL_IDX, True)]},
               'TOTALES': {'seq': 2, 'nombre': 'Totales', 'columnas': (COLSIDENT_TOT + COLS_TOTALES),
-                          'extraCols': [('Jugador', 'Kdorsal')], 'ordena': [(COLACTIVO, False), (COLDORSAL_IDX, True)]},
+                          'extraCols': [('Jugador', 'Kdorsal')],
+                          'ordena': [(COLACTIVO_IDX, True), (COLDORSAL_IDX, True)]},
               'ULTIMOPARTIDO': {'seq': 3, 'nombre': 'Último partido', 'columnas': (COLSIDENT_UP + COLS_ULTP),
                                 'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
                                 'ordena': [(COLDORSAL_IDX, True)]}}
     auxDF = jugDF.copy()
-
     for claveTabla in tablasIncluidas:
+        print("SMACB.Programa.Presentacion.tablasJugadoresEquipo", claveTabla)
         infoTabla = tablas[claveTabla]
-        print("Abrev", abrev)
         t = auxGeneraTablaJugs(auxDF, claveTabla, infoTabla, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA,
                                repeatRows=1, abrev=abrev, )
 
@@ -468,6 +474,7 @@ INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
                  ('Jugador', 'Activo'): {'etiq': 'Act', 'ancho': 4, 'alignment': 'CENTER',
                                          'generador': GENMAPDICT(col='Activo',
                                                                  lookup={True: 'A', False: 'B', 'Total': 'T'})},
+                 ('Jugador', 'Kactivo'): {'etiq': 'kA', 'generador': GENERADORCLAVEACTIVO(col='Activo')},
                  ('Trayectoria', 'Acta'): {'etiq': 'Cv', 'ancho': 3, 'formato': 'entero'},
                  ('Trayectoria', 'Jugados'): {'etiq': 'Ju', 'ancho': 3, 'formato': 'entero'},
                  ('Trayectoria', 'Titular'): {'etiq': 'Tt', 'ancho': 3, 'formato': 'entero'},
