@@ -1,5 +1,6 @@
 from itertools import product
 from operator import itemgetter
+from pprint import pp, pformat
 from typing import Set, Optional, List, Iterable
 
 import pandas as pd
@@ -400,10 +401,10 @@ def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None, tablasIncluidas: L
                ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD), ]
 
     tablas = {'PROMEDIOS': {'seq': 1, 'nombre': 'Promedios', 'columnas': (COLSIDENT_PROM + COLS_PROMED),
-                            'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, (True, 'Total', 'Tecnico'))],
+                            'extraCols': [COLDORSAL_IDX], 'filtro': [(COLACTIVO, (True, 'Total', 'Tecnico'))],
                             'ordena': [(COLDORSAL_IDX, True)]},
               'TOTALES': {'seq': 2, 'nombre': 'Totales', 'columnas': (COLSIDENT_TOT + COLS_TOTALES),
-                          'extraCols': [('Jugador', 'Kdorsal')],
+                          'extraCols': [COLDORSAL_IDX,COLACTIVO_IDX],
                           'ordena': [(COLACTIVO_IDX, True), (COLDORSAL_IDX, True)]},
               'ULTIMOPARTIDO': {'seq': 3, 'nombre': 'Último partido', 'columnas': (COLSIDENT_UP + COLS_ULTP),
                                 'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
@@ -451,7 +452,7 @@ def auxGeneraLeyendaEstadsCelda(leyenda: dict, FONTSIZE: int, listaEqs: Iterable
 
 ANCHOTIROS = 16
 ANCHOREBOTES = 14
-INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
+INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3.6},
                  ('Jugador', 'Kdorsal'): {'etiq': 'kD', 'generador': GENERADORCLAVEDORSAL(col='dorsal')},
                  ('Jugador', 'nombre'): {'etiq': 'Nombre', 'ancho': 22, 'alignment': 'LEFT'},
                  ('Jugador', 'pos'): {'etiq': 'Pos', 'ancho': 4, 'alignment': 'CENTER'},
