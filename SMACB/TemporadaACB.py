@@ -288,8 +288,6 @@ class TemporadaACB:
         listaClaves: List[str] = listaClavePartidos or list(self.Partidos.keys())
 
         listaDFPartidos: List[pd.DataFrame] = [self.Partidos[pClave].jugadoresAdataframe() for pClave in listaClaves]
-        print("SMACB.TemporadaACB.TemporadaACB.extraeDataframeJugadores",len(listaDFPartidos))
-        print(sum(len(df) for df in listaDFPartidos),"Suma lens")
         dfResult: pd.DataFrame = pd.concat(listaDFPartidos, axis=0, ignore_index=True, sort=True)
 
         periodos = auxJorFech2periodo(dfResult)
@@ -910,7 +908,6 @@ def limitaLineasEnTrayectoriaEquipos(limitRows, lineas):
                 result.append(data)
                 quedan -= 1
 
-            print(f"Pendiente: {quedan}")
             continue
         if quedan > 0:
             result.append(data)

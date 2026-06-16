@@ -10,7 +10,8 @@ from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, TableStyle, Table, NextPageTemplate, PageBreak, Spacer
 
 import SMACB.Programa.Globals as GlobACB
-from SMACB.Constants import infoSigPartido, MARCADORESCLASIF, filaTrayectoriaEq, infoJornada, POLABEL2ABREV
+from SMACB.Constants import infoSigPartido, MARCADORESCLASIF, filaTrayectoriaEq, infoJornada, POLABEL2ABREV, \
+    LocalVisitante
 from SMACB.Programa.Constantes import estiloNegBal, estiloPosMarker, colEq
 from SMACB.Programa.Datos import datosTablaClasif, datosJugadores, datosAnalisisEstadisticos, \
     preparaInfoCruces, preparaInfoLigaReg, datosTotalEquipo
@@ -268,48 +269,32 @@ def reportTrayectoriaEquipos(tempData: TemporadaACB, infoPartido: infoSigPartido
 
 def paginasJugadores(tempData: TemporadaACB, datosSig: infoSigPartido, tablas: List[str]):
     result = []
-    idEqs = datosSig.idLV
-    juLocal = datosSig.jugLocal
-    juVisit = datosSig.jugVis
 
+    partsJug = dict(zip(LocalVisitante, (datosSig.jugLocal, datosSig.jugVis)))
     SEPENCAB = 3
     if not tablas:
         return result
 
-    if len(juLocal):
-        jugsLocal: pd.DataFrame = datosJugadores(tempData, idEqs[0], juLocal)
-        totalesLocal: pd.DataFrame = datosTotalEquipo(tempData, idEqs[0])
-        datosLocal: pd.DataFrame = pd.concat([jugsLocal, totalesLocal], axis=0)
-        tablasJugadLocal = tablasJugadoresEquipo(datosLocal, abrev=datosSig.abrevLV[0], tablasIncluidas=tablas)
+    for loc in LocalVisitante:
+        if len(partsJug[loc]) == 0:
+            continue
+        infoEq = datosSig.sigPartido['equipos'][loc]
+        jugsEq: pd.DataFrame = datosJugadores(tempData, infoEq['idEq'], partsJug[loc])
+        totalesEq: pd.DataFrame = datosTotalEquipo(tempData, infoEq['idEq'])
+        datosEq: pd.DataFrame = pd.concat([jugsEq, totalesEq], axis=0)
+        tablasJugadEq = tablasJugadoresEquipo(datosEq, abrev=infoEq['abrev'], tablasIncluidas=tablas)
 
-        encabJugsLocal = encabezadoPagEstadsJugs(datosTemp=tempData, datosSig=datosSig, abrevEq=datosSig.abrevLV[0])
-        result.append(NextPageTemplate('apaisada'))
-        result.append(PageBreak())
-        result.append(encabJugsLocal)
-        result.append(Spacer(100 * mm, SEPENCAB * mm))
-
-        for (_, t) in tablasJugadLocal:
-            result.append(Spacer(100 * mm, 2 * mm))
-            result.append(t)
-            result.append(NextPageTemplate('apaisada'))
-
-    if len(juVisit):
-        jugsVisit: pd.DataFrame = datosJugadores(tempData, idEq=idEqs[1], partJug=juVisit)
-        totalesVisit: pd.DataFrame = datosTotalEquipo(tempData, idEq=idEqs[1])
-        datosVisit: pd.DataFrame = pd.concat([jugsVisit, totalesVisit], axis=0)
-        tablasJugadVisit = tablasJugadoresEquipo(datosVisit, abrev=datosSig.abrevLV[1], tablasIncluidas=tablas)
-
-        encabJugsVis = encabezadoPagEstadsJugs(datosTemp=tempData, datosSig=datosSig, abrevEq=datosSig.abrevLV[1])
+        encabJugsEq = encabezadoPagEstadsJugs(datosTemp=tempData, datosSig=datosSig, abrevEq=infoEq['abrev'])
 
         result.append(NextPageTemplate('apaisada'))
         result.append(PageBreak())
-        result.append(encabJugsVis)
+        result.append(encabJugsEq)
         result.append(Spacer(100 * mm, SEPENCAB * mm))
 
-        for (_, t) in tablasJugadVisit:
+        for (_, t) in tablasJugadEq:
             result.append(Spacer(100 * mm, 2 * mm))
-            result.append(NextPageTemplate('apaisada'))
             result.append(t)
+            result.append(NextPageTemplate('apaisada'))
 
     return result
 

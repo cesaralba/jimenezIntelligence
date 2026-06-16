@@ -1,6 +1,5 @@
 from itertools import product
 from operator import itemgetter
-from pprint import pformat
 from typing import Set, Optional, List, Iterable
 
 import pandas as pd
@@ -252,7 +251,7 @@ def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSp
     listaEstilo = estiloTablaBaseOps.copy()
 
     dfDatos[('Global', 'Leyenda')] = ""
-    dfWrk=dfDatos.copy()
+    dfWrk = dfDatos.copy()
 
     for col in infoTabla.get('extraCols', []):
         level, colkey = col
@@ -261,26 +260,16 @@ def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSp
         dfWrk[col] = newCol
 
     for col, value in infoTabla.get('filtro', []):
-        print("SMACB.Programa.Presentacion.auxGeneraTablaJugs Filtro",col,pformat(value))
-        print("Antes")
-        print(dfWrk[[col, ('Jugador', 'alias')]])
         if isinstance(value, (list, set, tuple)):
             dfWrk = dfWrk[dfWrk[col].isin(value)]
         else:
             dfWrk = dfWrk.loc[dfWrk[col] == value]
-        print("Despues")
-        print(dfWrk[[col, ('Jugador', 'alias')]])
-
 
     sortOrder = infoTabla.get('ordena', [])
 
     byList = [c for c, _ in sortOrder if c in dfWrk.columns]
     ascList = [a for c, a in sortOrder if c in dfWrk.columns]
 
-    if byList:
-        print("CAP: SMACB.Programa.Presentacion.auxGeneraTablaJugs BYLIST", pformat(byList), pformat(ascList))
-        print(dfWrk[byList])
-        print(dfWrk[byList].sort_values(by=byList, ascending=ascList))
     dfWrk = dfWrk.sort_values(by=byList, ascending=ascList)
 
     collist = infoTabla['columnas']
@@ -421,7 +410,6 @@ def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None, tablasIncluidas: L
                                 'ordena': [(COLDORSAL_IDX, True)]}}
     auxDF = jugDF.copy()
     for claveTabla in tablasIncluidas:
-        print("SMACB.Programa.Presentacion.tablasJugadoresEquipo", claveTabla)
         infoTabla = tablas[claveTabla]
         t = auxGeneraTablaJugs(auxDF, claveTabla, infoTabla, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA,
                                repeatRows=1, abrev=abrev, )

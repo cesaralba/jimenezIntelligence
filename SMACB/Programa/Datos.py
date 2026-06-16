@@ -172,33 +172,14 @@ COLS_ESTAD_TOTAL = [(col, 'sum') for col in VALS_ESTAD_JUGADOR]
 
 
 def datosJugadores(tempData: TemporadaACB, idEq: str, partJug):
-    # abrevsEq = tempData.Calendario.abrevsEquipo(abrEq)
 
-    print(idEq,len(partJug),"len partJug")
-    print("Intersec",len(set(partJug).intersection(set(tempData.Partidos.keys()))))
     auxDF = tempData.extraeDataframeJugadores(listaClavePartidos=partJug)
 
-    print("SMACB.Programa.Datos.datosJugadores auxDF")
-    print(len(auxDF))
-    print('IDequipo', dict(auxDF['IDequipo'].value_counts()))
-
-    jugDF = auxDF.loc[auxDF['IDequipo'] == str(idEq)]
-
-    print("SMACB.Programa.Datos.datosJugadores jugDF")
-    print(len(jugDF))
-    print('IDequipo',dict(jugDF['IDequipo'].value_counts()))
-    print('codigo',dict(jugDF['codigo'].value_counts()))
-    print('nombre',dict(jugDF['nombre'].value_counts()))
-    print(len(jugDF['url'].value_counts().to_dict()),'partidos')
+    jugDF = auxDF[auxDF['IDequipo'] == str(idEq)]
 
     estadsJugDF = tempData.dfEstadsJugadores(jugDF, idEq=idEq)
     fichasJugadores = tempData.dfFichasJugadores(idEq=idEq)
     fichasJugadores.posicion = fichasJugadores.posicion.map(TRADPOSICION)
-
-    print("SMACB.Programa.Datos.datosJugadores")
-    print(estadsJugDF)
-    print(fichasJugadores)
-
 
     COLS_IDENTIFIC_JUG_aux = COLS_IDENTIFIC_JUG.copy()
     COLS_FICHA_aux = COLS_FICHA.copy()
