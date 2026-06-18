@@ -27,6 +27,7 @@ pylint:
   - invalid-name
   - use-list-literal
   - use-dict-literal
+  - too-many-instance-attributes
 
 vulture:
   run: false

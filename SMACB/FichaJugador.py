@@ -291,6 +291,19 @@ class FichaJugador:
             self.ultPartidoT = partido.fechaPartido
         return True
 
+    def quitaPartido(self, partido: PartidoACB) -> bool:
+        """
+        Elimina un partido de la trayectoria de los jugadores en la temporada
+        :param partido:
+        :return:
+        """
+        # TODO: 2026-27 Tener en cuenta las fechas para calcular los intervalos
+        if partido.url in self.partidos:
+            self.partidos.remove(partido.url)
+            return True
+
+        return False
+
     def __repr__(self):
         nombreStr = self.alias or self.nombre
         fechaNacStr = "Sin datos" if self.fechaNac is None else self.fechaNac.strftime('%Y-%m-%d')

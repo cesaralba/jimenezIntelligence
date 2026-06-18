@@ -160,25 +160,24 @@ def datosRestoJornada(tempData: TemporadaACB, datosSig: infoSigPartido):
     return result
 
 
-def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
-    COLS_TRAYECT_TEMP_orig = [(col, 'sum') for col in ['enActa', 'haJugado', 'esTitular', 'haGanado', ]]
-    COLS_TRAYECT_TEMP = ['Acta', 'Jugados', 'Titular', 'Vict']
-    COLS_FICHA = ['id', 'alias', 'pos', 'altura', 'licencia', 'fechaNac', 'Activo']
-    VALS_ESTAD_JUGADOR = ['A', 'A-BP', 'A-TCI', 'BP', 'BR', 'FP-C', 'FP-F', 'P', 'ppTC', 'R-D', 'R-O', 'REB-T', 'Segs',
-                          'T1-C', 'T1-I', 'T1%', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-I', 'TC-C', 'TC%',
-                          'PTC', 'TAP-C', 'TAP-F']
+COLS_TRAYECT_TEMP_orig = [(col, 'sum') for col in ['enActa', 'haJugado', 'esTitular', 'haGanado', ]]
+COLS_TRAYECT_TEMP = ['Acta', 'Jugados', 'Titular', 'Vict']
+COLS_FICHA = ['id', 'alias', 'pos', 'altura', 'licencia', 'fechaNac', 'Activo']
+VALS_ESTAD_JUGADOR = ['A', 'A/BP', 'A/TC-I', 'BP', 'BR', 'FP-C', 'FP-F', 'P', 'ppTC', 'R-D', 'R-O', 'REB-T', 'Segs',
+                      'T1-C', 'T1-I', 'T1%', 'T2-C', 'T2-I', 'T2%', 'T3-C', 'T3-I', 'T3%', 'TC-I', 'TC-C', 'TC%',
+                      'PTC', 'TAP-C', 'TAP-F']
 
-    COLS_ESTAD_PROM = [(col, ESTADISTICOJUG) for col in VALS_ESTAD_JUGADOR]
-    COLS_ESTAD_TOTAL = [(col, 'sum') for col in VALS_ESTAD_JUGADOR]
+COLS_ESTAD_PROM = [(col, ESTADISTICOJUG) for col in VALS_ESTAD_JUGADOR]
+COLS_ESTAD_TOTAL = [(col, 'sum') for col in VALS_ESTAD_JUGADOR]
 
-    abrevsEq = tempData.Calendario.abrevsEquipo(abrEq)
 
+def datosJugadores(tempData: TemporadaACB, idEq: str, partJug):
     auxDF = tempData.extraeDataframeJugadores(listaClavePartidos=partJug)
 
-    jugDF = auxDF.loc[auxDF['CODequipo'].isin(abrevsEq)]
+    jugDF = auxDF[auxDF['IDequipo'] == str(idEq)]
 
-    estadsJugDF = tempData.dfEstadsJugadores(jugDF, abrEq=abrEq)
-    fichasJugadores = tempData.dataFrameFichasJugadores(abrEq=abrEq)
+    estadsJugDF = tempData.dfEstadsJugadores(jugDF, idEq=idEq)
+    fichasJugadores = tempData.dfFichasJugadores(idEq=idEq)
     fichasJugadores.posicion = fichasJugadores.posicion.map(TRADPOSICION)
 
     COLS_IDENTIFIC_JUG_aux = COLS_IDENTIFIC_JUG.copy()
@@ -201,10 +200,39 @@ def datosJugadores(tempData: TemporadaACB, abrEq, partJug):
         lambda p: auxEtiqPartido(tempData, p['CODrival'], esLocal=p['esLocal']), axis=1)
 
     dataFramesAJuntar = {'Jugador': identifJug, 'Trayectoria': trayectTemp, 'Promedios': estadsPromedios,
-                         # .drop(columns=COLS_IDENTIFIC_JUG + COLS_TRAYECT_TEMP)
-                         'Totales': estadsTotales,  # .drop(columns=COLS_IDENTIFIC_JUG + COLS_TRAYECT_TEMP)
-                         'UltimoPart': datosUltPart}  # .drop(columns=COLS_IDENTIFIC_JUG)
+                         'Totales': estadsTotales, 'UltimoPart': datosUltPart}
     result = pd.concat(dataFramesAJuntar.values(), axis=1, join='outer', keys=dataFramesAJuntar.keys())
+
+    return result
+
+
+def datosTotalEquipo(tempData: TemporadaACB, idEq: str) -> pd.DataFrame:
+    # TODO: T2026 incluir la fila de entrenadores aqui?
+    partsEq: pd.Series = tempData.dfEstadsEquipo(
+        tempData.dfPartidosLV2ER(tempData.dataFramePartidosLV(listaIdEquipos=idEq), idEq=idEq), idEq=idEq)
+    auxDF = pd.DataFrame(partsEq).T
+
+    colsDeInteres = [c for c in auxDF.columns if c[0] == 'Eq']
+    colsRenomb = [(c1, c2) for c0, c1, c2 in auxDF.columns if c0 == 'Eq']
+    datosParts = auxDF[colsDeInteres]
+    datosParts.columns = colsRenomb
+
+    datosIdent = pd.DataFrame([['Total', 'Total', 'Total', '999']],
+                              columns=pd.Index(data=['nombre', 'alias', 'Activo', 'dorsal']))
+
+    datosTrayect = auxDF[[('Eq', 'Vict', 'count'), ('Eq', 'Vict', 'sum')]]
+    datosTrayect.columns = pd.Index(data=['Jugados', 'Vict'])
+
+    estadsPromedios = datosParts[COLS_ESTAD_PROM]
+    estadsPromedios.columns = pd.Index([c0 for c0, _ in estadsPromedios.columns])
+    estadsTotales = datosParts[COLS_ESTAD_TOTAL]
+    estadsTotales.columns = pd.Index([c0 for c0, _ in estadsTotales.columns])
+
+    dataFramesAJuntar = {'Jugador': datosIdent, 'Trayectoria': datosTrayect, 'Promedios': estadsPromedios,
+                         'Totales': estadsTotales}
+    result: pd.DataFrame = pd.concat(dataFramesAJuntar.values(), axis=1, join='outer', keys=dataFramesAJuntar.keys())
+
+    result.index = pd.Index(["999999999999"])
 
     return result
 
