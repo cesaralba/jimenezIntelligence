@@ -1,6 +1,5 @@
 from itertools import product
 from operator import itemgetter
-from pprint import pp, pformat
 from typing import Set, Optional, List, Iterable
 
 import pandas as pd
@@ -324,7 +323,8 @@ def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSp
     anchoCols[0] = 15
     datosTabla[0][0] = auxGeneraLeyendaEstadsJugsCelda(auxBold(leyenda))
     estiloCeldaLeyenda = [('SPAN', (0, 0), (0, -1)), ('VALIGN', (0, 0), (0, -1), 'MIDDLE'),
-                          ('ALIGN', (0, 0), (0, -1), 'CENTER')]
+                          ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+                          ('LINEABOVE', (1, -1), (-1, -1), 1.5, colors.black)]
     listaEstilo.extend(estiloCeldaLeyenda)
 
     for fila in auxJugsBajaTablaJugs(dfWrk):
@@ -398,13 +398,14 @@ def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None, tablasIncluidas: L
                ('ALIGN', (1, 1), (-1, -1), 'RIGHT'), ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
                ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE), ('LEADING', (1, 0), (-1, -1), FONTSIZE + 1),
                ('LEFTPADDING', (1, 0), (-1, -1), CELLPAD), ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD),
-               ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD), ]
+               ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD),
+               ]
 
     tablas = {'PROMEDIOS': {'seq': 1, 'nombre': 'Promedios', 'columnas': (COLSIDENT_PROM + COLS_PROMED),
                             'extraCols': [COLDORSAL_IDX], 'filtro': [(COLACTIVO, (True, 'Total', 'Tecnico'))],
                             'ordena': [(COLDORSAL_IDX, True)]},
               'TOTALES': {'seq': 2, 'nombre': 'Totales', 'columnas': (COLSIDENT_TOT + COLS_TOTALES),
-                          'extraCols': [COLDORSAL_IDX,COLACTIVO_IDX],
+                          'extraCols': [COLDORSAL_IDX, COLACTIVO_IDX],
                           'ordena': [(COLACTIVO_IDX, True), (COLDORSAL_IDX, True)]},
               'ULTIMOPARTIDO': {'seq': 3, 'nombre': 'Último partido', 'columnas': (COLSIDENT_UP + COLS_ULTP),
                                 'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
@@ -450,8 +451,8 @@ def auxGeneraLeyendaEstadsCelda(leyenda: dict, FONTSIZE: int, listaEqs: Iterable
     return result
 
 
-ANCHOTIROS = 16
-ANCHOREBOTES = 14
+ANCHOTIROS = 16.5
+ANCHOREBOTES = 15
 INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3.6},
                  ('Jugador', 'Kdorsal'): {'etiq': 'kD', 'generador': GENERADORCLAVEDORSAL(col='dorsal')},
                  ('Jugador', 'nombre'): {'etiq': 'Nombre', 'ancho': 22, 'alignment': 'LEFT'},
@@ -477,8 +478,8 @@ INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3.6},
                                            'generador': GENERADORETTIRO(tiro='3', entero=False)},
                  ('Promedios', 'etiqTC'): {'etiq': 'TC', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('C', False)},
                  ('Promedios', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
-                 ('Promedios', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'float'},
-                 ('Promedios', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'float'},
+                 ('Promedios', 'FP-F'): {'etiq': 'Fcom', 'ancho': 6, 'formato': 'float'},
+                 ('Promedios', 'FP-C'): {'etiq': 'Frec', 'ancho': 6, 'formato': 'float'},
                  ('Promedios', 'etiqT1'): {'etiq': 'TL', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('1', False)},
                  ('Promedios', 'etRebs'): {'etiq': 'Rebs', 'ancho': ANCHOREBOTES,
                                            'generador': GENERADORETREBOTE(entero=False)},
@@ -497,8 +498,8 @@ INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3.6},
                  ('Totales', 'etiqTC'): {'etiq': 'TC', 'ancho': ANCHOTIROS,
                                          'generador': GENERADORETTIRO('C', entero=True)},
                  ('Totales', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
-                 ('Totales', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'entero'},
-                 ('Totales', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'entero'},
+                 ('Totales', 'FP-F'): {'etiq': 'Fcom', 'ancho': 6, 'formato': 'entero'},
+                 ('Totales', 'FP-C'): {'etiq': 'Frec', 'ancho': 6, 'formato': 'entero'},
                  ('Totales', 'etiqT1'): {'etiq': 'TL', 'ancho': ANCHOTIROS,
                                          'generador': GENERADORETTIRO('1', entero=True)},
                  ('Totales', 'etRebs'): {'etiq': 'Rebs', 'ancho': ANCHOREBOTES,
