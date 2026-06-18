@@ -342,7 +342,6 @@ class TemporadaACB:
         abrevsEq = self.Calendario.abrevsEquipo(abrEq)
 
         abrRival = sigPart['participantes'].difference(abrevsEq).pop()
-
         juRivTem, peRivOrd = self.partidosEquipoOrd(abrRival)
 
         eqIsLocal = sigPart['loc2abrev']['Local'] in abrevsEq
@@ -351,12 +350,8 @@ class TemporadaACB:
         listaAbrevs = [sigPart['equipos'][loc]['abrev'] for loc in LocalVisitante]
         listaIds = [sigPart['equipos'][loc]['idEq'] for loc in LocalVisitante]
 
-        resAbrevs = tuple(listaAbrevs) if eqIsLocal else tuple(reversed(listaAbrevs))
-        resIds = tuple(listaIds) if eqIsLocal else tuple(reversed(listaIds))
-
-        result = infoSigPartido(sigPartido=sigPart, abrevLV=resAbrevs, idLV=resIds, eqIsLocal=eqIsLocal,
-                                jugLocal=juIzda,
-                                pendLocal=peIzda, jugVis=juDcha, pendVis=peDcha, )
+        result = infoSigPartido(sigPartido=sigPart, abrevLV=tuple(listaAbrevs), idLV=tuple(listaIds),
+                                eqIsLocal=eqIsLocal, jugLocal=juIzda, pendLocal=peIzda, jugVis=juDcha, pendVis=peDcha)
         return result
 
     def partidosEquipoOrd(self, abrEq: str) -> tuple[list[Any], list[Any]]:
