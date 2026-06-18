@@ -4,7 +4,7 @@ from compression import zstd
 from itertools import product
 from pickle import dumps, loads
 from time import gmtime
-from typing import Optional, Dict, Tuple, Union, List
+from typing import Optional, Dict, Tuple, Union, List, Any
 
 import numpy as np
 import pandas as pd
@@ -102,8 +102,13 @@ class PartidoACB():
 
         for loc in LocalVisitante:
             if not self.Equipos[loc].get('estads', {}):
-                logging.error("Partido: '{}' no se han encontrado estadisticas para {}.")
+                logging.error("Partido: '%s' no se han encontrado estadisticas para %s.", self, loc)
                 result &= False
+                continue
+
+            if self.Equipos[loc]['estads']['Segs'] % 500 != 0:
+                logging.error("Partido: '%s' tiempo parseado para equipo %s. T: %s", self, loc,
+                              self.Equipos[loc]['estads']['Segs'])
 
         return result
 
@@ -177,8 +182,8 @@ class PartidoACB():
                    'esTitular': 'bool', 'haJugado': 'bool', 'titular': 'category', 'haGanado': 'bool',
                    'enActa': 'bool', }
 
-        dfJugs = [auxJugador2dataframe(typesDF, x, self.fechaPartido) for x in self.Jugadores.values()]
-        dfResult = pd.concat(dfJugs, axis=0, ignore_index=True, sort=True).astype(typesDF)
+        listaDfJugs = [auxJugador2dataframe(typesDF, x, self.fechaPartido) for x in self.Jugadores.values()]
+        dfResult = pd.concat(listaDfJugs, axis=0, ignore_index=True, sort=True).astype(typesDF)
         return dfResult
 
     def partidoAdataframe(self) -> pd.DataFrame:
@@ -294,7 +299,7 @@ class PartidoACB():
             avanzadas['t2/tc-C'] = estads['T2-C'] / avanzadas['TC-C'] * 100.0
             avanzadas['t3/tc-C'] = estads['T3-C'] / avanzadas['TC-C'] * 100.0
 
-            auxEqPuntCanastas = estads['T2-C'] * 2 + estads['T3-C'] * 3
+            avanzadas['PTC'] = auxEqPuntCanastas = estads['T2-C'] * 2 + estads['T3-C'] * 3
             avanzadas['eff-t1'] = estads['T1-C'] * 1 / estads['P'] * 100.0
             avanzadas['eff-t2'] = estads['T2-C'] * 2 / estads['P'] * 100.0
             avanzadas['eff-t3'] = estads['T3-C'] * 3 / estads['P'] * 100.0
@@ -309,6 +314,7 @@ class PartidoACB():
             # Estadisticas de pase
             avanzadas['A/TC-C'] = estads['A'] / avanzadas['TC-C'] * 100.0
             avanzadas['A/BP'] = estads['A'] / estads['BP']
+            avanzadas['A/TC-I'] = estads['A'] / avanzadas['TC-I']
             avanzadas['PNR'] = estads['BP'] - other['BR']
 
             estads.update(avanzadas)
@@ -317,23 +323,9 @@ class PartidoACB():
         return result
 
     def descargaEmbMetadata(self, home=None, browser=None, config=None):
-        statusMeta = dict.fromkeys(['resumen', 'estadisticas', 'jugadas'], False)
-        descargadores = [('resumen', procesaPaginaResumen), ('estadisticas', procesaBoxScore)]
         resultado = {}
-        pagsDescargadas = {}
 
-        existURL = None
-
-        for clave, func in descargadores:
-            if clave not in self.metadataEnlaces:
-                logging.warning("Clave desconocida '%s' en enlaces de partido '%s'", clave, self.url)
-                continue
-
-            datos, pagsDescargadas[clave] = func(self.metadataEnlaces[clave], home=home, browser=browser, config=config)
-            resultado.update(datos)
-            statusMeta[clave] = True
-
-            existURL = self.metadataEnlaces[clave]
+        existURL, pagsDescargadas = self.descargaPaginasMetadata(browser, config, home, resultado)
 
         for pag in pagsDescargadas.values():
             auxAvail = procesaMDavailableContent(extraePagDataScripts(pag, 'availableContent'))
@@ -376,6 +368,27 @@ class PartidoACB():
 
         self.metadataEmb = zstd.compress(dumps(resultado))
 
+    def descargaPaginasMetadata(self, browser, config, home, resultado: dict[Any, Any]) -> (
+            tuple)[str | None, dict[Any, Any]]:
+        statusMeta = dict.fromkeys(['resumen', 'estadisticas', 'jugadas'], False)
+        descargadores = [('resumen', procesaPaginaResumen), ('estadisticas', procesaBoxScore)]
+
+        pagsDescargadas = {}
+
+        existURL = None
+
+        for clave, func in descargadores:
+            if clave not in self.metadataEnlaces:
+                logging.warning("Clave desconocida '%s' en enlaces de partido '%s'", clave, self.url)
+                continue
+
+            datos, pagsDescargadas[clave] = func(self.metadataEnlaces[clave], home=home, browser=browser, config=config)
+            resultado.update(datos)
+            statusMeta[clave] = True
+
+            existURL = self.metadataEnlaces[clave]
+        return existURL, pagsDescargadas
+
 
 def auxJugador2dataframe(typesDF, jugador, fechaPartido):
     dictJugador = {}
@@ -399,13 +412,13 @@ def auxJugador2dataframe(typesDF, jugador, fechaPartido):
         dictJugador['TC-C'] = dictJugador['T2-C'] + dictJugador['T3-C']
         dictJugador['PTC'] = 2 * dictJugador['T2-C'] + 3 * dictJugador['T3-C']
         dictJugador['ppTC'] = dictJugador['PTC'] / dictJugador['TC-I'] if dictJugador['TC-I'] else np.nan
-        dictJugador['A-BP'] = dictJugador['A'] / dictJugador['BP'] if dictJugador['BP'] else np.nan
-        dictJugador['A-TCI'] = dictJugador['A'] / dictJugador['TC-I'] if dictJugador['TC-I'] else np.nan
+        dictJugador['A/BP'] = dictJugador['A'] / dictJugador['BP'] if dictJugador['BP'] else np.nan
+        dictJugador['A/TC-I'] = dictJugador['A'] / dictJugador['TC-I'] if dictJugador['TC-I'] else np.nan
 
         typesDF['ppTC'] = 'float64'
         typesDF['PTC'] = 'float64'
-        typesDF['A-BP'] = 'float64'
-        typesDF['A-TCI'] = 'float64'
+        typesDF['A/BP'] = 'float64'
+        typesDF['A/TC-I'] = 'float64'
 
         for k in '123C':
             kI = f'T{k}-I'

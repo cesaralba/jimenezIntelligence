@@ -7,7 +7,6 @@ import logging
 import sys
 from collections import defaultdict
 from copy import copy
-from itertools import chain
 from operator import itemgetter
 from pickle import dump, load
 from sys import setrecursionlimit
@@ -18,6 +17,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 from CAPcore.LoggedDict import LoggedDictDiff, LoggedDict
+from CAPcore.Misc import listize
 
 from Utils.FechaHora import fechaParametro2pddatetime
 from Utils.Web import prepareDownloading, browserConfigData
@@ -116,7 +116,7 @@ class TemporadaACB:
                     partidosBajados.add(partido)
                     self.actualizaInfoAuxiliar(nuevoPartido)
             except KeyboardInterrupt:
-                print("actualizaTemporada: Ejecución terminada por el usuario")
+                logger.info("actualizaTemporada: Ejecución terminada por el usuario")
                 break
             except BaseException:
                 logger.exception("actualizaTemporada: problemas descargando  partido '%s'", partido)
@@ -287,9 +287,8 @@ class TemporadaACB:
 
         listaClaves: List[str] = listaClavePartidos or list(self.Partidos.keys())
 
-        dfPartidos: List[pd.DataFrame] = [self.Partidos[pClave].jugadoresAdataframe() for pClave in listaClaves]
-
-        dfResult: pd.DataFrame = pd.concat(dfPartidos, axis=0, ignore_index=True, sort=True)
+        listaDFPartidos: List[pd.DataFrame] = [self.Partidos[pClave].jugadoresAdataframe() for pClave in listaClaves]
+        dfResult: pd.DataFrame = pd.concat(listaDFPartidos, axis=0, ignore_index=True, sort=True)
 
         periodos = auxJorFech2periodo(dfResult)
 
@@ -297,16 +296,13 @@ class TemporadaACB:
 
         return dfResult
 
-    def dfEstadsJugadores(self, dfDatosPartidos: pd.DataFrame, abrEq: str = None):
+    def dfEstadsJugadores(self, dfDatosPartidos: pd.DataFrame, idEq: Optional[str] = None):
         COLDROPPER = ['jornada', 'temporada']
         COLSIDENT = ['competicion', 'temporada', 'codigo', 'dorsal', 'nombre', 'CODequipo', 'IDequipo']
 
-        if abrEq:
-            abrevsEq = self.Calendario.abrevsEquipo(abrEq)
-
-            estadsJugadoresEq = dfDatosPartidos.loc[dfDatosPartidos['CODequipo'].isin(abrevsEq)]
-        else:
-            estadsJugadoresEq = dfDatosPartidos
+        estadsJugadoresEq = dfDatosPartidos
+        if idEq:
+            estadsJugadoresEq = dfDatosPartidos.loc[dfDatosPartidos['IDequipo'] == idEq]
 
         auxEstadisticosDF = estadsJugadoresEq.drop(columns=COLDROPPER).groupby('codigo').apply(
             auxCalculaEstadsSubDataframe, include_groups=False)
@@ -318,8 +314,8 @@ class TemporadaACB:
             kRes = f'T{k}%'
             auxEstadisticosDF[kRes, 'sum'] = auxEstadisticosDF[kC, 'sum'] / auxEstadisticosDF[kI, 'sum'] * 100.0
         auxEstadisticosDF['ppTC', 'sum'] = auxEstadisticosDF['PTC', 'sum'] / auxEstadisticosDF['TC-I', 'sum']
-        auxEstadisticosDF['A-BP', 'sum'] = auxEstadisticosDF['A', 'sum'] / auxEstadisticosDF['BP', 'sum']
-        auxEstadisticosDF['A-TCI', 'sum'] = auxEstadisticosDF['A', 'sum'] / auxEstadisticosDF['TC-I', 'sum']
+        auxEstadisticosDF['A/BP', 'sum'] = auxEstadisticosDF['A', 'sum'] / auxEstadisticosDF['BP', 'sum']
+        auxEstadisticosDF['A/TC-I', 'sum'] = auxEstadisticosDF['A', 'sum'] / auxEstadisticosDF['TC-I', 'sum']
 
         auxIdentsDF = estadsJugadoresEq[COLSIDENT].groupby('codigo').tail(n=1).set_index('codigo', drop=False)
         auxIdentsDF.columns = pd.MultiIndex.from_tuples([('Jugador', col) for col in auxIdentsDF.columns])
@@ -346,7 +342,6 @@ class TemporadaACB:
         abrevsEq = self.Calendario.abrevsEquipo(abrEq)
 
         abrRival = sigPart['participantes'].difference(abrevsEq).pop()
-
         juRivTem, peRivOrd = self.partidosEquipoOrd(abrRival)
 
         eqIsLocal = sigPart['loc2abrev']['Local'] in abrevsEq
@@ -355,12 +350,8 @@ class TemporadaACB:
         listaAbrevs = [sigPart['equipos'][loc]['abrev'] for loc in LocalVisitante]
         listaIds = [sigPart['equipos'][loc]['idEq'] for loc in LocalVisitante]
 
-        resAbrevs = tuple(listaAbrevs) if eqIsLocal else tuple(reversed(listaAbrevs))
-        resIds = tuple(listaIds) if eqIsLocal else tuple(reversed(listaIds))
-
-        result = infoSigPartido(sigPartido=sigPart, abrevLV=resAbrevs, idLV=resIds, eqIsLocal=eqIsLocal,
-                                jugLocal=juIzda,
-                                pendLocal=peIzda, jugVis=juDcha, pendVis=peDcha, )
+        result = infoSigPartido(sigPartido=sigPart, abrevLV=tuple(listaAbrevs), idLV=tuple(listaIds),
+                                eqIsLocal=eqIsLocal, jugLocal=juIzda, pendLocal=peIzda, jugVis=juDcha, pendVis=peDcha)
         return result
 
     def partidosEquipoOrd(self, abrEq: str) -> tuple[list[Any], list[Any]]:
@@ -374,14 +365,13 @@ class TemporadaACB:
 
         return juOrdTem, peOrd
 
-    def dataFrameFichasJugadores(self, abrEq: Optional[str] = None):
+    def dfFichasJugadores(self, idEq: Optional[str] = None):
         jugsIter = self.fichaJugadores.keys()
         activos = dorsales = {}
-        if (abrEq is not None) and self.descargaPlantillas:
-            codEq = self.tradEqAbrev2Id(abrEq)
-            jugsIter = self.plantillas[codEq].jugadores.keys()
-            dorsales = self.plantillas[codEq].jugadores.extractKey('dorsal', 100)
-            activos = self.plantillas[codEq].jugadores.extractKey('activo', False)
+        if (idEq is not None) and self.descargaPlantillas:
+            jugsIter = self.plantillas[idEq].jugadores.keys()
+            dorsales = self.plantillas[idEq].jugadores.extractKey('dorsal', 100)
+            activos = self.plantillas[idEq].jugadores.extractKey('activo', False)
         auxdict = {j_id: self.fichaJugadores[j_id].dictDatosJugador() for j_id in jugsIter}
 
         auxUrlPart2K = self.idPartsDescargados()[1]
@@ -403,21 +393,23 @@ class TemporadaACB:
 
         return auxDF
 
-    def dataFramePartidosLV(self, listaIdEquipos: Iterable[str] = None, fecha: Optional[Any] = None,
+    def dataFramePartidosLV(self, listaIdEquipos: Optional[Iterable[str]] = None, fecha: Optional[Any] = None,
                             playOffStatus: Optional[bool] = None
                             ):
         """
         Genera un dataframe LV con los partidos de uno o más equipos hasta determinada fecha
         :param listaAbrevEquipos: si None, son todos los partidos
         :param fecha: si None son todos los partidos (límite duro < )
+        :param playOffStatus: si se quiere filtrar por LR (False), PO (True) o todos (None)
         :return:
         """
         if listaIdEquipos is None:
             lista_urls = self.extractGameList(fecha=fecha, idEquipos=None, playOffStatus=playOffStatus)
         else:
-            lista_urls = set(chain(
-                *[self.extractGameList(fecha=fecha, idEquipos={eq}, playOffStatus=playOffStatus) for eq in
-                  listaIdEquipos]))
+            lista_urls = set()
+            for eq in listize(listaIdEquipos):
+                lista_urls = lista_urls.union(
+                    self.extractGameList(fecha=fecha, idEquipos={eq}, playOffStatus=playOffStatus))
 
         partidos_DFlist = [self.Partidos[pURL].partidoAdataframe() for pURL in lista_urls]
         result = pd.concat(partidos_DFlist)
@@ -541,6 +533,7 @@ class TemporadaACB:
                 result[(eq, f'eff-t{k}', 'sum')] = result[(eq, f'T{k}-C', 'sum')] * int(k) / (
                         result[(eq, 'T2-C', 'sum')] * 2 + result[(eq, 'T3-C', 'sum')] * 3) * 100.0
             result[(eq, 'A/TC-C', 'sum')] = result[(eq, 'A', 'sum')] / result[(eq, 'TC-C', 'sum')] * 100.0
+            result[(eq, 'A/TC-I', 'sum')] = result[(eq, 'A', 'sum')] / result[(eq, 'TC-I', 'sum')]
             result[(eq, 'A/BP', 'sum')] = result[(eq, 'A', 'sum')] / result[(eq, 'BP', 'sum')]
             result[(eq, 'RO/TC-F', 'sum')] = result[(eq, 'R-O', 'sum')] / (
                     result[(eq, 'TC-I', 'sum')] - result[(eq, 'TC-C', 'sum')]) * 100.0
@@ -582,7 +575,8 @@ class TemporadaACB:
 
         def EqCalendario2NT(data: dict) -> infoEqCalendario:
             auxDict = {k: v for k, v in data.items() if k in infoEqCalendario._fields}
-            return infoEqCalendario(**auxDict)
+            result = infoEqCalendario(**auxDict)
+            return result
 
         partID2URL: Dict[str, str] = self.idPartsDescargados()[0]
         for p in juCal + peCal:
@@ -749,6 +743,32 @@ class TemporadaACB:
 
         return resultadoI2K, resultadoU2K
 
+    def eliminaPartidos(self, listaPartidos: Optional[List[str]] = None) -> List[PartidoACB]:
+        result = []
+        if listaPartidos is None:
+            return result
+        partI2K, partU2K = self.idPartsDescargados()
+
+        clavesAquitar: Set[str] = set()
+
+        # Filtra datos
+        for p in listaPartidos:
+            if p in partU2K:
+                clavesAquitar.add(partU2K[p])
+            elif p in partI2K:
+                clavesAquitar.add(partI2K[p])
+            else:
+                logger.warning("Imposible encontrar clave '%s' en '%s'", p, self)
+
+        for k in clavesAquitar:
+            pQuitado: PartidoACB = self.Partidos.pop(k)
+            for jug in pQuitado.Jugadores:
+                self.fichaJugadores[jug].quitaPartido(pQuitado)
+
+            result.append(pQuitado)
+
+        return result
+
 
 def auxJorFech2periodo(dfTemp: pd.DataFrame):
     periodoAct: int = 0
@@ -848,9 +868,8 @@ def mezclaTrayectoriaEquipos(dataTemp: TemporadaACB, abrevDcha, abrevIzda, **kwa
             else:
                 dato = partsDchaAux.pop(0)
                 bloque.update(
-                    {'jornada': priPartDcha.jornada, 'infoJornada': priPartDcha.infoJornada, 'izda': dato})
+                    {'jornada': priPartDcha.jornada, 'infoJornada': priPartDcha.infoJornada, 'dcha': dato})
                 bloque['pendiente'] |= priPartDcha.pendiente
-                bloque['dcha'] = dato
 
         lineas.append(filaMergeTrayectoria(**bloque))
     return lineas
@@ -884,7 +903,6 @@ def limitaLineasEnTrayectoriaEquipos(limitRows, lineas):
                 result.append(data)
                 quedan -= 1
 
-            print(f"Pendiente: {quedan}")
             continue
         if quedan > 0:
             result.append(data)

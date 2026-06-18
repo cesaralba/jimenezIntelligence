@@ -96,6 +96,8 @@ REPORTLEYENDAS = {'+/-': {'etiq': '+/-', 'leyenda': 'Cambio en la anotación con
                   'utilizados': {'etiq': 'Usados', 'leyenda': 'Jugadores utilizados'},
                   'V': {'etiq': 'V', 'leyenda': 'Valoración ACB'}}
 
+IDXTOTAL = "999999999999"
+
 # Colores para informe (tabla ligas)
 CANTGREYBAL = .70
 ANCHOMARCAPOS = 2

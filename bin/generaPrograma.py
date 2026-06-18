@@ -10,7 +10,7 @@ from reportlab.platypus import (SimpleDocTemplate)
 from SMACB.Constants import infoSigPartido
 from SMACB.Programa.Constantes import pagNormal, pagApaisada
 from SMACB.Programa.Funciones import listaEquipos, preparaListaTablas
-from SMACB.Programa.Paginas import paginaPortada, paginaCruces, paginaPartidosLiga, paginaJugadores, paginaEstadsEquipos
+from SMACB.Programa.Paginas import paginaJugadores, paginaPortada, paginaPartidosLiga, paginaEstadsEquipos, paginaCruces
 from SMACB.TemporadaACB import TemporadaACB, cargaTemporada
 
 

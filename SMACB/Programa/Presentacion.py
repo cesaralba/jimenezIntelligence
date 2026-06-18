@@ -21,7 +21,7 @@ from SMACB.Programa.FuncionesAux import auxCalculaBalanceStr, auxJugsBajaTablaJu
     GENERADORFECHA, GENMAPDICT, GENERADORTIEMPO, GENERADORETTIRO, GENERADORETREBOTE, auxBold, equipo2clasif, \
     auxLabelEqTabla, auxCruceDiag, auxCruceTotalPend, auxCruceTotalResuelto, auxCruceResuelto, auxCrucePendiente, \
     auxCruceTotales, auxLigaDiag, auxTablaLigaPartJugado, auxTablaLigaPartPendiente, auxCalculaInfoPO, \
-    presTrayectoriaPlayOff, muestraDifPuntos
+    presTrayectoriaPlayOff, muestraDifPuntos, GENERADORCLAVEACTIVO
 from SMACB.Programa.Globals import recuperaClasifLigaLR, recuperaEstadsGlobales, recuperaEstadoLigaPO
 from SMACB.TemporadaACB import TemporadaACB
 from SMACB.TemporadaEstads import extraeCampoYorden
@@ -251,21 +251,26 @@ def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSp
     listaEstilo = estiloTablaBaseOps.copy()
 
     dfDatos[('Global', 'Leyenda')] = ""
+    dfWrk = dfDatos.copy()
 
     for col in infoTabla.get('extraCols', []):
         level, colkey = col
         colSpec = colSpecs.get(col, {})
-        newCol = dfDatos[level].apply(colSpec['generador'], axis=1) if 'generador' in colSpec else dfDatos[[col]]
-        dfDatos[col] = newCol
+        newCol = dfWrk[level].apply(colSpec['generador'], axis=1) if 'generador' in colSpec else dfWrk[[col]]
+        dfWrk[col] = newCol
 
     for col, value in infoTabla.get('filtro', []):
-        dfDatos = dfDatos.loc[dfDatos[col] == value]
+        if isinstance(value, (list, set, tuple)):
+            dfWrk = dfWrk[dfWrk[col].isin(value)]
+        else:
+            dfWrk = dfWrk.loc[dfWrk[col] == value]
 
     sortOrder = infoTabla.get('ordena', [])
-    byList = [c for c, _ in sortOrder if c in dfDatos.columns]
-    ascList = [a for c, a in sortOrder if c in dfDatos.columns]
 
-    dfDatos = dfDatos.sort_values(by=byList, ascending=ascList)
+    byList = [c for c, _ in sortOrder if c in dfWrk.columns]
+    ascList = [a for c, a in sortOrder if c in dfWrk.columns]
+
+    dfWrk = dfWrk.sort_values(by=byList, ascending=ascList)
 
     collist = infoTabla['columnas']
 
@@ -281,7 +286,7 @@ def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSp
     for i, colkey in enumerate([('Global', 'Leyenda')] + collist, start=0):
         level, etiq = colkey
         colSpec = colSpecs.get(colkey, {})
-        newCol = dfDatos[level].apply(colSpec['generador'], axis=1) if 'generador' in colSpec else dfDatos[[colkey]]
+        newCol = dfWrk[level].apply(colSpec['generador'], axis=1) if 'generador' in colSpec else dfWrk[[colkey]]
 
         defValue = colSpec.get('default', DEFTABVALUE)
         nullValues = newCol.isnull()
@@ -318,10 +323,11 @@ def auxGeneraTablaJugs(dfDatos: pd.DataFrame, clave: str, infoTabla: dict, colSp
     anchoCols[0] = 15
     datosTabla[0][0] = auxGeneraLeyendaEstadsJugsCelda(auxBold(leyenda))
     estiloCeldaLeyenda = [('SPAN', (0, 0), (0, -1)), ('VALIGN', (0, 0), (0, -1), 'MIDDLE'),
-                          ('ALIGN', (0, 0), (0, -1), 'CENTER')]
+                          ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+                          ('LINEABOVE', (1, -1), (-1, -1), 1.5, colors.black)]
     listaEstilo.extend(estiloCeldaLeyenda)
 
-    for fila in auxJugsBajaTablaJugs(dfDatos):
+    for fila in auxJugsBajaTablaJugs(dfWrk):
         estilo = ('FONT', (1, fila + 1), (-1, fila + 1), 'Helvetica-Oblique')
         listaEstilo.append(estilo)
 
@@ -362,6 +368,7 @@ def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None, tablasIncluidas: L
     FONTSIZE = 8
     ANCHOLETRA = FONTSIZE * 0.5
     COLACTIVO = ('Jugador', 'Activo')
+    COLACTIVO_IDX = ('Jugador', 'Kactivo')
     COLDORSAL_IDX = ('Jugador', 'Kdorsal')
     COLSIDENT_PROM = [('Jugador', 'dorsal'), ('Jugador', 'pos'), ('Jugador', 'nombre'), ('Trayectoria', 'Acta'),
                       ('Trayectoria', 'Jugados'), ('Trayectoria', 'Titular'), ('Trayectoria', 'Vict')]
@@ -378,7 +385,7 @@ def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None, tablasIncluidas: L
     COLS_TOTALES = [('Totales', 'etSegs'), ('Totales', 'P'), ('Totales', 'etiqT2'), ('Totales', 'etiqT3'),
                     ('Totales', 'etiqTC'), ('Totales', 'ppTC'), ('Totales', 'FP-F'), ('Totales', 'FP-C'),
                     ('Totales', 'etiqT1'), ('Totales', 'etRebs'), ('Totales', 'A'), ('Totales', 'BP'),
-                    ('Totales', 'A-BP'), ('Totales', 'A-TCI'), ('Totales', 'BR'), ('Totales', 'TAP-F'),
+                    ('Totales', 'A/BP'), ('Totales', 'A/TC-I'), ('Totales', 'BR'), ('Totales', 'TAP-F'),
                     ('Totales', 'TAP-C'), ]
     COLS_ULTP = [('UltimoPart', 'etFecha'), ('UltimoPart', 'Partido'), ('UltimoPart', 'resultado'),
                  ('UltimoPart', 'titular'), ('UltimoPart', 'etSegs'), ('UltimoPart', 'P'), ('UltimoPart', 'etiqT2'),
@@ -391,22 +398,23 @@ def tablasJugadoresEquipo(jugDF, abrev: Optional[str] = None, tablasIncluidas: L
                ('ALIGN', (1, 1), (-1, -1), 'RIGHT'), ('GRID', (0, 0), (-1, -1), 0.5, colors.black),
                ('FONTSIZE', (0, 0), (-1, -1), FONTSIZE), ('LEADING', (1, 0), (-1, -1), FONTSIZE + 1),
                ('LEFTPADDING', (1, 0), (-1, -1), CELLPAD), ('RIGHTPADDING', (0, 0), (-1, -1), CELLPAD),
-               ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD), ]
+               ('TOPPADDING', (0, 0), (-1, -1), CELLPAD), ('BOTTOMPADDING', (0, 0), (-1, -1), CELLPAD),
+               ]
 
     tablas = {'PROMEDIOS': {'seq': 1, 'nombre': 'Promedios', 'columnas': (COLSIDENT_PROM + COLS_PROMED),
-                            'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
+                            'extraCols': [COLDORSAL_IDX], 'filtro': [(COLACTIVO, (True, 'Total', 'Tecnico'))],
                             'ordena': [(COLDORSAL_IDX, True)]},
               'TOTALES': {'seq': 2, 'nombre': 'Totales', 'columnas': (COLSIDENT_TOT + COLS_TOTALES),
-                          'extraCols': [('Jugador', 'Kdorsal')], 'ordena': [(COLACTIVO, False), (COLDORSAL_IDX, True)]},
+                          'extraCols': [COLDORSAL_IDX, COLACTIVO_IDX],
+                          'ordena': [(COLACTIVO_IDX, True), (COLDORSAL_IDX, True)]},
               'ULTIMOPARTIDO': {'seq': 3, 'nombre': 'Último partido', 'columnas': (COLSIDENT_UP + COLS_ULTP),
                                 'extraCols': [('Jugador', 'Kdorsal')], 'filtro': [(COLACTIVO, True)],
                                 'ordena': [(COLDORSAL_IDX, True)]}}
     auxDF = jugDF.copy()
-
     for claveTabla in tablasIncluidas:
         infoTabla = tablas[claveTabla]
         t = auxGeneraTablaJugs(auxDF, claveTabla, infoTabla, INFOTABLAJUGS, baseOPS, FORMATOCAMPOS, ANCHOLETRA,
-                               repeatRows=1, abrev=abrev)
+                               repeatRows=1, abrev=abrev, )
 
         result.append((infoTabla, t))
 
@@ -443,9 +451,9 @@ def auxGeneraLeyendaEstadsCelda(leyenda: dict, FONTSIZE: int, listaEqs: Iterable
     return result
 
 
-ANCHOTIROS = 16
-ANCHOREBOTES = 14
-INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
+ANCHOTIROS = 16.5
+ANCHOREBOTES = 15
+INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3.6},
                  ('Jugador', 'Kdorsal'): {'etiq': 'kD', 'generador': GENERADORCLAVEDORSAL(col='dorsal')},
                  ('Jugador', 'nombre'): {'etiq': 'Nombre', 'ancho': 22, 'alignment': 'LEFT'},
                  ('Jugador', 'pos'): {'etiq': 'Pos', 'ancho': 4, 'alignment': 'CENTER'},
@@ -454,7 +462,9 @@ INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
                  ('Jugador', 'etNac'): {'etiq': 'Nac', 'ancho': 5, 'alignment': 'CENTER',
                                         'generador': GENERADORFECHA(col='fechaNac', formato='%Y')},
                  ('Jugador', 'Activo'): {'etiq': 'Act', 'ancho': 4, 'alignment': 'CENTER',
-                                         'generador': GENMAPDICT(col='Activo', lookup={True: 'A', False: 'B'})},
+                                         'generador': GENMAPDICT(col='Activo',
+                                                                 lookup={True: 'A', False: 'B', 'Total': 'T'})},
+                 ('Jugador', 'Kactivo'): {'etiq': 'kA', 'generador': GENERADORCLAVEACTIVO(col='Activo')},
                  ('Trayectoria', 'Acta'): {'etiq': 'Cv', 'ancho': 3, 'formato': 'entero'},
                  ('Trayectoria', 'Jugados'): {'etiq': 'Ju', 'ancho': 3, 'formato': 'entero'},
                  ('Trayectoria', 'Titular'): {'etiq': 'Tt', 'ancho': 3, 'formato': 'entero'},
@@ -468,8 +478,8 @@ INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
                                            'generador': GENERADORETTIRO(tiro='3', entero=False)},
                  ('Promedios', 'etiqTC'): {'etiq': 'TC', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('C', False)},
                  ('Promedios', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
-                 ('Promedios', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'float'},
-                 ('Promedios', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'float'},
+                 ('Promedios', 'FP-F'): {'etiq': 'Fcom', 'ancho': 6, 'formato': 'float'},
+                 ('Promedios', 'FP-C'): {'etiq': 'Frec', 'ancho': 6, 'formato': 'float'},
                  ('Promedios', 'etiqT1'): {'etiq': 'TL', 'ancho': ANCHOTIROS, 'generador': GENERADORETTIRO('1', False)},
                  ('Promedios', 'etRebs'): {'etiq': 'Rebs', 'ancho': ANCHOREBOTES,
                                            'generador': GENERADORETREBOTE(entero=False)},
@@ -488,16 +498,16 @@ INFOTABLAJUGS = {('Jugador', 'dorsal'): {'etiq': 'D', 'ancho': 3},
                  ('Totales', 'etiqTC'): {'etiq': 'TC', 'ancho': ANCHOTIROS,
                                          'generador': GENERADORETTIRO('C', entero=True)},
                  ('Totales', 'ppTC'): {'etiq': 'P/TC', 'ancho': 6, 'formato': 'float'},
-                 ('Totales', 'FP-F'): {'etiq': 'F com', 'ancho': 6, 'formato': 'entero'},
-                 ('Totales', 'FP-C'): {'etiq': 'F rec', 'ancho': 6, 'formato': 'entero'},
+                 ('Totales', 'FP-F'): {'etiq': 'Fcom', 'ancho': 6, 'formato': 'entero'},
+                 ('Totales', 'FP-C'): {'etiq': 'Frec', 'ancho': 6, 'formato': 'entero'},
                  ('Totales', 'etiqT1'): {'etiq': 'TL', 'ancho': ANCHOTIROS,
                                          'generador': GENERADORETTIRO('1', entero=True)},
                  ('Totales', 'etRebs'): {'etiq': 'Rebs', 'ancho': ANCHOREBOTES,
                                          'generador': GENERADORETREBOTE(entero=True)},
                  ('Totales', 'A'): {'etiq': 'A', 'ancho': 6, 'formato': 'entero'},
                  ('Totales', 'BP'): {'etiq': 'BP', 'ancho': 6, 'formato': 'entero'},
-                 ('Totales', 'A-BP'): {'etiq': 'A/BP', 'ancho': 6, 'formato': 'float'},
-                 ('Totales', 'A-TCI'): {'etiq': 'A/TC', 'ancho': 6, 'formato': 'float'},
+                 ('Totales', 'A/BP'): {'etiq': 'A/BP', 'ancho': 6, 'formato': 'float'},
+                 ('Totales', 'A/TC-I'): {'etiq': 'A/TC', 'ancho': 6, 'formato': 'float'},
                  ('Totales', 'BR'): {'etiq': 'BR', 'ancho': 6, 'formato': 'entero'},
                  ('Totales', 'TAP-F'): {'etiq': 'Tap', 'ancho': 6, 'formato': 'entero'},
                  ('Totales', 'TAP-C'): {'etiq': 'Tp R', 'ancho': 6, 'formato': 'entero'},
