@@ -172,7 +172,6 @@ COLS_ESTAD_TOTAL = [(col, 'sum') for col in VALS_ESTAD_JUGADOR]
 
 
 def datosJugadores(tempData: TemporadaACB, idEq: str, partJug):
-
     auxDF = tempData.extraeDataframeJugadores(listaClavePartidos=partJug)
 
     jugDF = auxDF[auxDF['IDequipo'] == str(idEq)]
@@ -218,7 +217,8 @@ def datosTotalEquipo(tempData: TemporadaACB, idEq: str) -> pd.DataFrame:
     datosParts = auxDF[colsDeInteres]
     datosParts.columns = colsRenomb
 
-    datosIdent = pd.DataFrame([['Total','Total', 'Total', '999']], columns=pd.Index(data=['nombre','alias', 'Activo', 'dorsal']))
+    datosIdent = pd.DataFrame([['Total', 'Total', 'Total', '999']],
+                              columns=pd.Index(data=['nombre', 'alias', 'Activo', 'dorsal']))
 
     datosTrayect = auxDF[[('Eq', 'Vict', 'count'), ('Eq', 'Vict', 'sum')]]
     datosTrayect.columns = pd.Index(data=['Jugados', 'Vict'])

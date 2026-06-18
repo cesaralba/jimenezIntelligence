@@ -56,7 +56,7 @@ def preparaLogs(args: Namespace):
     if args.debug:
         prepareLogger(logger=logger, level=logging.DEBUG)
     else:
-        prepareLogger(logger=logger,level=logging.INFO)
+        prepareLogger(logger=logger, level=logging.INFO)
 
 
 if __name__ == '__main__':
