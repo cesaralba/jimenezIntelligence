@@ -28,7 +28,7 @@ Unidecode==1.4.0
 
 XlsxWriter>=3.2.9
 
-reportlab>=4.5.1
+reportlab>=5.0.0
 pillow>=12.0.0
 
 #Dependencias (añadidas por vulnerabilidades detectadas)
