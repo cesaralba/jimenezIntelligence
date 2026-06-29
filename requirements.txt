@@ -8,7 +8,7 @@ ConfigArgParse>=1.7.5
 
 lxml>=6.1.1
 babel==2.18.0
-pandas>=3.0.3
+pandas>=3.0.4
 pytz==2026.2
 tzdata>=2026.2
 json5==0.15.0
