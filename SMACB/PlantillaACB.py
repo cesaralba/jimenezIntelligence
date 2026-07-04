@@ -43,9 +43,9 @@ class PlantillaACB():
         self.URL = kwargs.get('url', generaURLPlantilla(self, URL_BASE))
         self.timestamp = None
 
-        self.club = LoggedDict()
-        self.jugadores = DictOfLoggedDict()
-        self.tecnicos = DictOfLoggedDict()
+        self.club: LoggedDict = LoggedDict()
+        self.jugadores: DictOfLoggedDict = DictOfLoggedDict()
+        self.tecnicos: DictOfLoggedDict = DictOfLoggedDict()
 
     def descargaYactualizaPlantilla(self, home=None, browser=None, config=None) -> bool:
         """
