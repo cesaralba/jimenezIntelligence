@@ -3,7 +3,7 @@ import logging
 import re
 from collections import namedtuple
 from copy import copy
-from pprint import pprint
+from pprint import pformat
 from re import Pattern
 from typing import Optional, Dict, Any, List, AnyStr
 from urllib.parse import urlsplit, ParseResult, urlparse, parse_qs, urlunparse, urlencode
@@ -13,6 +13,7 @@ import json5
 from CAPcore.Misc import listize
 from CAPcore.Web import createBrowser, mergeURL, DownloadedPage
 from configargparse import Namespace
+from mechanicalsoup import StatefulBrowser
 from unidecode import unidecode
 
 # https://effbot.org/zone/default-values.htm#what-to-do-instead
@@ -67,22 +68,20 @@ def getLastUsefulComp(compList: List[str], suf2ignore=sentinel) -> Optional[str]
     return None
 
 
-def prepareDownloading(browser, config, urlRef: Optional[str] = None):
+def prepareDownloading(browser: Optional[StatefulBrowser] = None, config: Optional[Namespace | Dict] = None):
     """
     Prepara las variables para el BeautifulSoup si no está y descarga una página si se provee
     :param browser: variable de estado del bs4
     :param config: configuración global del programa (del argparse)
-    :param urlRef: página a descargar
     :return: browser,config (los mismos o creados según la situación)
     """
+
     if config is None:
         config = Namespace()
     else:
         config = Namespace(**config) if isinstance(config, dict) else config
     if browser is None:
         browser = createBrowser(config)
-        if urlRef:
-            browser.open(urlRef)
     return browser, config
 
 
@@ -155,7 +154,7 @@ def extraePagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dict
 
         if list(auxHash.keys())[0] in result:
             clave = list(auxHash.keys())[0]
-            logging.error("Clave #%s# ya existe en resultado:\n%s", clave, pprint(result[clave]))
+            logger.error("Clave #%s# ya existe en resultado:\n%s", clave, pformat(result[clave]))
             continue
         result.update(auxHash)
 

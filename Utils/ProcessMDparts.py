@@ -472,8 +472,9 @@ def procesaMDboxscore(rawData: dict, linksPers: Optional[Dict[str, str]] = None)
                 playerData = copyDictWithTranslation(dataJug['player'], PLYSTATS2KEYS, EXCLUDEPLAYSTATS)
                 playerData['esLocal'] = loc == "Local"
 
-                playerData['codigo'] = str(dataJug['player']['id'])
-                resultado['equipos'][loc]['jugadores'].add(playerData['codigo'])
+                playerId = str(dataJug['player']['id'])
+                playerData['codigo'] = playerId
+                resultado['equipos'][loc]['jugadores'].add(playerId)
 
                 dJug = extraeEstadsPeriodo(dataJug)
                 datosTotal['Segs'] += dJug['Segs']

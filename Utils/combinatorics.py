@@ -934,7 +934,7 @@ def partitions(n):
     _partitions = unlabeled_balls_in_unlabeled_boxes(n, n * [n])
 
     for _partition in _partitions:
-        yield tuple([p for p in _partition if p])
+        yield tuple(p for p in _partition if p)
 
 
 def partitions2(n):
