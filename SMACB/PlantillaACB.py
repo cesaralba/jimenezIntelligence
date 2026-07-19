@@ -1,12 +1,16 @@
 import logging
 import re
 from collections import defaultdict
+from copy import copy
 from time import gmtime
 from typing import Dict, NamedTuple, Optional, List, Any
 
+import bs4
+from CAPcore.DataChangeLogger import DataChangesRaw
 from CAPcore.DictLoggedDict import DictOfLoggedDict, DictOfLoggedDictDiff
+from CAPcore.LoggedClass import LoggedClassGenerator, diffDicts
 from CAPcore.LoggedDict import LoggedDict, LoggedDictDiff
-from CAPcore.Misc import onlySetElement, copyDictWithTranslation
+from CAPcore.Misc import onlySetElement, getUTC, createDictFromGenerator, copyDictWithTranslation
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 from bs4 import Tag
 
@@ -16,8 +20,13 @@ from Utils.Web import getObjID, prepareDownloading, generaURLACB, generaCompPara
     getIDfromEncURL
 from .CalendarioACB import getURLparamTemporada
 from .Constants import URL_BASE, URLIMG2IGNORE
+from Utils.ParseoData import extractPlantillaInfoDiv
+from Utils.Web import getObjID, prepareDownloading
+from .Constants import URL_BASE, URLIMG2IGNORE
 
 logger = logging.getLogger()
+
+DataLogger = LoggedClassGenerator(DataChangesRaw)
 
 
 class CambiosPlantillaTipo(NamedTuple):
@@ -26,6 +35,8 @@ class CambiosPlantillaTipo(NamedTuple):
     tecnicos: DictOfLoggedDictDiff
 
 
+CAMBIOSCLUB: Dict[str, Dict] = defaultdict(lambda: {'cambios': set()})
+
 class InfoClubPortada(NamedTuple):
     idEq: str
     url: str
@@ -33,19 +44,36 @@ class InfoClubPortada(NamedTuple):
     abrev: Optional[str]
 
 
-CAMBIOSCLUB: Dict[str, CambiosPlantillaTipo] = {}
+CAMBIOSCLUB: Dict[str, Dict] = defaultdict(lambda: {'cambios': set()})
 
 
-class PlantillaACB():
+class PlantillaACB(LoggedClassGenerator(DataChangesRaw)):
     def __init__(self, teamId, **kwargs):
-        self.id = teamId
-        self.edicion = kwargs.get('edicion', None)
-        self.URL = kwargs.get('url', generaURLPlantilla(self, URL_BASE))
-        self.timestamp = None
+        timestamp = kwargs['timestamp'] = kwargs.get('timestamp', getUTC())
 
-        self.club = LoggedDict()
-        self.jugadores = DictOfLoggedDict()
-        self.tecnicos = DictOfLoggedDict()
+        self.clubId: str = teamId
+        self.edicion: Optional[str] = None
+        self.URL: Optional[str] = None
+
+        self.club: LoggedDict = LoggedDict()
+        self.jugadores: DictOfLoggedDict = DictOfLoggedDict()
+        self.tecnicos: DictOfLoggedDict = DictOfLoggedDict()
+
+        super().__init__(**kwargs)
+
+        currentValues = self.data2log()
+
+        self.updateDataFields(URL=generaURLPlantilla(self, URL_BASE), **kwargs)
+
+        newValues = self.data2log()
+
+        changeInfo = comparaPlantillas(currentValues, newValues)
+        if not changeInfo:
+            return
+        changeInfo['Nuevaficha'] = (None, True)
+        self.updateDataLog(changeInfo=changeInfo, timestamp=timestamp)
+        CAMBIOSCLUB[self.clubId]['nuevo'] = True
+        CAMBIOSCLUB[self.clubId]['cambios'].add(timestamp)
 
     def descargaYactualizaPlantilla(self, home=None, browser=None, config=None) -> bool:
         """
@@ -401,5 +429,35 @@ def extraeLinksPersonasPlJug(pag: DownloadedPage, urlBase: str = URL_BASE) -> Di
         idPers = getIDfromEncURL(destURL)
 
         result[idPers] = destURL
+
+    return result
+
+
+def comparaPlantillas(currentData: Dict, newData: Dict) -> Dict:
+    result = {}
+
+    clavesDictLD = ['jugadores', 'tecnicos']
+    clavesDict = ['club']
+
+    auxValores = diffDicts(copyDictWithTranslation(currentData, excludes=clavesDictLD + clavesDict),
+                           copyDictWithTranslation(newData, excludes=clavesDictLD + clavesDict))
+    if auxValores:
+        result.update({'valores': auxValores})
+
+    for k in clavesDictLD:
+        auxDLD = DictOfLoggedDict()
+        auxDLD.update(currentData.get(k, {}))
+        auxDiff = auxDLD.diff(newData.get(k, {}), doUpdate=True)
+        if auxDiff:
+            result['dicts'] = result.get('dicts', {})
+            result['dicts'].update({k: auxDiff})
+
+    for k in clavesDict:
+        auxDLD = LoggedDict()
+        auxDLD.update(currentData.get(k, {}))
+        auxDiff = auxDLD.diff(newData.get(k, {}), doUpdate=True)
+        if auxDiff:
+            result['dicts'] = result.get('dicts', {})
+            result['dicts'].update({k: auxDiff})
 
     return result

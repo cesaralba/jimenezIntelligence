@@ -1,26 +1,34 @@
 import logging
 import re
+from collections.abc import Iterable
 from compression import zstd
 from itertools import product
 from pickle import dumps, loads
+from traceback import print_exc
 from time import gmtime
 from typing import Optional, Dict, Tuple, Union, List, Any
 
 import numpy as np
 import pandas as pd
-from CAPcore.Misc import BadParameters
-from CAPcore.Web import downloadPage, DownloadedPage, mergeURL
+from CAPcore.Misc import BadParameters, BadString, extractREGroups, copyDictWithTranslation, getUTC, \
+    createDictFromGenerator, iterable2quotedString
+from CAPcore.Web import downloadPage, DownloadedPage, mergeURL,extractGetParams
 from bs4 import Tag
 
+import SMACB.FichaPersona as FP
+from Utils.BoWtraductor import RetocaNombreJugador
+from Utils.FechaHora import PATRONFECHA, PATRONFECHAHORA
+from Utils.ParseoData import ProcesaTiempo
 from Utils.ProcessMDparts import procesaMDresInfoPeriodos, procesaMDresEstadsCompar, procesaMDresInfoRachas, \
     procesaMDresCartaTiro, procesaMDjugadas, jugadaSort, jugada2str, jugadaKey2sort, jugadaTag2Desc, jugadaKey2str, \
     procesaMDboxscore, procesaMDavailableContent, procesaMDresDatosPartido
 from Utils.Web import prepareDownloading, extraePagDataScripts, getIDfromEncURL
 from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp, infoJornada,
-                        POLABEL2FASE, DEFTZ, URL_BASE)
+                        POLABEL2FASE, DEFTZ, URL_BASE,)
 
 
-class PartidoACB():
+
+class PartidoACB:
 
     def __init__(self, **kwargs):
         self.jornada = None
