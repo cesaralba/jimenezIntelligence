@@ -1,11 +1,19 @@
+from datetime import datetime
 from typing import Set, Dict, Optional, List, Callable, Tuple
 
+from CAPcore.DataChangeLogger import DataChangesTuples, DataChangesRaw
 from CAPcore.LoggedDict import LoggedDictDiff
+from CAPcore.Misc import onlySetElement
 
-from SMACB.CalendarioACB import dictK2partStr
-from SMACB.Constants import infoJornada
-from SMACB.PlantillaACB import CambiosPlantillaTipo
-from SMACB.TemporadaACB import TemporadaACB
+from .Constants import infoJornada
+from .CalendarioACB import dictK2partStr
+from .FichaClub import FichaClubEntrenador
+from .FichaPersona import FichaEntrenador, FichaJugador, FichaPersona
+from .PlantillaACB import CambiosPlantillaTipo, PlantillaACB
+from .TemporadaACB import TemporadaACB
+
+DATEFORMATRES = "%Y-%m-%d"
+
 
 
 def trataDiffUltClub(clave: str, cambio: Tuple[str, str], temp: TemporadaACB) -> str:
@@ -220,3 +228,146 @@ def resumenCambiosCalendario(cambios: LoggedDictDiff, temporada: TemporadaACB,
         cambiosCalendario.append(f"* {claveP} Cambia: pasa de @{hini} a @{hfin}")
 
     return "\n".join(sorted(cambiosCalendario))
+
+
+def procesaCambiosClub(cambiosDict: Dict) -> List[str]:
+    resultLines = []
+    k: str
+    for k, chg in cambiosDict['values'].items():
+        valChain = []
+        newVal: datetime
+        for ts, newVal in zip(([None] + chg['timestamps']), chg['values']):
+            if ts is None and newVal is None:
+                continue
+            tsString = f"({ts.strftime(DATEFORMATRES)})" if ts is not None else ""
+            valChain.append(f"'{newVal}'{tsString}")
+        resultLines.append(f"    * {k.capitalize()}: {'->'.join(valChain)}")
+
+    if resultLines:
+        resultLines.insert(0, "  Cambios en información de club")
+
+    return resultLines
+
+
+def procesaCambiosClubJugadores(cambiosDict: Dict, eqId: str, temporada: TemporadaACB) -> List[str]:
+    resultLines = []
+    salidasClub = []
+
+    k: str
+    for k in sorted(cambiosDict['values'].keys()):
+        chg = cambiosDict['values'][k]
+        datosLinea = []
+        cambiosValores = []
+        entraEnClub = 'addedValue' in chg
+
+        fichaPers: FichaJugador = temporada.fichaJugadores[k]
+        datosEstancia = None
+        flagMuestraInfoPers = False
+
+        if ('activo' in chg['values']) and not chg['values']['activo']['values'][-1]:
+            flagMuestraInfoPers = True
+            datosEstancia = fichaPers.infoFichaStr(club=eqId, trads=temporada.tradEquipos)
+
+        if entraEnClub and not datosEstancia:
+            datosLinea.append("Nuevo en club")
+        datosLinea.append(
+            fichaPers.nombreFicha(muestraInfoPers=flagMuestraInfoPers, muestraPartidos=False, muestraFicha=False))
+        if datosEstancia:
+            datosLinea.append(datosEstancia)
+            datosLinea.append(fichaPers.partsClub[eqId].partsClub2str(trads=temporada.tradEquipos))
+            datosLinea.append(temporada.balanceVictorias(fichaPers, clubId=eqId))
+            if fichaPers.ultClub is not None:
+                datosLinea.append(f"-> Dest: {onlySetElement(temporada.tradEquipos['i2c'][fichaPers.ultClub])}")
+            else:
+                datosLinea.append("-> Dest: Fuera ACB")
+
+            salidasClub.append("    * " + " ".join(datosLinea))
+            continue
+
+        if entraEnClub:
+            cambiosValores.append(f"Alta: {chg['timestamps'][0].strftime(DATEFORMATRES)}")
+        cambiosValores.extend(calculaCambiosDatos(chg, fichaPers))
+        datosLinea.append(f"Datos: {','.join(cambiosValores)}")
+        resultLines.append("    * " + " ".join(datosLinea))
+
+    if resultLines:
+        resultLines.insert(0, "  Cambios en plantilla")
+
+    if salidasClub:
+        resultLines.append("    Salidas")
+        resultLines.extend(salidasClub)
+    return resultLines
+
+
+def procesaCambiosClubTecnicos(cambiosDict: Dict, eqId: str, temporada: TemporadaACB) -> List[str]:
+    resultLines = []
+    salidasClub = []
+
+    idPers: str
+    for idPers in sorted(cambiosDict['values'].keys()):
+        chg = cambiosDict['values'][idPers]
+        datosLinea = []
+        cambiosValores = []
+        entraEnClub = 'addedValue' in chg
+
+        fichaPers: FichaEntrenador = temporada.fichaEntrenadores[idPers]
+        datosEstancia = None
+        flagMuestraInfoPers = False
+
+        if ('activo' in chg['values']) and not chg['values']['activo']['values'][-1]:
+            flagMuestraInfoPers = True
+            datosEstancia = fichaPers.infoFichaStr(club=eqId, trads=temporada.tradEquipos)
+
+        if entraEnClub and not datosEstancia:
+            datosLinea.append("Nuevo en club")
+        datosLinea.append(
+            fichaPers.nombreFicha(muestraInfoPers=flagMuestraInfoPers, muestraPartidos=False, muestraFicha=False))
+        if datosEstancia:
+            datosLinea.append(datosEstancia)
+            datosLinea.append(fichaPers.partsClub[eqId].partsClub2str(trads=temporada.tradEquipos))
+            datosLinea.append(temporada.balanceVictorias(fichaPers, clubId=eqId))
+            datosLinea.append("-> Dest: Fuera ACB")
+            if fichaPers.ultClub is not None:
+                datosLinea.append(f"-> Dest: {onlySetElement(temporada.tradEquipos['i2c'][fichaPers.ultClub])}")
+
+            salidasClub.append("    * " + " ".join(datosLinea))
+            continue
+
+        if entraEnClub:
+            cambiosValores.append(f"Alta: {chg['timestamps'][0].strftime(DATEFORMATRES)}")
+        cambiosValores.extend(calculaCambiosDatos(chg, fichaPers))
+        datosLinea.append(f"Datos: {','.join(cambiosValores)}")
+        resultLines.append("    * " + " ".join(datosLinea))
+
+    if resultLines:
+        resultLines.insert(0, "  Cambios en tecnicos")
+
+    if salidasClub:
+        resultLines.append("    Salidas")
+        resultLines.extend(salidasClub)
+    return resultLines
+
+
+def calculaCambiosDatos(chg, datosPers: FichaPersona):
+    result = []
+    CLAVESAOMITIR = {'id', 'URL', 'activo'}
+    trData = datosPers.getAttrNameTranslator(
+        translations=datosPers.fichasClub[datosPers.ultClub].getAttrNameTranslator())
+    trFunc = datosPers.getAttrFormatters(formatters=datosPers.fichasClub[datosPers.ultClub].getAttrFormatters())
+    for subCl in sorted(chg['values']):
+        valChain = []
+        datosChgClave = chg['values'][subCl]
+        if subCl in CLAVESAOMITIR:
+            continue
+        claveTrad = trData[subCl]
+
+        skipDate: bool = (datosChgClave['values'][0] is None) and (len(datosChgClave['values']) == 2)
+        for ts, newVal in zip(([None] + datosChgClave['timestamps']), datosChgClave['values']):
+            if ts is None and newVal is None:
+                continue
+            valTrad = trFunc[subCl](newVal)
+            tsString = f"({ts.strftime(DATEFORMATRES)})" if ((ts is not None) and not skipDate) else ""
+            valChain.append(f"{valTrad}{tsString}")
+        result.append(f" {claveTrad.capitalize()}: {'->'.join(valChain)}")
+
+    return result

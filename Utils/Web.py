@@ -13,6 +13,7 @@ import json5
 from CAPcore.Misc import listize
 from CAPcore.Web import createBrowser, mergeURL, DownloadedPage
 from configargparse import Namespace
+from mechanicalsoup import StatefulBrowser
 from unidecode import unidecode
 
 # https://effbot.org/zone/default-values.htm#what-to-do-instead
@@ -67,22 +68,20 @@ def getLastUsefulComp(compList: List[str], suf2ignore=sentinel) -> Optional[str]
     return None
 
 
-def prepareDownloading(browser, config, urlRef: Optional[str] = None):
+def prepareDownloading(browser: Optional[StatefulBrowser] = None, config: Optional[Namespace | Dict] = None):
     """
     Prepara las variables para el BeautifulSoup si no está y descarga una página si se provee
     :param browser: variable de estado del bs4
     :param config: configuración global del programa (del argparse)
-    :param urlRef: página a descargar
     :return: browser,config (los mismos o creados según la situación)
     """
+
     if config is None:
         config = Namespace()
     else:
         config = Namespace(**config) if isinstance(config, dict) else config
     if browser is None:
         browser = createBrowser(config)
-        if urlRef:
-            browser.open(urlRef)
     return browser, config
 
 
