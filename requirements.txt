@@ -16,7 +16,7 @@ pytz==2026.3.post1
 tzdata>=2026.3
 json5==0.15.0
 scipy>=1.18.0
-numpy>=2.5.1
+numpy>=2.5.2
 seaborn>=0.13.2
 pillow>=12.3.0
 matplotlib>=3.11.1
