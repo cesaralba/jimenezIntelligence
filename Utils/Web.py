@@ -139,7 +139,7 @@ def extraePagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dict
             continue
 
         for d1 in re.findall(REpatSplitter, firstEval[1]):
-            clave, valor, *ignore = d1
+            clave, valor, *_ = d1
             if keyWordNotPresent(valor, keyword):
                 continue
 
