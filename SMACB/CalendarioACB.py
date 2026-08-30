@@ -17,13 +17,13 @@ from Utils.ProcessMDparts import procesaMDcalFl2calendarIDs, procesaMDcalTeams2I
 from Utils.Web import prepareDownloading, tagAttrHasValue, logger, extraePagDataScripts
 from .Constants import REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada, infoJornada, LocalVisitante, OtherLoc, DEFTZ
 
-
 calendario_URLBASE = 'https://www.acb.com/es/liga/calendario'
+
+template_CALENDARIOYEAR = "https://www.acb.com/calendario/index/temporada_id/{year}"
+template_PARTIDOSEQUIPO = "https://www.acb.com/club/partidos/id/{idequipo}"
 
 # https://www.acb.com/calendario/index/temporada_id/2018
 # https://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
-template_CALENDARIOYEAR = "https://www.acb.com/calendario/index/temporada_id/{year}"
-template_PARTIDOSEQUIPO = "https://www.acb.com/club/partidos/id/{idequipo}"
 
 ETIQubiq = ['local', 'visitante']
 
@@ -58,6 +58,31 @@ class CalendarioACB:
         self.procesaCalendario(calendarioPage, home=self.url, browser=browser, config=config)
 
     def procesaCalendario(self, content: DownloadedPage, **kwargs):
+        if 'timestamp' in content:
+            self.timestamp = content.timestamp
+        if 'source' in content:
+            self.url = content.source
+        calendarioData: bs4.element.Tag = content.data
+
+        reRound = re.compile(r"^Round-module-scss-module__(.*)__round")
+        reRoundTitle = re.compile(r"^RoundTitle-module-scss-module__-(.*)__roundTitle")
+        jornadasCurrCal = set()
+
+        for divJ in calendarioData.find_all("div", {"class": reRound}):  # ,
+            divCab = divJ.find("div", {'class': reRoundTitle})
+            datosCab = procesaCab(divCab)
+            if datosCab is None:
+                continue
+
+            self.Jornadas[datosCab['jornada']] = self.procesaBloqueJornada(divJ, datosCab, **kwargs)
+            jornadasCurrCal.add(datosCab['jornada'])
+
+        jor2del: set = set(self.Jornadas.keys()).difference(jornadasCurrCal)
+        for j in jor2del:
+            logger.warning("Eliminando jornada desaparecida '%s'", j)
+            self.Jornadas.pop(j)
+
+    def procesaCalendarioEmb(self, content: DownloadedPage, **kwargs):
         if 'timestamp' in content:
             self.timestamp = content.timestamp
         if 'source' in content:
@@ -187,7 +212,6 @@ class CalendarioACB:
         result['esPlayoff']: bool = dictCab['esPlayoff']
         result['infoJornada']: infoJornada = dictCab['infoJornada']
 
-        # print(divDatos.prettify())
         for bloqueFecha in divDatos.find_all("h3"):
             fechaParts = procesaFechaJornada(bloqueFecha.getText())
             auxDictCab = {'fechaParts': fechaParts}
@@ -206,9 +230,8 @@ class CalendarioACB:
                             datosPart['fechaPartido'] = nuevaFecha
                     result['pendientes'].append(datosPart)
                     continue
-                self.Partidos[datosPart['url']] = datosPart
+                self.Partidos[datosPart['partido']] = datosPart
                 result['partidos'].append(datosPart)
-
         result['numPartidos'] = len(result['partidos']) + len(result['pendientes'])
         return result
 
@@ -346,7 +369,6 @@ class CalendarioACB:
 
     def idPartidosJugados(self) -> Dict[str, str]:
 
-        # result = {str(p['partido']): k for k, p in self.Partidos.items()}
         result = {}
         for j in self.Jornadas.values():
             for p in j['partidos']:

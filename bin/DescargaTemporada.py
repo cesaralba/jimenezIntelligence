@@ -11,8 +11,8 @@ from configargparse import ArgumentParser, Namespace
 import SMACB.TemporadaACB as ACBTemp
 from SMACB.CalendarioACB import calendario_URLBASE
 from SMACB.DiferenciasTrasDescargaTemp import resumenCambioJugadores, resumenNuevosPartidos, resumenCambioClubes, \
-    resumenCambiosCalendario
-from SMACB.TemporadaACB import TemporadaACB, CAMBIOSJUGADORES, CAMBIOSCLUB
+    resumenCambiosCalendario, resumenCambioEntrenadores
+from SMACB.TemporadaACB import TemporadaACB, CAMBIOSJUGADORES, CAMBIOSCLUB, CAMBIOSENTRENADORES
 from Utils.ManageArgs import createArgs
 
 
@@ -80,9 +80,9 @@ def main(args: Namespace):
     if CAMBIOSJUGADORES:
         print(f"Cambios en jugadores\n{resumenCambioJugadores(CAMBIOSJUGADORES, temporada=temporada)}", "\n" * 2)
 
-    # if CAMBIOSENTRENADORES:
-    #     print(f"Cambios en entrenadores\n{resumenCambioEntrenadores(CAMBIOSENTRENADORES, temporada=temporada)}",
-    #           "\n" * 2)
+    if CAMBIOSENTRENADORES:
+        print(f"Cambios en entrenadores\n{resumenCambioEntrenadores(CAMBIOSENTRENADORES, temporada=temporada)}",
+              "\n" * 2)
 
     if CAMBIOSCLUB:
         print(f"Cambios en plantillas\n{resumenCambioClubes(CAMBIOSCLUB, temporada=temporada)}", "\n" * 2)

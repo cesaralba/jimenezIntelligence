@@ -529,7 +529,6 @@ class FichaJugador(FichaPersona):
     #
     #     return result
 
-
     # def updateFichaJugadorFromDownloadedData(self, changeInfo, newData):
     #     result = False
     #     # No hay necesidad de poner la URL en el informe
@@ -654,12 +653,14 @@ class PartidosClub:
 
         dicTipo = partido.Jugadores if persona.tipoFicha == 'jugador' else partido.Entrenadores
 
+        refPartido = partido.idPartido
+
         if self.persId not in dicTipo:
             raise ValueError(
                 f"{persona.tipoFicha.capitalize()}: '{persona.nombre}' ({self.persId}) no ha jugado partido "
-                f"{partido.url}")
+                f"{refPartido}")
 
-        if partido.url in self.partidos:
+        if refPartido in self.partidos:
             return False
 
         datosPersPart = dicTipo[self.persId]
@@ -675,21 +676,21 @@ class PartidosClub:
         else:
             if eqJugador != self.clubID:
                 raise ValueError(
-                    f"{persona.tipoFicha.capitalize()}: '{persona.nombre}' ({self.persId}) Añadiendo {partido.url} a "
+                    f"{persona.tipoFicha.capitalize()}: '{persona.nombre}' ({self.persId}) Añadiendo {refPartido} a "
                     f"registro incorrecto. Registro: '{self.clubID}'. Partido: '{eqJugador}'")
 
-        self.partidos.add(partido.url)
+        self.partidos.add(partido.idPartido)
 
         if persona.ultClub is None:
             persona.ultClub = datosPersPart['IDequipo']
         persona.equipos.add(datosPersPart['IDequipo'])
 
         if (self.primPartidoT is None) or (partido.fechaPartido < self.primPartidoT):
-            self.primPartidoP = partido.url
+            self.primPartidoP = partido.idPartido
             self.primPartidoT = partido.fechaPartido
 
         if (self.ultPartidoT is None) or (partido.fechaPartido > self.ultPartidoT):
-            self.ultPartidoP = partido.url
+            self.ultPartidoP = partido.idPartido
             self.ultPartidoT = partido.fechaPartido
         return True
 

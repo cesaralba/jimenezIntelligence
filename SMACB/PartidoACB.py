@@ -1,46 +1,55 @@
 import logging
 import re
+from collections.abc import Iterable
 from compression import zstd
 from itertools import product
 from pickle import dumps, loads
-from time import gmtime
 from typing import Optional, Dict, Tuple, Union, List, Any
 
 import numpy as np
 import pandas as pd
-from CAPcore.Misc import BadParameters
+from CAPcore.Misc import BadParameters, copyDictWithTranslation, getUTC, \
+    createDictFromGenerator, iterable2quotedString
 from CAPcore.Web import downloadPage, DownloadedPage, mergeURL
 from bs4 import Tag
 
+import SMACB.FichaPersona as FP
 from Utils.ProcessMDparts import procesaMDresInfoPeriodos, procesaMDresEstadsCompar, procesaMDresInfoRachas, \
     procesaMDresCartaTiro, procesaMDjugadas, jugadaSort, jugada2str, jugadaKey2sort, jugadaTag2Desc, jugadaKey2str, \
     procesaMDboxscore, procesaMDavailableContent, procesaMDresDatosPartido
-from Utils.Web import prepareDownloading, extraePagDataScripts, getIDfromEncURL
+from Utils.Web import extraePagDataScripts, getIDfromEncURL
+from Utils.Web import prepareDownloading
+from .Constants import (URL_BASE)
 from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp, infoJornada,
-                        POLABEL2FASE, DEFTZ, URL_BASE)
+                        POLABEL2FASE, DEFTZ)
 
 
 class PartidoACB():
 
     def __init__(self, **kwargs):
+
+        self.idPartido = kwargs.get('partido', None)
+        self.competicion = kwargs['cod_competicion']
+        self.edicion = kwargs['cod_edicion']
+
         self.jornada = None
         self.infoJornada: Optional[infoJornada] = None
-        self.fechaPartido = None
-        self.Pabellon = None
-        self.Asistencia = None
+        self.fechaPartido: Optional[pd.Timestamp] = None
+        self.Pabellon: Optional[str] = None
+        self.Asistencia: Optional[int] = None
         self.Arbitros = []
         self.ResultadosParciales = []
         self.prorrogas = 0
         self.timestamp = None
         self.esPlayoff: bool = False
 
-        self.Equipos = {x: {'Jugadores': []} for x in LocalVisitante}
+        self.Equipos = createDictFromGenerator(LocalVisitante, lambda: {'Jugadores': []})
 
         self.Jugadores = {}
         self.Entrenadores = {}
         self.pendientes: Dict[str, List] = dict.fromkeys(LocalVisitante, [])
         self.aprendidos: Dict[str, List] = dict.fromkeys(LocalVisitante, [])
-        self.metadataEnlaces: dict = kwargs.get('enlaces', {})
+        self.metadataEnlaces: dict = {}
         self.availMD = {}
         self.metadataEmb: Optional[bytes] = None
 
@@ -53,10 +62,6 @@ class PartidoACB():
         self.DatosSuministrados = kwargs
 
         self.url = kwargs['url']
-
-        self.competicion = kwargs['cod_competicion']
-        self.temporada = kwargs['cod_edicion']
-        self.idPartido: str = kwargs.get('partido', None)
 
         for loc in LocalVisitante:
             self.Equipos[loc]['haGanado'] = self.ResultadoCalendario[loc] > self.ResultadoCalendario[OtherLoc(loc)]
@@ -72,12 +77,14 @@ class PartidoACB():
 
         partidoPage = downloadPage(urlPartido, home=home, browser=browser, config=config)
 
-        self.descargaEmbMetadata(home=home, browser=browser, config=config)
+        self.url = partidoPage.source
+        self.descargaEmbMetadata(pagData=partidoPage, browser=browser, config=config)
 
         self.procesaPartido(partidoPage)
 
     def procesaPartido(self, content: DownloadedPage):
-        self.timestamp = getattr(content, 'timestamp', gmtime())
+        raiser = False
+        self.timestamp = getattr(content, 'timestamp', getUTC())
 
         if 'source' in content:
             self.url = content.source
@@ -133,7 +140,7 @@ class PartidoACB():
         self.VictoriaLocal = self.Equipos['Local']['Puntos'] > self.Equipos['Visitante']['Puntos']
 
     def procesaPersonas(self, dataEmb: Dict):
-        datosComunes = {'competicion': self.competicion, 'temporada': self.temporada, 'jornada': self.jornada}
+        datosComunes = {'competicion': self.competicion, 'edicion': self.edicion, 'jornada': self.jornada}
         for loc in LocalVisitante:
             datosEq = self.Equipos[loc]
             datosRiv = self.Equipos[OtherLoc(loc)]
@@ -169,6 +176,7 @@ class PartidoACB():
             resEnt = {
                 # 'codigo': No ha parece en los datos embedded de la página
                 'nombre': datosEq['Entrenador'],
+                'dorsal': 'E',
                 'esJugador': False,
                 'entrenador': True,
                 # 'linkPersona': ya no aparece en los datos
@@ -249,6 +257,17 @@ class PartidoACB():
                 f"{self.ResultadoCalendario['Local']:d} - {self.ResultadoCalendario['Visitante']:d} "
                 f"{self.EquiposCalendario['Visitante']['nomblargo']} ({self.CodigosCalendario['Visitante']})")
 
+    def haGanado(self, pers: FP.FichaPersona) -> bool:
+        persId: str = pers.persId
+        tipoPers: str = pers.tipoFicha
+
+        tablaAmirar = self.Jugadores if tipoPers == "jugador" else self.Entrenadores
+
+        if persId not in tablaAmirar:
+            raise KeyError(f"haGanado: {tipoPers} {pers.alias or pers.nombre} no ha jugado partido {self}")
+
+        return tablaAmirar[persId]['haGanado']
+
     def __str__(self):
         return self.resumenPartido()
 
@@ -322,72 +341,102 @@ class PartidoACB():
 
         return result
 
-    def descargaEmbMetadata(self, home=None, browser=None, config=None):
+    def descargaEmbMetadata(self, pagData: Optional[DownloadedPage] = None, browser=None, config=None):
         resultado = {}
 
-        existURL, pagsDescargadas = self.descargaPaginasMetadata(browser, config, home, resultado)
+        if pagData is None:
+            raise ValueError("El partido debe estar descargado")
 
-        for pag in pagsDescargadas.values():
-            auxAvail = procesaMDavailableContent(extraePagDataScripts(pag, 'availableContent'))
-            if auxAvail is not None:
-                resultado['infoDisponible'] = auxAvail
-                break
-        if resultado.get('infoDisponible', None) is None:
-            logging.warning("Imposible encontrar 'infoDisponible' en partido '%s'", self.url)
+        availContent = procesaMDavailableContent(extraePagDataScripts(pagData, 'availableContent'))
 
-        if resultado.get('infoDisponible', {}).get('jugadas', False):
-            urlJugadas = mergeURL(existURL, 'jugadas')
-            self.metadataEnlaces['jugadas'] = urlJugadas
-            resultado['jugadas'], pagsDescargadas['jugadas'] = procesaPlayByPlay(urlJugadas, home=home, browser=browser,
-                                                                                 config=config)
+        if not availContent:
+            raise ValueError(f"Incapaz de encontrar paginas extra de {self}")
+
+        resultado['infoDisponible'] = availContent
+
+        pagsDescargadas = self.descargaPaginasMetadata(browser, config, resultado)
 
         for pag in pagsDescargadas.values():
             completion = []
-            if 'resultsParciales' in resultado:
-                completion.append(True)
-            else:
+            if 'resultsParciales' not in resultado:
                 auxResParciales = procesaMDresInfoPeriodos(extraePagDataScripts(pag, 'initialMatchHeader'))
-                if auxResParciales is not None:
+                if auxResParciales:
                     resultado['resultsParciales'] = auxResParciales
-                    completion.append(True)
-                else:
-                    completion.append(False)
 
-            if 'datosPartido' in resultado:
-                completion.append(True)
-            else:
+            completion.append('resultsParciales' in resultado)
+
+            if 'datosPartido' not in resultado:
                 auxDatosPartido = procesaMDresDatosPartido(extraePagDataScripts(pag, 'initialMatchHeader'))
-                if auxDatosPartido is not None:
+                if auxDatosPartido:
                     resultado['datosPartido'] = auxDatosPartido
-                    completion.append(True)
-                else:
-                    completion.append(False)
+
+            completion.append('datosPartido' in resultado)
 
             if all(completion):
                 break
 
         self.metadataEmb = zstd.compress(dumps(resultado))
 
-    def descargaPaginasMetadata(self, browser, config, home, resultado: dict[Any, Any]) -> (
-            tuple)[str | None, dict[Any, Any]]:
+    def descargaPaginasMetadata(self, browser, config, resultado: dict[Any, Any]) -> dict[Any, Any]:
         statusMeta = dict.fromkeys(['resumen', 'estadisticas', 'jugadas'], False)
-        descargadores = [('resumen', procesaPaginaResumen), ('estadisticas', procesaBoxScore)]
+        clave2URL: Dict[str, str] = {}
+        descargadores = [('resumen', procesaPaginaResumen), ('estadisticas', procesaBoxScore),
+                         ('jugadas', procesaPlayByPlay)]
 
         pagsDescargadas = {}
 
-        existURL = None
+        existURL = self.url
 
         for clave, func in descargadores:
-            if clave not in self.metadataEnlaces:
+            if clave not in resultado['infoDisponible']:
                 logging.warning("Clave desconocida '%s' en enlaces de partido '%s'", clave, self.url)
                 continue
 
-            datos, pagsDescargadas[clave] = func(self.metadataEnlaces[clave], home=home, browser=browser, config=config)
+            urlSeccion = mergeURL(existURL, clave2URL.get(clave, clave))
+
+            datos, pagsDescargadas[clave] = func(urlSeccion, home=existURL, browser=browser, config=config)
+            if pagsDescargadas[clave]:
+                self.metadataEnlaces[clave] = urlSeccion
+
             resultado.update(datos)
             statusMeta[clave] = True
 
             existURL = self.metadataEnlaces[clave]
-        return existURL, pagsDescargadas
+
+        return pagsDescargadas
+
+    def generaPlantillaDummy(self, loc: str, plantillaActual: Optional[dict] = None) -> dict:
+        result = {'timestamp': self.fechaPartido.to_pydatetime(), 'edicion': self.edicion}
+
+        def generaPlantillaJugadores(idJugs: Iterable[str]) -> Dict[str, Dict[str, str]]:
+            funcResult = {}
+            for idJug in idJugs:
+                auxData: dict = persPartido2dictFicha(self.Jugadores[idJug])
+                auxData.update({'activo': True})
+                funcResult[idJug] = auxData
+
+            return funcResult
+
+        def generaPlantillaEntrenador(idEntr: str) -> Dict[str, Dict[str, str]]:
+            auxData: dict = persPartido2dictFicha(self.Entrenadores[idEntr])
+            auxData.update({'activo': True, 'dorsal': '1', 'nombre': self.Entrenadores[idEntr]['nombre']})
+            funcResult = {idEntr: auxData}
+
+            return funcResult
+
+        if loc not in LocalVisitante:
+            raise KeyError(f"Parametro 'loc' debe ser {iterable2quotedString(LocalVisitante)}. Actual: '{loc}'")
+
+        auxPlantilla = plantillaActual or createDictFromGenerator(['jugadores', 'tecnicos', 'club'], dict)
+        eqData = self.Equipos[loc]
+        result['jugadores'] = auxPlantilla['jugadores']
+        result['jugadores'].update(generaPlantillaJugadores(eqData['Jugadores']))
+        result['tecnicos'] = auxPlantilla['tecnicos']
+        result['tecnicos'].update(generaPlantillaEntrenador(eqData['Entrenador']))
+        result['club'] = auxPlantilla['club']
+        result['club'].update({'nombreActual': eqData['Nombre'], 'nombreOficial': eqData['Nombre']})
+
+        return result
 
 
 def auxJugador2dataframe(typesDF, jugador, fechaPartido):
@@ -519,4 +568,15 @@ def extraeLinksPersonasPtBSc(pag: DownloadedPage, urlBase: str = URL_BASE) -> Di
     if len(result) == 0:
         raise ValueError(f"extraeLinksPersonasPtBSc: no se han encontrado enlaces en '{pag.source}'")
 
+    return result
+
+
+def persPartido2dictFicha(dataPers: Dict[str, Any]) -> Dict[str, str]:
+    EXCLUDES = {'CODequipo', 'CODrival', 'IDequipo', 'IDrival', 'competicion', 'entrenador', 'equipo', 'esJugador',
+                'esLocal', 'esTitular', 'estado', 'estads', 'haGanado', 'haJugado', 'jornada', 'linkPersona', 'rival',
+                'edicion', 'url'}
+
+    TRCAMPOS = {'codigo': 'id', 'urlPersona': 'URL', 'nombre': 'alias', }
+
+    result = copyDictWithTranslation(dataPers, translation=TRCAMPOS, excludes=EXCLUDES)
     return result

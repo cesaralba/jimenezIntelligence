@@ -1,19 +1,18 @@
 from datetime import datetime
-from typing import Set, Dict, Optional, List, Callable, Tuple
+from typing import Set, Dict, Optional, List, Callable, Tuple, Any
 
-from CAPcore.DataChangeLogger import DataChangesTuples, DataChangesRaw
+from CAPcore.DataChangeLogger import DataChangesTuples
 from CAPcore.LoggedDict import LoggedDictDiff
 from CAPcore.Misc import onlySetElement
 
-from .Constants import infoJornada
 from .CalendarioACB import dictK2partStr
+from .Constants import infoJornada
 from .FichaClub import FichaClubEntrenador
 from .FichaPersona import FichaEntrenador, FichaJugador, FichaPersona
-from .PlantillaACB import CambiosPlantillaTipo, PlantillaACB
+from .PlantillaACB import CambiosPlantillaTipo
 from .TemporadaACB import TemporadaACB
 
 DATEFORMATRES = "%Y-%m-%d"
-
 
 
 def trataDiffUltClub(clave: str, cambio: Tuple[str, str], temp: TemporadaACB) -> str:
@@ -31,30 +30,103 @@ tradReduc = {'URL': 'nueva URL', 'urlFoto': 'nueva foto', 'ultClub': trataDiffUl
 tradNombreClaves: Dict[str, str] = {'licencia': 'cupo', 'nacionalidad': 'pais', 'lugarNac': 'origen'}
 
 
+# TODO: Ordenar por apellido
 def resumenCambioJugadores(cambiosJugadores: dict, temporada: TemporadaACB):
-    jugList = []
+    entList = []
+
     for jugCod, jugData in cambiosJugadores.items():
+
         if not jugData:
             continue
+        nuevaFicha = ('nuevo' in jugData) and jugData['nuevo']
+        cadenasAmostrar: List[str] = []
+        fichaEntr: FichaJugador = temporada.fichaJugadores[jugCod]
+        chgLogEntr: dict = fichaEntr.changeLog
 
-        ultClub = temporada.fichaJugadores[jugCod].ultClub
-        clubStr = "" if ultClub is None else f"{temporada.plantillas[str(ultClub)].nombreClub()}"
+        entries2show: List[DataChangesTuples] = sorted(chgLogEntr[t] for t in jugData['cambios'])
+        chgList = DataChangesTuples.merge(*entries2show)
 
-        jugadorStr = f"{temporada.fichaJugadores[jugCod].nombreFicha()}"
+        cadenasAmostrar.append(fichaEntr.nombreFicha(muestraPartidos=False, muestraInfoPers=True))
+        cadenasAmostrar.extend(preparaSalidaPersona(chgList, fichaEntr, nuevaFicha, temporada))
 
-        if 'NuevoJugador' not in jugData:
-            cambioStr = formateaResumenDiffs(jugData, temp=temporada, tradSimplifs=tradReduc,
-                                             tradClaves=tradNombreClaves)
-            if cambioStr == "":
+        entList.append(f"* {" ".join(cadenasAmostrar)}")
+
+    return '\n'.join(sorted(entList))
+
+
+def resumenCambioEntrenadores(cambiosTecnicos: dict, temporada: TemporadaACB):
+    entList = []
+
+    for entCod, entData in cambiosTecnicos.items():
+
+        if not entData:
+            continue
+        nuevaFicha = ('nuevo' in entData) and entData['nuevo']
+        cadenasAmostrar: List[str] = []
+        fichaEntr: FichaEntrenador = temporada.fichaEntrenadores[entCod]
+        chgLogEntr: dict = fichaEntr.changeLog
+
+        entries2show: List[DataChangesTuples] = sorted(chgLogEntr[t] for t in entData['cambios'])
+        chgList = DataChangesTuples.merge(*entries2show)
+
+        cadenasAmostrar.append(fichaEntr.nombreFicha(muestraPartidos=False, muestraInfoPers=True))
+        cadenasAmostrar.extend(preparaSalidaPersona(chgList, fichaEntr, nuevaFicha, temporada))
+
+        entList.append(f"* {" ".join(cadenasAmostrar)}")
+
+    return '\n'.join(sorted(entList))
+
+
+def preparaSalidaPersona(chgList: dict[str, list[Any] | dict[Any, Any]], fichaEntr: FichaEntrenador,
+                         nuevaFicha: bool | Any, temporada: TemporadaACB) -> List[str]:
+    result = []
+    if nuevaFicha:
+        KEYS2IGNORE = ['nombre', 'alias', 'URL', 'audioURL', 'club']
+
+        result.append("Nueva ficha:")
+        for clavePers in fichaEntr.CLASSCLAVES:
+            if (clavePers in KEYS2IGNORE) or (clavePers not in chgList['values']):
                 continue
-            newLine = f"* {jugadorStr} Cambios: {cambioStr}"
+            valorFinal = chgList['values'][clavePers]['values'][-1]
+            result.append(f"{clavePers.capitalize()}: '{valorFinal}'")
+            if 'audioURL' in chgList['values']:
+                result.append("Audio nombre")
+    else:
+        result.append("Cambios:")
+        for clavePers in fichaEntr.CLASSCLAVES:
+            if clavePers not in chgList['values']:
+                continue
+            valoresClave = chgList['values'][clavePers]['values']
+            cadenaValor = f"'{valoresClave[-1]}'" if valoresClave[
+                                                         0] is None else f"'{valoresClave[0]}' -> '{valoresClave[-1]}'"
+            result.append(f"{clavePers.capitalize()}:{cadenaValor}")
 
-            jugList.append(newLine)
-        else:
-            jugList.append(f"* {jugadorStr}: NUEVO FICHAJE de {clubStr}")
-            # TODO: Poner datos de jugadores
+        if 'URL' in chgList['values']:
+            result.append("Cambio URL")
+        if 'audioURL' in chgList['values']:
+            result.append("Audio nombre")
+    if 'club' in chgList['values']:
+        clubStrList = []
+        clTray = chgList['values']['club']['values']
+        if clTray[0] is None:
+            clTray = clTray[1:]
 
-    return '\n'.join(sorted(jugList))
+        for clStay in clTray:
+            if clStay is None:
+                clubStrList.append("Sin club")
+                continue
+            nombreClub = onlySetElement(temporada.tradEquipos['i2c'][clStay])
+            stay: FichaClubEntrenador = fichaEntr.fichasClub.get(clStay, None)
+            if stay is None:
+                clubStrList.append(f"'{nombreClub}' Sin info")
+                continue
+            clubStrList.append(
+                f"{nombreClub} {stay.fichaCl2str()} {temporada.balanceVictorias(pers=fichaEntr, clubId=clStay)}")
+        result.append(" ->".join(clubStrList))
+    else:
+        result.append("Cambio! No nuevaficha")
+
+    return result
 
 
 def resumenNuevosPartidos(nuevosPartidos: Set[str], temporada: TemporadaACB):
@@ -204,6 +276,7 @@ def formateaResumenDiffs(colDiffs: Dict[str, Tuple[str, str]], temp: TemporadaAC
     return result
 
 
+# TODO: Ordenar partidos por fecha del partido (acutalmente es orden alfabético y dela ja final al principio F,C,J*.S
 def resumenCambiosCalendario(cambios: LoggedDictDiff, temporada: TemporadaACB,
                              datosJornadas: Optional[Dict[int, infoJornada]] = None):
     if not cambios:
@@ -249,6 +322,7 @@ def procesaCambiosClub(cambiosDict: Dict) -> List[str]:
     return resultLines
 
 
+# TODO: Ordenar dorsal como (pseudo, 00)numérico en lugar de como cadena
 def procesaCambiosClubJugadores(cambiosDict: Dict, eqId: str, temporada: TemporadaACB) -> List[str]:
     resultLines = []
     salidasClub = []

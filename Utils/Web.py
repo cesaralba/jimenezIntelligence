@@ -3,7 +3,6 @@ import logging
 import re
 from collections import namedtuple
 from copy import copy
-from pprint import pprint
 from re import Pattern
 from typing import Optional, Dict, Any, List, AnyStr
 from urllib.parse import urlsplit, ParseResult, urlparse, parse_qs, urlunparse, urlencode
@@ -48,7 +47,7 @@ def getIDfromEncURL(objURL, defaultresult=sentinel, suf2ignore=sentinel):
         return result
 
     if defaultresult is sentinel:
-        excStr = f" Excl: {','.join(sorted(map(lambda s: f"'{s}'", suf2ignore)))}" if suf2ignore else ""
+        excStr = f" Excl: {','.join(sorted(f"'{s}'" for s in suf2ignore))}" if suf2ignore else ""
         raise ValueError(f"getObjID '{objURL}' no tiene path util.{excStr}")
 
     return defaultresult
@@ -113,13 +112,21 @@ def tagAttrHasValue(tagData: bs4.element.Tag, attrName: str, value: str | Patter
 logger = logging.getLogger()
 
 
+def keyWordNotPresent(data: str, keyword: Optional[str]) -> bool:
+    result = (keyword is not None) and (keyword not in data)
+    return result
+
+
+REpatSplitter = r'([a-z0-9]{0,2}):((Te.*\.)|((\[.*\]\n)|(I\[.*\])\n))'
+
+
 def extraePagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dict[str, Any]]:
+    result = {}
+
     patWrapper = r'^self\.__next_f\.push\((.*)\)$'
 
-    auxList = []
-
     for scr in calPage.data.find_all('script'):
-        if keyword and keyword not in scr.text:
+        if keyWordNotPresent(scr.text, keyword):
             continue
         reWrapper = re.match(patWrapper, scr.text)
         if reWrapper is None:
@@ -131,32 +138,32 @@ def extraePagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dict
             logger.exception("No scanea Eval: %s", scr.prettify())
             continue
 
-        patForcedict = r"^\s*([^:]+)\s*:\s*(.*)\s*$"
-        reForceDict = re.match(patForcedict, firstEval[1])
+        for d1 in re.findall(REpatSplitter, firstEval[1]):
+            clave, valor, *ignore = d1
+            if keyWordNotPresent(valor, keyword):
+                continue
 
-        if reForceDict is None:
-            logger.error("No casa RE '%s' : %s", reForceDict, scr.prettify())
-            continue
-        dictForced = "{" + f'"{reForceDict.group(1)}":{reForceDict.group(2)}' + "}"
-        try:
-            jsonParsed = json5.loads(dictForced)
-        except Exception:
-            logger.exception("No scanea json: %s", scr.prettify())
-            continue
+            if valor[0] in ('I', '"', 'C', 'X'):
+                continue
 
-        auxList.append(jsonParsed)
+            if clave in result:
+                logger.exception("Clave '%s' ya en resultado", clave)
+                continue
 
-    result = {}
+            try:
+                jsonParsed = json5.loads(valor)
+            except Exception:
+                logger.exception("Clave '%s' no scanea json", clave)
+                print("CAP **********************************")
+                print(valor)
+                print("CAP ----------------------------------")
+                print(reWrapper.group(1))
+                print("CAP **********************************")
+                # return firstEval[1]
 
-    for data in auxList:
-        auxHash = {}
-        auxHash.update(data)
+                continue
 
-        if list(auxHash.keys())[0] in result:
-            clave = list(auxHash.keys())[0]
-            logging.error("Clave #%s# ya existe en resultado:\n%s", clave, pprint(result[clave]))
-            continue
-        result.update(auxHash)
+            result[clave] = jsonParsed
 
     return result
 
