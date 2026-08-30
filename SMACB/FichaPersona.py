@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
 from datetime import datetime
@@ -12,11 +14,11 @@ from CAPcore.Web import mergeURL, DownloadedPage, downloadPage
 from pandas import Timestamp
 from requests import HTTPError
 
+from SMACB.PartidoACB import PartidoACB
 from Utils.ParseoData import procesaCosasUtilesPlantilla, findLocucionNombre
 from Utils.Web import prepareDownloading, getObjID, sentinel
 from .Constants import URL_BASE, URLIMG2IGNORE, POSABREV2NOMBRE
 from .FichaClub import FichaClubPersona, FichaClubJugador, FichaClubEntrenador
-from .PartidoACB import PartidoACB
 from .Trayectoria import Trayectoria
 
 DataLogger = LoggedClassGenerator(DataChangesTuples)

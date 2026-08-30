@@ -117,6 +117,7 @@ def keyWordNotPresent(data: str, keyword: Optional[str]) -> bool:
     return result
 
 
+# TODO: Esto sólo captura el primer párrafo del texto y se salta lo demás
 REpatSplitter = r'([a-z0-9]{0,2}):((Te.*\.)|((\[.*\]\n)|(I\[.*\])\n))'
 
 
@@ -139,7 +140,10 @@ def extraePagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dict
             continue
 
         for d1 in re.findall(REpatSplitter, firstEval[1]):
-            clave, valor, *_ = d1
+            clave, valor, cadTexto, *_ = d1
+            if cadTexto != "":
+                logger.debug("Cadena de texto detectada: #%s# #%s#", cadTexto[:6], cadTexto)
+
             if keyWordNotPresent(valor, keyword):
                 continue
 
@@ -153,13 +157,8 @@ def extraePagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dict
             try:
                 jsonParsed = json5.loads(valor)
             except Exception:
-                logger.exception("Clave '%s' no scanea json", clave)
-                print("CAP **********************************")
-                print(valor)
-                print("CAP ----------------------------------")
-                print(reWrapper.group(1))
-                print("CAP **********************************")
-                # return firstEval[1]
+                logger.exception("Clave '%s' no scanea json: #%s#", clave.valor)
+                logger.debug("Cadena completa: #%s#", reWrapper.group(1))
 
                 continue
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import re
 from collections.abc import Iterable
@@ -556,9 +558,9 @@ def procesaBoxScore(urlBoxscore: Union[str, DownloadedPage], home=None, browser=
 def extraeLinksPersonasPtBSc(pag: DownloadedPage, urlBase: str = URL_BASE) -> Dict[str, str]:
     result = {}
 
-    reTablaBsc = re.compile(r'MatchTeamStatisticsTable_matchTeamStatisticsTable__table__.*_')
+    reTablaBsc = re.compile(r'MatchTeamStatisticsTable-module-scss-module__.*__matchTeamStatisticsTable')
     tablaBsc: Tag
-    for tablaBsc in pag.data.find_all('table', {'class': reTablaBsc}):
+    for tablaBsc in pag.data.find_all('div', {'class': reTablaBsc}):
         for a in tablaBsc.find_all('a'):
             destURL = mergeURL(urlBase, a['href'])
             idPers = getIDfromEncURL(destURL)
