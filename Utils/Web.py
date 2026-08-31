@@ -3,7 +3,6 @@ import logging
 import re
 from collections import namedtuple
 from copy import copy
-from pprint import pprint
 from re import Pattern
 from typing import Optional, Dict, Any, List, AnyStr
 from urllib.parse import urlsplit, ParseResult, urlparse, parse_qs, urlunparse, urlencode
@@ -13,6 +12,7 @@ import json5
 from CAPcore.Misc import listize
 from CAPcore.Web import createBrowser, mergeURL, DownloadedPage
 from configargparse import Namespace
+from mechanicalsoup import StatefulBrowser
 from unidecode import unidecode
 
 # https://effbot.org/zone/default-values.htm#what-to-do-instead
@@ -47,7 +47,7 @@ def getIDfromEncURL(objURL, defaultresult=sentinel, suf2ignore=sentinel):
         return result
 
     if defaultresult is sentinel:
-        excStr = f" Excl: {','.join(sorted(map(lambda s: f"'{s}'", suf2ignore)))}" if suf2ignore else ""
+        excStr = f" Excl: {','.join(sorted(f"'{s}'" for s in suf2ignore))}" if suf2ignore else ""
         raise ValueError(f"getObjID '{objURL}' no tiene path util.{excStr}")
 
     return defaultresult
@@ -67,22 +67,20 @@ def getLastUsefulComp(compList: List[str], suf2ignore=sentinel) -> Optional[str]
     return None
 
 
-def prepareDownloading(browser, config, urlRef: Optional[str] = None):
+def prepareDownloading(browser: Optional[StatefulBrowser] = None, config: Optional[Namespace | Dict] = None):
     """
     Prepara las variables para el BeautifulSoup si no está y descarga una página si se provee
     :param browser: variable de estado del bs4
     :param config: configuración global del programa (del argparse)
-    :param urlRef: página a descargar
     :return: browser,config (los mismos o creados según la situación)
     """
+
     if config is None:
         config = Namespace()
     else:
         config = Namespace(**config) if isinstance(config, dict) else config
     if browser is None:
         browser = createBrowser(config)
-        if urlRef:
-            browser.open(urlRef)
     return browser, config
 
 
@@ -114,13 +112,22 @@ def tagAttrHasValue(tagData: bs4.element.Tag, attrName: str, value: str | Patter
 logger = logging.getLogger()
 
 
+def keyWordNotPresent(data: str, keyword: Optional[str]) -> bool:
+    result = (keyword is not None) and (keyword not in data)
+    return result
+
+
+# TODO: Esto sólo captura el primer párrafo del texto y se salta lo demás
+REpatSplitter = r'([a-z0-9]{0,2}):((Te.*\.)|((\[.*\]\n)|(I\[.*\])\n))'
+
+
 def extraePagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dict[str, Any]]:
+    result = {}
+
     patWrapper = r'^self\.__next_f\.push\((.*)\)$'
 
-    auxList = []
-
     for scr in calPage.data.find_all('script'):
-        if keyword and keyword not in scr.text:
+        if keyWordNotPresent(scr.text, keyword):
             continue
         reWrapper = re.match(patWrapper, scr.text)
         if reWrapper is None:
@@ -132,32 +139,30 @@ def extraePagDataScripts(calPage: DownloadedPage, keyword=None) -> Optional[Dict
             logger.exception("No scanea Eval: %s", scr.prettify())
             continue
 
-        patForcedict = r"^\s*([^:]+)\s*:\s*(.*)\s*$"
-        reForceDict = re.match(patForcedict, firstEval[1])
+        for d1 in re.findall(REpatSplitter, firstEval[1]):
+            clave, valor, cadTexto, *_ = d1
+            if cadTexto != "":
+                logger.debug("Cadena de texto detectada: #%s# #%s#", cadTexto[:6], cadTexto)
 
-        if reForceDict is None:
-            logger.error("No casa RE '%s' : %s", reForceDict, scr.prettify())
-            continue
-        dictForced = "{" + f'"{reForceDict.group(1)}":{reForceDict.group(2)}' + "}"
-        try:
-            jsonParsed = json5.loads(dictForced)
-        except Exception:
-            logger.exception("No scanea json: %s", scr.prettify())
-            continue
+            if keyWordNotPresent(valor, keyword):
+                continue
 
-        auxList.append(jsonParsed)
+            if valor[0] in ('I', '"', 'C', 'X'):
+                continue
 
-    result = {}
+            if clave in result:
+                logger.exception("Clave '%s' ya en resultado", clave)
+                continue
 
-    for data in auxList:
-        auxHash = {}
-        auxHash.update(data)
+            try:
+                jsonParsed = json5.loads(valor)
+            except Exception:
+                logger.exception("Clave '%s' no scanea json: #%s#", clave.valor)
+                logger.debug("Cadena completa: #%s#", reWrapper.group(1))
 
-        if list(auxHash.keys())[0] in result:
-            clave = list(auxHash.keys())[0]
-            logging.error("Clave #%s# ya existe en resultado:\n%s", clave, pprint(result[clave]))
-            continue
-        result.update(auxHash)
+                continue
+
+            result[clave] = jsonParsed
 
     return result
 
