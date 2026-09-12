@@ -367,14 +367,6 @@ class CalendarioACB:
 
         return result
 
-    def idPartidosJugados(self) -> Dict[str, str]:
-
-        result = {}
-        for j in self.Jornadas.values():
-            for p in j['partidos']:
-                result[str(p['partido'])] = p
-
-        return result
 
     def getInfoJornadas(self) -> Dict[int, infoJornada]:
         result = {j: v['infoJornada'] for j, v in self.Jornadas.items()}

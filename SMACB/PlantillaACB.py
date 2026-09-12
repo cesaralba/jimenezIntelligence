@@ -14,6 +14,7 @@ from CAPcore.LoggedDict import LoggedDict, LoggedDictDiff
 from CAPcore.Misc import onlySetElement, getUTC, createDictFromGenerator, copyDictWithTranslation
 from CAPcore.Web import downloadPage, mergeURL, DownloadedPage
 from bs4 import Tag
+from configargparse import Namespace
 
 import SMACB.CalendarioACB as SMACBcal
 from Utils.ProcessMDparts import procesaMDplantRaizClubData, procesaMDplantJugs
@@ -26,6 +27,7 @@ logger = logging.getLogger()
 
 DataLogger = LoggedClassGenerator(DataChangesRaw)
 
+DATOSPLANTILLADESCARGADOS = {}
 
 class CambiosPlantillaTipo(NamedTuple):
     club: LoggedDictDiff
@@ -38,6 +40,7 @@ class InfoClubPortada(NamedTuple):
     url: str
     nombre: Optional[str]
     abrev: Optional[str]
+    fullDataEmb: Optional[Dict[str,Any]]
 
 
 CAMBIOSCLUB: Dict[str, Dict] = defaultdict(lambda: {'cambios': set()})
@@ -60,7 +63,6 @@ class PlantillaACB(LoggedClassGenerator(DataChangesRaw)):
         currentValues = self.data2log()
 
         self.updateDataFields(**kwargs)
-        # self.updateDataFields(URL=generaURLPlantilla(self, URL_BASE))
 
         newValues = self.data2log()
 
@@ -101,7 +103,7 @@ class PlantillaACB(LoggedClassGenerator(DataChangesRaw)):
 
         return result
 
-    def descargaYactualizaPlantilla(self, home=None, browser=None, config=None) -> bool:
+    def descargaYactualizaPlantilla(self, browser=None, config=None) -> bool:
         """
         Descarga los datos y llama al procedimiento para actualizar
         :param home:
@@ -113,15 +115,15 @@ class PlantillaACB(LoggedClassGenerator(DataChangesRaw)):
         result = False
         browser, config = prepareDownloading(browser, config)
         try:
-            # auxURL = generaURLPlantilla(self, URL_BASE)
-            # if auxURL != self.URL:
-            #     print(f"[{self.id}] '{self.club['nombreActual']}' {self.edicion} URL cambiada: '{self.URL}' -> '"
-            #           f"{auxURL}'")
-            #     self.URL = auxURL
-            #     result |= True
+            auxURL = generaURLPlantilla(self, URL_BASE)
+            if auxURL != self.URL:
+                print(f"[{self.clubId}] '{self.club.get('nombreActual','Sin nombre conocido')}' {self.edicion} URL cambiada: '{self.URL}' -> '"
+                      f"{auxURL}'")
+                self.URL = auxURL
+                result |= True
             logger.info("descargaYactualizaPlantilla. [%s] '%s' (%s) URL %s", self.clubId,
                         self.club.get('nombreActual', 'Desconocido'), self.edicion, self.URL)
-            data = descargaPlantilla(self.URL, home, browser, config)
+            data = descargaPlantilla(self.URL, browser, config)
         except Exception:
             logging.exception(
                 "Something happened updating record of '%s' ", self.club)
@@ -130,26 +132,26 @@ class PlantillaACB(LoggedClassGenerator(DataChangesRaw)):
         result |= self.actualizaPlantillaDescargada(data)
         return result
 
-    def actualizaPlantillaDescargada(self, data) -> bool:
-        result = False
-
-        currTimestamp = data.get('timestamp', getUTC())
-
-        cambiosAux = {k: getattr(self, k).diff(data.get(k, {}), doUpdate=True) for k in CambiosPlantillaTipo._fields}
-
-        result |= self.club.update(data.get('club', {}), timestamp=currTimestamp)
-        result |= self.jugadores.update(data.get('jugadores', {}), timestamp=currTimestamp)
-        result |= self.tecnicos.update(data.get('tecnicos', {}), timestamp=currTimestamp)
-
-        if self.edicion is None:
-            self.edicion = data['edicion']
-            result = True
-
-        if result:
-            self.timestamp = currTimestamp
-            CAMBIOSCLUB[self.clubId] = CambiosPlantillaTipo(**cambiosAux)
-
-        return result
+    # def actualizaPlantillaDescargada(self, data) -> bool:
+    #     result = False
+    #
+    #     currTimestamp = data.get('timestamp', getUTC())
+    #
+    #     cambiosAux = {k: getattr(self, k).diff(data.get(k, {}), doUpdate=True) for k in CambiosPlantillaTipo._fields}
+    #
+    #     result |= self.club.update(data.get('club', {}), timestamp=currTimestamp)
+    #     result |= self.jugadores.update(data.get('jugadores', {}), timestamp=currTimestamp)
+    #     result |= self.tecnicos.update(data.get('tecnicos', {}), timestamp=currTimestamp)
+    #
+    #     if self.edicion is None:
+    #         self.edicion = data['edicion']
+    #         result = True
+    #
+    #     if result:
+    #         self.timestamp = currTimestamp
+    #         CAMBIOSCLUB[self.clubId] = CambiosPlantillaTipo(**cambiosAux)
+    #
+    #     return result
 
     def getValorJugadores(self, clave, default=None):
         return self.jugadores.extractKey(key=clave, default=default)
@@ -229,14 +231,14 @@ class PlantillaACB(LoggedClassGenerator(DataChangesRaw)):
     __repr__ = __str__
 
 
-def descargaPlantilla(urlPlantilla, home=None, browser=None, config=None):
+def descargaPlantilla(urlPlantilla, browser=None, config=None):
     result = {}
 
     browser, config = prepareDownloading(browser, config)
 
     try:
         logging.debug("descargaPlantilla: downloading %s", urlPlantilla)
-        pagPlant = downloadPage(urlPlantilla, home=home, browser=browser, config=config)
+        pagPlant = downloadPage(urlPlantilla, browser=browser, config=config)
         result['URL'] = browser.get_url()
         result['timestamp'] = getUTC()
         result.update(procesaPlantillaPortadaDescargada(pagPlant))
@@ -322,14 +324,15 @@ def procesaTablaBajas(tablaBajas: bs4.Tag) -> dict:
 
     return result
 
+CLUBEXCLUDES = {'logo', 'clubId', 'estanciaACB', 'shirtTextColor'}
+CLUBTRADUCCS = {'stadiumName': 'pabellon', 'stadiumCapacity': 'aforo', 'presidentName': 'presidente',
+                   'foundationYear': 'fundacion', 'fullName': 'nombreOficial', 'shortName': 'nombreActual',
+                   'abbreviatedName':'abrev'}
 
 def extraeDatosClub(embData: Dict[str, Any]):
     aux = procesaMDplantRaizClubData(rawData=embData)
-    transMDclub = {'stadiumName': 'pabellon', 'stadiumCapacity': 'aforo', 'presidentName': 'presidente',
-                   'foundationYear': 'fundacion', 'fullName': 'nombreOficial', 'shortName': 'nombreActual',
-                   'abbreviatedName':'abrev'}
-    exclMDclub = {'logo', 'clubId', 'estanciaACB', 'shirtTextColor'}
-    result = copyDictWithTranslation(aux, translation=transMDclub, excludes=exclMDclub)
+
+    result = copyDictWithTranslation(aux, translation=CLUBTRADUCCS, excludes=CLUBEXCLUDES)
 
     return result
 
@@ -394,6 +397,63 @@ def descargaPlantillasCabecera(browser=None, config=None, edicion=None, listaIDs
         nombreClub = infoClub.find('h3').get_text() if infoClub else None
         abrevClub = infoClub.find('p').get_text() if infoClub else None
 
+        entradaAux = InfoClubPortada(idEq=idEq, url=urlFull, nombre=nombreClub, abrev=abrevClub,fullDataEmb={})
+
+        result.append(entradaAux)
+
+    return result
+
+
+def descargaPlantillasCabecera_new(browser=None, config:Optional[Namespace]=None, edicion:Optional[str]=None, listaIDs:Optional[List[str]]=None) -> List[InfoClubPortada]:
+    """
+    Descarga los contenidos de las plantillas y los procesa. Servirá para alimentar las plantillas de TemporadaACB
+    :param browser:
+    :param config:
+    :param edicion:
+    :param listaIDs: IDs to be considered
+    :return:
+    """
+    browser, config = prepareDownloading(browser, config)
+
+    if listaIDs == []:
+        listaIDs = None
+
+    result = []
+
+    urlClubes = generaURLClubesPortada(edicion, URL_BASE)
+    paginaRaiz = downloadPage(dest=urlClubes, browser=browser, config=config)
+
+    if paginaRaiz is None:
+        raise ConnectionError(f"Incapaz de descargar {urlClubes}")
+
+    linksEqsPortada=extraeLinksEqsPortadaEq(pag=paginaRaiz,urlBase=paginaRaiz.source)
+
+
+    raizData = paginaRaiz.data
+    # SectionTeams-module-scss-module__7n2dDW__sectionTeams
+    rePortDivMain = re.compile(r'SectionTeams-module-scss-module__.*__sectionTeams')
+    reInfoClub = re.compile(r'TeamCard-module-scss-module__.*__teamCard__info')
+    divLogos: Tag = None
+    for ent in raizData.find_all('div', {'class': rePortDivMain}):
+        if ent.find('a'):
+            divLogos = ent
+            break
+
+    if divLogos is None:
+        raise ValueError(f"Incapaz de encontrar equipos en '{urlClubes}'")
+
+    for artLink in divLogos.find_all('a'):
+        urlLink = artLink['href']
+        urlFull = mergeURL(urlClubes, urlLink)
+        idEq = getIDfromEncURL(objURL=urlFull)
+
+        if listaIDs and idEq not in listaIDs:
+            continue
+
+        infoClub = artLink.find('div', {'class': reInfoClub})
+        nombreClub = infoClub.find('h3').get_text() if infoClub else None
+        abrevClub = infoClub.find('p').get_text() if infoClub else None
+
         entradaAux = InfoClubPortada(idEq=idEq, url=urlFull, nombre=nombreClub, abrev=abrevClub)
 
         result.append(entradaAux)
@@ -415,7 +475,7 @@ def generaURLPlantilla(plantilla: PlantillaACB, urlRef: Optional[str] = None):
         urlRef = SMACBcal.calendario_URLBASE
 
     urlPathItems = ['', 'es', 'liga', 'equipos']
-    infoEquipo = generaCompParaURL(nombreEnt=plantilla.club['nombreActual'], idEnt=plantilla.id)
+    infoEquipo = generaCompParaURL(nombreEnt=plantilla.club['nombreActual'], idEnt=plantilla.clubId)
     urlPathItems.append(infoEquipo)
     urlParamsEdic = getURLparamTemporada(plantilla.edicion)
 
@@ -516,5 +576,25 @@ def comparaPlantillas(currentData: Dict, newData: Dict) -> Dict:
 
 def InfoClubPortada2ClubDict(data:InfoClubPortada)-> Dict[str,Optional[str]]:
     result = {'nombreActual': data.nombre, 'nombreOficial': data.nombre, 'abrev':data.abrev}
+
+    return result
+
+def extraeLinksEqsPortadaEq(pag: DownloadedPage, urlBase: str = URL_BASE) -> Dict[str, str]:
+    result = {}
+
+    reListEqs= re.compile(r'SectionTeams-module-scss-module__.*__sectionTeams')
+    reLinkClub= re.compile(r'SectionTeams-module-scss-module__.*__sectionTeams__link')
+
+    divEqs: Tag
+    linkData: Tag
+
+    for divEqs in pag.data.find_all('div',{'class': reListEqs}):
+        for linkData in divEqs.find_all('a', {'class': reLinkClub}):
+
+            urlLink = linkData['href']
+            urlFull = mergeURL(urlBase, urlLink)
+            idEq = getIDfromEncURL(objURL=urlFull)
+
+            result[idEq] = urlFull
 
     return result

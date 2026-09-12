@@ -6,6 +6,7 @@ import pandas as pd
 from CAPcore.Misc import copyDictWithTranslation
 
 from SMACB.Constants import LocalVisitante, OtherLoc, numPartidoPO2jornada, infoJornada, TRADPOSICION
+from SMACB.PlantillaACB import CLUBTRADUCCS, CLUBEXCLUDES
 from Utils.ParseoData import ProcesaTiempo, parseFecha, parseaAltura
 from Utils.Web import sentinel
 
@@ -720,11 +721,34 @@ def auxProcesaDatosReales(datoAmirar: List, parClave: str) -> Dict[str, Any] | N
 def extraeDatosRelevantesMD(embData: Dict, claveDeInteres: str) -> Optional[Dict]:
     result = None
 
-    dataToProcess = [list(embData.values())[0]]
-
-    for val in dataToProcess:
+    for val in embData.values():
         res = auxProcesaDatosReales(val, parClave=claveDeInteres)
         if res is not None:
             return res
 
     return result
+
+def extraeDatosEqsDePortadaMD(embData: Dict[str,Any], enlacesEqs:Optional[Dict[str,str]]=None):
+    result = {}
+
+    if enlacesEqs is None:
+        enlacesEqs = {}
+
+    dataTeams=extraeDatosRelevantesMD(embData=embData,claveDeInteres='teams')
+
+    teamData: Dict[str,Any]
+    for teamData in dataTeams.get('teams',[]):
+        infoClub={}
+        dataLatest=teamData['latest']
+        idEq = str(dataLatest['clubId'])
+        if idEq in enlacesEqs:
+            infoClub['url']=enlacesEqs[idEq]
+        print(f"################ {idEq}")
+        print(sorted(dataLatest.keys()))
+        infoClub.update(copyDictWithTranslation(source=dataLatest,translation=CLUBTRADUCCS,excludes=CLUBEXCLUDES))
+        print(sorted(infoClub.keys()))
+        print("================")
+        result[idEq]=infoClub
+
+    return result
+from CAPcore.LoggedDict import LoggedDict

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Set, Dict, Optional, List, Callable, Tuple, Any
 
-from CAPcore.DataChangeLogger import DataChangesTuples
+from CAPcore.DataChangeLogger import DataChangesTuples, DataChangesRaw
 from CAPcore.LoggedDict import LoggedDictDiff
 from CAPcore.Misc import onlySetElement
 
@@ -9,7 +9,7 @@ from .CalendarioACB import dictK2partStr
 from .Constants import infoJornada
 from .FichaClub import FichaClubEntrenador
 from .FichaPersona import FichaEntrenador, FichaJugador, FichaPersona
-from .PlantillaACB import CambiosPlantillaTipo
+from .PlantillaACB import CambiosPlantillaTipo, PlantillaACB
 from .TemporadaACB import TemporadaACB
 
 DATEFORMATRES = "%Y-%m-%d"
@@ -153,40 +153,49 @@ def textoTecnico(temporada: TemporadaACB, idTec: str, idClub: str):
 
 
 def resumenCambioClubes(cambiosClubes: Dict[str, CambiosPlantillaTipo], temporada: TemporadaACB):
-    listaCambios = []
-
-    for cl, cambios in cambiosClubes.items():
-        if not (cambios.jugadores or cambios.tecnicos or cambios.club):
+    result = []
+    for eqId in sorted(cambiosClubes.keys(), key=lambda s: temporada.plantillas[s].nombreClub()):
+        eqData: dict = cambiosClubes[eqId]
+        if not eqData:
             continue
-        nombreClub = temporada.plantillas[cl].nombreClub()
+
+        nuevoStr = ""
+        if eqData.get('nuevo', False):
+            nuevoStr = f" (nuevo en liga, alta: {sorted(eqData['cambios'])[0].strftime(DATEFORMATRES)})"
+
+        datosEq: PlantillaACB = temporada.plantillas[eqId]
+
+        chgLogEntr: dict = datosEq.changeLog
+
+        entries2show: List[DataChangesTuples] = sorted(chgLogEntr[t] for t in eqData['cambios'])
+
+        chgList = DataChangesRaw.merge(*entries2show)
 
         cambiosClubList = []
 
-        if cambios.club:
-            cambiosClubList.append(f"Cambio en datos del club: {cambios.club.show(compact=True)}")
+        nombreClub = temporada.plantillas[eqId].nombreClub()
 
-        if cambios.jugadores:
-            cambioJugsList = preparaResumenPlantillasJugadores(cambios, cl, temporada, tradReducDict=tradReduc)
+        if 'club' in chgList['values']:
+            cambiosClubList.extend(procesaCambiosClub(chgList['values']['club']))
 
-            if cambioJugsList:
-                lineaJugadores = "Cambio en jugadores:\n" + "\n".join(sorted(cambioJugsList))
-                cambiosClubList.append(lineaJugadores)
+        if 'jugadores' in chgList['values']:
+            cambiosClubList.extend(
+                procesaCambiosClubJugadores(cambiosDict=chgList['values']['jugadores'], eqId=eqId, temporada=temporada))
 
-        if cambios.tecnicos:
-            cambioTecList = preparaResumenPlantillasTecnicos(cambios, cl, temporada, tradReducDict=tradReduc)
+        if 'tecnicos' in chgList['values']:
+            cambiosClubList.extend(
+                procesaCambiosClubTecnicos(cambiosDict=chgList['values']['tecnicos'], eqId=eqId, temporada=temporada))
 
-            if cambioTecList:
-                lineaTecnicos = "Cambio en técnicos:\n" + "\n".join(sorted(cambioTecList))
-                cambiosClubList.append(lineaTecnicos)
+        if not cambiosClubList:
+            continue
 
-        if cambiosClubList:
-            lineaClub = f"CLUB '{nombreClub}' [{cl}]:\n" + "\n".join(cambiosClubList)
-            listaCambios.append(lineaClub)
+        if result:
+            result.append("")
 
-    if listaCambios:
-        return "\n".join(sorted(listaCambios))
+        result.append(f"Club: [{eqId}] {nombreClub}{nuevoStr}")
+        result.extend(cambiosClubList)
 
-    return ""
+    return "\n".join(result)
 
 
 def preparaResumenPlantillasTecnicos(cambios, cl, temporada: TemporadaACB,

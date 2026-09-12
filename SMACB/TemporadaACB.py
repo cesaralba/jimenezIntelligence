@@ -7,10 +7,11 @@ import logging
 import sys
 from collections import defaultdict, Counter
 from copy import copy
+from datetime import datetime
 from operator import itemgetter
 from pickle import dump, load
 from sys import setrecursionlimit
-from typing import Any, Iterable, Dict, Tuple, List, Set
+from typing import Any, Iterable, Dict, Tuple, List, Set, Optional
 from typing import Optional
 
 import numpy as np
@@ -137,6 +138,18 @@ class TemporadaACB:
         result = Namespace(**{'procesaBio': self.descargaFichas, 'procesaPlantilla': self.descargaPlantillas})
         return result
 
+    def listaIdEqsADescargar(self,partidosInteres:List[str]) -> Optional[List[str]]:
+        auxResult:Set[str] = set()
+        if self.descargaPlantillas:
+            return None
+        for idPart in partidosInteres:
+            auxResult.add(self.Calendario.Partidos.get(idPart,{}).get('participantesId',set()))
+
+        if len(auxResult) == 0:
+            return None
+
+        return list(auxResult)
+
     def actualizaTemporada(self, browser=None, config=None):
         interrupted = False
         changeOrig = self.changed
@@ -160,12 +173,10 @@ class TemporadaACB:
         if 'refresca' in config and config.refresca:
             refrescaFichas = True
 
-        partsCalendarioI2U = self.Calendario.idPartidosJugados()
-
         try:
             for partidoK in partidosABajar:
                 try:
-                    partidoInfo = partsCalendarioI2U[partidoK]
+                    partidoInfo = self.Calendario.Partidos[partidoK]
                     partidoURL = partidoInfo['url']
 
                     nuevoPartido = PartidoACB(**partidoInfo)
@@ -1081,6 +1092,9 @@ class TemporadaACB:
 
         return auxChanged
 
+    def preparaPlantillas(self) -> bool:
+        pass
+
 
 def auxJorFech2periodo(dfTemp: pd.DataFrame):
     periodoAct: int = 0
@@ -1242,3 +1256,4 @@ def entrenadorDestituido(entrenadorId: str, plantillaActivos: Dict) -> List[str]
             changes.append(entrActivo)
 
     return changes
+
