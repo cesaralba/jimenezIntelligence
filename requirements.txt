@@ -4,9 +4,9 @@
 #git+https://github.com/cesaralba/CAPcore-python@develop
 git+https://github.com/cesaralba/CAPcore-python@202512
 
-ConfigArgParse>=1.7.5
+ConfigArgParse>=1.7.7
 
-lxml>=6.1.2
+lxml>=6.1.3
 babel==2.18.0
 
 pandas>=3.0.5
@@ -16,7 +16,7 @@ pytz==2026.3.post1
 tzdata>=2026.3
 json5==0.15.0
 scipy>=1.18.1
-numpy>=2.5.2
+numpy>=2.5.3
 seaborn>=0.13.2
 pillow>=12.3.0
 matplotlib>=3.11.1
@@ -35,5 +35,5 @@ reportlab>=5.0.1
 pillow>=12.0.0
 
 #Dependencias (añadidas por vulnerabilidades detectadas)
-fonttools>=4.63.0
+fonttools>=4.65.0
 urllib3>=2.7.0
