@@ -13,7 +13,7 @@ pandas>=3.0.6
 
 pytz==2026.3.post1
 
-tzdata>=2026.3
+tzdata>=2026.4
 json5==0.15.0
 scipy>=1.18.1
 numpy>=2.5.3
