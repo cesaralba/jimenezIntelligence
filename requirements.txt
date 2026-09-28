@@ -22,7 +22,7 @@ pillow>=12.3.0
 contourpy>=1.4.0
 matplotlib>=3.11.2
 cycler==0.12.1
-pyparsing>=3.3.2
+pyparsing>=3.3.3
 kiwisolver>=1.5.1
 packaging>=26.3
 python-dateutil>=2.9.0.post0
