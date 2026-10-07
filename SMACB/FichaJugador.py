@@ -334,7 +334,7 @@ class FichaJugador:
         self.primPartidoT = None
         self.ultPartidoT = None
         self.partidos = set()
-        self.timestamp = gmtime()
+        self.timestamp = getUTC()
 
     def __add__(self, other):
         CLAVESAIGNORAR = ['id', 'url', 'timestamp', 'primPartidoP', 'ultPartidoP', 'primPartidoT', 'ultPartidoT',
