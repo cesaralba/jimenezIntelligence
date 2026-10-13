@@ -14,7 +14,8 @@ pandas>=3.0.6
 pytz==2026.5
 
 tzdata>=2026.5
-json5==0.15.0
+json5==0.16.0
+
 scipy>=1.18.1
 numpy>=2.5.3
 seaborn>=0.13.2
