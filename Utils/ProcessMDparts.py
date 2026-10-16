@@ -1,5 +1,5 @@
 import logging
-from pprint import pformat
+from pprint import pformat, pp
 from typing import Dict, Optional, List, Tuple, Any, Set
 
 import pandas as pd
@@ -612,7 +612,7 @@ def procesaMDplantRaizClubData(rawData: dict) -> Dict[str, Any]:
                                        excludes={'team', 'stadiumPhotoUrl', 'stadiumAddress', 'contactPhone',
                                                  'contactEmail', 'rosterPhotoUrl', 'webUrl', 'ticketingUrl',
                                                  'merchanUrl', 'instagramUrl', 'twitterUrl', 'facebookUrl',
-                                                 'youtubeUrl', 'tikTokUrl', 'validated'})
+                                                 'youtubeUrl', 'tikTokUrl', 'validated','contrastRequired'})
     result.update(clubInfo)
     teamInfo = copyDictWithTranslation(clubData['club']['team'],
                                        excludes=['id', 'clubId', 'competitionId', 'editionId', 'primaryColorHex',
@@ -630,6 +630,9 @@ def procesaMDplantJugs(rawData: Dict[str, Any], dataURLs: Dict[str, str] = senti
     if dataURLs is sentinel:
         dataURLs = {}
     result = {'jugadores': {}, 'tecnicos': {}}
+
+    if not rawData:
+        return result
 
     auxDataRoster = extraeDatosRelevantesMD(rawData, claveDeInteres='currentRoster')
 
