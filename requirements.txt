@@ -30,7 +30,7 @@ python-dateutil>=3.0.0
 
 Unidecode==1.4.0
 
-XlsxWriter>=3.3.0
+XlsxWriter>=3.3.1
 
 pillow>=13.0.0
 reportlab>=5.1.0
