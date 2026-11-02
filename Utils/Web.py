@@ -3,13 +3,14 @@ import logging
 import re
 from collections import namedtuple
 from copy import copy
+from pprint import pp
 from re import Pattern
 from typing import Optional, Dict, Any, List, AnyStr
 from urllib.parse import urlsplit, ParseResult, urlparse, parse_qs, urlunparse, urlencode
 
 import bs4.element
 import json5
-from CAPcore.Misc import listize
+from CAPcore.Misc import listize, onlySetElement
 from CAPcore.Web import createBrowser, mergeURL, DownloadedPage
 from configargparse import Namespace
 from mechanicalsoup import StatefulBrowser
@@ -22,12 +23,19 @@ browserConfigData = namedtuple('browserConfigData', field_names=['config', 'brow
                                defaults=[None, None])
 
 
-def getObjID(objURL, clave='id', defaultresult=sentinel):
-    PATid = r'^.*/' + clave + r'/(?P<id>\d+)(/.*)?'
-    REid = re.match(PATid, objURL)
+def getObjID(objURL, defaultresult=sentinel):
+    compsURL:ParseResult=urlparse(objURL)
+
+    urlPath:str=compsURL.path
+    lastElem:str=urlPath.split('/')[-1]
+
+    idComp:str=lastElem.split('-')[-1]
+
+    PATid = r'^\d+$'
+    REid = re.match(PATid, idComp)
 
     if REid:
-        return REid.group('id')
+        return idComp
 
     if defaultresult is sentinel:
         raise ValueError(f"getObjID '{objURL}' no casa patrón '{PATid}' para clave '{clave}'")
@@ -183,7 +191,8 @@ def generaURLACB(urlComps: List[str], urlRef: str, urlParams: Optional[Dict[str,
     urlPath = "/".join(urlComps)
     compsCurr: ParseResult = urlparse(urlRef)
     infoParams = parse_qs(compsCurr.query)
-    desiredParams = copy(infoParams)
+    infoParamsSaneados = {k:onlySetElement(v) for k,v in infoParams.items()}
+    desiredParams = copy(infoParamsSaneados)
     desiredParams.update(auxParams)
     result = urlunparse(
         ParseResult(scheme=compsCurr.scheme, netloc=compsCurr.netloc, path=urlPath, params=compsCurr.params,

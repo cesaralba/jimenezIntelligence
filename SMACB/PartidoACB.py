@@ -6,24 +6,27 @@ from collections.abc import Iterable
 from compression import zstd
 from itertools import product
 from pickle import dumps, loads
+from pprint import pp
 from typing import Optional, Dict, Tuple, Union, List, Any
 
 import numpy as np
 import pandas as pd
 from CAPcore.Misc import BadParameters, copyDictWithTranslation, getUTC, \
-    createDictFromGenerator, iterable2quotedString
+    createDictFromGenerator, iterable2quotedString, onlySetElement
 from CAPcore.Web import downloadPage, DownloadedPage, mergeURL
 from bs4 import Tag
+from configargparse import Namespace
+from mechanicalsoup import StatefulBrowser
 
 import SMACB.FichaPersona as FP
-from Utils.ProcessMDparts import procesaMDresInfoPeriodos, procesaMDresEstadsCompar, procesaMDresInfoRachas, \
-    procesaMDresCartaTiro, procesaMDjugadas, jugadaSort, jugada2str, jugadaKey2sort, jugadaTag2Desc, jugadaKey2str, \
-    procesaMDboxscore, procesaMDavailableContent, procesaMDresDatosPartido
+from SMACB.PlantillaACB import nombrePers2idPers, generaLinkJug
+from Utils.ProcesaMDACB.Partido import procesaMDboxscore, procesaMDavailableContent, procesaMDresDatosPartido, \
+    procesaMDresEstadsCompar, procesaMDresInfoRachas, procesaMDresCartaTiro, procesaMDresInfoPeriodos, jugadaTag2Desc, \
+    jugadaKey2sort, jugadaKey2str, jugada2str, jugadaSort, procesaMDjugadas
 from Utils.Web import extraePagDataScripts, getIDfromEncURL
 from Utils.Web import prepareDownloading
-from .Constants import (URL_BASE)
 from .Constants import (bool2esp, haGanado2esp, local2esp, LocalVisitante, OtherLoc, titular2esp, infoJornada,
-                        POLABEL2FASE, DEFTZ)
+                        POLABEL2FASE, DEFTZ, URL_BASE, CLAVESINENTRENADOR)
 
 
 class PartidoACB():
@@ -68,7 +71,8 @@ class PartidoACB():
         for loc in LocalVisitante:
             self.Equipos[loc]['haGanado'] = self.ResultadoCalendario[loc] > self.ResultadoCalendario[OtherLoc(loc)]
 
-    def descargaPartido(self, home=None, browser=None, config=None):
+    def descargaPartido(self, home=None, browser: Optional[StatefulBrowser] = None,
+                        config: Optional[Namespace | Dict] = None):
 
         browser, config = prepareDownloading(browser, config)
 
@@ -127,13 +131,27 @@ class PartidoACB():
             dataEq = dataEmb['boxscore']['equipos'][loc]
 
             resEq['abrev'] = dataEq['abbreviatedName']
-            resEq['id'] = dataEq['clubId']
+            resEq['idEq'] = dataEq['clubId']
             resEq['Jugadores'] = dataEq['jugadores']
             resEq['Nombre'] = dataEq['shortName']
             resEq['estads'] = dataEmb['boxscore']['totales'][loc]
             resEq['NoAsignado'] = dataEmb['boxscore']['noAsig'][loc]
             resEq['Puntos'] = resEq['estads']['P']
-            resEq['Entrenador'] = dataEq['entrenador']  # TODO: Matchear con ID de entrenador (ya no está en las pags)
+
+            if dataEq['entrenador'] == '-':
+                claveEnt = CLAVESINENTRENADOR
+                logging.warning("Partido %s. Eq '%s' (%s) sin entrenador conocido", self, resEq['Nombre'], loc.lower())
+            else:
+                claveEntAux:Optional[set[str]|str] = nombrePers2idPers(dataEq['entrenador'], idEq=resEq['idEq'], esTecnico=True)
+                if isinstance(claveEntAux,set):
+                    if len(claveEntAux)==1:
+                        claveEnt=onlySetElement(claveEntAux)
+                    else:
+                        raise ValueError(f"Varias traducciones posibles para '{dataEq['entrenador']}': {sorted(claveEntAux)}")
+                else:
+                    claveEnt=claveEntAux
+
+            resEq['Entrenador'] = (claveEnt, dataEq['entrenador'])
             self.Equipos[loc].update(resEq)
 
         for loc in LocalVisitante:
@@ -149,10 +167,10 @@ class PartidoACB():
             datosGlobPart = {
                 'equipo': datosEq['Nombre'],
                 'CODequipo': datosEq['abrev'],
-                'IDequipo': datosEq['id'],
+                'IDequipo': datosEq['idEq'],
                 'rival': datosRiv['Nombre'],
                 'CODrival': datosRiv['abrev'],
-                'IDrival': datosRiv['id'],
+                'IDrival': datosRiv['idEq'],
                 'url': self.url,
                 'haGanado': datosEq['haGanado'],
                 'estado': loc,
@@ -169,23 +187,25 @@ class PartidoACB():
                     'entrenador': False,
                     'estads': dataEmb['boxscore']['jugadores'][idJug],
                     'haJugado': dataEmb['boxscore']['jugadores'][idJug]['Segs'] > 0,
-                    'linkPersona': infoJug['linkPersona']
+                    'linkPersona': generaLinkJug(infoJug['personaURLpart'], datosEq['idEq'])
                 }
                 resJug.update(datosComunes)
                 resJug.update(datosGlobPart)
                 self.Jugadores[idJug] = resJug
 
+            idEnt, nombEnt = datosEq['Entrenador']
             resEnt = {
                 # 'codigo': No ha parece en los datos embedded de la página
-                'nombre': datosEq['Entrenador'],
-                'dorsal': 'E',
+                'codigo': idEnt if idEnt is not None else CLAVESINENTRENADOR,
+                'nombre': nombEnt if idEnt is not None else "No acreditado",
+                'dorsal': '1',
                 'esJugador': False,
                 'entrenador': True,
                 # 'linkPersona': ya no aparece en los datos
             }
             resEnt.update(datosComunes)
             resEnt.update(datosGlobPart)
-            self.Entrenadores[datosEq['Entrenador']] = resEnt
+            self.Entrenadores[resEnt['codigo']] = resEnt
 
     def jugadoresAdataframe(self) -> pd.DataFrame:
         typesDF = {'competicion': 'object', 'temporada': 'int64', 'jornada': 'int64', 'esLocal': 'bool',
@@ -343,7 +363,8 @@ class PartidoACB():
 
         return result
 
-    def descargaEmbMetadata(self, pagData: Optional[DownloadedPage] = None, browser=None, config=None):
+    def descargaEmbMetadata(self, pagData: Optional[DownloadedPage] = None, browser: Optional[StatefulBrowser] = None,
+                            config: Optional[Namespace | Dict] = None):
         resultado = {}
 
         if pagData is None:
@@ -420,9 +441,11 @@ class PartidoACB():
             return funcResult
 
         def generaPlantillaEntrenador(idEntr: str) -> Dict[str, Dict[str, str]]:
-            auxData: dict = persPartido2dictFicha(self.Entrenadores[idEntr])
-            auxData.update({'activo': True, 'dorsal': '1', 'nombre': self.Entrenadores[idEntr]['nombre']})
-            funcResult = {idEntr: auxData}
+            entClave = idEntr if idEntr is not None else CLAVESINENTRENADOR
+            auxData: dict = persPartido2dictFicha(self.Entrenadores[entClave])
+            auxData.update({'activo': True, 'dorsal': '1', 'nombre': self.Entrenadores[entClave]['nombre']})
+
+            funcResult = {entClave: auxData}
 
             return funcResult
 
@@ -434,7 +457,8 @@ class PartidoACB():
         result['jugadores'] = auxPlantilla['jugadores']
         result['jugadores'].update(generaPlantillaJugadores(eqData['Jugadores']))
         result['tecnicos'] = auxPlantilla['tecnicos']
-        result['tecnicos'].update(generaPlantillaEntrenador(eqData['Entrenador']))
+        idEnt, _ = eqData['Entrenador']
+        result['tecnicos'].update(generaPlantillaEntrenador(idEnt))
         result['club'] = auxPlantilla['club']
         result['club'].update({'nombreActual': eqData['Nombre'], 'nombreOficial': eqData['Nombre']})
 
@@ -495,8 +519,8 @@ def auxJugador2dataframe(typesDF, jugador, fechaPartido):
     return dfresult
 
 
-def procesaPaginaResumen(urlResumen: Union[str, DownloadedPage], home=None, browser=None,
-                         config=None) -> Tuple[dict, DownloadedPage]:
+def procesaPaginaResumen(urlResumen: Union[str, DownloadedPage], home=None, browser: Optional[StatefulBrowser] = None,
+                         config: Optional[Namespace | Dict] = None) -> Tuple[dict, DownloadedPage]:
     if isinstance(urlResumen, DownloadedPage):
         resumenPage = urlResumen
     else:
@@ -511,8 +535,8 @@ def procesaPaginaResumen(urlResumen: Union[str, DownloadedPage], home=None, brow
     return resultado, resumenPage
 
 
-def procesaPlayByPlay(urlJugadas: Union[str, DownloadedPage], home=None, browser=None,
-                      config=None) -> Tuple[dict, DownloadedPage]:
+def procesaPlayByPlay(urlJugadas: Union[str, DownloadedPage], home=None, browser: Optional[StatefulBrowser] = None,
+                      config: Optional[Namespace | Dict] = None) -> Tuple[dict, DownloadedPage]:
     if isinstance(urlJugadas, DownloadedPage):
         jugadasPage = urlJugadas
     else:
@@ -540,17 +564,17 @@ def procesaPlayByPlay(urlJugadas: Union[str, DownloadedPage], home=None, browser
     return resultado, jugadasPage
 
 
-def procesaBoxScore(urlBoxscore: Union[str, DownloadedPage], home=None, browser=None,
-                    config=None) -> Tuple[dict, DownloadedPage]:
+def procesaBoxScore(urlBoxscore: Union[str, DownloadedPage], home=None, browser: Optional[StatefulBrowser] = None,
+                    config: Optional[Namespace | Dict] = None) -> Tuple[dict, DownloadedPage]:
     if isinstance(urlBoxscore, DownloadedPage):
-        boxscorePage = urlBoxscore
+        boxscorePage: DownloadedPage = urlBoxscore
     else:
         browser, config = prepareDownloading(browser, config)
         boxscorePage: DownloadedPage = downloadPage(urlBoxscore, home=home, browser=browser, config=config)
 
-    linksJugs = extraeLinksPersonasPtBSc(boxscorePage, urlBase=boxscorePage.source)
+    # linksJugs = extraeLinksPersonasPtBSc(boxscorePage, urlBase=boxscorePage.source)
     resultado = {
-        'boxscore': procesaMDboxscore(extraePagDataScripts(boxscorePage, 'initialStatistics'), linksPers=linksJugs), }
+        'boxscore': procesaMDboxscore(extraePagDataScripts(boxscorePage, 'initialStatistics')), }
 
     return resultado, boxscorePage
 

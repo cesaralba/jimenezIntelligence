@@ -11,6 +11,8 @@ from CAPcore.LoggedClass import diffDicts, LoggedClassGenerator, splitCl2Str
 from CAPcore.LoggedValue import LoggedValue, extractValue, setNewValue
 from CAPcore.Misc import copyDictWithTranslation, getUTC, onlySetElement
 from CAPcore.Web import mergeURL, DownloadedPage, downloadPage
+from configargparse import Namespace
+from mechanicalsoup import StatefulBrowser
 from pandas import Timestamp
 from requests import HTTPError
 
@@ -28,6 +30,7 @@ CAMBIOSJUGADORES = defaultdict(lambda: {'cambios': set()})
 
 CLAVESFICHAPERSONA = ['URL', 'audioURL', 'nombre', 'alias', 'lugarNac', 'fechaNac', 'nacionalidad', 'club', 'edicion']
 CLAVESFICHAJUGADOR = ['posicion', 'altura', 'licencia', 'junior']  # ,'dorsal'
+
 
 VALIDPERSONATYPES = {'jugador', 'entrenador'}
 
@@ -119,8 +122,8 @@ class FichaPersona(DataLogger):
         changes = False
         changes |= self.updateDataFields(excludes=self.EXCLUDESPERSONA, **kwargs)
 
-        if 'URL' in kwargs:
-            self.urlConocidas.add(kwargs['URL'])
+        if 'linkPersona' in kwargs:
+            self.urlConocidas.add(kwargs['linkPersona'])
 
         currNombre = extractValue(self.nombre)
         if currNombre is not None and currNombre not in self.nombresConocidos:
@@ -253,7 +256,8 @@ class FichaPersona(DataLogger):
         changes |= self.partsTemporada.addPartido(persona=self, partido=partido)
 
         if eqPersona != self.ultClub:
-            self.fichasClub[self.ultClub].bajaClub(persId=self.persId, clubId=self.ultClub, timestamp=timestamp)
+            if self.ultClub is not None:
+                self.fichasClub[self.ultClub].bajaClub(persId=self.persId, clubId=self.ultClub, timestamp=timestamp)
             self.fichasClub[eqPersona] = self.nuevaFichaClub(persId=self.persId, clubId=self.ultClub,
                                                              **datosPersPart, timestamp=timestamp)
             self.updateDataFields(timestamp=timestamp, club=eqPersona)
@@ -320,7 +324,8 @@ class FichaPersona(DataLogger):
                 changeDict['urlFoto'] = ("", "Nueva")
         return changes
 
-    def descargaPagina(self, home=None, browser=None, config=None) -> Optional[DownloadedPage]:
+    def descargaPagina(self, home=None, browser: Optional[StatefulBrowser] = None,
+                       config: Optional[Namespace | Dict] = None) -> Optional[DownloadedPage]:
         browser, config = prepareDownloading(browser, config)
 
         url = self.buildURL()
@@ -336,12 +341,14 @@ class FichaPersona(DataLogger):
         return result
 
     @classmethod
-    def fromURL(cls, url: str, datos: Optional[dict] = None, home=None, browser=None, config=None):
+    def fromURL(cls, url: str, datos: Optional[dict] = None, home=None, browser: Optional[StatefulBrowser] = None,
+                config: Optional[Namespace | Dict] = None,**kwargs):
 
-        persId = getObjID(url, 'ver', None)
+        persId = getObjID(url, None)
         if persId is None:
             raise ValueError(f"FichaPersona.fromURL: incapaz de sacar ID de f'{url}'. Buscados 'ver' e 'persId'")
         newData = {'persId': persId}
+        newData.update(kwargs)
         if datos is not None:
             newData.update(datos)
 
@@ -367,7 +374,7 @@ class FichaPersona(DataLogger):
 
         if datosPartido is None:
             datosPartido = {}
-        fichaPers = {'id': idPersona}
+        fichaPers = {'persId': idPersona}
         fichaPers.update(kwargs)
         if 'linkPersona' in datosPartido:
             fichaPers['URL'] = mergeURL(URL_BASE, datosPartido['linkPersona']).removesuffix(".html").replace(" ", "-")
@@ -388,7 +395,8 @@ class FichaPersona(DataLogger):
     def nuevaFichaClub(self, **kwargs):
         raise NotImplementedError("nuevaFichaClub tiene que estar en las clases derivadas")
 
-    def actualizaDatosWeb(self, browser=None, config=None, home=None) -> bool:
+    def actualizaDatosWeb(self, browser: Optional[StatefulBrowser] = None, config: Optional[Namespace | Dict] = None,
+                          home=None) -> bool:
         result = False
         pag = self.descargaPagina(home, browser, config)
         if pag is None:
@@ -421,9 +429,11 @@ class FichaPersona(DataLogger):
         return result
 
 
+
 class FichaJugador(FichaPersona):
     FICHAPREF = "Jug"
     SUBCLASSCLAVES = ['posicion', 'altura', 'licencia', 'junior']
+    ARGSBIOMDEXTRACT={'externalBio':'playerData','internalBio':'player'}
     funcsValSubClass2Str = {'altura': lambda v: f"{v}cm" if v else "", 'junior': lambda v: "(Junior)" if v else "",
                             'posicion': lambda v: f"{v}" if v else "", 'licencia': lambda v: f"{v}" if v else "", }
     transValSubClass = {'junior': '', 'licencia': 'lic', 'posicion': 'posic', 'altura': 'alt'}
@@ -446,6 +456,7 @@ class FichaJugador(FichaPersona):
 
     def clavesSubclase(self):
         return self.CLAVESFICHAJUGADOR
+
 
     # @staticmethod
     # def fromPartido(idJugador: str, datosPartido: Optional[dict] = None, **kwargs):
@@ -476,7 +487,7 @@ class FichaJugador(FichaPersona):
     #     return FichaJugador(**fichaJug)
 
     # @staticmethod
-    # def fromURL(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
+    # def fromURL(urlFicha, datosPartido: Optional[dict] = None, home=None, browser: Optional[StatefulBrowser] = None, config=None):
     #     browser, config = prepareDownloading(browser, config)
     #
     #     try:
@@ -490,7 +501,7 @@ class FichaJugador(FichaPersona):
 
     # @staticmethod
     # def fromDatosPlantilla(datosFichaPlantilla: Optional[dict] = None, idClub: Optional[str] = None, home=None,
-    #                        browser=None, config=None
+    #                        browser: Optional[StatefulBrowser] = None, config=None
     #                        ):
     #     if datosFichaPlantilla is None:
     #         return None
@@ -507,7 +518,7 @@ class FichaJugador(FichaPersona):
     #
     #     return FichaJugador(**newData)
     #
-    # def actualizaFromWeb(self, datosPartido: Optional[dict] = None, home=None, browser=None, config=None):
+    # def actualizaFromWeb(self, datosPartido: Optional[dict] = None, home=None, browser: Optional[StatefulBrowser] = None, config=None):
     #
     #     result = False
     #     changeInfo = {}
@@ -612,6 +623,7 @@ class FichaJugador(FichaPersona):
 class FichaEntrenador(FichaPersona):
     FICHAPREF = "Ent"
     SUBCLASSCLAVES = []
+    ARGSBIOMDEXTRACT={'externalBio':'coachData','internalBio':'coach'}
     funcsValSubClass2Str = {}
     transValSubClass = {}
 
@@ -723,7 +735,7 @@ class PartidosClub:
     __repr__ = partsClub2str
 
 
-def extraeDatosPersonales(datosPag: Optional[DownloadedPage], datosPartido: Optional[dict] = None):
+def extraeDatosPersonales(datosPag: Optional[DownloadedPage], datosPartido: Optional[dict] = None,**kwargs):
     """
     Saca la información de las personas de la ficha personal en ACB.com
     :param datosPag:
@@ -740,10 +752,11 @@ def extraeDatosPersonales(datosPag: Optional[DownloadedPage], datosPartido: Opti
         return auxResult
 
     auxResult['URL'] = datosPag.source
-    auxResult['timestamp'] = datosPag.timestamp
+    auxResult['timestamp'] = kwargs.get('timestamp',datosPag.timestamp)
 
     fichaData: bs4.BeautifulSoup = datosPag.data
 
+    dataPag=extraeDatosPersonales
     cosasUtiles: Optional[bs4.BeautifulSoup] = fichaData.find(name='div', attrs={'class': 'datos'})
 
     if cosasUtiles is not None:
@@ -772,7 +785,8 @@ def updateFieldsWithLogged(data, keyList: List[str], changeInfo: object = sentin
     return result
 
 
-def descargaYparseaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=None, browser=None, config=None
+def descargaYparseaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=None,
+                            browser: Optional[StatefulBrowser] = None, config: Optional[Namespace | Dict] = None
                             ) -> dict:
     browser, config = prepareDownloading(browser, config)
 
@@ -790,7 +804,7 @@ def descargaYparseaURLficha(urlFicha, datosPartido: Optional[dict] = None, home=
         auxResult['URL'] = browser.get_url()
         auxResult['timestamp'] = fichaJug.timestamp
 
-        auxResult['id'] = getObjID(urlFicha, 'ver')
+        auxResult['id'] = getObjID(urlFicha)
 
         fichaData: bs4.BeautifulSoup = fichaJug.data
 

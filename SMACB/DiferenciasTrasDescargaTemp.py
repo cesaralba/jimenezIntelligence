@@ -6,7 +6,7 @@ from CAPcore.LoggedDict import LoggedDictDiff
 from CAPcore.Misc import onlySetElement
 
 from .CalendarioACB import dictK2partStr
-from .Constants import infoJornada
+from .Constants import infoJornada, CLAVESINENTRENADOR
 from .FichaClub import FichaClubEntrenador
 from .FichaPersona import FichaEntrenador, FichaJugador, FichaPersona
 from .PlantillaACB import CambiosPlantillaTipo, PlantillaACB
@@ -388,6 +388,9 @@ def procesaCambiosClubTecnicos(cambiosDict: Dict, eqId: str, temporada: Temporad
 
     idPers: str
     for idPers in sorted(cambiosDict['values'].keys()):
+        if idPers == CLAVESINENTRENADOR:
+            continue
+
         chg = cambiosDict['values'][idPers]
         datosLinea = []
         cambiosValores = []

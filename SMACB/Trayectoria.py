@@ -166,7 +166,8 @@ def extractTempClubInfo(datos: bs4.element.Tag) -> TempClubInfoBasic:
         raise TypeError(f"extractTempClubInfo: expected tag 'a', got '{datos.name}'. Source: {datos}")
 
     destURL = datos['href']
-    clubId = getObjID(destURL, 'id')
+    clubId = getObjID(destURL)
+    raise ValueError(f"Hay que arreglar esto (temporada_id ya no está en el path sino en el parámetro de la URL {destURL}")
     tempId = getObjID(destURL, clave='temporada_id')
     clubName = datos.getText()
 
