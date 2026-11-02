@@ -1,4 +1,5 @@
 from collections import namedtuple
+from typing import List
 
 from CAPcore.Misc import BadParameters
 
@@ -106,3 +107,15 @@ que depende del número de partidos/jornadas
                                       'cuartos de final': 60, 'semifinal': 70}
 
     return fasePO2jorBase[fasePO.lower()] + int(numPart)
+
+
+CLUBEXCLUDES = {'logo', 'clubId', 'estanciaACB', 'shirtTextColor', 'contrastRequired', 'displayColor',
+                'displayTextColor', 'id', 'logoAlt', 'primaryColorHex', 'secondaryLogo', 'textColorHex'}
+CLUBTRADUCCS = {'stadiumName': 'pabellon', 'stadiumCapacity': 'aforo', 'presidentName': 'presidente',
+                'foundationYear': 'fundacion', 'fullName': 'nombreOficial', 'shortName': 'nombreActual',
+                'abbreviatedName': 'abrev'}
+
+CLAVESINENTRENADOR = "999999"
+
+PATHURLJUG: List[str] = ["", "es", "liga", "jugadores"]
+PATHURLEQUIPOS = ['', 'es', 'liga', 'equipos']
