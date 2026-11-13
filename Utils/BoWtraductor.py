@@ -1,5 +1,6 @@
 import re
 from collections import defaultdict
+from typing import Set, Any
 from unicodedata import normalize
 
 from CAPcore.Misc import cosaCorta, cosaLarga, listize, onlySetElement
@@ -7,7 +8,7 @@ from CAPcore.Misc import cosaCorta, cosaLarga, listize, onlySetElement
 NORMADEFECTO = 'NFKD'
 
 
-class BoWTraductor():
+class BoWTraductor:
     """
     Clase genérica para un traductor k->v.
     """
@@ -16,9 +17,11 @@ class BoWTraductor():
         self.NORMA = NORMA  # Valores para NORMA ['NFC', 'NFKC', 'NFD', 'NFKD']
         self.TradConocidas = defaultdict(set)
         self.TradNormalizadas = defaultdict(set)
+        self.v2k = defaultdict(set)
+        self.v2kNorm = defaultdict(set)
         self.vn2bow = {}
 
-    def AddTraduccion(self, clave, valor):
+    def addTraduccion(self, clave, valor):
         """
         Añade una nueva traducción conocida
         :param clave: cadena que se traduciría en valor
@@ -26,12 +29,14 @@ class BoWTraductor():
         :return: None
         """
         self.TradConocidas[clave].add(valor)
-        kNorm = NormalizaCadena(clave, self.NORMA)
+        self.v2k[valor].add(clave)
+        kNorm = normalizaCadena(clave, self.NORMA)
         self.TradNormalizadas[kNorm].add(valor)
-        kBoW = CreaBoW(kNorm)
+        self.v2kNorm[valor].add(kNorm)
+        kBoW = creaBoW(kNorm)
         self.vn2bow[kNorm] = kBoW
 
-    def CargaTraducciones(self, diccionario):
+    def cargaTraducciones(self, diccionario):
         """
         CargaTraducciones Importa las traducciones conocidas.
         :param diccionario: Espera un diccionario valor objetivo <- iterable de cadenas validas
@@ -42,23 +47,23 @@ class BoWTraductor():
             parCadenas = listize(cadenas)
 
             for k in parCadenas:
-                self.AddTraduccion(k, valor)
+                self.addTraduccion(k, valor)
 
-    def BuscaTraduccion(self, x, umbral=0):
+    def buscaTraduccion(self, x, umbral=0):
         if x in self.TradConocidas:
 
             if len(self.TradConocidas[x]) == 1:
                 auxRes = self.TradConocidas[x]
                 return list(auxRes.copy())[0]
         else:
-            valNorm = NormalizaCadena(x, NORMA=self.NORMA)
+            valNorm = normalizaCadena(x, NORMA=self.NORMA)
             if valNorm in self.TradNormalizadas:
                 auxRes = self.TradNormalizadas[valNorm]
                 return onlySetElement(auxRes)
 
-            bowx = CreaBoW(valNorm)
-            resultList = [(vny, vnyVal, CompareBagsOfWords(bowx, vnyVal)) for vny, vnyVal in self.vn2bow.items() if
-                          CompareBagsOfWords(bowx, vnyVal) > 0]
+            bowx = creaBoW(valNorm)
+            resultList = [(vny, vnyVal, compareBagsOfWords(bowx, vnyVal)) for vny, vnyVal in self.vn2bow.items() if
+                          compareBagsOfWords(bowx, vnyVal) > 0]
 
             fullMatch = [x for x in resultList if len(bowx) == x[2]]
 
@@ -83,13 +88,42 @@ class BoWTraductor():
                     return onlySetElement(fullMatch)
 
                 if candidates:
-                    print(candidates)
                     return candidates
 
         return None
 
+    def normalizaCadena(self, cadena: str):
+        return normalizaCadena(cadena, self.NORMA)
 
-def NormalizaCadena(x, NORMA=NORMADEFECTO):
+    def traduceNombres(self, nombre: str, umbral: int = 1):
+        """
+        Busca la mejor traducción posible para un nombre (es un caso específico porque lo relevante es el apellido)
+        :param nombre: cadena con un nombre de ciudadano
+        :param umbral: número mínimo de palabras para aceptar solución
+        :return:
+        """
+
+        tradBasica = self.buscaTraduccion(nombre, umbral)
+        if not isinstance(tradBasica, defaultdict):
+            return tradBasica
+
+        mejorRespuesta: Set[Any] = tradBasica[max(tradBasica.keys())]
+        if len(mejorRespuesta) == 1:
+            return next(iter(mejorRespuesta))
+        nombreNorm = self.normalizaCadena(nombre)
+        resultado = set()
+        for cand in mejorRespuesta:
+            for candNorm in self.v2kNorm[cand]:
+                if comparaNombresPersonas(nombreNorm, candNorm, umbral=1):
+                    resultado.add(cand)
+
+        if len(resultado) == 1:
+            return next(iter(resultado))
+
+        return resultado
+
+
+def normalizaCadena(x, NORMA=NORMADEFECTO):
     """
     Normaliza una cadena. Incluye Unicode -> encode ASCII -> minusculas
     :param x: Cadena.
@@ -101,7 +135,7 @@ def NormalizaCadena(x, NORMA=NORMADEFECTO):
     return normalize(NORMA, x).encode('ascii', 'ignore').lower()
 
 
-def CreaBoW(x):
+def creaBoW(x):
     """
     Crea un set con las palabras de una cadena
     :param x: cadena. ASUME que ya está normalizada
@@ -110,7 +144,7 @@ def CreaBoW(x):
     return set(x.split())
 
 
-def CompareBagsOfWords(x, y):
+def compareBagsOfWords(x, y):
     def setize(x):
         if not isinstance(x, (set, str, bytes)):
             raise TypeError(f"Esperaba cadena o set: {x} -> {type(x)}")
@@ -137,7 +171,7 @@ def wordPosSet(wordList):
     if isinstance(wordList, list):
         wrkList = wordList
     elif isinstance(wordList, (str, bytes)):
-        wordList.split()
+        wrkList = wordList.split()
 
     result = defaultdict(set)
     for o, w in enumerate(wrkList):
@@ -146,7 +180,7 @@ def wordPosSet(wordList):
     return result
 
 
-def RetocaNombreJugador(x):
+def retocaNombrePersona(x):
     """
     Dado un "APELLIDOS, NOMBRE", devuelve "NOMBRE APELLIDOS"
     :param x:
@@ -196,8 +230,8 @@ def comparaNombresPersonas(fr1, fr2, umbral=1):
     if fr1 == fr2:
         return True
 
-    set1 = CreaBoW(fr1)
-    set2 = CreaBoW(fr2)
+    set1 = creaBoW(fr1)
+    set2 = creaBoW(fr2)
 
     if set1 == set2:
         return True
@@ -250,7 +284,7 @@ def getSubsets(cadenaNorm, elemClave):
     :param elemClave:
     :return:
     """
-    set1 = CreaBoW(cadenaNorm)
+    set1 = creaBoW(cadenaNorm)
 
     list1 = cadenaNorm.split()
     order1 = wordPosSet(list1)

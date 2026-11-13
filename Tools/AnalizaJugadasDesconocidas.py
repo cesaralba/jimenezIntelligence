@@ -14,7 +14,8 @@ from configargparse import ArgumentParser, Namespace
 
 from SMACB.PartidoACB import PartidoACB
 from SMACB.TemporadaACB import cargaTemporada
-from Utils.ProcessMDparts import procesaMDjugadas, play2key, jugadaTag2Desc, jugada2str, jugadaKey2sort, jugadaKey2str
+from Utils.ProcesaMDACB.Partido import jugadaTag2Desc, jugadaKey2sort, jugadaKey2str, jugada2str, procesaMDjugadas, \
+    play2key
 from Utils.Web import extraePagDataScripts, prepareDownloading
 
 

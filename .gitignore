@@ -16,3 +16,6 @@ build/
 data
 dist/
 *.egg-info/
+doc/20241123-NormasIntACB-202425.pdf doc/20260529-NormasIntACB-202526.pdf doc/SuperManager.sample
+doc/
+Notebooks/

@@ -4,26 +4,28 @@ import sys
 import traceback
 from collections import defaultdict
 from copy import copy
-from time import gmtime
-from typing import Set, Optional, Dict, Any
+from typing import Set, Optional, Dict, Any, List
 from urllib.parse import urlparse, urlunparse, parse_qs, ParseResult, urlencode
 
 import bs4.element
 import pandas as pd
-from CAPcore.Misc import listize, onlySetElement
+from CAPcore.Misc import listize, onlySetElement, getUTC
 from CAPcore.Web import downloadPage, DownloadedPage
+from configargparse import Namespace
+from mechanicalsoup import StatefulBrowser
 
 from Utils.FechaHora import NEVER, PATRONFECHA, PATRONFECHAHORA, fecha2fechaCalDif, procesaFechaJornada
-from Utils.ProcessMDparts import procesaMDcalFl2calendarIDs, procesaMDcalTeams2InfoEqs, procesaMDcalFl2Info
+from Utils.ProcesaMDACB.Calendario import procesaMDcalFl2Info, procesaMDcalFl2calendarIDs, procesaMDcalTeams2InfoEqs
 from Utils.Web import prepareDownloading, tagAttrHasValue, logger, extraePagDataScripts
 from .Constants import REGEX_JLR, REGEX_PLAYOFF, numPartidoPO2jornada, infoJornada, LocalVisitante, OtherLoc, DEFTZ
 
 calendario_URLBASE = 'https://www.acb.com/es/liga/calendario'
 
-# https://www.acb.com/calendario/index/temporada_id/2018
-# https://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
 template_CALENDARIOYEAR = "https://www.acb.com/calendario/index/temporada_id/{year}"
 template_PARTIDOSEQUIPO = "https://www.acb.com/club/partidos/id/{idequipo}"
+
+# https://www.acb.com/calendario/index/temporada_id/2018
+# https://www.acb.com/calendario/index/temporada_id/2019/edicion_id/952
 
 ETIQubiq = ['local', 'visitante']
 
@@ -40,7 +42,7 @@ JORNADASCOMPLETAS: Optional[Set] = None
 class CalendarioACB:
 
     def __init__(self, urlbase=calendario_URLBASE, **kwargs):
-        self.timestamp = gmtime()
+        self.timestamp = getUTC()
         self.competicion = kwargs.get('competicion', "LACB")
         self.nombresCompeticion = defaultdict(int)
         self.edicion = kwargs.get('edicion')
@@ -51,13 +53,39 @@ class CalendarioACB:
         self.urlbase = urlbase
         self.url = None
 
-    def actualizaCalendario(self, home=None, browser=None, config=None):
+    def actualizaCalendario(self, home=None, browser: Optional[StatefulBrowser] = None,
+                            config: Optional[Namespace | Dict] = None):
         browser, config = prepareDownloading(browser, config)
         calendarioPage: DownloadedPage = self.descargaCalendario(home=home, browser=browser, config=config)
 
         self.procesaCalendario(calendarioPage, home=self.url, browser=browser, config=config)
 
     def procesaCalendario(self, content: DownloadedPage, **kwargs):
+        if 'timestamp' in content:
+            self.timestamp = content.timestamp
+        if 'source' in content:
+            self.url = content.source
+        calendarioData: bs4.element.Tag = content.data
+
+        reRound = re.compile(r"^Round-module-scss-module__(.*)__round")
+        reRoundTitle = re.compile(r"^RoundTitle-module-scss-module__-(.*)__roundTitle")
+        jornadasCurrCal = set()
+
+        for divJ in calendarioData.find_all("div", {"class": reRound}):  # ,
+            divCab = divJ.find("div", {'class': reRoundTitle})
+            datosCab = procesaCab(divCab)
+            if datosCab is None:
+                continue
+
+            self.Jornadas[datosCab['jornada']] = self.procesaBloqueJornada(divJ, datosCab, **kwargs)
+            jornadasCurrCal.add(datosCab['jornada'])
+
+        jor2del: set = set(self.Jornadas.keys()).difference(jornadasCurrCal)
+        for j in jor2del:
+            logger.warning("Eliminando jornada desaparecida '%s'", j)
+            self.Jornadas.pop(j)
+
+    def procesaCalendarioEmb(self, content: DownloadedPage, **kwargs):
         if 'timestamp' in content:
             self.timestamp = content.timestamp
         if 'source' in content:
@@ -126,7 +154,8 @@ class CalendarioACB:
 
         return result
 
-    def descargaCalendario(self, home=None, browser=None, config=None) -> DownloadedPage:
+    def descargaCalendario(self, home=None, browser: Optional[StatefulBrowser] = None,
+                           config: Optional[Namespace | Dict] = None) -> DownloadedPage:
         browser, config = prepareDownloading(browser, config)
 
         global embeddedDataTemporadas  # pylint: disable=global-statement
@@ -153,7 +182,7 @@ class CalendarioACB:
                 embeddedDataCalendario = procesaMDcalFl2Info(avFilters, embeddedDataEquipos)
                 for embData in embeddedDataEquipos['eqData'].values():
                     self.nuevaTraduccionEquipo2Codigo([embData['nomblargo'], embData['nombcorto']], embData['abrev'],
-                                                      embData['id'])
+                                                      embData['idEq'])
                 return pagCalendario
 
             logger.info("DescargaCalendario. URL %s", self.url)
@@ -170,7 +199,7 @@ class CalendarioACB:
 
         for embData in embeddedDataEquipos['eqData'].values():
             self.nuevaTraduccionEquipo2Codigo([embData['nomblargo'], embData['nombcorto']], embData['abrev'],
-                                              embData['id'])
+                                              embData['idEq'])
 
         return result
 
@@ -187,7 +216,6 @@ class CalendarioACB:
         result['esPlayoff']: bool = dictCab['esPlayoff']
         result['infoJornada']: infoJornada = dictCab['infoJornada']
 
-        # print(divDatos.prettify())
         for bloqueFecha in divDatos.find_all("h3"):
             fechaParts = procesaFechaJornada(bloqueFecha.getText())
             auxDictCab = {'fechaParts': fechaParts}
@@ -205,9 +233,9 @@ class CalendarioACB:
                         if nuevaFecha:
                             datosPart['fechaPartido'] = nuevaFecha
                     result['pendientes'].append(datosPart)
-                else:
-                    result['partidos'].append(datosPart)
-
+                    continue
+                self.Partidos[datosPart['partido']] = datosPart
+                result['partidos'].append(datosPart)
         result['numPartidos'] = len(result['partidos']) + len(result['pendientes'])
         return result
 
@@ -241,6 +269,7 @@ class CalendarioACB:
         resultado['loc2abrev'] = {loc: datosPartEqs[loc]['abrev'] for loc in LocalVisitante}
         resultado['abrev2loc'] = {datosPartEqs[loc]['abrev']: loc for loc in LocalVisitante}
         resultado['participantes'] = {datosPartEqs[loc]['abrev'] for loc in LocalVisitante}
+        resultado['participantesId'] = {datosPartEqs[loc]['idEq'] for loc in LocalVisitante}
         resultado['claveEmparejamiento'] = self.idGrupoEquiposNorm(resultado['participantes'])
 
         datosMD = embeddedDataCalendario[resultado['jornada']]['partidos'][resultado['claveEmparejamiento']]
@@ -342,20 +371,38 @@ class CalendarioACB:
 
         return result
 
-    def idPartidosJugados(self) -> Dict[str, str]:
-
-        # result = {str(p['partido']): k for k, p in self.Partidos.items()}
-        result = {}
-        for j in self.Jornadas.values():
-            for p in j['partidos']:
-                result[str(p['partido'])] = p
-
-        return result
-
     def getInfoJornadas(self) -> Dict[int, infoJornada]:
         result = {j: v['infoJornada'] for j, v in self.Jornadas.items()}
 
         return result
+
+    def listaPartidos2listaIdEqs(self, listaIdPartidos: Optional[List[str]] = None) -> List[str]:
+        """
+        Dada una lista de partidos a descargar, devuelve una lista con los IDs de los equipos
+        :param listaIdPartidos: Opcional, si Nula o vacía, devuelve todos
+        :return:
+        """
+
+        if listaIdPartidos == []:
+            listaIdPartidos = None
+
+        if listaIdPartidos is None:
+            return list(self.tradEquipos['i2n'].keys())
+
+        result = set()
+        partidosFallidos = []
+
+        for k in listaIdPartidos:
+            if k not in self.Partidos:
+                partidosFallidos.append(k)
+            part = self.Partidos[k]
+            result = result.union(part['participantesId'])
+
+        if partidosFallidos:
+            logging.warning("CalendarioACB.listaPartidos2listaIdEqs: se han buscado partidos inexistentes: [%s]",
+                            ",".join(partidosFallidos))
+
+        return sorted(result)
 
 
 def isSkeleton(tagElem: bs4.element.Tag, tag2search: str = "span") -> bool:
@@ -403,7 +450,8 @@ def procesaCab(cab: bs4.element.Tag) -> Optional[Dict]:
     return resultado
 
 
-def recuperaPartidosEquipo(idEquipo, home=None, browser=None, config=None):
+def recuperaPartidosEquipo(idEquipo, home=None, browser: Optional[StatefulBrowser] = None,
+                           config: Optional[Namespace | Dict] = None):
     if idEquipo in CALENDARIOEQUIPOS:
         return CALENDARIOEQUIPOS[idEquipo]
 
@@ -542,7 +590,7 @@ reDatosEqPScore = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch_
 
 rePartidoEnlaces = re.compile(r'^RoundMatch-module-scss-module__(.*)__roundMatch__links')
 
-CAMPOSDEEQUIPOAMOVER = ['nombcorto', 'id']
+CAMPOSDEEQUIPOAMOVER = ['nombcorto', 'idEq']
 
 
 def procesaDatosEquiposPartido(divData: bs4.element.Tag) -> dict:

@@ -21,7 +21,7 @@ HEREDIR=$(cd "$(dirname ${ME})" && pwd )
 BASEDIR=$(cd "${HEREDIR}/../" && pwd )
 TODAY=$(date '+%Y%m%d%H%M')
 
-CLAVEYEAR=${FILEKEY:-2025}
+CLAVEYEAR=${FILEKEY:-2026}
 COMPO=${SM_COMPETICION:-LACB}
 
 if [ -n "${SM_DATADIR}" ] ; then
