@@ -10,6 +10,9 @@ then
   set -vx
 fi
 
+PYTHONRUNNER=${PYTHON:-python3}
+PIPOPTIONS=${PIPOPT:-}
+
 ME="$(readlink -e $0)"
 HEREDIR=$(cd "$(dirname ${ME})" && pwd )
 BASEDIR=$(cd "${HEREDIR}/../" && pwd )
@@ -56,7 +59,7 @@ then
   :
 else
   echo "Creando VENV en ${VENVHOME}"
-  python -mvenv --clear ${VENVHOME} || soLong "Problemas creand VENV en ${VENVHOME}"
+  ${PYTHONRUNNER} -mvenv --clear ${VENVHOME} || soLong "Problemas creand VENV en ${VENVHOME}"
 fi
 
 source ${ACTIVATIONSCR}  || soLong "Problemas cargando ${ACTIVATIONSCR}"
@@ -77,5 +80,5 @@ done
 
 if [ -n "${PARAMREQS}" ]
 then
-  pip install -q ${PARAMREQS}
+  pip install ${PIPOPTIONS} -q ${PARAMREQS}
 fi
