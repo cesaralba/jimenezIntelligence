@@ -17,7 +17,7 @@ tzdata>=2026.6
 json5==0.17.3
 
 scipy>=1.18.1
-numpy>=2.5.4
+numpy>=2.5.5
 seaborn>=0.13.2
 pillow>=13.0.0
 contourpy>=1.4.0
